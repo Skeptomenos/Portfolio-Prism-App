@@ -56,14 +56,15 @@ hidden_imports = [
     'keyring.backends.macOS',
     'supabase',
     'postgrest',
-    'gotrue',
+    'supabase_auth',  # renamed from gotrue
     'httpx',
     'storage3',
     'realtime',
     # PDF parsing
     'pdfplumber',
     'pdfminer',
-    'pdfminer.six',
+    'pdfminer.pdfparser',
+    'pdfminer.pdfpage',
     'deep_translator',
 ]
 
