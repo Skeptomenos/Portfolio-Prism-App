@@ -23,6 +23,10 @@ cryptography
 pytr>=0.4.2
 python-dotenv
 
+# PDF parsing
+pdfplumber
+deep-translator
+
 # Phase 4: Auth & Hive dependencies
 keyring
 supabase

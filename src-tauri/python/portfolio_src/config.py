@@ -16,10 +16,12 @@ _prism_data_dir = os.getenv("PRISM_DATA_DIR")
 if _prism_data_dir:
     DATA_DIR = Path(_prism_data_dir)
     CONFIG_DIR = DATA_DIR / "config"  # User-writable config location
+    OUTPUTS_DIR = DATA_DIR / "outputs"  # User-writable outputs location
 else:
     # Development fallback
     DATA_DIR = PROJECT_ROOT / "data"
     CONFIG_DIR = PROJECT_ROOT / "config"
+    OUTPUTS_DIR = PROJECT_ROOT / "outputs"
 
 # Data Directories
 INPUTS_DIR = DATA_DIR / "inputs"
@@ -31,7 +33,6 @@ RAW_DOWNLOADS_DIR = WORKING_DIR / "raw_downloads"
 ASSET_UNIVERSE_PATH = CONFIG_DIR / "asset_universe.csv"
 
 # Output Directories
-OUTPUTS_DIR = PROJECT_ROOT / "outputs"
 REPORTS_DIR = OUTPUTS_DIR  # For now, reports go to root of outputs
 
 # File Paths

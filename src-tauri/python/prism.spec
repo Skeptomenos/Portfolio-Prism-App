@@ -60,6 +60,11 @@ hidden_imports = [
     'httpx',
     'storage3',
     'realtime',
+    # PDF parsing
+    'pdfplumber',
+    'pdfminer',
+    'pdfminer.six',
+    'deep_translator',
 ]
 
 # Add all streamlit submodules
