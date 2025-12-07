@@ -1,0 +1,28 @@
+# Build requirements for PyInstaller frozen binary
+# Keep minimal - only what's needed for the app to run
+
+pyinstaller>=6.0
+streamlit>=1.29.0
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Streamlit dependencies that may need explicit inclusion
+altair>=5.0.0
+pyarrow>=14.0.0
+
+# POC Dashboard requirements
+plotly>=5.18.0
+requests
+beautifulsoup4
+lxml
+openpyxl
+pydantic
+pandera
+tqdm
+cryptography
+pytr>=0.4.2
+python-dotenv
+
+# Phase 4: Auth & Hive dependencies
+keyring
+supabase

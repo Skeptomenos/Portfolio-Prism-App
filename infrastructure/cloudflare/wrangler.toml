@@ -1,0 +1,19 @@
+name = "portfolio-prism-proxy"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# Environment variables (secrets - set via wrangler secret put)
+# FINNHUB_API_KEY - Finnhub API key
+# GITHUB_TOKEN - GitHub personal access token
+# GITHUB_REPO - Repository for feedback issues (e.g., "user/portfolio-prism")
+
+[vars]
+# Non-secret variables can go here
+
+# Rate limiting can be enhanced with Cloudflare's Rate Limiting product
+# For now, we use in-memory limiting (resets on worker restart)
+
+# KV namespace for persistent rate limiting (optional)
+# [[kv_namespaces]]
+# binding = "RATE_LIMIT_KV"
+# id = "your-kv-namespace-id"

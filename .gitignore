@@ -1,0 +1,129 @@
+# ============================================
+# Portfolio Prism - Git Ignore
+# ============================================
+
+# --------------------------------------------
+# Legacy / Excluded Directories
+# --------------------------------------------
+# POC: Original Python dashboard (code migrated to src-tauri/python/portfolio_src/)
+/POC/
+
+# Legacy React prototype (kept for v2 reference)
+# /legacy/react-prototype/  # Uncomment to exclude from git
+
+# --------------------------------------------
+# Build Artifacts
+# --------------------------------------------
+# Rust/Cargo
+**/target/
+
+# Node.js
+node_modules/
+dist/
+dist-ssr/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.Python
+
+# PyInstaller
+src-tauri/python/build/
+src-tauri/python/dist/
+src-tauri/binaries/*
+!src-tauri/binaries/.gitkeep
+
+# --------------------------------------------
+# Virtual Environments
+# --------------------------------------------
+**/venv/
+**/venv-build/
+**/.venv/
+*.egg-info/
+
+# --------------------------------------------
+# IDE / Editor
+# --------------------------------------------
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# --------------------------------------------
+# OS Files
+# --------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# --------------------------------------------
+# Environment / Secrets
+# --------------------------------------------
+.env
+.env.local
+.env.*.local
+*.local
+
+# Cloudflare Worker secrets
+infrastructure/cloudflare/.dev.vars
+
+# --------------------------------------------
+# Logs
+# --------------------------------------------
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# --------------------------------------------
+# Testing / Coverage
+# --------------------------------------------
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# --------------------------------------------
+# Tauri Generated Files
+# --------------------------------------------
+# Schema files are auto-generated
+src-tauri/gen/schemas/
+
+# --------------------------------------------
+# AI / Agent Caches
+# --------------------------------------------
+.llm/
+.claude/
+.gemini/
+.opencode/
+gha-creds-*.json
+
+# --------------------------------------------
+# User Data (Privacy)
+# --------------------------------------------
+# Any local user portfolio data
+data/
+*.csv.bak
+*.backup*
+
+# --------------------------------------------
+# Temporary Files
+# --------------------------------------------
+*.tmp
+*.temp
+.cache/
