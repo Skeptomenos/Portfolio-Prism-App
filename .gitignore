@@ -129,3 +129,6 @@ src-tauri/python/data/
 *.tmp
 *.temp
 .cache/
+
+# Test logs
+logs/
