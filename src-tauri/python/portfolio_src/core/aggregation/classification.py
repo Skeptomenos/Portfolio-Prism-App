@@ -2,8 +2,8 @@
 
 import pandas as pd
 
-from src.utils.classification import classify_holding
-from src.utils.logging_config import get_logger
+from utils.classification import classify_holding
+from utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 

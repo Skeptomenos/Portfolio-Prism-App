@@ -8,13 +8,13 @@ for holdings that couldn't be resolved automatically.
 import pandas as pd
 import streamlit as st
 
-from src.core.enrichment_gaps import load_enrichment_gaps
-from src.data.manual_enrichments import (
+from core.enrichment_gaps import load_enrichment_gaps
+from data.manual_enrichments import (
     load_manual_enrichments,
     save_manual_enrichments_bulk,
     load_suggested_isins,
 )
-from src.utils.isin_validator import is_valid_isin
+from utils.isin_validator import is_valid_isin
 
 
 def render():

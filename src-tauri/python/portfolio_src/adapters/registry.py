@@ -9,13 +9,13 @@ import pandas as pd
 # Add the project root to the Python path
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from src.adapters.vaneck import VanEckAdapter
-from src.adapters.ishares import ISharesAdapter
-from src.adapters.xtrackers import XtrackersAdapter
-from src.adapters.amundi import AmundiAdapter
-from src.adapters.vanguard import VanguardAdapter
-from src.data.holdings_cache import HoldingsCache, ManualUploadRequired
-from src.utils.logging_config import get_logger
+from adapters.vaneck import VanEckAdapter
+from adapters.ishares import ISharesAdapter
+from adapters.xtrackers import XtrackersAdapter
+from adapters.amundi import AmundiAdapter
+from adapters.vanguard import VanguardAdapter
+from data.holdings_cache import HoldingsCache, ManualUploadRequired
+from utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 

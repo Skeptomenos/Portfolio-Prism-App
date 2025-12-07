@@ -12,11 +12,11 @@ from typing import Optional
 
 import pandas as pd
 
-from src.core.health import health
-from src.core.enrichment_gaps import EnrichmentGap, EnrichmentGapCollector
-from src.data.resolution import ISINResolver
-from src.utils.isin_validator import is_valid_isin
-from src.utils.logging_config import get_logger
+from core.health import health
+from core.enrichment_gaps import EnrichmentGap, EnrichmentGapCollector
+from data.resolution import ISINResolver
+from utils.isin_validator import is_valid_isin
+from utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 

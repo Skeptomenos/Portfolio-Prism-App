@@ -29,7 +29,7 @@ We use Cloudflare Workers to hide our Finnhub API key and handle rate limiting.
 
 3.  **Navigate to Worker Directory**:
     ```bash
-    cd tauri-app/infrastructure/cloudflare
+    cd infrastructure/cloudflare
     ```
 
 4.  **Set Secrets (Important!)**:
@@ -111,12 +111,12 @@ Now we need to tell the Tauri app where to find these services. Since we are pac
 We hardcode the URLs (but NOT the secrets) into the Python code or a config file before building.
 
 **Files to update:**
-1.  **Proxy URL**: Update `tauri-app/src-tauri/python/portfolio_src/data/proxy_client.py`:
+1.  **Proxy URL**: Update `src-tauri/python/portfolio_src/data/proxy_client.py`:
     ```python
     DEFAULT_PROXY_URL = "https://your-worker-name.workers.dev"
     ```
 
-2.  **Supabase Config**: Update `tauri-app/src-tauri/python/portfolio_src/data/hive_client.py`:
+2.  **Supabase Config**: Update `src-tauri/python/portfolio_src/data/hive_client.py`:
     ```python
     # Configured defaults
     DEFAULT_SUPABASE_URL = "https://your-project.supabase.co"
@@ -138,7 +138,7 @@ The user sets environment variables before launching the app.
 After updating the URLs in the code (Option A), verify and rebuild one last time:
 
 ```bash
-cd tauri-app/src-tauri/python
+cd src-tauri/python
 pyinstaller --noconfirm --clean prism.spec
 cp dist/prism ../binaries/prism-aarch64-apple-darwin
 ```

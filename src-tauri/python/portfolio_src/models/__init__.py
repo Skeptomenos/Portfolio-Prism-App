@@ -8,12 +8,12 @@ This module provides strongly-typed data containers that:
 - Document data structure in code
 
 Usage:
-    from src.models import Position, ETFHolding, ExposureRecord
+    from models import Position, ETFHolding, ExposureRecord
 """
 
-from src.models.portfolio import Position, DirectPosition, ETFPosition
-from src.models.holdings import ETFHolding, ClassifiedHolding, EnrichedHolding
-from src.models.exposure import ExposureRecord, AggregatedExposure
+from models.portfolio import Position, DirectPosition, ETFPosition
+from models.holdings import ETFHolding, ClassifiedHolding, EnrichedHolding
+from models.exposure import ExposureRecord, AggregatedExposure
 
 __all__ = [
     # Portfolio models

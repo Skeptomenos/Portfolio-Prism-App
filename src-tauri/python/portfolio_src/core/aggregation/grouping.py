@@ -4,9 +4,9 @@ from typing import Literal
 
 import pandas as pd
 
-from src.models import AggregatedExposure
-from src.utils.isin_validator import is_valid_isin, generate_group_key
-from src.utils.logging_config import get_logger
+from models import AggregatedExposure
+from utils.isin_validator import is_valid_isin, generate_group_key
+from utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 

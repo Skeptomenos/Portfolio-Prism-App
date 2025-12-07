@@ -5,8 +5,8 @@ import re
 import pandas as pd
 import requests
 from io import StringIO
-from src.data.caching import cache_adapter_data
-from src.utils.logging_config import get_logger
+from data.caching import cache_adapter_data
+from utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 

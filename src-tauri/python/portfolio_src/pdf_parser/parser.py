@@ -5,7 +5,7 @@ import pdfplumber
 import os
 import hashlib
 import multiprocessing
-from src.pdf_parser.utils import parse_description
+from pdf_parser.utils import parse_description
 from deep_translator import GoogleTranslator
 from tqdm import tqdm
 # NOTE: database.py was deleted in Phase 11 (legacy SQLite workflow removed)

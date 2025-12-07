@@ -19,9 +19,9 @@ try:
 except ImportError:
     CALAMINE_AVAILABLE = False
 
-from src.utils.logging_config import get_logger
-from src.config import MANUAL_INPUTS_DIR, RAW_DOWNLOADS_DIR
-from src.data.holdings_cache import ManualUploadRequired
+from utils.logging_config import get_logger
+from config import MANUAL_INPUTS_DIR, RAW_DOWNLOADS_DIR
+from data.holdings_cache import ManualUploadRequired
 
 logger = get_logger(__name__)
 
@@ -218,7 +218,7 @@ class AmundiAdapter:
     def _fetch_via_playwright(self, isin: str) -> pd.DataFrame:
         """Executes Playwright automation to download the holdings file."""
         try:
-            from src.utils.browser import (
+            from utils.browser import (
                 BrowserContext,
                 handle_cookie_consent,
                 wait_for_download,

@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from src.dashboard.utils import load_direct_holdings, load_exposure_report
+from dashboard.utils import load_direct_holdings, load_exposure_report
 
 
 def calculate_hhi(weights: pd.Series) -> float:

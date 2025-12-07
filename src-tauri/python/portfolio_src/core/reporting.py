@@ -13,9 +13,9 @@ Key changes in v2:
 import pandas as pd
 from typing import Optional
 
-from src.data.enrichment import enrich_securities
-from src.utils.isin_validator import is_valid_isin
-from src.utils.logging_config import get_logger
+from data.enrichment import enrich_securities
+from utils.isin_validator import is_valid_isin
+from utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 

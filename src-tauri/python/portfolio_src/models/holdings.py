@@ -8,7 +8,7 @@ through classification and enrichment stages.
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 from typing import Optional, Literal
 
-from src.utils.isin_validator import is_valid_isin, generate_group_key
+from utils.isin_validator import is_valid_isin, generate_group_key
 
 
 class ETFHolding(BaseModel):

@@ -2,8 +2,8 @@
 
 import pandas as pd
 
-from src.models import AggregatedExposure
-from src.utils.logging_config import get_logger
+from models import AggregatedExposure
+from utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 

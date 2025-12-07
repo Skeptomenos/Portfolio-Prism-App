@@ -263,7 +263,7 @@ def render_winners_losers(df: pd.DataFrame):
 
 def render_portfolio_insights(df: pd.DataFrame):
     """Render portfolio health summary with insights."""
-    from src.dashboard.insights import (
+    from dashboard.insights import (
         generate_portfolio_summary,
         generate_performance_insights,
     )
@@ -372,7 +372,7 @@ def render():
     )
 
     # Auto-snapshot on load (if >24h old)
-    from src.dashboard.utils import save_snapshot_if_needed
+    from dashboard.utils import save_snapshot_if_needed
 
     if save_snapshot_if_needed():
         st.toast("Portfolio snapshot saved", icon="📸")

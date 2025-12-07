@@ -19,9 +19,9 @@ import requests
 import pandas as pd
 from typing import Optional, List, Dict, Any
 
-from src.data.caching import cache_adapter_data
-from src.utils.logging_config import get_logger
-from src.config import MANUAL_INPUTS_DIR, RAW_DOWNLOADS_DIR
+from data.caching import cache_adapter_data
+from utils.logging_config import get_logger
+from config import MANUAL_INPUTS_DIR, RAW_DOWNLOADS_DIR
 
 logger = get_logger(__name__)
 
@@ -304,7 +304,7 @@ class VanguardAdapter:
         and extracts all holdings from the rendered page.
         """
         try:
-            from src.utils.browser import (
+            from utils.browser import (
                 BrowserContext,
                 handle_cookie_consent,
                 save_debug_screenshot,

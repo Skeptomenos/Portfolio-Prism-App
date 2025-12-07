@@ -13,7 +13,7 @@ import plotly.graph_objects as go
 import streamlit as st
 from pathlib import Path
 
-from src.dashboard.utils import load_holdings_breakdown, load_direct_holdings
+from dashboard.utils import load_holdings_breakdown, load_direct_holdings
 
 
 def calculate_etf_overlap(breakdown_df: pd.DataFrame) -> dict:
@@ -231,7 +231,7 @@ def render_securities_list(overlap_data: dict):
 
 def render_overlap_insights_section(overlap_data: dict, direct_df: pd.DataFrame):
     """Render educational insights about ETF overlap."""
-    from src.dashboard.insights import generate_overlap_insights
+    from dashboard.insights import generate_overlap_insights
 
     multi_df = overlap_data.get("multi_etf_securities")
     if multi_df is None or multi_df.empty:

@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from src.dashboard.utils import (
+from dashboard.utils import (
     load_direct_holdings,
     load_holdings_breakdown,
     get_isin_name_mapping,

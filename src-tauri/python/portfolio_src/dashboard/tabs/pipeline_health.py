@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from src.dashboard.utils import load_pipeline_health
+from dashboard.utils import load_pipeline_health
 
 
 def render_metrics(data: dict):

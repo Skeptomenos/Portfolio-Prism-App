@@ -7,7 +7,7 @@ for common tasks like cookie consent handling, file downloads, and network
 interception.
 
 Usage:
-    from src.utils.browser import BrowserContext, handle_cookie_consent
+    from utils.browser import BrowserContext, handle_cookie_consent
 
     with BrowserContext(headless=True) as ctx:
         page = ctx.new_page()
@@ -21,8 +21,8 @@ from typing import Optional, Callable, List, Dict, Any
 from contextlib import contextmanager
 from pathlib import Path
 
-from src.utils.logging_config import get_logger
-from src.config import RAW_DOWNLOADS_DIR
+from utils.logging_config import get_logger
+from config import RAW_DOWNLOADS_DIR
 
 logger = get_logger(__name__)
 
