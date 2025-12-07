@@ -13,78 +13,31 @@ Phase 4 (Auth & Hive) code exists but has **1 critical issue** and **3 medium is
 
 ## Critical Issues
 
-### Issue 1: Missing Hidden Imports in prism.spec
+### Issue 1: Missing Hidden Imports in prism.spec ✅ RESOLVED
 
 **File:** `src-tauri/python/prism.spec`
-**Lines:** 30-53 (hidden_imports list)
+**Lines:** 53-62 (hidden_imports list)
 
-**Current State:**
-`keyring` and `supabase` are in `requirements-build.txt` but NOT in `prism.spec` hidden imports.
+**Resolution:** Added all required hidden imports:
+- keyring, keyring.backends, keyring.backends.macOS
+- supabase, postgrest, gotrue, httpx, storage3, realtime
 
-**Problem:**
-The binary will crash with `ModuleNotFoundError` when:
-- User attempts TR login (uses `keyring`)
-- Hive sync runs (uses `supabase`)
-
-**Fix Required:**
-Add to `hidden_imports` list in `prism.spec`:
-```python
-# Phase 4: Auth & Hive dependencies
-'keyring',
-'supabase',
-'postgrest',      # supabase dependency
-'gotrue',         # supabase auth dependency
-'httpx',          # supabase http client
-'storage3',       # supabase storage
-'realtime',       # supabase realtime
-```
-
-**After Fix:** Rebuild binary with `pyinstaller prism.spec`
-
-**Severity:** CRITICAL — App will crash when Phase 4 features are used
+**Resolved:** 2024-12-07
 
 ---
 
 ## Medium Issues
 
-### Issue 2: TR Login Not Accessible from Main Dashboard
+### Issue 2: TR Login Not Accessible from Main Dashboard ✅ RESOLVED
 
 **File:** `src-tauri/python/portfolio_src/dashboard/app.py`
 
-**Current State:**
-- TR login page exists at `portfolio_src/dashboard/pages/tr_login.py`
-- Main app has 7 tabs, none linking to TR login
-- Streamlit multipage structure exists but may not work in PyInstaller frozen apps
+**Resolution:** TR Login added as Tab 8:
+- Line 15: `from dashboard.pages import tr_login`
+- Lines 27-38: Added "🔐 TR Login" as 8th tab
+- Lines 61-62: `with tab8: tr_login.render_login_ui()`
 
-**Decision:** Use Option A — Add TR Login as Tab 8
-
-**Fix Required:**
-Update `portfolio_src/dashboard/app.py`:
-1. Import tr_login module
-2. Add 8th tab for TR Login
-
-```python
-from dashboard.pages import tr_login
-
-# Update tabs (add 8th)
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
-    "Performance",
-    "Portfolio X-Ray",
-    "ETF Overlap",
-    "Holdings Analysis",
-    "Data Manager",
-    "Pipeline Health",
-    "Missing Data",
-    "TR Login",  # NEW
-])
-
-# ... existing tab content ...
-
-with tab8:
-    tr_login.render_login_ui()
-```
-
-**Severity:** MEDIUM — TR Login feature is not accessible
+**Resolved:** 2024-12-07
 
 ---
 
@@ -175,6 +128,8 @@ The client falls back to local cache if Supabase is unavailable. App will functi
 
 After fixing issues:
 
+- [x] Add hidden imports to prism.spec — Done
+- [x] Add TR Login as Tab 8 — Done
 - [ ] Rebuild binary: `pyinstaller prism.spec && cp dist/prism ../binaries/prism-aarch64-apple-darwin`
 - [ ] Run `npm run tauri dev` — app launches
 - [ ] All 8 tabs render (including TR Login)
@@ -186,9 +141,9 @@ After fixing issues:
 
 ## Recommended Fix Order
 
-1. **Fix Issue #1** — Add hidden imports to prism.spec
-2. **Fix Issue #2** — Add TR Login as Tab 8 in app.py
-3. **Rebuild binary** — `pyinstaller prism.spec`
+1. ~~**Fix Issue #1** — Add hidden imports to prism.spec~~ ✅ Done
+2. ~~**Fix Issue #2** — Add TR Login as Tab 8 in app.py~~ ✅ Done
+3. **Rebuild binary** — `pyinstaller prism.spec` ← NEXT
 4. **Test locally** — Verify tabs work
 5. **Deploy Cloudflare Worker** — Issue #3 (can be parallel)
 6. **Configure Supabase** — Issue #4 (can be deferred to post-MVP)

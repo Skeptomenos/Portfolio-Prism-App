@@ -115,15 +115,15 @@
 
 ### Phase 4 Blockers (see phase4_issues.md)
 
-- [ ] **TASK-406:** Add missing hidden imports to prism.spec
+- [x] **TASK-406:** Add missing hidden imports to prism.spec
     - **Context:** keyring, supabase, postgrest, gotrue, httpx, storage3, realtime
     - **Priority:** CRITICAL
-    - **Status:** Pending
+    - **Status:** Complete — prism.spec:53-62
 
-- [ ] **TASK-407:** Integrate TR Login as Tab 8 in main app
+- [x] **TASK-407:** Integrate TR Login as Tab 8 in main app
     - **Context:** Decision: Option A (Tab 8) over Streamlit multipage
     - **Priority:** Medium
-    - **Status:** Pending
+    - **Status:** Complete — app.py:15, 27-38, 61-62
 
 - [ ] **TASK-408:** Deploy Cloudflare Worker
     - **Context:** wrangler deploy + secrets
