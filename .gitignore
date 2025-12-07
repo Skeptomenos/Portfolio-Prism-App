@@ -119,6 +119,7 @@ gha-creds-*.json
 # Any local user portfolio data
 data/
 *.csv.bak
+*.bak.*
 *.backup*
 
 # --------------------------------------------

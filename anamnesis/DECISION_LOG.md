@@ -141,3 +141,30 @@ This document tracks significant architectural decisions (ADRs) for the project.
   - (+) User sees all features in one tabbed interface
   - (-) Slightly longer tab bar (8 tabs)
   - (-) TR Login visible even when not needed (minor UX concern)
+
+---
+
+## [2024-12-07] CSP Disabled for Streamlit WebView
+
+- **Context:** Streamlit UI runs on localhost and is loaded in Tauri's WebView. Streamlit dynamically loads JavaScript, CSS, and WebSocket connections that would be blocked by a strict Content Security Policy.
+- **Decision:** Set `"csp": null` in `tauri.conf.json` to disable CSP enforcement.
+- **Consequences:**
+  - (+) Allows Streamlit to load all required resources (JS, CSS, WebSocket)
+  - (+) No runtime errors from CSP violations
+  - (+) Simplifies development (no need to whitelist every Streamlit resource)
+  - (-) Reduced security — XSS attacks could execute arbitrary scripts
+  - (-) Not recommended for apps that load untrusted content
+  - **Mitigation:** Acceptable for local-only app where all content is from trusted localhost Streamlit server. Revisit if app ever loads external content.
+
+---
+
+## [2024-12-07] Repository Flattened to Standard Tauri Layout
+
+- **Context:** Originally had nested `tauri-app/` directory containing the Tauri project. This caused path confusion in documentation and scripts.
+- **Decision:** Flatten repository so Tauri project is at root (`src-tauri/`, `src/`, `package.json` at root).
+- **Consequences:**
+  - (+) Standard Tauri layout — easier for contributors to understand
+  - (+) Simpler paths in documentation
+  - (+) `npm run tauri dev` works from repo root
+  - (-) Required updating all documentation paths
+  - (-) React prototype moved to `legacy/react-prototype/`
