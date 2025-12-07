@@ -14,7 +14,7 @@ from data.manual_enrichments import (
     save_manual_enrichments_bulk,
     load_suggested_isins,
 )
-from utils.isin_validator import is_valid_isin
+from prism_utils.isin_validator import is_valid_isin
 
 
 def render():

@@ -11,7 +11,7 @@ from dataclasses import dataclass, field, asdict
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 
-from utils.logging_config import get_logger
+from prism_utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 

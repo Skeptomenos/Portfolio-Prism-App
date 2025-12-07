@@ -15,8 +15,8 @@ import pandas as pd
 from core.health import health
 from core.enrichment_gaps import EnrichmentGap, EnrichmentGapCollector
 from data.resolution import ISINResolver
-from utils.isin_validator import is_valid_isin
-from utils.logging_config import get_logger
+from prism_utils.isin_validator import is_valid_isin
+from prism_utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 

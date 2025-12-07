@@ -20,7 +20,7 @@ import pandas as pd
 from typing import Optional, List, Dict, Any
 
 from data.caching import cache_adapter_data
-from utils.logging_config import get_logger
+from prism_utils.logging_config import get_logger
 from config import MANUAL_INPUTS_DIR, RAW_DOWNLOADS_DIR
 
 logger = get_logger(__name__)
@@ -304,7 +304,7 @@ class VanguardAdapter:
         and extracts all holdings from the rendered page.
         """
         try:
-            from utils.browser import (
+            from prism_utils.browser import (
                 BrowserContext,
                 handle_cookie_consent,
                 save_debug_screenshot,

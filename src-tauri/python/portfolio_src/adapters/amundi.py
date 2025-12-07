@@ -19,7 +19,7 @@ try:
 except ImportError:
     CALAMINE_AVAILABLE = False
 
-from utils.logging_config import get_logger
+from prism_utils.logging_config import get_logger
 from config import MANUAL_INPUTS_DIR, RAW_DOWNLOADS_DIR
 from data.holdings_cache import ManualUploadRequired
 
@@ -218,7 +218,7 @@ class AmundiAdapter:
     def _fetch_via_playwright(self, isin: str) -> pd.DataFrame:
         """Executes Playwright automation to download the holdings file."""
         try:
-            from utils.browser import (
+            from prism_utils.browser import (
                 BrowserContext,
                 handle_cookie_consent,
                 wait_for_download,

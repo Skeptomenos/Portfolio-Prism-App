@@ -2,8 +2,8 @@
 
 import pandas as pd
 
-from utils.classification import classify_holding
-from utils.logging_config import get_logger
+from prism_utils.classification import classify_holding
+from prism_utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 

@@ -14,8 +14,8 @@ import pandas as pd
 from typing import Optional
 
 from data.enrichment import enrich_securities
-from utils.isin_validator import is_valid_isin
-from utils.logging_config import get_logger
+from prism_utils.isin_validator import is_valid_isin
+from prism_utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 

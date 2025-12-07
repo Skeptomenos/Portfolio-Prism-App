@@ -23,7 +23,7 @@ from typing import Optional
 from urllib.request import urlopen, Request
 from urllib.error import HTTPError, URLError
 
-from utils.logging_config import get_logger
+from prism_utils.logging_config import get_logger
 from config import PROXY_URL, PROXY_API_KEY
 
 logger = get_logger(__name__)

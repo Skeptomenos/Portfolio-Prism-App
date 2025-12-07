@@ -116,8 +116,9 @@ gha-creds-*.json
 # --------------------------------------------
 # User Data (Privacy)
 # --------------------------------------------
-# Any local user portfolio data
-data/
+# Any local user portfolio data (at repo root or in src-tauri/python/)
+/data/
+src-tauri/python/data/
 *.csv.bak
 *.bak.*
 *.backup*

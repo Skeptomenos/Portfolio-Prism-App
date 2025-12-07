@@ -7,7 +7,7 @@ for common tasks like cookie consent handling, file downloads, and network
 interception.
 
 Usage:
-    from utils.browser import BrowserContext, handle_cookie_consent
+    from prism_utils.browser import BrowserContext, handle_cookie_consent
 
     with BrowserContext(headless=True) as ctx:
         page = ctx.new_page()
@@ -21,7 +21,7 @@ from typing import Optional, Callable, List, Dict, Any
 from contextlib import contextmanager
 from pathlib import Path
 
-from utils.logging_config import get_logger
+from prism_utils.logging_config import get_logger
 from config import RAW_DOWNLOADS_DIR
 
 logger = get_logger(__name__)

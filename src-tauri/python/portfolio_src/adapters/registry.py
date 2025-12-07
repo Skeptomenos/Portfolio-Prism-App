@@ -15,7 +15,7 @@ from adapters.xtrackers import XtrackersAdapter
 from adapters.amundi import AmundiAdapter
 from adapters.vanguard import VanguardAdapter
 from data.holdings_cache import HoldingsCache, ManualUploadRequired
-from utils.logging_config import get_logger
+from prism_utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 
