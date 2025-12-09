@@ -1,0 +1,10 @@
+[
+  {
+    "phase": "DATA_LOADING",
+    "error_type": "FILE_NOT_FOUND",
+    "item": "portfolio",
+    "message": "No portfolio data found",
+    "fix_hint": "Sync your portfolio from Trade Republic first",
+    "timestamp": "2025-12-07T22:24:08.578463"
+  }
+]

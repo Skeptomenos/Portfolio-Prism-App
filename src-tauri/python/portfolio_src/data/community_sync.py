@@ -15,6 +15,8 @@ from pathlib import Path
 from typing import Optional
 from urllib.request import urlopen, Request
 from urllib.error import HTTPError, URLError
+import pandas as pd
+from io import StringIO
 
 from prism_utils.logging_config import get_logger
 
@@ -27,8 +29,11 @@ GITHUB_BRANCH = "main"
 COMMUNITY_PATH = "community_data/etf_holdings"
 
 # Local paths
+# Local paths
+# PROJECT_ROOT is actually 3 levels up from data/community_sync.py
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 LOCAL_COMMUNITY_DIR = PROJECT_ROOT / "community_data" / "etf_holdings"
+ASSET_UNIVERSE_PATH = PROJECT_ROOT / "config" / "asset_universe.csv"
 SYNC_STATE_FILE = PROJECT_ROOT / "data" / "working" / ".sync_state.json"
 
 
@@ -134,6 +139,9 @@ class CommunitySync:
             metadata_file.write_text(json.dumps(metadata, indent=2, ensure_ascii=False))
         except Exception as e:
             logger.warning(f"Failed to save metadata: {e}")
+
+        # Sync Asset Universe (Fix 23)
+        self._sync_asset_universe(results)
 
         # Update sync state
         self._sync_state["last_sync"] = datetime.now().isoformat()
@@ -300,6 +308,34 @@ class CommunitySync:
             error_body = e.read().decode() if e.fp else ""
             logger.error(f"GitHub API error: {e.code} - {error_body}")
             raise
+
+    def _sync_asset_universe(self, results: dict):
+        """
+        Download and merge remote asset_universe.csv.
+        Preserves local customizations (local duplicate ISINs take precedence).
+        """
+        remote_url = f"https://raw.githubusercontent.com/{GITHUB_OWNER}/{GITHUB_REPO}/{GITHUB_BRANCH}/config/asset_universe.csv"
+        
+        try:
+            logger.info("Syncing asset_universe.csv...")
+            csv_content = self._fetch_text(remote_url)
+            remote_df = pd.read_csv(StringIO(csv_content))
+            
+            # Load local if exists
+            if ASSET_UNIVERSE_PATH.exists():
+                local_df = pd.read_csv(ASSET_UNIVERSE_PATH)
+                # Merge: Local duplicates take precedence (keep user edits)
+                combined_df = pd.concat([local_df, remote_df]).drop_duplicates(subset=['ISIN'], keep='first')
+            else:
+                combined_df = remote_df
+                
+            ASSET_UNIVERSE_PATH.parent.mkdir(parents=True, exist_ok=True)
+            combined_df.to_csv(ASSET_UNIVERSE_PATH, index=False)
+            logger.info(f"Asset universe synced. Total entries: {len(combined_df)}")
+            
+        except Exception as e:
+            logger.error(f"Failed to sync asset universe: {e}")
+            results["failed"].append("asset_universe.csv")
 
 
 # Module-level singleton for convenience

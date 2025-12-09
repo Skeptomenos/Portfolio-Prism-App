@@ -134,7 +134,7 @@ The bundle will be in `src-tauri/target/release/bundle/`.
 │  │   (TypeScript)  │         │    (Streamlit)      │   │
 │  │                 │  HTTP   │                     │   │
 │  │  Shows spinner  │◄───────►│  Portfolio Analysis │   │
-│  │  until ready    │localhost│  7 Dashboard Tabs   │   │
+│  │  until ready    │localhost│  8 Dashboard Tabs   │   │
 │  └─────────────────┘         └─────────────────────┘   │
 │                                       │                 │
 └───────────────────────────────────────│─────────────────┘
@@ -236,17 +236,18 @@ The binary name must match your platform:
 | Phase 1 | Complete | Tauri ↔ Python IPC |
 | Phase 2 | Complete | PyInstaller bundling |
 | Phase 3 | Complete | Dashboard transplant |
-| Phase 4 | **70%** | Auth & Hive integration |
+| Phase 4 | **85%** | Auth & Hive integration |
 | Phase 5 | Pending | Polish, auto-updates |
 
 ### Known Issues
 
 See `docs/phase4_issues.md` for current blockers:
 
-- Missing hidden imports in `prism.spec` (keyring, supabase)
-- TR Login needs Tab 8 integration
-- Cloudflare Worker not deployed
-- Supabase project not configured
+- ✅ TR Login 2FA working (daemon architecture)
+- ⏳ Daemon binary for frozen mode (plan: `docs/PLAN_TR_DAEMON_BINARY.md`)
+- ⏳ Portfolio display UI after login
+- ⏳ Cloudflare Worker not deployed
+- ⏳ Supabase project not configured
 
 ---
 

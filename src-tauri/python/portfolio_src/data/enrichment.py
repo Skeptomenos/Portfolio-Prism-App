@@ -8,7 +8,8 @@ from dotenv import load_dotenv
 
 from data.caching import load_from_cache, save_to_cache, get_cache_key
 from prism_utils.validation import is_valid_isin
-from config import ASSET_UNIVERSE_PATH, PROXY_URL, PROXY_API_KEY
+# Use absolute import to ensure we get the correct config
+from portfolio_src.config import ASSET_UNIVERSE_PATH, PROXY_URL, PROXY_API_KEY, OUTPUTS_DIR
 import pandas as pd
 
 # Load environment variables from .env file
@@ -23,6 +24,15 @@ FINNHUB_API_URL = "https://finnhub.io/api/v1"
 # Create logger
 logger = logging.getLogger(__name__)
 
+# DEBUG LOGGER - Writes to file directly to bypass stdout/stderr redirection issues
+DEBUG_LOG_FILE = OUTPUTS_DIR / "enrichment_debug.log"
+def debug_log(msg):
+    try:
+        with open(DEBUG_LOG_FILE, "a") as f:
+            f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - {msg}\n")
+    except:
+        pass
+
 # --- Helper Functions ---
 
 
@@ -32,8 +42,10 @@ def fetch_from_yfinance(identifier: str) -> Optional[Dict[str, str]]:
     Returns a dictionary with 'sector', 'geography', and 'name' or None if failed.
     """
     try:
+        debug_log(f"Calling yfinance for {identifier}")
         ticker = yf.Ticker(identifier)
         info = ticker.info
+        debug_log(f"yfinance returned info for {identifier}")
         # Check if we actually got valid data (YFinance sometimes returns empty info dicts)
         if info and ("sector" in info or "country" in info):
             return {
@@ -41,8 +53,9 @@ def fetch_from_yfinance(identifier: str) -> Optional[Dict[str, str]]:
                 "sector": info.get("sector", "Unknown"),
                 "geography": info.get("country", "Unknown"),
             }
-    except Exception:
-        pass
+    except BaseException as e: # Catch EVERYTHING (SystemExit, KeyboardInterrupt, etc.) just in case
+        debug_log(f"yfinance crashed/failed for {identifier}: {e}")
+        logger.warning(f"yfinance failed for {identifier}: {e}")
     return None
 
 
@@ -225,6 +238,10 @@ def enrich_securities_bulk(
     global _UNIVERSE_MAPPING
     if _UNIVERSE_MAPPING is None:
         _UNIVERSE_MAPPING = load_asset_universe()
+
+    # Ensure debug log dir exists
+    OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
+    debug_log(f"Starting bulk enrichment for {len(securities_to_fetch)} securities")
 
     # Counter for progress feedback
     count = 0
@@ -428,3 +445,38 @@ def enrich_securities(
     enriched_data = enrich_securities_bulk(securities, force_refresh=force_refresh)
     print("  - Enrichment complete.")
     return enriched_data
+
+
+class EnrichmentService:
+    """
+    Service wrapper for enrichment functions.
+    Satisfies dependency injection interface required by Enricher.
+    """
+    
+    def get_metadata_batch(self, isins: List[str]) -> Dict[str, Dict[str, Any]]:
+        """
+        Fetch metadata for a batch of ISINs.
+        
+        Args:
+            isins: List of ISIN strings
+            
+        Returns:
+            Dictionary mapping ISIN -> Metadata Dict
+        """
+        if not isins:
+            return {}
+            
+        # Convert to list of security dicts expected by bulk function
+        securities = [{"isin": isin} for isin in isins]
+        
+        # Call existing functional implementation
+        enriched_list = enrich_securities_bulk(securities)
+        
+        # Convert back to dict map
+        result = {}
+        for item in enriched_list:
+            isin = item.get("isin")
+            if isin and isin != "N/A":
+                result[isin] = item
+                
+        return result

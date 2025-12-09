@@ -1,21 +1,61 @@
 import json
 import pandas as pd
+import os
+from pathlib import Path
 import streamlit as st
 from datetime import datetime, timedelta
-from pathlib import Path
+from portfolio_src import config # Import centralized config
 
-# Constants
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-OUTPUTS_DIR = PROJECT_ROOT / "outputs"
-CONFIG_DIR = PROJECT_ROOT / "config"
-DATA_DIR = PROJECT_ROOT / "data" / "working"
-SNAPSHOTS_DIR = DATA_DIR / "snapshots"
-HOLDINGS_PATH = DATA_DIR / "calculated_holdings.csv"
+
+# Bundle-safe path utilities
+def resource_path(relative_path: str) -> str:
+    """
+    Get the absolute path to a resource.
+    Works for both dev mode and PyInstaller frozen mode.
+    """
+    if hasattr(os, "_MEIPASS"):
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = os.path.dirname(os.path.abspath(__file__))
+        # For dashboard, go up to portfolio_src level
+        base_path = os.path.dirname(base_path)  # up to portfolio_src
+    else:
+        base_path = os.path.dirname(os.path.abspath(__file__))
+        base_path = os.path.dirname(base_path)  # up to portfolio_src
+    return os.path.join(base_path, relative_path)
+
+
+def get_project_root() -> Path:
+    """Get the project root directory in a bundle-safe way."""
+    return Path(resource_path(".."))  # portfolio_src/.. = project root
+
+
+def get_data_dir() -> Path:
+    """
+    Get the user data directory.
+    
+    In production (Tauri), PRISM_DATA_DIR is set by the Rust shell.
+    In dev mode, falls back to ~/.prism/data.
+    """
+    data_dir = os.environ.get("PRISM_DATA_DIR", os.path.expanduser("~/.prism/data"))
+    return Path(data_dir)
+
+
+# Constants - Use config for paths to ensure consistency with pipeline/state_manager
+PROJECT_ROOT = config.PROJECT_ROOT
+
+# Map config paths to local constants
+DATA_DIR = config.WORKING_DIR  # utils.DATA_DIR historically pointed to working dir
+SNAPSHOTS_DIR = config.WORKING_DIR / "snapshots"
+HOLDINGS_PATH = config.WORKING_DIR / "calculated_holdings.csv"
+
+OUTPUTS_DIR = config.OUTPUTS_DIR
+CONFIG_DIR = config.CONFIG_DIR
+
+# Ensure snapshots dir exists (config ensures others)
+SNAPSHOTS_DIR.mkdir(parents=True, exist_ok=True)
 
 PIPELINE_HEALTH_PATH = OUTPUTS_DIR / "pipeline_health.json"
 SNAPSHOT_MAX_AGE_HOURS = 24  # Create new snapshot if older than this
-
-
 @st.cache_data
 def load_pipeline_health() -> dict:
     """Load the pipeline health JSON file."""
@@ -33,10 +73,24 @@ def load_pipeline_health() -> dict:
 @st.cache_data
 def load_direct_holdings() -> pd.DataFrame:
     """Load direct holdings report."""
-    path = OUTPUTS_DIR / "direct_holdings_report.csv"
+    path = config.DIRECT_HOLDINGS_REPORT
     if not path.exists():
         return pd.DataFrame()
-    return pd.read_csv(path)
+    df = pd.read_csv(path)
+    
+    # Normalize columns for UI - Prevent duplicates
+    # 1. Ensure 'name' column exists
+    if "name" not in df.columns and "TR_Name" in df.columns:
+        df = df.rename(columns={"TR_Name": "name"})
+    
+    # 2. Ensure 'market_value' column exists
+    if "market_value" not in df.columns:
+        if "tr_value" in df.columns:
+            df = df.rename(columns={"tr_value": "market_value"})
+        elif "NetValue" in df.columns:
+            df = df.rename(columns={"NetValue": "market_value"})
+         
+    return df
 
 
 @st.cache_data

@@ -23,9 +23,11 @@ def _to_optional_str(value: Any) -> Optional[str]:
     return str(value) if value else None
 
 
+from ..config import ASSET_UNIVERSE_PATH, WORKING_DIR
+
 # Paths
-UNIVERSE_PATH = "config/asset_universe.csv"
-HOLDINGS_PATH = "data/working/calculated_holdings.csv"  # Calculated from PDF parser
+UNIVERSE_PATH = ASSET_UNIVERSE_PATH
+HOLDINGS_PATH = WORKING_DIR / "calculated_holdings.csv"  # Calculated from PDF parser/TR Sync
 
 
 def _auto_add_to_universe(unmapped_df: pd.DataFrame, universe_df: pd.DataFrame) -> None:

@@ -1,0 +1,9 @@
+ISIN,Name,Weight,Region,Sector
+US0378331005,Apple Inc.,4.5,North America,Technology
+US5949181045,Microsoft Corporation,4.2,North America,Technology
+US0231351067,Amazon.com Inc.,2.8,North America,Consumer Discretionary
+GB00B24CGK77,Reckitt Benckiser Group plc,0.6,Europe,Consumer Staples
+FR0000120321,L'Oréal S.A.,0.7,Europe,Consumer Staples
+DE0007164600,SAP SE,0.5,Europe,Technology
+JP3435000009,Sony Group Corporation,0.8,Asia Pacific,Consumer Discretionary
+AU000000BHP4,BHP Group Limited,0.6,Asia Pacific,Materials

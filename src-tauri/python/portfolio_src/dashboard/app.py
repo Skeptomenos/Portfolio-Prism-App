@@ -1,62 +1,68 @@
 import streamlit as st
 from pathlib import Path
+from portfolio_src.config import DIRECT_HOLDINGS_REPORT
 
-# Import tabs - prism_boot.py adds portfolio_src to sys.path
-# so we import relative to that
-from dashboard.tabs import (
-    pipeline_health,
-    holdings_analysis,
-    data_manager,
-    portfolio_xray,
-    performance,
-    etf_overlap,
-    missing_data,
-)
-from dashboard.pages import tr_login
+# Import tabs - using absolute imports for bundle compatibility
+try:
+    from portfolio_src.dashboard.tabs import (
+        pipeline_health,
+        holdings_analysis,
+        data_manager,
+        portfolio_xray,
+        performance,
+        etf_overlap,
+        missing_data,
+        trade_republic,
+    )
+except ImportError as e:
+    st.error(f"Failed to import dashboard modules: {e}")
+    st.stop()
 
 st.set_page_config(
     page_title="Portfolio Analysis System",
     page_icon="📊",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 st.title("📊 Portfolio Analysis System")
 
-# Tabs - Performance first as it's the primary user interest
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs(
-    [
-        "📈 Performance",
-        "🔍 Portfolio X-Ray",
-        "🔄 ETF Overlap",
-        "📦 Holdings Analysis",
-        "🛠️ Data Manager",
-        "🏥 Pipeline Health",
-        "❓ Missing Data",
-        "🔐 TR Login",
+# Determine startup state: Only show TR Login first if we have no data
+has_data = DIRECT_HOLDINGS_REPORT.exists()
+
+# Define tab structure based on data availability
+if has_data:
+    # Data exists: Prioritize Analysis view, move Sync to end
+    tabs_structure = [
+        ("📈 Performance", performance),
+        ("🔍 Portfolio X-Ray", portfolio_xray),
+        ("🔄 ETF Overlap", etf_overlap),
+        ("📦 Holdings Analysis", holdings_analysis),
+        ("🔐 TR Sync", trade_republic),
+        ("🛠️ Data Manager", data_manager),
+        ("🏥 Pipeline Health", pipeline_health),
+        ("❓ Missing Data", missing_data),
     ]
-)
+else:
+    # No data: Prioritize Login/Sync to get data
+    tabs_structure = [
+        ("🔐 TR Login", trade_republic),
+        ("📈 Performance", performance),
+        ("🔍 Portfolio X-Ray", portfolio_xray),
+        ("🔄 ETF Overlap", etf_overlap),
+        ("📦 Holdings Analysis", holdings_analysis),
+        ("🛠️ Data Manager", data_manager),
+        ("🏥 Pipeline Health", pipeline_health),
+        ("❓ Missing Data", missing_data),
+    ]
 
-with tab1:
-    performance.render()
+# Render tabs
+tab_titles = [t[0] for t in tabs_structure]
+tabs = st.tabs(tab_titles)
 
-with tab2:
-    portfolio_xray.render()
-
-with tab3:
-    etf_overlap.render()
-
-with tab4:
-    holdings_analysis.render()
-
-with tab5:
-    data_manager.render()
-
-with tab6:
-    pipeline_health.render()
-
-with tab7:
-    missing_data.render()
-
-with tab8:
-    tr_login.render_login_ui()
+for tab_container, (title, module) in zip(tabs, tabs_structure):
+    with tab_container:
+        if module:
+            module.render()
+        else:
+            st.error(f"{title} unavailable")

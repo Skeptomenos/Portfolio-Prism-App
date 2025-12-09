@@ -36,14 +36,22 @@ Build a **privacy-first desktop portfolio analyzer** that wraps an existing Pyth
 
 ## Current Phase
 
-**Phase 3 Complete.** POC dashboard code transplanted to `src-tauri/python/portfolio_src/`. Binary rebuilt (84MB, Dec 7).
+**Phase 3 Complete.** POC dashboard code transplanted to `src-tauri/python/portfolio_src/`. Binary rebuilt (105MB, Dec 8).
 
-**Phase 4 In Progress (~70%).** Auth & Hive code exists but has blockers:
-- Missing hidden imports in prism.spec (keyring, supabase)
-- TR Login not accessible from main dashboard (needs Tab 8 integration)
-- Cloudflare Worker not deployed
-- Supabase project not configured
+**Phase 4 In Progress (~90%).** Major progress on TR integration:
+
+- ✅ TR Login 2FA flow working (daemon architecture implemented)
+- ✅ Session persistence via cookies
+- ✅ Fixed duplicate header/form usage bug (refactored `dashboard/__init__.py`)
+- ✅ Portfolio display in Performance tab working (data path fix)
+- ⏳ Daemon binary for frozen mode (plan exists: `docs/PLAN_TR_DAEMON_BINARY.md`)
+- ⏳ Cloudflare Worker not deployed
+- ⏳ Supabase project not configured
 
 **Project Layout:** Standard Tauri layout at repo root (flattened from `tauri-app/`)
 
-**Next Steps:** Fix Phase 4 blockers documented in `docs/phase4_issues.md`
+**Next Steps:**
+
+1. Verify Performance tab displays data after TR sync
+2. Implement TR daemon as separate binary (frozen mode fix)
+3. Deploy Cloudflare Worker for API proxy

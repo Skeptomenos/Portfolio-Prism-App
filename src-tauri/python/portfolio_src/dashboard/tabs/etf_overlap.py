@@ -13,7 +13,11 @@ import plotly.graph_objects as go
 import streamlit as st
 from pathlib import Path
 
-from dashboard.utils import load_holdings_breakdown, load_direct_holdings
+from portfolio_src.dashboard.utils import (
+    load_holdings_breakdown,
+    load_direct_holdings,
+    get_project_root,
+)
 
 
 def calculate_etf_overlap(breakdown_df: pd.DataFrame) -> dict:
@@ -57,9 +61,14 @@ def calculate_etf_overlap(breakdown_df: pd.DataFrame) -> dict:
         holding_etfs = holding_etfs[holding_etfs > 0]
         etf_names = []
         for etf_isin in holding_etfs.index:
-            etf_name = breakdown_df[breakdown_df["parent_isin"] == etf_isin][
-                "parent_name"
-            ].iloc[0]
+            try:
+                if "parent_name" in breakdown_df.columns:
+                     etf_name = breakdown_df[breakdown_df["parent_isin"] == etf_isin]["parent_name"].iloc[0]
+                else:
+                    etf_name = str(etf_isin)
+            except Exception:
+                etf_name = str(etf_isin)
+                
             etf_names.append(f"{etf_name[:20]}...")
 
         # Get security name
@@ -85,7 +94,14 @@ def calculate_etf_overlap(breakdown_df: pd.DataFrame) -> dict:
 
     etf_names_map = {}
     for etf in etfs:
-        name = breakdown_df[breakdown_df["parent_isin"] == etf]["parent_name"].iloc[0]
+        try:
+            if "parent_name" in breakdown_df.columns:
+                name = breakdown_df[breakdown_df["parent_isin"] == etf]["parent_name"].iloc[0]
+            else:
+                name = str(etf)
+        except Exception:
+            name = str(etf)
+            
         etf_names_map[etf] = name[:15] + "..." if len(name) > 15 else name
 
     for etf1 in etfs:
@@ -231,7 +247,7 @@ def render_securities_list(overlap_data: dict):
 
 def render_overlap_insights_section(overlap_data: dict, direct_df: pd.DataFrame):
     """Render educational insights about ETF overlap."""
-    from dashboard.insights import generate_overlap_insights
+    from ..insights import generate_overlap_insights
 
     multi_df = overlap_data.get("multi_etf_securities")
     if multi_df is None or multi_df.empty:

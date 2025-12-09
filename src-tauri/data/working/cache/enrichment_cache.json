@@ -1,0 +1,6827 @@
+{
+  "US11135F1012": {
+    "ticker": "US11135F1012",
+    "isin": "US11135F1012",
+    "name": "Broadcom Inc.",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "US67066G1040": {
+    "ticker": "US67066G1040",
+    "isin": "US67066G1040",
+    "name": "NVIDIA Corporation",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "US5949181045": {
+    "ticker": "US5949181045",
+    "isin": "US5949181045",
+    "name": "Microsoft Corporation",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "US69608A1088": {
+    "ticker": "US69608A1088",
+    "isin": "US69608A1088",
+    "name": "Palantir Technologies Inc.",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "US46625H1005": {
+    "ticker": "US46625H1005",
+    "isin": "US46625H1005",
+    "name": "JPMorgan Chase & Co.",
+    "sector": "Financial Services",
+    "geography": "United States"
+  },
+  "US02079K3059": {
+    "ticker": "US02079K3059",
+    "isin": "US02079K3059",
+    "name": "Not Found",
+    "sector": "Unknown",
+    "geography": "Unknown"
+  },
+  "US3696043013": {
+    "ticker": "US3696043013",
+    "isin": "US3696043013",
+    "name": "GE Aerospace",
+    "sector": "Industrials",
+    "geography": "United States"
+  },
+  "US68389X1054": {
+    "ticker": "US68389X1054",
+    "isin": "US68389X1054",
+    "name": "Oracle Corporation",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "US36828A1016": {
+    "ticker": "US36828A1016",
+    "isin": "US36828A1016",
+    "name": "GE Vernova Inc.",
+    "sector": "Industrials",
+    "geography": "United States"
+  },
+  "US02079K1079": {
+    "ticker": "US02079K1079",
+    "isin": "US02079K1079",
+    "name": "Alphabet Inc.",
+    "sector": "Communication Services",
+    "geography": "United States"
+  },
+  "US03831W1080": {
+    "ticker": "US03831W1080",
+    "isin": "US03831W1080",
+    "name": "AppLovin Corporation",
+    "sector": "Communication Services",
+    "geography": "United States"
+  },
+  "US0320951017": {
+    "ticker": "US0320951017",
+    "isin": "US0320951017",
+    "name": "Amphenol Corporation",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "US38141G1040": {
+    "ticker": "US38141G1040",
+    "isin": "US38141G1040",
+    "name": "The Goldman Sachs Group, Inc.",
+    "sector": "Financial Services",
+    "geography": "United States"
+  },
+  "ES0113900J37": {
+    "ticker": "ES0113900J37",
+    "isin": "ES0113900J37",
+    "name": "Banco Santander, S.A.",
+    "sector": "Financial Services",
+    "geography": "Spain"
+  },
+  "US0079031078": {
+    "ticker": "US0079031078",
+    "isin": "US0079031078",
+    "name": "Advanced Micro Devices, Inc.",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "US75513E1010": {
+    "ticker": "US75513E1010",
+    "isin": "US75513E1010",
+    "name": "RTX Corporation",
+    "sector": "Industrials",
+    "geography": "United States"
+  },
+  "US17275R1023": {
+    "ticker": "US17275R1023",
+    "isin": "US17275R1023",
+    "name": "Cisco Systems, Inc.",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "US7707001027": {
+    "ticker": "US7707001027",
+    "isin": "US7707001027",
+    "name": "Robinhood Markets, Inc.",
+    "sector": "Financial Services",
+    "geography": "United States"
+  },
+  "US5951121038": {
+    "ticker": "US5951121038",
+    "isin": "US5951121038",
+    "name": "Micron Technology, Inc.",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "GB00B63H8491": {
+    "ticker": "GB00B63H8491",
+    "isin": "GB00B63H8491",
+    "name": "Rolls-Royce Holdings plc",
+    "sector": "Industrials",
+    "geography": "United Kingdom"
+  },
+  "NL0010273215": {
+    "ticker": "NL0010273215",
+    "isin": "NL0010273215",
+    "name": "ASML Holding N.V.",
+    "sector": "Technology",
+    "geography": "Netherlands"
+  },
+  "US1491231015": {
+    "ticker": "US1491231015",
+    "isin": "US1491231015",
+    "name": "Caterpillar Inc.",
+    "sector": "Industrials",
+    "geography": "United States"
+  },
+  "JP3435000009": {
+    "ticker": "JP3435000009",
+    "isin": "JP3435000009",
+    "name": "Sony Group Corporation",
+    "sector": "Technology",
+    "geography": "Japan"
+  },
+  "DE000ENER6Y0": {
+    "ticker": "DE000ENER6Y0",
+    "isin": "DE000ENER6Y0",
+    "name": "Siemens Energy AG",
+    "sector": "Industrials",
+    "geography": "Germany"
+  },
+  "US6174464486": {
+    "ticker": "US6174464486",
+    "isin": "US6174464486",
+    "name": "Morgan Stanley",
+    "sector": "Financial Services",
+    "geography": "United States"
+  },
+  "DE0007030009": {
+    "ticker": "DE0007030009",
+    "isin": "DE0007030009",
+    "name": "Rheinmetall AG",
+    "sector": "Industrials",
+    "geography": "Germany"
+  },
+  "ES0113211835": {
+    "ticker": "ES0113211835",
+    "isin": "ES0113211835",
+    "name": "Banco Bilbao Vizcaya Argentaria, S.A.",
+    "sector": "Financial Services",
+    "geography": "Spain"
+  },
+  "ES0144580Y14": {
+    "ticker": "ES0144580Y14",
+    "isin": "ES0144580Y14",
+    "name": "Iberdrola, S.A.",
+    "sector": "Utilities",
+    "geography": "Spain"
+  },
+  "US3755581036": {
+    "ticker": "US3755581036",
+    "isin": "US3755581036",
+    "name": "Gilead Sciences, Inc.",
+    "sector": "Healthcare",
+    "geography": "United States"
+  },
+  "GB0002875804": {
+    "ticker": "GB0002875804",
+    "isin": "GB0002875804",
+    "name": "British American Tobacco p.l.c.",
+    "sector": "Consumer Defensive",
+    "geography": "United Kingdom"
+  },
+  "US5128073062": {
+    "ticker": "US5128073062",
+    "isin": "US5128073062",
+    "name": "Lam Research Corporation",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "US95040Q1040": {
+    "ticker": "US95040Q1040",
+    "isin": "US95040Q1040",
+    "name": "Welltower Inc.",
+    "sector": "Real Estate",
+    "geography": "United States"
+  },
+  "CA8911605092": {
+    "ticker": "CA8911605092",
+    "isin": "CA8911605092",
+    "name": "The Toronto-Dominion Bank",
+    "sector": "Financial Services",
+    "geography": "Canada"
+  },
+  "US4592001014": {
+    "ticker": "US4592001014",
+    "isin": "US4592001014",
+    "name": "International Business Machines Corporation",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "JP3436100006": {
+    "ticker": "JP3436100006",
+    "isin": "JP3436100006",
+    "name": "SoftBank Group Corp.",
+    "sector": "Communication Services",
+    "geography": "Japan"
+  },
+  "IT0005239360": {
+    "ticker": "IT0005239360",
+    "isin": "IT0005239360",
+    "name": "UniCredit S.p.A.",
+    "sector": "Financial Services",
+    "geography": "Italy"
+  },
+  "US22788C1053": {
+    "ticker": "US22788C1053",
+    "isin": "US22788C1053",
+    "name": "CrowdStrike Holdings, Inc.",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "US4432011082": {
+    "ticker": "US4432011082",
+    "isin": "US4432011082",
+    "name": "Howmet Aerospace Inc.",
+    "sector": "Industrials",
+    "geography": "United States"
+  },
+  "JP3900000005": {
+    "ticker": "JP3900000005",
+    "isin": "JP3900000005",
+    "name": "Mitsubishi Heavy Industries, Ltd.",
+    "sector": "Industrials",
+    "geography": "Japan"
+  },
+  "GB0005405286": {
+    "ticker": "GB0005405286",
+    "isin": "GB0005405286",
+    "name": "HSBC Holdings plc",
+    "sector": "Financial Services",
+    "geography": "United Kingdom"
+  },
+  "JP3756600007": {
+    "ticker": "JP3756600007",
+    "isin": "JP3756600007",
+    "name": "Nintendo Co., Ltd.",
+    "sector": "Communication Services",
+    "geography": "Japan"
+  },
+  "CA0084741085": {
+    "ticker": "CA0084741085",
+    "isin": "CA0084741085",
+    "name": "Agnico Eagle Mines Limited",
+    "sector": "Basic Materials",
+    "geography": "Canada"
+  },
+  "FR0000073272": {
+    "ticker": "FR0000073272",
+    "isin": "FR0000073272",
+    "name": "Safran SA",
+    "sector": "Industrials",
+    "geography": "France"
+  },
+  "US58155Q1031": {
+    "ticker": "US58155Q1031",
+    "isin": "US58155Q1031",
+    "name": "McKesson Corporation",
+    "sector": "Healthcare",
+    "geography": "United States"
+  },
+  "CA7800871021": {
+    "ticker": "CA7800871021",
+    "isin": "CA7800871021",
+    "name": "Royal Bank of Canada",
+    "sector": "Financial Services",
+    "geography": "Canada"
+  },
+  "CA82509L1076": {
+    "ticker": "CA82509L1076",
+    "isin": "CA82509L1076",
+    "name": "Shopify Inc.",
+    "sector": "Technology",
+    "geography": "Canada"
+  },
+  "US1729674242": {
+    "ticker": "US1729674242",
+    "isin": "US1729674242",
+    "name": "Citigroup Inc.",
+    "sector": "Financial Services",
+    "geography": "United States"
+  },
+  "LU1778762911": {
+    "ticker": "LU1778762911",
+    "isin": "LU1778762911",
+    "name": "Spotify Technology S.A.",
+    "sector": "Communication Services",
+    "geography": "Luxembourg"
+  },
+  "DE0005140008": {
+    "ticker": "DE0005140008",
+    "isin": "DE0005140008",
+    "name": "Deutsche Bank Aktiengesellschaft",
+    "sector": "Financial Services",
+    "geography": "Germany"
+  },
+  "US4581401001": {
+    "ticker": "US4581401001",
+    "isin": "US4581401001",
+    "name": "Intel Corporation",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "JP3122400009": {
+    "ticker": "JP3122400009",
+    "isin": "JP3122400009",
+    "name": "Advantest Corporation",
+    "sector": "Technology",
+    "geography": "Japan"
+  },
+  "IT0000072618": {
+    "ticker": "IT0000072618",
+    "isin": "IT0000072618",
+    "name": "Intesa Sanpaolo S.p.A.",
+    "sector": "Financial Services",
+    "geography": "Italy"
+  },
+  "GB0031348658": {
+    "ticker": "GB0031348658",
+    "isin": "GB0031348658",
+    "name": "Barclays PLC",
+    "sector": "Financial Services",
+    "geography": "United Kingdom"
+  },
+  "SG1L01001701": {
+    "ticker": "SG1L01001701",
+    "isin": "SG1L01001701",
+    "name": "DBS Group Holdings Ltd",
+    "sector": "Financial Services",
+    "geography": "Singapore"
+  },
+  "CA1360691010": {
+    "ticker": "CA1360691010",
+    "isin": "CA1360691010",
+    "name": "Canadian Imperial Bank of Commerce",
+    "sector": "Financial Services",
+    "geography": "Canada"
+  },
+  "US4824801009": {
+    "ticker": "US4824801009",
+    "isin": "US4824801009",
+    "name": "KLA Corporation",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "US0640581007": {
+    "ticker": "US0640581007",
+    "isin": "US0640581007",
+    "name": "The Bank of New York Mellon Corporation",
+    "sector": "Financial Services",
+    "geography": "United States"
+  },
+  "GB0008706128": {
+    "ticker": "GB0008706128",
+    "isin": "GB0008706128",
+    "name": "Lloyds Banking Group plc",
+    "sector": "Financial Services",
+    "geography": "United Kingdom"
+  },
+  "FR0000130809": {
+    "ticker": "FR0000130809",
+    "isin": "FR0000130809",
+    "name": "Soci\u00e9t\u00e9 G\u00e9n\u00e9rale Soci\u00e9t\u00e9 anonyme",
+    "sector": "Financial Services",
+    "geography": "France"
+  },
+  "US9581021055": {
+    "ticker": "US9581021055",
+    "isin": "US9581021055",
+    "name": "Western Digital Corporation",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "IE00BKVD2N49": {
+    "ticker": "IE00BKVD2N49",
+    "isin": "IE00BKVD2N49",
+    "name": "Seagate Technology Holdings plc",
+    "sector": "Technology",
+    "geography": "Singapore"
+  },
+  "US2193501051": {
+    "ticker": "US2193501051",
+    "isin": "US2193501051",
+    "name": "Corning Incorporated",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "IE00BY7QL619": {
+    "ticker": "IE00BY7QL619",
+    "isin": "IE00BY7QL619",
+    "name": "Johnson Controls International plc",
+    "sector": "Industrials",
+    "geography": "Ireland"
+  },
+  "US7710491033": {
+    "ticker": "US7710491033",
+    "isin": "US7710491033",
+    "name": "Roblox Corporation",
+    "sector": "Communication Services",
+    "geography": "United States"
+  },
+  "US6516391066": {
+    "ticker": "US6516391066",
+    "isin": "US6516391066",
+    "name": "Newmont Corporation",
+    "sector": "Basic Materials",
+    "geography": "United States"
+  },
+  "NL0000235190": {
+    "ticker": "NL0000235190",
+    "isin": "NL0000235190",
+    "name": "Airbus SE",
+    "sector": "Industrials",
+    "geography": "Netherlands"
+  },
+  "GB0002634946": {
+    "ticker": "GB0002634946",
+    "isin": "GB0002634946",
+    "name": "BAE Systems plc",
+    "sector": "Industrials",
+    "geography": "United Kingdom"
+  },
+  "JP3733000008": {
+    "ticker": "JP3733000008",
+    "isin": "JP3733000008",
+    "name": "NEC Corporation",
+    "sector": "Technology",
+    "geography": "Japan"
+  },
+  "CA11271J1075": {
+    "ticker": "CA11271J1075",
+    "isin": "CA11271J1075",
+    "name": "Brookfield Corporation",
+    "sector": "Financial Services",
+    "geography": "Canada"
+  },
+  "CA15101Q2071": {
+    "ticker": "CA15101Q2071",
+    "isin": "CA15101Q2071",
+    "name": "Celestica Inc.",
+    "sector": "Technology",
+    "geography": "Canada"
+  },
+  "IE000IVNQZ81": {
+    "ticker": "IE000IVNQZ81",
+    "isin": "IE000IVNQZ81",
+    "name": "TE Connectivity plc",
+    "sector": "Technology",
+    "geography": "Ireland"
+  },
+  "GB00BM8PJY71": {
+    "ticker": "GB00BM8PJY71",
+    "isin": "GB00BM8PJY71",
+    "name": "NatWest Group plc",
+    "sector": "Financial Services",
+    "geography": "United Kingdom"
+  },
+  "US0404132054": {
+    "ticker": "US0404132054",
+    "isin": "US0404132054",
+    "name": "Arista Networks, Inc.",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "HK0000069689": {
+    "ticker": "HK0000069689",
+    "isin": "HK0000069689",
+    "name": "AIA",
+    "sector": "Financial Services",
+    "geography": "Hong Kong"
+  },
+  "US18915M1071": {
+    "ticker": "US18915M1071",
+    "isin": "US18915M1071",
+    "name": "Cloudflare, Inc.",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "US14149Y1082": {
+    "ticker": "US14149Y1082",
+    "isin": "US14149Y1082",
+    "name": "Cardinal Health, Inc.",
+    "sector": "Healthcare",
+    "geography": "United States"
+  },
+  "US25809K1051": {
+    "ticker": "US25809K1051",
+    "isin": "US25809K1051",
+    "name": "DoorDash, Inc.",
+    "sector": "Consumer Cyclical",
+    "geography": "United States"
+  },
+  "IE00BK9ZQ967": {
+    "ticker": "IE00BK9ZQ967",
+    "isin": "IE00BK9ZQ967",
+    "name": "Trane Technologies plc",
+    "sector": "Industrials",
+    "geography": "Ireland"
+  },
+  "US03073E1055": {
+    "ticker": "US03073E1055",
+    "isin": "US03073E1055",
+    "name": "Cencora, Inc.",
+    "sector": "Healthcare",
+    "geography": "United States"
+  },
+  "NL0013654783": {
+    "ticker": "NL0013654783",
+    "isin": "NL0013654783",
+    "name": "Prosus N.V.",
+    "sector": "Consumer Cyclical",
+    "geography": "Netherlands"
+  },
+  "JP3788600009": {
+    "ticker": "JP3788600009",
+    "isin": "JP3788600009",
+    "name": "Hitachi, Ltd.",
+    "sector": "Industrials",
+    "geography": "Japan"
+  },
+  "JP3388200002": {
+    "ticker": "JP3388200002",
+    "isin": "JP3388200002",
+    "name": "Aeon Co., Ltd.",
+    "sector": "Consumer Cyclical",
+    "geography": "Japan"
+  },
+  "US02043Q1076": {
+    "ticker": "US02043Q1076",
+    "isin": "US02043Q1076",
+    "name": "Alnylam Pharmaceuticals, Inc.",
+    "sector": "Healthcare",
+    "geography": "United States"
+  },
+  "DE0006047004": {
+    "ticker": "DE0006047004",
+    "isin": "DE0006047004",
+    "name": "Heidelberg Materials AG",
+    "sector": "Basic Materials",
+    "geography": "Germany"
+  },
+  "LR0008862868": {
+    "ticker": "LR0008862868",
+    "isin": "LR0008862868",
+    "name": "Royal Caribbean Cruises Ltd.",
+    "sector": "Consumer Cyclical",
+    "geography": "United States"
+  },
+  "US74762E1029": {
+    "ticker": "US74762E1029",
+    "isin": "US74762E1029",
+    "name": "Quanta Services, Inc.",
+    "sector": "Industrials",
+    "geography": "United States"
+  },
+  "NL0011821202": {
+    "ticker": "NL0011821202",
+    "isin": "NL0011821202",
+    "name": "ING Groep N.V.",
+    "sector": "Financial Services",
+    "geography": "Netherlands"
+  },
+  "ES0140609019": {
+    "ticker": "ES0140609019",
+    "isin": "ES0140609019",
+    "name": "CaixaBank, S.A.",
+    "sector": "Financial Services",
+    "geography": "Spain"
+  },
+  "CA9628791027": {
+    "ticker": "CA9628791027",
+    "isin": "CA9628791027",
+    "name": "Wheaton Precious Metals Corp.",
+    "sector": "Basic Materials",
+    "geography": "Canada"
+  },
+  "US92840M1027": {
+    "ticker": "US92840M1027",
+    "isin": "US92840M1027",
+    "name": "Vistra Corp.",
+    "sector": "Utilities",
+    "geography": "United States"
+  },
+  "CH0012214059": {
+    "ticker": "CH0012214059",
+    "isin": "CH0012214059",
+    "name": "Holcim AG",
+    "sector": "Basic Materials",
+    "geography": "Switzerland"
+  },
+  "JP3811000003": {
+    "ticker": "JP3811000003",
+    "isin": "JP3811000003",
+    "name": "Fujikura Ltd.",
+    "sector": "Industrials",
+    "geography": "Japan"
+  },
+  "GB0004082847": {
+    "ticker": "GB0004082847",
+    "isin": "GB0004082847",
+    "name": "Standard Chartered PLC",
+    "sector": "Financial Services",
+    "geography": "United Kingdom"
+  },
+  "CH0012221716": {
+    "ticker": "CH0012221716",
+    "isin": "CH0012221716",
+    "name": "ABB Ltd",
+    "sector": "Industrials",
+    "geography": "Switzerland"
+  },
+  "US8740541094": {
+    "ticker": "US8740541094",
+    "isin": "US8740541094",
+    "name": "Take-Two Interactive Software, Inc.",
+    "sector": "Communication Services",
+    "geography": "United States"
+  },
+  "IL0006046119": {
+    "ticker": "IL0006046119",
+    "isin": "IL0006046119",
+    "name": "Bank Leumi le-Israel B.M.",
+    "sector": "Financial Services",
+    "geography": "Israel"
+  },
+  "US81141R1005": {
+    "ticker": "US81141R1005",
+    "isin": "US81141R1005",
+    "name": "Sea Limited",
+    "sector": "Consumer Cyclical",
+    "geography": "Singapore"
+  },
+  "FR0000121667": {
+    "ticker": "FR0000121667",
+    "isin": "FR0000121667",
+    "name": "EssilorLuxottica Soci\u00e9t\u00e9 anonyme",
+    "sector": "Healthcare",
+    "geography": "France"
+  },
+  "CH0126881561": {
+    "ticker": "CH0126881561",
+    "isin": "CH0126881561",
+    "name": "Swiss Re AG",
+    "sector": "Financial Services",
+    "geography": "Switzerland"
+  },
+  "US0255371017": {
+    "ticker": "US0255371017",
+    "isin": "US0255371017",
+    "name": "American Electric Power Company, Inc.",
+    "sector": "Utilities",
+    "geography": "United States"
+  },
+  "CA4969024047": {
+    "ticker": "CA4969024047",
+    "isin": "CA4969024047",
+    "name": "Kinross Gold Corporation",
+    "sector": "Basic Materials",
+    "geography": "Canada"
+  },
+  "CA25675T1075": {
+    "ticker": "CA25675T1075",
+    "isin": "CA25675T1075",
+    "name": "Dollarama Inc.",
+    "sector": "Consumer Defensive",
+    "geography": "Canada"
+  },
+  "JP3902400005": {
+    "ticker": "JP3902400005",
+    "isin": "JP3902400005",
+    "name": "Mitsubishi Electric Corporation",
+    "sector": "Industrials",
+    "geography": "Japan"
+  },
+  "CA0641491075": {
+    "ticker": "CA0641491075",
+    "isin": "CA0641491075",
+    "name": "The Bank of Nova Scotia",
+    "sector": "Financial Services",
+    "geography": "Canada"
+  },
+  "JP3885780001": {
+    "ticker": "JP3885780001",
+    "isin": "JP3885780001",
+    "name": "Mizuho Financial Group, Inc.",
+    "sector": "Financial Services",
+    "geography": "Japan"
+  },
+  "CA0636711016": {
+    "ticker": "CA0636711016",
+    "isin": "CA0636711016",
+    "name": "Bank of Montreal",
+    "sector": "Financial Services",
+    "geography": "Canada"
+  },
+  "US9344231041": {
+    "ticker": "US9344231041",
+    "isin": "US9344231041",
+    "name": "Warner Bros. Discovery, Inc.",
+    "sector": "Communication Services",
+    "geography": "United States"
+  },
+  "AT0000652011": {
+    "ticker": "AT0000652011",
+    "isin": "AT0000652011",
+    "name": "Erste Group Bank AG",
+    "sector": "Financial Services",
+    "geography": "Austria"
+  },
+  "DE000CBK1001": {
+    "ticker": "DE000CBK1001",
+    "isin": "DE000CBK1001",
+    "name": "Commerzbank AG",
+    "sector": "Financial Services",
+    "geography": "Germany"
+  },
+  "JP3407400005": {
+    "ticker": "JP3407400005",
+    "isin": "JP3407400005",
+    "name": "Sumitomo Electric Industries, Ltd.",
+    "sector": "Consumer Cyclical",
+    "geography": "Japan"
+  },
+  "US8334451098": {
+    "ticker": "US8334451098",
+    "isin": "US8334451098",
+    "name": "Snowflake Inc.",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "DE000ENAG999": {
+    "ticker": "DE000ENAG999",
+    "isin": "DE000ENAG999",
+    "name": "E.ON SE",
+    "sector": "Utilities",
+    "geography": "Germany"
+  },
+  "US05464C1018": {
+    "ticker": "US05464C1018",
+    "isin": "US05464C1018",
+    "name": "Axon Enterprise, Inc.",
+    "sector": "Industrials",
+    "geography": "United States"
+  },
+  "HK0388045442": {
+    "ticker": "HK0388045442",
+    "isin": "HK0388045442",
+    "name": "HKEX",
+    "sector": "Financial Services",
+    "geography": "Hong Kong"
+  },
+  "CA13321L1085": {
+    "ticker": "CA13321L1085",
+    "isin": "CA13321L1085",
+    "name": "Cameco Corporation",
+    "sector": "Energy",
+    "geography": "Canada"
+  },
+  "IL0006625771": {
+    "ticker": "IL0006625771",
+    "isin": "IL0006625771",
+    "name": "Bank Hapoalim B.M.",
+    "sector": "Financial Services",
+    "geography": "Israel"
+  },
+  "US29364G1031": {
+    "ticker": "US29364G1031",
+    "isin": "US29364G1031",
+    "name": "Entergy Corporation",
+    "sector": "Utilities",
+    "geography": "United States"
+  },
+  "CA06849F1080": {
+    "ticker": "CA06849F1080",
+    "isin": "CA06849F1080",
+    "name": "Barrick Mining Corporation",
+    "sector": "Basic Materials",
+    "geography": "Canada"
+  },
+  "US6293775085": {
+    "ticker": "US6293775085",
+    "isin": "US6293775085",
+    "name": "NRG Energy, Inc.",
+    "sector": "Utilities",
+    "geography": "United States"
+  },
+  "CH1335392721": {
+    "ticker": "CH1335392721",
+    "isin": "CH1335392721",
+    "name": "GALDERMA GROUP N",
+    "sector": "Healthcare",
+    "geography": "Switzerland"
+  },
+  "JP3571400005": {
+    "ticker": "JP3571400005",
+    "isin": "JP3571400005",
+    "name": "Tokyo Electron Limited",
+    "sector": "Technology",
+    "geography": "Japan"
+  },
+  "JP3818000006": {
+    "ticker": "JP3818000006",
+    "isin": "JP3818000006",
+    "name": "Fujitsu Limited",
+    "sector": "Technology",
+    "geography": "Japan"
+  },
+  "JP3134800006": {
+    "ticker": "JP3134800006",
+    "isin": "JP3134800006",
+    "name": "IHI Corporation",
+    "sector": "Industrials",
+    "geography": "Japan"
+  },
+  "GB00B1YW4409": {
+    "ticker": "GB00B1YW4409",
+    "isin": "GB00B1YW4409",
+    "name": "3i Group plc",
+    "sector": "Financial Services",
+    "geography": "United Kingdom"
+  },
+  "IT0003856405": {
+    "ticker": "IT0003856405",
+    "isin": "IT0003856405",
+    "name": "Leonardo S.p.a.",
+    "sector": "Industrials",
+    "geography": "Italy"
+  },
+  "US2786421030": {
+    "ticker": "US2786421030",
+    "isin": "US2786421030",
+    "name": "eBay Inc.",
+    "sector": "Consumer Cyclical",
+    "geography": "United States"
+  },
+  "GB00BLGZ9862": {
+    "ticker": "GB00BLGZ9862",
+    "isin": "GB00BLGZ9862",
+    "name": "Tesco PLC",
+    "sector": "Consumer Defensive",
+    "geography": "United Kingdom"
+  },
+  "FR0010307819": {
+    "ticker": "FR0010307819",
+    "isin": "FR0010307819",
+    "name": "Legrand SA",
+    "sector": "Industrials",
+    "geography": "France"
+  },
+  "CA3039011026": {
+    "ticker": "CA3039011026",
+    "isin": "CA3039011026",
+    "name": "Fairfax Financial Holdings Limited",
+    "sector": "Financial Services",
+    "geography": "Canada"
+  },
+  "CA7392391016": {
+    "ticker": "CA7392391016",
+    "isin": "CA7392391016",
+    "name": "Power Corporation of Canada",
+    "sector": "Financial Services",
+    "geography": "Canada"
+  },
+  "US45841N1072": {
+    "ticker": "US45841N1072",
+    "isin": "US45841N1072",
+    "name": "Interactive Brokers Group, Inc.",
+    "sector": "Financial Services",
+    "geography": "United States"
+  },
+  "CA3518581051": {
+    "ticker": "CA3518581051",
+    "isin": "CA3518581051",
+    "name": "Franco-Nevada Corporation",
+    "sector": "Basic Materials",
+    "geography": "Canada"
+  },
+  "US7731211089": {
+    "ticker": "US7731211089",
+    "isin": "US7731211089",
+    "name": "Rocket Lab Corporation",
+    "sector": "Industrials",
+    "geography": "United States"
+  },
+  "US92537N1081": {
+    "ticker": "US92537N1081",
+    "isin": "US92537N1081",
+    "name": "Vertiv Holdings Co",
+    "sector": "Industrials",
+    "geography": "United States"
+  },
+  "NL0015001FS8": {
+    "ticker": "NL0015001FS8",
+    "isin": "NL0015001FS8",
+    "name": "Ferrovial SE",
+    "sector": "Industrials",
+    "geography": "Netherlands"
+  },
+  "US5024311095": {
+    "ticker": "US5024311095",
+    "isin": "US5024311095",
+    "name": "L3Harris Technologies, Inc.",
+    "sector": "Industrials",
+    "geography": "United States"
+  },
+  "US83406F1021": {
+    "ticker": "US83406F1021",
+    "isin": "US83406F1021",
+    "name": "SoFi Technologies, Inc.",
+    "sector": "Financial Services",
+    "geography": "United States"
+  },
+  "JP3898400001": {
+    "ticker": "JP3898400001",
+    "isin": "JP3898400001",
+    "name": "Mitsubishi Corporation",
+    "sector": "Industrials",
+    "geography": "Japan"
+  },
+  "FR0000133308": {
+    "ticker": "FR0000133308",
+    "isin": "FR0000133308",
+    "name": "Orange S.A.",
+    "sector": "Communication Services",
+    "geography": "France"
+  },
+  "US2310211063": {
+    "ticker": "US2310211063",
+    "isin": "US2310211063",
+    "name": "Cummins Inc.",
+    "sector": "Industrials",
+    "geography": "United States"
+  },
+  "IT0000062072": {
+    "ticker": "IT0000062072",
+    "isin": "IT0000062072",
+    "name": "Assicurazioni Generali S.p.A.",
+    "sector": "Financial Services",
+    "geography": "Italy"
+  },
+  "FR0010208488": {
+    "ticker": "FR0010208488",
+    "isin": "FR0010208488",
+    "name": "Engie SA",
+    "sector": "Utilities",
+    "geography": "France"
+  },
+  "FR0000121329": {
+    "ticker": "FR0000121329",
+    "isin": "FR0000121329",
+    "name": "Thales S.A.",
+    "sector": "Industrials",
+    "geography": "France"
+  },
+  "US12504L1098": {
+    "ticker": "US12504L1098",
+    "isin": "US12504L1098",
+    "name": "CBRE Group, Inc.",
+    "sector": "Real Estate",
+    "geography": "United States"
+  },
+  "CH0014852781": {
+    "ticker": "CH0014852781",
+    "isin": "CH0014852781",
+    "name": "Swiss Life Holding AG",
+    "sector": "Financial Services",
+    "geography": "Switzerland"
+  },
+  "US8760301072": {
+    "ticker": "US8760301072",
+    "isin": "US8760301072",
+    "name": "Tapestry, Inc.",
+    "sector": "Consumer Cyclical",
+    "geography": "United States"
+  },
+  "SG1T75931496": {
+    "ticker": "SG1T75931496",
+    "isin": "SG1T75931496",
+    "name": "Singapore Telecommunications Limited",
+    "sector": "Communication Services",
+    "geography": "Singapore"
+  },
+  "BE0003565737": {
+    "ticker": "BE0003565737",
+    "isin": "BE0003565737",
+    "name": "KBC Group NV",
+    "sector": "Financial Services",
+    "geography": "Belgium"
+  },
+  "US37045V1008": {
+    "ticker": "US37045V1008",
+    "isin": "US37045V1008",
+    "name": "General Motors Company",
+    "sector": "Consumer Cyclical",
+    "geography": "United States"
+  },
+  "US75734B1008": {
+    "ticker": "US75734B1008",
+    "isin": "US75734B1008",
+    "name": "Reddit, Inc.",
+    "sector": "Communication Services",
+    "geography": "United States"
+  },
+  "US1717793095": {
+    "ticker": "US1717793095",
+    "isin": "US1717793095",
+    "name": "Ciena Corporation",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "SE0021921269": {
+    "ticker": "SE0021921269",
+    "isin": "SE0021921269",
+    "name": "Saab AB (publ)",
+    "sector": "Industrials",
+    "geography": "Sweden"
+  },
+  "GB0007099541": {
+    "ticker": "GB0007099541",
+    "isin": "GB0007099541",
+    "name": "Prudential plc",
+    "sector": "Financial Services",
+    "geography": "Hong Kong"
+  },
+  "KYG254571055": {
+    "ticker": "KYG254571055",
+    "isin": "KYG254571055",
+    "name": "Credo Technology Group Holding Ltd",
+    "sector": "Technology",
+    "geography": "Cayman Islands"
+  },
+  "FI4000297767": {
+    "ticker": "FI4000297767",
+    "isin": "FI4000297767",
+    "name": "Nordea Bank Abp",
+    "sector": "Financial Services",
+    "geography": "Finland"
+  },
+  "US1999081045": {
+    "ticker": "US1999081045",
+    "isin": "US1999081045",
+    "name": "Comfort Systems USA, Inc.",
+    "sector": "Industrials",
+    "geography": "United States"
+  },
+  "US0937121079": {
+    "ticker": "US0937121079",
+    "isin": "US0937121079",
+    "name": "Bloom Energy Corporation",
+    "sector": "Industrials",
+    "geography": "United States"
+  },
+  "US26884L1098": {
+    "ticker": "US26884L1098",
+    "isin": "US26884L1098",
+    "name": "EQT Corporation",
+    "sector": "Energy",
+    "geography": "United States"
+  },
+  "JP3165000005": {
+    "ticker": "JP3165000005",
+    "isin": "JP3165000005",
+    "name": "Sompo Holdings, Inc.",
+    "sector": "Financial Services",
+    "geography": "Japan"
+  },
+  "GB00BPQY8M80": {
+    "ticker": "GB00BPQY8M80",
+    "isin": "GB00BPQY8M80",
+    "name": "Aviva plc",
+    "sector": "Financial Services",
+    "geography": "United Kingdom"
+  },
+  "US45168D1046": {
+    "ticker": "US45168D1046",
+    "isin": "US45168D1046",
+    "name": "IDEXX Laboratories, Inc.",
+    "sector": "Healthcare",
+    "geography": "United States"
+  },
+  "US4576693075": {
+    "ticker": "US4576693075",
+    "isin": "US4576693075",
+    "name": "Insmed Incorporated",
+    "sector": "Healthcare",
+    "geography": "United States"
+  },
+  "ES0167050915": {
+    "ticker": "ES0167050915",
+    "isin": "ES0167050915",
+    "name": "ACS, Actividades de Construcci\u00f3n y Servicios, S.A.",
+    "sector": "Industrials",
+    "geography": "Spain"
+  },
+  "US29084Q1004": {
+    "ticker": "US29084Q1004",
+    "isin": "US29084Q1004",
+    "name": "EMCOR Group, Inc.",
+    "sector": "Industrials",
+    "geography": "United States"
+  },
+  "IL0011334468": {
+    "ticker": "IL0011334468",
+    "isin": "IL0011334468",
+    "name": "CyberArk Software Ltd.",
+    "sector": "Technology",
+    "geography": "Israel"
+  },
+  "DE0005785604": {
+    "ticker": "DE0005785604",
+    "isin": "DE0005785604",
+    "name": "Fresenius SE & Co. KGaA",
+    "sector": "Healthcare",
+    "geography": "Germany"
+  },
+  "IE00BYTBXV33": {
+    "ticker": "IE00BYTBXV33",
+    "isin": "IE00BYTBXV33",
+    "name": "Ryanair Holdings plc",
+    "sector": "Industrials",
+    "geography": "Ireland"
+  },
+  "AU000000BXB1": {
+    "ticker": "AU000000BXB1",
+    "isin": "AU000000BXB1",
+    "name": "Brambles Limited",
+    "sector": "Industrials",
+    "geography": "Australia"
+  },
+  "US0495601058": {
+    "ticker": "US0495601058",
+    "isin": "US0495601058",
+    "name": "Atmos Energy Corporation",
+    "sector": "Utilities",
+    "geography": "United States"
+  },
+  "ES0113860A34": {
+    "ticker": "ES0113860A34",
+    "isin": "ES0113860A34",
+    "name": "Banco de Sabadell, S.A.",
+    "sector": "Financial Services",
+    "geography": "Spain"
+  },
+  "GB0032089863": {
+    "ticker": "GB0032089863",
+    "isin": "GB0032089863",
+    "name": "NEXT plc",
+    "sector": "Consumer Cyclical",
+    "geography": "United Kingdom"
+  },
+  "HK2388011192": {
+    "ticker": "HK2388011192",
+    "isin": "HK2388011192",
+    "name": "BOC Hong Kong (Holdings) Limited",
+    "sector": "Financial Services",
+    "geography": "Hong Kong"
+  },
+  "IT0005218380": {
+    "ticker": "IT0005218380",
+    "isin": "IT0005218380",
+    "name": "Banco BPM S.p.A.",
+    "sector": "Financial Services",
+    "geography": "Italy"
+  },
+  "US04626A1034": {
+    "ticker": "US04626A1034",
+    "isin": "US04626A1034",
+    "name": "Astera Labs, Inc.",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "IE00BF0L3536": {
+    "ticker": "IE00BF0L3536",
+    "isin": "IE00BF0L3536",
+    "name": "AIB Group plc",
+    "sector": "Financial Services",
+    "geography": "Ireland"
+  },
+  "JP3837800006": {
+    "ticker": "JP3837800006",
+    "isin": "JP3837800006",
+    "name": "HOYA Corporation",
+    "sector": "Healthcare",
+    "geography": "Japan"
+  },
+  "CA6330671034": {
+    "ticker": "CA6330671034",
+    "isin": "CA6330671034",
+    "name": "National Bank of Canada",
+    "sector": "Financial Services",
+    "geography": "Canada"
+  },
+  "IL0010811243": {
+    "ticker": "IL0010811243",
+    "isin": "IL0010811243",
+    "name": "Elbit Systems Ltd.",
+    "sector": "Industrials",
+    "geography": "Israel"
+  },
+  "JP3877600001": {
+    "ticker": "JP3877600001",
+    "isin": "JP3877600001",
+    "name": "Marubeni Corporation",
+    "sector": "Industrials",
+    "geography": "Japan"
+  },
+  "US8807701029": {
+    "ticker": "US8807701029",
+    "isin": "US8807701029",
+    "name": "Teradyne, Inc.",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "NL0000687663": {
+    "ticker": "NL0000687663",
+    "isin": "NL0000687663",
+    "name": "AerCap Holdings N.V.",
+    "sector": "Industrials",
+    "geography": "Ireland"
+  },
+  "US2855121099": {
+    "ticker": "US2855121099",
+    "isin": "US2855121099",
+    "name": "Electronic Arts Inc.",
+    "sector": "Communication Services",
+    "geography": "United States"
+  },
+  "JP3300200007": {
+    "ticker": "JP3300200007",
+    "isin": "JP3300200007",
+    "name": "Konami Group Corporation",
+    "sector": "Communication Services",
+    "geography": "Japan"
+  },
+  "US4663131039": {
+    "ticker": "US4663131039",
+    "isin": "US4663131039",
+    "name": "Jabil Inc.",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "US7739031091": {
+    "ticker": "US7739031091",
+    "isin": "US7739031091",
+    "name": "Rockwell Automation, Inc.",
+    "sector": "Industrials",
+    "geography": "United States"
+  },
+  "JP3210200006": {
+    "ticker": "JP3210200006",
+    "isin": "JP3210200006",
+    "name": "Kajima Corporation",
+    "sector": "Industrials",
+    "geography": "Japan"
+  },
+  "NL0011540547": {
+    "ticker": "NL0011540547",
+    "isin": "NL0011540547",
+    "name": "ABN AMRO Bank N.V.",
+    "sector": "Financial Services",
+    "geography": "Netherlands"
+  },
+  "JP3726800000": {
+    "ticker": "JP3726800000",
+    "isin": "JP3726800000",
+    "name": "Japan Tobacco Inc.",
+    "sector": "Consumer Defensive",
+    "geography": "Japan"
+  },
+  "US5705351048": {
+    "ticker": "US5705351048",
+    "isin": "US5705351048",
+    "name": "Markel Group Inc.",
+    "sector": "Financial Services",
+    "geography": "United States"
+  },
+  "NL0010773842": {
+    "ticker": "NL0010773842",
+    "isin": "NL0010773842",
+    "name": "NN Group N.V.",
+    "sector": "Financial Services",
+    "geography": "Netherlands"
+  },
+  "JP3119600009": {
+    "ticker": "JP3119600009",
+    "isin": "JP3119600009",
+    "name": "Ajinomoto Co., Inc.",
+    "sector": "Consumer Defensive",
+    "geography": "Japan"
+  },
+  "JP3778630008": {
+    "ticker": "JP3778630008",
+    "isin": "JP3778630008",
+    "name": "BANDAI NAMCO Holdings Inc.",
+    "sector": "Consumer Cyclical",
+    "geography": "Japan"
+  },
+  "IT0000066123": {
+    "ticker": "IT0000066123",
+    "isin": "IT0000066123",
+    "name": "BPER Banca SpA",
+    "sector": "Financial Services",
+    "geography": "Italy"
+  },
+  "DE000A0D9PT0": {
+    "ticker": "DE000A0D9PT0",
+    "isin": "DE000A0D9PT0",
+    "name": "MTU Aero Engines AG",
+    "sector": "Industrials",
+    "geography": "Germany"
+  },
+  "AU000000EVN4": {
+    "ticker": "AU000000EVN4",
+    "isin": "AU000000EVN4",
+    "name": "Evolution Mining Limited",
+    "sector": "Basic Materials",
+    "geography": "Australia"
+  },
+  "SG1F60858221": {
+    "ticker": "SG1F60858221",
+    "isin": "SG1F60858221",
+    "name": "Singapore Technologies Engineering Ltd",
+    "sector": "Industrials",
+    "geography": "Singapore"
+  },
+  "US65473P1057": {
+    "ticker": "US65473P1057",
+    "isin": "US65473P1057",
+    "name": "NiSource Inc.",
+    "sector": "Utilities",
+    "geography": "United States"
+  },
+  "FI4000552500": {
+    "ticker": "FI4000552500",
+    "isin": "FI4000552500",
+    "name": "Sampo Oyj",
+    "sector": "Financial Services",
+    "geography": "Finland"
+  },
+  "US35137L1052": {
+    "ticker": "US35137L1052",
+    "isin": "US35137L1052",
+    "name": "Fox Corporation",
+    "sector": "Communication Services",
+    "geography": "United States"
+  },
+  "JP3538800008": {
+    "ticker": "JP3538800008",
+    "isin": "JP3538800008",
+    "name": "TDK Corporation",
+    "sector": "Technology",
+    "geography": "Japan"
+  },
+  "US50212V1008": {
+    "ticker": "US50212V1008",
+    "isin": "US50212V1008",
+    "name": "LPL Financial Holdings Inc.",
+    "sector": "Financial Services",
+    "geography": "United States"
+  },
+  "IT0004176001": {
+    "ticker": "IT0004176001",
+    "isin": "IT0004176001",
+    "name": "Prysmian S.p.A.",
+    "sector": "Industrials",
+    "geography": "Italy"
+  },
+  "US4228062083": {
+    "ticker": "US4228062083",
+    "isin": "US4228062083",
+    "name": "HEICO Corporation",
+    "sector": "Industrials",
+    "geography": "United States"
+  },
+  "IT0003796171": {
+    "ticker": "IT0003796171",
+    "isin": "IT0003796171",
+    "name": "Poste Italiane S.p.A.",
+    "sector": "Industrials",
+    "geography": "Italy"
+  },
+  "US2567461080": {
+    "ticker": "US2567461080",
+    "isin": "US2567461080",
+    "name": "Dollar Tree, Inc.",
+    "sector": "Consumer Defensive",
+    "geography": "United States"
+  },
+  "AU0000030678": {
+    "ticker": "AU0000030678",
+    "isin": "AU0000030678",
+    "name": "Coles Group Limited",
+    "sector": "Consumer Defensive",
+    "geography": "Australia"
+  },
+  "SG1J26887955": {
+    "ticker": "SG1J26887955",
+    "isin": "SG1J26887955",
+    "name": "Singapore Exchange Limited",
+    "sector": "Financial Services",
+    "geography": "Singapore"
+  },
+  "JP3443600006": {
+    "ticker": "JP3443600006",
+    "isin": "JP3443600006",
+    "name": "Taisei Corporation",
+    "sector": "Industrials",
+    "geography": "Japan"
+  },
+  "JP3914400001": {
+    "ticker": "JP3914400001",
+    "isin": "JP3914400001",
+    "name": "Murata Manufacturing Co., Ltd.",
+    "sector": "Technology",
+    "geography": "Japan"
+  },
+  "JP3634600005": {
+    "ticker": "JP3634600005",
+    "isin": "JP3634600005",
+    "name": "Not Found",
+    "sector": "Unknown",
+    "geography": "Unknown"
+  },
+  "US21873S1087": {
+    "ticker": "US21873S1087",
+    "isin": "US21873S1087",
+    "name": "CoreWeave, Inc.",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "SE0000667891": {
+    "ticker": "SE0000667891",
+    "isin": "SE0000667891",
+    "name": "Sandvik AB (publ)",
+    "sector": "Industrials",
+    "geography": "Sweden"
+  },
+  "CH1243598427": {
+    "ticker": "CH1243598427",
+    "isin": "CH1243598427",
+    "name": "Sandoz Group AG",
+    "sector": "Healthcare",
+    "geography": "Switzerland"
+  },
+  "CA0115321089": {
+    "ticker": "CA0115321089",
+    "isin": "CA0115321089",
+    "name": "Alamos Gold Inc.",
+    "sector": "Basic Materials",
+    "geography": "Canada"
+  },
+  "FI0009003727": {
+    "ticker": "FI0009003727",
+    "isin": "FI0009003727",
+    "name": "W\u00e4rtsil\u00e4 Oyj Abp",
+    "sector": "Industrials",
+    "geography": "Finland"
+  },
+  "US45784P1012": {
+    "ticker": "US45784P1012",
+    "isin": "US45784P1012",
+    "name": "Insulet Corporation",
+    "sector": "Healthcare",
+    "geography": "United States"
+  },
+  "CA5503711080": {
+    "ticker": "CA5503711080",
+    "isin": "CA5503711080",
+    "name": "Not Found",
+    "sector": "Unknown",
+    "geography": "Unknown"
+  },
+  "JP3404600003": {
+    "ticker": "JP3404600003",
+    "isin": "JP3404600003",
+    "name": "Sumitomo Corporation",
+    "sector": "Industrials",
+    "geography": "Japan"
+  },
+  "ES0130670112": {
+    "ticker": "ES0130670112",
+    "isin": "ES0130670112",
+    "name": "Endesa, S.A.",
+    "sector": "Utilities",
+    "geography": "Spain"
+  },
+  "AU000000TLS2": {
+    "ticker": "AU000000TLS2",
+    "isin": "AU000000TLS2",
+    "name": "Telstra Group Limited",
+    "sector": "Communication Services",
+    "geography": "Australia"
+  },
+  "IL0007670123": {
+    "ticker": "IL0007670123",
+    "isin": "IL0007670123",
+    "name": "Phoenix Financial Ltd",
+    "sector": "Financial Services",
+    "geography": "Israel"
+  },
+  "CA0977518616": {
+    "ticker": "CA0977518616",
+    "isin": "CA0977518616",
+    "name": "Bombardier Inc.",
+    "sector": "Industrials",
+    "geography": "Canada"
+  },
+  "CA2908761018": {
+    "ticker": "CA2908761018",
+    "isin": "CA2908761018",
+    "name": "Emera Incorporated",
+    "sector": "Utilities",
+    "geography": "Canada"
+  },
+  "IL0006912120": {
+    "ticker": "IL0006912120",
+    "isin": "IL0006912120",
+    "name": "Israel Discount Bank Limited",
+    "sector": "Financial Services",
+    "geography": "Israel"
+  },
+  "DE0007037129": {
+    "ticker": "DE0007037129",
+    "isin": "DE0007037129",
+    "name": "RWE Aktiengesellschaft",
+    "sector": "Utilities",
+    "geography": "Germany"
+  },
+  "JP3635000007": {
+    "ticker": "JP3635000007",
+    "isin": "JP3635000007",
+    "name": "Toyota Tsusho Corporation",
+    "sector": "Industrials",
+    "geography": "Japan"
+  },
+  "ES0113679I37": {
+    "ticker": "ES0113679I37",
+    "isin": "ES0113679I37",
+    "name": "Bankinter, S.A.",
+    "sector": "Financial Services",
+    "geography": "Spain"
+  },
+  "JP3436120004": {
+    "ticker": "JP3436120004",
+    "isin": "JP3436120004",
+    "name": "SBI Holdings, Inc.",
+    "sector": "Financial Services",
+    "geography": "Japan"
+  },
+  "GB00BMVP7Y09": {
+    "ticker": "GB00BMVP7Y09",
+    "isin": "GB00BMVP7Y09",
+    "name": "Royalty Pharma plc",
+    "sector": "Healthcare",
+    "geography": "United States"
+  },
+  "SG9999000020": {
+    "ticker": "SG9999000020",
+    "isin": "SG9999000020",
+    "name": "Flex Ltd.",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "US30034W1062": {
+    "ticker": "US30034W1062",
+    "isin": "US30034W1062",
+    "name": "Evergy, Inc.",
+    "sector": "Utilities",
+    "geography": "United States"
+  },
+  "CH0008038389": {
+    "ticker": "CH0008038389",
+    "isin": "CH0008038389",
+    "name": "Swiss Prime Site AG",
+    "sector": "Real Estate",
+    "geography": "Switzerland"
+  },
+  "DK0010274414": {
+    "ticker": "DK0010274414",
+    "isin": "DK0010274414",
+    "name": "Danske Bank A/S",
+    "sector": "Financial Services",
+    "geography": "Denmark"
+  },
+  "JP3762800005": {
+    "ticker": "JP3762800005",
+    "isin": "JP3762800005",
+    "name": "Nomura Research Institute, Ltd.",
+    "sector": "Technology",
+    "geography": "Japan"
+  },
+  "JP3118000003": {
+    "ticker": "JP3118000003",
+    "isin": "JP3118000003",
+    "name": "ASICS Corporation",
+    "sector": "Consumer Cyclical",
+    "geography": "Japan"
+  },
+  "CH0010570759": {
+    "ticker": "CH0010570759",
+    "isin": "CH0010570759",
+    "name": "Chocoladefabriken Lindt & Spr\u00fcngli AG",
+    "sector": "Consumer Defensive",
+    "geography": "Switzerland"
+  },
+  "GB00B1WY2338": {
+    "ticker": "GB00B1WY2338",
+    "isin": "GB00B1WY2338",
+    "name": "Smiths Group plc",
+    "sector": "Industrials",
+    "geography": "United Kingdom"
+  },
+  "HK0016000132": {
+    "ticker": "HK0016000132",
+    "isin": "HK0016000132",
+    "name": "SHK PPT",
+    "sector": "Real Estate",
+    "geography": "Hong Kong"
+  },
+  "US4228061093": {
+    "ticker": "US4228061093",
+    "isin": "US4228061093",
+    "name": "HEICO Corporation",
+    "sector": "Industrials",
+    "geography": "United States"
+  },
+  "DE0006602006": {
+    "ticker": "DE0006602006",
+    "isin": "DE0006602006",
+    "name": "GEA Group Aktiengesellschaft",
+    "sector": "Industrials",
+    "geography": "Germany"
+  },
+  "US74624M1027": {
+    "ticker": "US74624M1027",
+    "isin": "US74624M1027",
+    "name": "Pure Storage, Inc.",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "GB00B2QPKJ12": {
+    "ticker": "GB00B2QPKJ12",
+    "isin": "GB00B2QPKJ12",
+    "name": "Fresnillo plc",
+    "sector": "Basic Materials",
+    "geography": "Mexico"
+  },
+  "US02156V1098": {
+    "ticker": "US02156V1098",
+    "isin": "US02156V1098",
+    "name": "Oklo Inc.",
+    "sector": "Utilities",
+    "geography": "United States"
+  },
+  "JP3976300008": {
+    "ticker": "JP3976300008",
+    "isin": "JP3976300008",
+    "name": "Ryohin Keikaku Co., Ltd.",
+    "sector": "Consumer Cyclical",
+    "geography": "Japan"
+  },
+  "JP3573000001": {
+    "ticker": "JP3573000001",
+    "isin": "JP3573000001",
+    "name": "Tokyo Gas Co.,Ltd.",
+    "sector": "Utilities",
+    "geography": "Japan"
+  },
+  "CH0466642201": {
+    "ticker": "CH0466642201",
+    "isin": "CH0466642201",
+    "name": "Helvetia Holding AG",
+    "sector": "Financial Services",
+    "geography": "Switzerland"
+  },
+  "CA45075E1043": {
+    "ticker": "CA45075E1043",
+    "isin": "CA45075E1043",
+    "name": "iA Financial Corporation Inc.",
+    "sector": "Financial Services",
+    "geography": "Canada"
+  },
+  "SG1U68934629": {
+    "ticker": "SG1U68934629",
+    "isin": "SG1U68934629",
+    "name": "Keppel Ltd.",
+    "sector": "Industrials",
+    "geography": "Singapore"
+  },
+  "IT0004810054": {
+    "ticker": "IT0004810054",
+    "isin": "IT0004810054",
+    "name": "Unipol Assicurazioni S.p.A.",
+    "sector": "Financial Services",
+    "geography": "Italy"
+  },
+  "CA39138C1068": {
+    "ticker": "CA39138C1068",
+    "isin": "CA39138C1068",
+    "name": "Great-West Lifeco Inc.",
+    "sector": "Financial Services",
+    "geography": "Canada"
+  },
+  "KYG217651051": {
+    "ticker": "KYG217651051",
+    "isin": "KYG217651051",
+    "name": "CK Hutchison Holdings Limited",
+    "sector": "Industrials",
+    "geography": "Hong Kong"
+  },
+  "FR0000121485": {
+    "ticker": "FR0000121485",
+    "isin": "FR0000121485",
+    "name": "Kering SA",
+    "sector": "Consumer Cyclical",
+    "geography": "France"
+  },
+  "CH0010570767": {
+    "ticker": "CH0010570767",
+    "isin": "CH0010570767",
+    "name": "Chocoladefabriken Lindt & Spr\u00fcngli AG",
+    "sector": "Consumer Defensive",
+    "geography": "Switzerland"
+  },
+  "US3364331070": {
+    "ticker": "US3364331070",
+    "isin": "US3364331070",
+    "name": "First Solar, Inc.",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "JP3899600005": {
+    "ticker": "JP3899600005",
+    "isin": "JP3899600005",
+    "name": "Mitsubishi Estate Co., Ltd.",
+    "sector": "Real Estate",
+    "geography": "Japan"
+  },
+  "US98980G1022": {
+    "ticker": "US98980G1022",
+    "isin": "US98980G1022",
+    "name": "Zscaler, Inc.",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "JP3190000004": {
+    "ticker": "JP3190000004",
+    "isin": "JP3190000004",
+    "name": "Obayashi Corporation",
+    "sector": "Industrials",
+    "geography": "Japan"
+  },
+  "IT0003153415": {
+    "ticker": "IT0003153415",
+    "isin": "IT0003153415",
+    "name": "Snam S.p.A.",
+    "sector": "Utilities",
+    "geography": "Italy"
+  },
+  "US46222L1089": {
+    "ticker": "US46222L1089",
+    "isin": "US46222L1089",
+    "name": "IonQ, Inc.",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "IL0006954379": {
+    "ticker": "IL0006954379",
+    "isin": "IL0006954379",
+    "name": "Mizrahi Tefahot Bank Ltd.",
+    "sector": "Financial Services",
+    "geography": "Israel"
+  },
+  "ES0173516115": {
+    "ticker": "ES0173516115",
+    "isin": "ES0173516115",
+    "name": "Repsol, S.A.",
+    "sector": "Energy",
+    "geography": "Spain"
+  },
+  "CA2861812014": {
+    "ticker": "CA2861812014",
+    "isin": "CA2861812014",
+    "name": "Element Fleet Management Corp.",
+    "sector": "Industrials",
+    "geography": "Canada"
+  },
+  "BMG507361001": {
+    "ticker": "BMG507361001",
+    "isin": "BMG507361001",
+    "name": "Jardine Matheson Holdings Limited",
+    "sector": "Industrials",
+    "geography": "Bermuda"
+  },
+  "JP3397200001": {
+    "ticker": "JP3397200001",
+    "isin": "JP3397200001",
+    "name": "Suzuki Motor Corporation",
+    "sector": "Consumer Cyclical",
+    "geography": "Japan"
+  },
+  "DE000TLX1005": {
+    "ticker": "DE000TLX1005",
+    "isin": "DE000TLX1005",
+    "name": "Talanx AG",
+    "sector": "Financial Services",
+    "geography": "Germany"
+  },
+  "US12541W2098": {
+    "ticker": "US12541W2098",
+    "isin": "US12541W2098",
+    "name": "C.H. Robinson Worldwide, Inc.",
+    "sector": "Industrials",
+    "geography": "United States"
+  },
+  "CH0012410517": {
+    "ticker": "CH0012410517",
+    "isin": "CH0012410517",
+    "name": "Baloise Holding AG",
+    "sector": "Financial Services",
+    "geography": "Switzerland"
+  },
+  "JP3497400006": {
+    "ticker": "JP3497400006",
+    "isin": "JP3497400006",
+    "name": "Daifuku Co., Ltd.",
+    "sector": "Industrials",
+    "geography": "Japan"
+  },
+  "US35137L2043": {
+    "ticker": "US35137L2043",
+    "isin": "US35137L2043",
+    "name": "Fox Corporation",
+    "sector": "Communication Services",
+    "geography": "United States"
+  },
+  "JP3762600009": {
+    "ticker": "JP3762600009",
+    "isin": "JP3762600009",
+    "name": "Nomura Holdings, Inc.",
+    "sector": "Financial Services",
+    "geography": "Japan"
+  },
+  "GB00B033F229": {
+    "ticker": "GB00B033F229",
+    "isin": "GB00B033F229",
+    "name": "Centrica plc",
+    "sector": "Utilities",
+    "geography": "United Kingdom"
+  },
+  "AU000000PME8": {
+    "ticker": "AU000000PME8",
+    "isin": "AU000000PME8",
+    "name": "Pro Medicus Limited",
+    "sector": "Healthcare",
+    "geography": "Australia"
+  },
+  "JP3783600004": {
+    "ticker": "JP3783600004",
+    "isin": "JP3783600004",
+    "name": "East Japan Railway Company",
+    "sector": "Industrials",
+    "geography": "Japan"
+  },
+  "JP3180400008": {
+    "ticker": "JP3180400008",
+    "isin": "JP3180400008",
+    "name": "Osaka Gas Co., Ltd.",
+    "sector": "Utilities",
+    "geography": "Japan"
+  },
+  "IT0003497168": {
+    "ticker": "IT0003497168",
+    "isin": "IT0003497168",
+    "name": "Telecom Italia S.p.A.",
+    "sector": "Communication Services",
+    "geography": "Italy"
+  },
+  "JP3684000007": {
+    "ticker": "JP3684000007",
+    "isin": "JP3684000007",
+    "name": "Nitto Denko Corporation",
+    "sector": "Basic Materials",
+    "geography": "Japan"
+  },
+  "SE0005190238": {
+    "ticker": "SE0005190238",
+    "isin": "SE0005190238",
+    "name": "Tele2 AB (publ)",
+    "sector": "Communication Services",
+    "geography": "Sweden"
+  },
+  "NL0011872643": {
+    "ticker": "NL0011872643",
+    "isin": "NL0011872643",
+    "name": "ASR Nederland N.V.",
+    "sector": "Financial Services",
+    "geography": "Netherlands"
+  },
+  "JP3294460005": {
+    "ticker": "JP3294460005",
+    "isin": "JP3294460005",
+    "name": "Inpex Corporation",
+    "sector": "Energy",
+    "geography": "Japan"
+  },
+  "JP3224200000": {
+    "ticker": "JP3224200000",
+    "isin": "JP3224200000",
+    "name": "Kawasaki Heavy Industries, Ltd.",
+    "sector": "Industrials",
+    "geography": "Japan"
+  },
+  "CA85472N1096": {
+    "ticker": "CA85472N1096",
+    "isin": "CA85472N1096",
+    "name": "Stantec Inc.",
+    "sector": "Industrials",
+    "geography": "Canada"
+  },
+  "IE00BD1RP616": {
+    "ticker": "IE00BD1RP616",
+    "isin": "IE00BD1RP616",
+    "name": "Bank of Ireland Group plc",
+    "sector": "Financial Services",
+    "geography": "Ireland"
+  },
+  "JP3566800003": {
+    "ticker": "JP3566800003",
+    "isin": "JP3566800003",
+    "name": "Central Japan Railway Company",
+    "sector": "Industrials",
+    "geography": "Japan"
+  },
+  "JP3400400002": {
+    "ticker": "JP3400400002",
+    "isin": "JP3400400002",
+    "name": "SCSK Corporation",
+    "sector": "Technology",
+    "geography": "Japan"
+  },
+  "BMG4587L1090": {
+    "ticker": "BMG4587L1090",
+    "isin": "BMG4587L1090",
+    "name": "Hongkong Land Holdings Limited",
+    "sector": "Real Estate",
+    "geography": "Bermuda"
+  },
+  "JP3236330001": {
+    "ticker": "JP3236330001",
+    "isin": "JP3236330001",
+    "name": "KIOXIA HOLDINGS CORPORATION",
+    "sector": "Technology",
+    "geography": "Japan"
+  },
+  "US36118L1061": {
+    "ticker": "US36118L1061",
+    "isin": "US36118L1061",
+    "name": "Not Found",
+    "sector": "Unknown",
+    "geography": "Unknown"
+  },
+  "FI0009014377": {
+    "ticker": "FI0009014377",
+    "isin": "FI0009014377",
+    "name": "Orion Oyj",
+    "sector": "Healthcare",
+    "geography": "Finland"
+  },
+  "AU000000MPL3": {
+    "ticker": "AU000000MPL3",
+    "isin": "AU000000MPL3",
+    "name": "Medibank Private Limited",
+    "sector": "Financial Services",
+    "geography": "Australia"
+  },
+  "FR0000120503": {
+    "ticker": "FR0000120503",
+    "isin": "FR0000120503",
+    "name": "Bouygues SA",
+    "sector": "Industrials",
+    "geography": "France"
+  },
+  "CA04764T1049": {
+    "ticker": "CA04764T1049",
+    "isin": "CA04764T1049",
+    "name": "AtkinsR\u00e9alis Group Inc.",
+    "sector": "Industrials",
+    "geography": "Canada"
+  },
+  "US2787681061": {
+    "ticker": "US2787681061",
+    "isin": "US2787681061",
+    "name": "EchoStar Corporation",
+    "sector": "Communication Services",
+    "geography": "United States"
+  },
+  "CA1247651088": {
+    "ticker": "CA1247651088",
+    "isin": "CA1247651088",
+    "name": "CAE Inc.",
+    "sector": "Industrials",
+    "geography": "Canada"
+  },
+  "GB0000456144": {
+    "ticker": "GB0000456144",
+    "isin": "GB0000456144",
+    "name": "Antofagasta plc",
+    "sector": "Basic Materials",
+    "geography": "United Kingdom"
+  },
+  "JP3598600009": {
+    "ticker": "JP3598600009",
+    "isin": "JP3598600009",
+    "name": "Toho Co., Ltd.",
+    "sector": "Communication Services",
+    "geography": "Japan"
+  },
+  "CH0025751329": {
+    "ticker": "CH0025751329",
+    "isin": "CH0025751329",
+    "name": "Logitech International S.A.",
+    "sector": "Technology",
+    "geography": "Switzerland"
+  },
+  "ES0177542018": {
+    "ticker": "ES0177542018",
+    "isin": "ES0177542018",
+    "name": "International Consolidated Airlines Group S.A.",
+    "sector": "Industrials",
+    "geography": "United Kingdom"
+  },
+  "JP3386450005": {
+    "ticker": "JP3386450005",
+    "isin": "JP3386450005",
+    "name": "ENEOS Holdings, Inc.",
+    "sector": "Energy",
+    "geography": "Japan"
+  },
+  "GB0004052071": {
+    "ticker": "GB0004052071",
+    "isin": "GB0004052071",
+    "name": "Halma plc",
+    "sector": "Industrials",
+    "geography": "United Kingdom"
+  },
+  "CH1101098163": {
+    "ticker": "CH1101098163",
+    "isin": "CH1101098163",
+    "name": "BELIMO Holding AG",
+    "sector": "Industrials",
+    "geography": "Switzerland"
+  },
+  "IE00BYQNZ507": {
+    "ticker": "IE00BYQNZ507",
+    "isin": "IE00BYQNZ507",
+    "name": "Not Found",
+    "sector": "Unknown",
+    "geography": "Unknown"
+  },
+  "HK0011000095": {
+    "ticker": "HK0011000095",
+    "isin": "HK0011000095",
+    "name": "HANG SENG BANK",
+    "sector": "Financial Services",
+    "geography": "Hong Kong"
+  },
+  "JP3249600002": {
+    "ticker": "JP3249600002",
+    "isin": "JP3249600002",
+    "name": "Kyocera Corporation",
+    "sector": "Industrials",
+    "geography": "Japan"
+  },
+  "JP3979200007": {
+    "ticker": "JP3979200007",
+    "isin": "JP3979200007",
+    "name": "Lasertec Corporation",
+    "sector": "Technology",
+    "geography": "Japan"
+  },
+  "PTBCP0AM0015": {
+    "ticker": "PTBCP0AM0015",
+    "isin": "PTBCP0AM0015",
+    "name": "Banco Comercial Portugu\u00eas, S.A.",
+    "sector": "Financial Services",
+    "geography": "Portugal"
+  },
+  "CA5503721063": {
+    "ticker": "CA5503721063",
+    "isin": "CA5503721063",
+    "name": "Lundin Mining Corporation",
+    "sector": "Basic Materials",
+    "geography": "Canada"
+  },
+  "US45337C1027": {
+    "ticker": "US45337C1027",
+    "isin": "US45337C1027",
+    "name": "Incyte Corporation",
+    "sector": "Healthcare",
+    "geography": "United States"
+  },
+  "JP3379550001": {
+    "ticker": "JP3379550001",
+    "isin": "JP3379550001",
+    "name": "JX Advanced Metals Corporation",
+    "sector": "Technology",
+    "geography": "Japan"
+  },
+  "GB00BMJ6DW54": {
+    "ticker": "GB00BMJ6DW54",
+    "isin": "GB00BMJ6DW54",
+    "name": "Informa plc",
+    "sector": "Communication Services",
+    "geography": "United Kingdom"
+  },
+  "AU000000SGP0": {
+    "ticker": "AU000000SGP0",
+    "isin": "AU000000SGP0",
+    "name": "Stockland",
+    "sector": "Real Estate",
+    "geography": "Australia"
+  },
+  "CA7751092007": {
+    "ticker": "CA7751092007",
+    "isin": "CA7751092007",
+    "name": "Rogers Communications Inc.",
+    "sector": "Communication Services",
+    "geography": "Canada"
+  },
+  "JP3104890003": {
+    "ticker": "JP3104890003",
+    "isin": "JP3104890003",
+    "name": "TIS Inc.",
+    "sector": "Technology",
+    "geography": "Japan"
+  },
+  "JP3343200006": {
+    "ticker": "JP3343200006",
+    "isin": "JP3343200006",
+    "name": "Sanrio Company, Ltd.",
+    "sector": "Consumer Cyclical",
+    "geography": "Japan"
+  },
+  "JP3166000004": {
+    "ticker": "JP3166000004",
+    "isin": "JP3166000004",
+    "name": "Ebara Corporation",
+    "sector": "Industrials",
+    "geography": "Japan"
+  },
+  "DE000HAG0005": {
+    "ticker": "DE000HAG0005",
+    "isin": "DE000HAG0005",
+    "name": "Hensoldt AG",
+    "sector": "Industrials",
+    "geography": "Germany"
+  },
+  "NL0014332678": {
+    "ticker": "NL0014332678",
+    "isin": "NL0014332678",
+    "name": "Not Found",
+    "sector": "Unknown",
+    "geography": "Unknown"
+  },
+  "GB0009223206": {
+    "ticker": "GB0009223206",
+    "isin": "GB0009223206",
+    "name": "Smith & Nephew plc",
+    "sector": "Healthcare",
+    "geography": "United Kingdom"
+  },
+  "US00766T1007": {
+    "ticker": "US00766T1007",
+    "isin": "US00766T1007",
+    "name": "AECOM",
+    "sector": "Industrials",
+    "geography": "United States"
+  },
+  "FI0009014575": {
+    "ticker": "FI0009014575",
+    "isin": "FI0009014575",
+    "name": "Metso Oyj",
+    "sector": "Industrials",
+    "geography": "Finland"
+  },
+  "CA8911021050": {
+    "ticker": "CA8911021050",
+    "isin": "CA8911021050",
+    "name": "Toromont Industries Ltd.",
+    "sector": "Industrials",
+    "geography": "Canada"
+  },
+  "NO0010582521": {
+    "ticker": "NO0010582521",
+    "isin": "NO0010582521",
+    "name": "Gjensidige Forsikring ASA",
+    "sector": "Financial Services",
+    "geography": "Norway"
+  },
+  "GB00BGXQNP29": {
+    "ticker": "GB00BGXQNP29",
+    "isin": "GB00BGXQNP29",
+    "name": "Phoenix Group Holdings plc",
+    "sector": "Financial Services",
+    "geography": "United Kingdom"
+  },
+  "JP3869010003": {
+    "ticker": "JP3869010003",
+    "isin": "JP3869010003",
+    "name": "MatsukiyoCocokara & Co.",
+    "sector": "Healthcare",
+    "geography": "Japan"
+  },
+  "IT0004776628": {
+    "ticker": "IT0004776628",
+    "isin": "IT0004776628",
+    "name": "Banca Mediolanum S.p.A.",
+    "sector": "Financial Services",
+    "geography": "Italy"
+  },
+  "JP3820000002": {
+    "ticker": "JP3820000002",
+    "isin": "JP3820000002",
+    "name": "Fuji Electric Co., Ltd.",
+    "sector": "Industrials",
+    "geography": "Japan"
+  },
+  "JP3102000001": {
+    "ticker": "JP3102000001",
+    "isin": "JP3102000001",
+    "name": "Aisin Corporation",
+    "sector": "Consumer Cyclical",
+    "geography": "Japan"
+  },
+  "ES0125220311": {
+    "ticker": "ES0125220311",
+    "isin": "ES0125220311",
+    "name": "Acciona, S.A.",
+    "sector": "Industrials",
+    "geography": "Spain"
+  },
+  "AU000000LYC6": {
+    "ticker": "AU000000LYC6",
+    "isin": "AU000000LYC6",
+    "name": "Lynas Rare Earths Limited",
+    "sector": "Basic Materials",
+    "geography": "Australia"
+  },
+  "NL0012866412": {
+    "ticker": "NL0012866412",
+    "isin": "NL0012866412",
+    "name": "BE Semiconductor Industries N.V.",
+    "sector": "Technology",
+    "geography": "Netherlands"
+  },
+  "IL0010845571": {
+    "ticker": "IL0010845571",
+    "isin": "IL0010845571",
+    "name": "Nova Ltd.",
+    "sector": "Technology",
+    "geography": "Israel"
+  },
+  "JP3233250004": {
+    "ticker": "JP3233250004",
+    "isin": "JP3233250004",
+    "name": "Japan Post Insurance Co., Ltd.",
+    "sector": "Financial Services",
+    "geography": "Japan"
+  },
+  "GB00BL6K5J42": {
+    "ticker": "GB00BL6K5J42",
+    "isin": "GB00BL6K5J42",
+    "name": "Endeavour Mining plc",
+    "sector": "Basic Materials",
+    "geography": "United Kingdom"
+  },
+  "AU000000QAN2": {
+    "ticker": "AU000000QAN2",
+    "isin": "AU000000QAN2",
+    "name": "Qantas Airways Limited",
+    "sector": "Industrials",
+    "geography": "Australia"
+  },
+  "JP3783420007": {
+    "ticker": "JP3783420007",
+    "isin": "JP3783420007",
+    "name": "Hikari Tsushin, Inc.",
+    "sector": "Industrials",
+    "geography": "Japan"
+  },
+  "FI0009013296": {
+    "ticker": "FI0009013296",
+    "isin": "FI0009013296",
+    "name": "Neste Oyj",
+    "sector": "Energy",
+    "geography": "Finland"
+  },
+  "DE0006070006": {
+    "ticker": "DE0006070006",
+    "isin": "DE0006070006",
+    "name": "HOCHTIEF Aktiengesellschaft",
+    "sector": "Industrials",
+    "geography": "Germany"
+  },
+  "FI0009007132": {
+    "ticker": "FI0009007132",
+    "isin": "FI0009007132",
+    "name": "Fortum Oyj",
+    "sector": "Utilities",
+    "geography": "Finland"
+  },
+  "CA6837151068": {
+    "ticker": "CA6837151068",
+    "isin": "CA6837151068",
+    "name": "Open Text Corporation",
+    "sector": "Technology",
+    "geography": "Canada"
+  },
+  "CH0130293662": {
+    "ticker": "CH0130293662",
+    "isin": "CH0130293662",
+    "name": "BKW AG",
+    "sector": "Utilities",
+    "geography": "Switzerland"
+  },
+  "JP3417200007": {
+    "ticker": "JP3417200007",
+    "isin": "JP3417200007",
+    "name": "Seibu Holdings Inc.",
+    "sector": "Industrials",
+    "geography": "Japan"
+  },
+  "GB00BKFB1C65": {
+    "ticker": "GB00BKFB1C65",
+    "isin": "GB00BKFB1C65",
+    "name": "M&G plc",
+    "sector": "Financial Services",
+    "geography": "United Kingdom"
+  },
+  "DE0005439004": {
+    "ticker": "DE0005439004",
+    "isin": "DE0005439004",
+    "name": "Continental Aktiengesellschaft",
+    "sector": "Consumer Cyclical",
+    "geography": "Germany"
+  },
+  "JP3955000009": {
+    "ticker": "JP3955000009",
+    "isin": "JP3955000009",
+    "name": "Yokogawa Electric Corporation",
+    "sector": "Industrials",
+    "geography": "Japan"
+  },
+  "JP3494600004": {
+    "ticker": "JP3494600004",
+    "isin": "JP3494600004",
+    "name": "SCREEN Holdings Co., Ltd.",
+    "sector": "Technology",
+    "geography": "Japan"
+  },
+  "CA8029121057": {
+    "ticker": "CA8029121057",
+    "isin": "CA8029121057",
+    "name": "Saputo Inc.",
+    "sector": "Consumer Defensive",
+    "geography": "Canada"
+  },
+  "SG1U76934819": {
+    "ticker": "SG1U76934819",
+    "isin": "SG1U76934819",
+    "name": "Yangzijiang Shipbuilding (Holdings) Ltd.",
+    "sector": "Industrials",
+    "geography": "China"
+  },
+  "AT0000606306": {
+    "ticker": "AT0000606306",
+    "isin": "AT0000606306",
+    "name": "Raiffeisen Bank International AG",
+    "sector": "Financial Services",
+    "geography": "Austria"
+  },
+  "BE0003823409": {
+    "ticker": "BE0003823409",
+    "isin": "BE0003823409",
+    "name": "Financi\u00e8re de Tubize SA",
+    "sector": "Healthcare",
+    "geography": "Belgium"
+  },
+  "CA11285B1085": {
+    "ticker": "CA11285B1085",
+    "isin": "CA11285B1085",
+    "name": "Brookfield Renewable Corporation",
+    "sector": "Utilities",
+    "geography": "United States"
+  },
+  "ES0124244E34": {
+    "ticker": "ES0124244E34",
+    "isin": "ES0124244E34",
+    "name": "Mapfre, S.A.",
+    "sector": "Financial Services",
+    "geography": "Spain"
+  },
+  "CA4495861060": {
+    "ticker": "CA4495861060",
+    "isin": "CA4495861060",
+    "name": "IGM Financial Inc.",
+    "sector": "Financial Services",
+    "geography": "Canada"
+  },
+  "CA21037X1345": {
+    "ticker": "CA21037X1345",
+    "isin": "CA21037X1345",
+    "name": "Not Found",
+    "sector": "Unknown",
+    "geography": "Unknown"
+  },
+  "US88160R1014": {
+    "ticker": "US88160R1014",
+    "isin": "US88160R1014",
+    "name": "Tesla, Inc.",
+    "sector": "Consumer Cyclical",
+    "geography": "United States"
+  },
+  "US0231351067": {
+    "ticker": "US0231351067",
+    "isin": "US0231351067",
+    "name": "Amazon.com, Inc.",
+    "sector": "Consumer Cyclical",
+    "geography": "United States"
+  },
+  "US0378331005": {
+    "ticker": "US0378331005",
+    "isin": "US0378331005",
+    "name": "Apple Inc.",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "US91324P1021": {
+    "ticker": "US91324P1021",
+    "isin": "US91324P1021",
+    "name": "UnitedHealth Group Incorporated",
+    "sector": "Healthcare",
+    "geography": "United States"
+  },
+  "US30303M1027": {
+    "ticker": "US30303M1027",
+    "isin": "US30303M1027",
+    "name": "Meta Platforms, Inc.",
+    "sector": "Communication Services",
+    "geography": "United States"
+  },
+  "US7134481081": {
+    "ticker": "US7134481081",
+    "isin": "US7134481081",
+    "name": "PepsiCo, Inc.",
+    "sector": "Consumer Defensive",
+    "geography": "United States"
+  },
+  "US6558441084": {
+    "ticker": "US6558441084",
+    "isin": "US6558441084",
+    "name": "Norfolk Southern Corporation",
+    "sector": "Industrials",
+    "geography": "United States"
+  },
+  "US0326541051": {
+    "ticker": "US0326541051",
+    "isin": "US0326541051",
+    "name": "Analog Devices, Inc.",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "US7427181091": {
+    "ticker": "US7427181091",
+    "isin": "US7427181091",
+    "name": "The Procter & Gamble Company",
+    "sector": "Consumer Defensive",
+    "geography": "United States"
+  },
+  "US1266501006": {
+    "ticker": "US1266501006",
+    "isin": "US1266501006",
+    "name": "CVS Health Corporation",
+    "sector": "Healthcare",
+    "geography": "United States"
+  },
+  "FR0000125486": {
+    "ticker": "FR0000125486",
+    "isin": "FR0000125486",
+    "name": "Vinci SA",
+    "sector": "Industrials",
+    "geography": "France"
+  },
+  "US2546871060": {
+    "ticker": "US2546871060",
+    "isin": "US2546871060",
+    "name": "The Walt Disney Company",
+    "sector": "Communication Services",
+    "geography": "United States"
+  },
+  "US1273871087": {
+    "ticker": "US1273871087",
+    "isin": "US1273871087",
+    "name": "Cadence Design Systems, Inc.",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "US4370761029": {
+    "ticker": "US4370761029",
+    "isin": "US4370761029",
+    "name": "The Home Depot, Inc.",
+    "sector": "Consumer Cyclical",
+    "geography": "United States"
+  },
+  "IE00BDVJJQ56": {
+    "ticker": "IE00BDVJJQ56",
+    "isin": "IE00BDVJJQ56",
+    "name": "nVent Electric plc",
+    "sector": "Industrials",
+    "geography": "United Kingdom"
+  },
+  "US22160K1051": {
+    "ticker": "US22160K1051",
+    "isin": "US22160K1051",
+    "name": "Costco Wholesale Corporation",
+    "sector": "Consumer Defensive",
+    "geography": "United States"
+  },
+  "US00287Y1091": {
+    "ticker": "US00287Y1091",
+    "isin": "US00287Y1091",
+    "name": "AbbVie Inc.",
+    "sector": "Healthcare",
+    "geography": "United States"
+  },
+  "US46120E6023": {
+    "ticker": "US46120E6023",
+    "isin": "US46120E6023",
+    "name": "Intuitive Surgical, Inc.",
+    "sector": "Healthcare",
+    "geography": "United States"
+  },
+  "US0533321024": {
+    "ticker": "US0533321024",
+    "isin": "US0533321024",
+    "name": "AutoZone, Inc.",
+    "sector": "Consumer Cyclical",
+    "geography": "United States"
+  },
+  "US09857L1089": {
+    "ticker": "US09857L1089",
+    "isin": "US09857L1089",
+    "name": "Booking Holdings Inc.",
+    "sector": "Consumer Cyclical",
+    "geography": "United States"
+  },
+  "US9113631090": {
+    "ticker": "US9113631090",
+    "isin": "US9113631090",
+    "name": "United Rentals, Inc.",
+    "sector": "Industrials",
+    "geography": "United States"
+  },
+  "US2172041061": {
+    "ticker": "US2172041061",
+    "isin": "US2172041061",
+    "name": "Copart, Inc.",
+    "sector": "Industrials",
+    "geography": "United States"
+  },
+  "US55261F1049": {
+    "ticker": "US55261F1049",
+    "isin": "US55261F1049",
+    "name": "M&T Bank Corporation",
+    "sector": "Financial Services",
+    "geography": "United States"
+  },
+  "US71377A1034": {
+    "ticker": "US71377A1034",
+    "isin": "US71377A1034",
+    "name": "Performance Food Group Company",
+    "sector": "Consumer Defensive",
+    "geography": "United States"
+  },
+  "US8835561023": {
+    "ticker": "US8835561023",
+    "isin": "US8835561023",
+    "name": "Thermo Fisher Scientific Inc.",
+    "sector": "Healthcare",
+    "geography": "United States"
+  },
+  "US2600031080": {
+    "ticker": "US2600031080",
+    "isin": "US2600031080",
+    "name": "Dover Corporation",
+    "sector": "Industrials",
+    "geography": "United States"
+  },
+  "US7436061052": {
+    "ticker": "US7436061052",
+    "isin": "US7436061052",
+    "name": "Prosperity Bancshares, Inc.",
+    "sector": "Financial Services",
+    "geography": "United States"
+  },
+  "US2521311074": {
+    "ticker": "US2521311074",
+    "isin": "US2521311074",
+    "name": "DexCom, Inc.",
+    "sector": "Healthcare",
+    "geography": "United States"
+  },
+  "US29530P1021": {
+    "ticker": "US29530P1021",
+    "isin": "US29530P1021",
+    "name": "Erie Indemnity Company",
+    "sector": "Financial Services",
+    "geography": "United States"
+  },
+  "US6974351057": {
+    "ticker": "US6974351057",
+    "isin": "US6974351057",
+    "name": "Palo Alto Networks, Inc.",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "US9026811052": {
+    "ticker": "US9026811052",
+    "isin": "US9026811052",
+    "name": "UGI Corporation",
+    "sector": "Utilities",
+    "geography": "United States"
+  },
+  "US9024941034": {
+    "ticker": "US9024941034",
+    "isin": "US9024941034",
+    "name": "Tyson Foods, Inc.",
+    "sector": "Consumer Defensive",
+    "geography": "United States"
+  },
+  "FR0011149590": {
+    "ticker": "FR0011149590",
+    "isin": "FR0011149590",
+    "name": "Not Found",
+    "sector": "Unknown",
+    "geography": "Unknown"
+  },
+  "US0427351004": {
+    "ticker": "US0427351004",
+    "isin": "US0427351004",
+    "name": "Arrow Electronics, Inc.",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "US81762P1021": {
+    "ticker": "US81762P1021",
+    "isin": "US81762P1021",
+    "name": "ServiceNow, Inc.",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "US92939U1060": {
+    "ticker": "US92939U1060",
+    "isin": "US92939U1060",
+    "name": "WEC Energy Group, Inc.",
+    "sector": "Utilities",
+    "geography": "United States"
+  },
+  "FR0000125338": {
+    "ticker": "FR0000125338",
+    "isin": "FR0000125338",
+    "name": "Capgemini SE",
+    "sector": "Technology",
+    "geography": "France"
+  },
+  "US5738741041": {
+    "ticker": "US5738741041",
+    "isin": "US5738741041",
+    "name": "Marvell Technology, Inc.",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "NL0013056914": {
+    "ticker": "NL0013056914",
+    "isin": "NL0013056914",
+    "name": "Elastic N.V.",
+    "sector": "Technology",
+    "geography": "Netherlands"
+  },
+  "US1252691001": {
+    "ticker": "US1252691001",
+    "isin": "US1252691001",
+    "name": "CF Industries Holdings, Inc.",
+    "sector": "Basic Materials",
+    "geography": "United States"
+  },
+  "US1912161007": {
+    "ticker": "US1912161007",
+    "isin": "US1912161007",
+    "name": "The Coca-Cola Company",
+    "sector": "Consumer Defensive",
+    "geography": "United States"
+  },
+  "US44267T1025": {
+    "ticker": "US44267T1025",
+    "isin": "US44267T1025",
+    "name": "Howard Hughes Holdings Inc.",
+    "sector": "Real Estate",
+    "geography": "United States"
+  },
+  "US98978V1035": {
+    "ticker": "US98978V1035",
+    "isin": "US98978V1035",
+    "name": "Zoetis Inc.",
+    "sector": "Healthcare",
+    "geography": "United States"
+  },
+  "FR0000120693": {
+    "ticker": "FR0000120693",
+    "isin": "FR0000120693",
+    "name": "Pernod Ricard SA",
+    "sector": "Consumer Defensive",
+    "geography": "France"
+  },
+  "US5801351017": {
+    "ticker": "US5801351017",
+    "isin": "US5801351017",
+    "name": "McDonald's Corporation",
+    "sector": "Consumer Cyclical",
+    "geography": "United States"
+  },
+  "US42824C1099": {
+    "ticker": "US42824C1099",
+    "isin": "US42824C1099",
+    "name": "Hewlett Packard Enterprise Company",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "BMG0450A1053": {
+    "ticker": "BMG0450A1053",
+    "isin": "BMG0450A1053",
+    "name": "Arch Capital Group Ltd.",
+    "sector": "Financial Services",
+    "geography": "Bermuda"
+  },
+  "US29355A1079": {
+    "ticker": "US29355A1079",
+    "isin": "US29355A1079",
+    "name": "Enphase Energy, Inc.",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "US58933Y1055": {
+    "ticker": "US58933Y1055",
+    "isin": "US58933Y1055",
+    "name": "Merck & Co., Inc.",
+    "sector": "Healthcare",
+    "geography": "United States"
+  },
+  "US4470111075": {
+    "ticker": "US4470111075",
+    "isin": "US4470111075",
+    "name": "Huntsman Corporation",
+    "sector": "Basic Materials",
+    "geography": "United States"
+  },
+  "US26614N1028": {
+    "ticker": "US26614N1028",
+    "isin": "US26614N1028",
+    "name": "DuPont de Nemours, Inc.",
+    "sector": "Basic Materials",
+    "geography": "United States"
+  },
+  "US25862V1052": {
+    "ticker": "US25862V1052",
+    "isin": "US25862V1052",
+    "name": "DoubleVerify Holdings, Inc.",
+    "sector": "Communication Services",
+    "geography": "United States"
+  },
+  "US7416231022": {
+    "ticker": "US7416231022",
+    "isin": "US7416231022",
+    "name": "Primo Brands Corporation",
+    "sector": "Consumer Defensive",
+    "geography": "United States"
+  },
+  "US7475251036": {
+    "ticker": "US7475251036",
+    "isin": "US7475251036",
+    "name": "QUALCOMM Incorporated",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "US2358511028": {
+    "ticker": "US2358511028",
+    "isin": "US2358511028",
+    "name": "Danaher Corporation",
+    "sector": "Healthcare",
+    "geography": "United States"
+  },
+  "US90353T1007": {
+    "ticker": "US90353T1007",
+    "isin": "US90353T1007",
+    "name": "Uber Technologies, Inc.",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "US98138H1014": {
+    "ticker": "US98138H1014",
+    "isin": "US98138H1014",
+    "name": "Workday, Inc.",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "US40412C1018": {
+    "ticker": "US40412C1018",
+    "isin": "US40412C1018",
+    "name": "HCA Healthcare, Inc.",
+    "sector": "Healthcare",
+    "geography": "United States"
+  },
+  "FR0013215407": {
+    "ticker": "FR0013215407",
+    "isin": "FR0013215407",
+    "name": "Not Found",
+    "sector": "Unknown",
+    "geography": "Unknown"
+  },
+  "US2372661015": {
+    "ticker": "US2372661015",
+    "isin": "US2372661015",
+    "name": "Darling Ingredients Inc.",
+    "sector": "Consumer Defensive",
+    "geography": "United States"
+  },
+  "US46266C1053": {
+    "ticker": "US46266C1053",
+    "isin": "US46266C1053",
+    "name": "IQVIA Holdings Inc.",
+    "sector": "Healthcare",
+    "geography": "United States"
+  },
+  "US2244081046": {
+    "ticker": "US2244081046",
+    "isin": "US2244081046",
+    "name": "Crane Company",
+    "sector": "Industrials",
+    "geography": "United States"
+  },
+  "US88339J1051": {
+    "ticker": "US88339J1051",
+    "isin": "US88339J1051",
+    "name": "The Trade Desk, Inc.",
+    "sector": "Communication Services",
+    "geography": "United States"
+  },
+  "US7766961061": {
+    "ticker": "US7766961061",
+    "isin": "US7766961061",
+    "name": "Roper Technologies, Inc.",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "US5312297485": {
+    "ticker": "US5312297485",
+    "isin": "US5312297485",
+    "name": "Liberty Live Group",
+    "sector": "Communication Services",
+    "geography": "United States"
+  },
+  "US7509401086": {
+    "ticker": "US7509401086",
+    "isin": "US7509401086",
+    "name": "Ralliant Corporation",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "FR001400AJ45": {
+    "ticker": "FR001400AJ45",
+    "isin": "FR001400AJ45",
+    "name": "Not Found",
+    "sector": "Unknown",
+    "geography": "Unknown"
+  },
+  "FR0013176526": {
+    "ticker": "FR0013176526",
+    "isin": "FR0013176526",
+    "name": "Valeo SE",
+    "sector": "Consumer Cyclical",
+    "geography": "France"
+  },
+  "US1255231003": {
+    "ticker": "US1255231003",
+    "isin": "US1255231003",
+    "name": "The Cigna Group",
+    "sector": "Healthcare",
+    "geography": "United States"
+  },
+  "US4612021034": {
+    "ticker": "US4612021034",
+    "isin": "US4612021034",
+    "name": "Intuit Inc.",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "IE00BTN1Y115": {
+    "ticker": "IE00BTN1Y115",
+    "isin": "IE00BTN1Y115",
+    "name": "Medtronic plc",
+    "sector": "Healthcare",
+    "geography": "Ireland"
+  },
+  "US31620M1062": {
+    "ticker": "US31620M1062",
+    "isin": "US31620M1062",
+    "name": "Fidelity National Information Services, Inc.",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "US20030N1019": {
+    "ticker": "US20030N1019",
+    "isin": "US20030N1019",
+    "name": "Comcast Corporation",
+    "sector": "Communication Services",
+    "geography": "United States"
+  },
+  "US6247561029": {
+    "ticker": "US6247561029",
+    "isin": "US6247561029",
+    "name": "Mueller Industries, Inc.",
+    "sector": "Industrials",
+    "geography": "United States"
+  },
+  "US0530151036": {
+    "ticker": "US0530151036",
+    "isin": "US0530151036",
+    "name": "Automatic Data Processing, Inc.",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "US3119001044": {
+    "ticker": "US3119001044",
+    "isin": "US3119001044",
+    "name": "Fastenal Company",
+    "sector": "Industrials",
+    "geography": "United States"
+  },
+  "US98419M1009": {
+    "ticker": "US98419M1009",
+    "isin": "US98419M1009",
+    "name": "Xylem Inc.",
+    "sector": "Industrials",
+    "geography": "United States"
+  },
+  "US3666511072": {
+    "ticker": "US3666511072",
+    "isin": "US3666511072",
+    "name": "Gartner, Inc.",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "US74144T1088": {
+    "ticker": "US74144T1088",
+    "isin": "US74144T1088",
+    "name": "T. Rowe Price Group, Inc.",
+    "sector": "Financial Services",
+    "geography": "United States"
+  },
+  "US9291601097": {
+    "ticker": "US9291601097",
+    "isin": "US9291601097",
+    "name": "Vulcan Materials Company",
+    "sector": "Basic Materials",
+    "geography": "United States"
+  },
+  "FR0010411983": {
+    "ticker": "FR0010411983",
+    "isin": "FR0010411983",
+    "name": "SCOR SE",
+    "sector": "Financial Services",
+    "geography": "France"
+  },
+  "US8894781033": {
+    "ticker": "US8894781033",
+    "isin": "US8894781033",
+    "name": "Toll Brothers, Inc.",
+    "sector": "Consumer Cyclical",
+    "geography": "United States"
+  },
+  "US2561631068": {
+    "ticker": "US2561631068",
+    "isin": "US2561631068",
+    "name": "DocuSign, Inc.",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "US45167R1041": {
+    "ticker": "US45167R1041",
+    "isin": "US45167R1041",
+    "name": "IDEX Corporation",
+    "sector": "Industrials",
+    "geography": "United States"
+  },
+  "US61945C1036": {
+    "ticker": "US61945C1036",
+    "isin": "US61945C1036",
+    "name": "The Mosaic Company",
+    "sector": "Basic Materials",
+    "geography": "United States"
+  },
+  "US00724F1012": {
+    "ticker": "US00724F1012",
+    "isin": "US00724F1012",
+    "name": "Adobe Inc.",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "US3020811044": {
+    "ticker": "US3020811044",
+    "isin": "US3020811044",
+    "name": "ExlService Holdings, Inc.",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "US1941621039": {
+    "ticker": "US1941621039",
+    "isin": "US1941621039",
+    "name": "Colgate-Palmolive Company",
+    "sector": "Consumer Defensive",
+    "geography": "United States"
+  },
+  "US4448591028": {
+    "ticker": "US4448591028",
+    "isin": "US4448591028",
+    "name": "Humana Inc.",
+    "sector": "Healthcare",
+    "geography": "United States"
+  },
+  "US68902V1070": {
+    "ticker": "US68902V1070",
+    "isin": "US68902V1070",
+    "name": "Otis Worldwide Corporation",
+    "sector": "Industrials",
+    "geography": "United States"
+  },
+  "US0090661010": {
+    "ticker": "US0090661010",
+    "isin": "US0090661010",
+    "name": "Airbnb, Inc.",
+    "sector": "Consumer Cyclical",
+    "geography": "United States"
+  },
+  "US3795772082": {
+    "ticker": "US3795772082",
+    "isin": "US3795772082",
+    "name": "Globus Medical, Inc.",
+    "sector": "Healthcare",
+    "geography": "United States"
+  },
+  "FR0011532431": {
+    "ticker": "FR0011532431",
+    "isin": "FR0011532431",
+    "name": "Not Found",
+    "sector": "Unknown",
+    "geography": "Unknown"
+  },
+  "US72352L1061": {
+    "ticker": "US72352L1061",
+    "isin": "US72352L1061",
+    "name": "Pinterest, Inc.",
+    "sector": "Communication Services",
+    "geography": "United States"
+  },
+  "US46269C1027": {
+    "ticker": "US46269C1027",
+    "isin": "US46269C1027",
+    "name": "Iridium Communications Inc.",
+    "sector": "Communication Services",
+    "geography": "United States"
+  },
+  "US74251V1026": {
+    "ticker": "US74251V1026",
+    "isin": "US74251V1026",
+    "name": "Principal Financial Group, Inc.",
+    "sector": "Financial Services",
+    "geography": "United States"
+  },
+  "US9884981013": {
+    "ticker": "US9884981013",
+    "isin": "US9884981013",
+    "name": "Yum! Brands, Inc.",
+    "sector": "Consumer Cyclical",
+    "geography": "United States"
+  },
+  "FR0000130577": {
+    "ticker": "FR0000130577",
+    "isin": "FR0000130577",
+    "name": "Publicis Groupe S.A.",
+    "sector": "Communication Services",
+    "geography": "France"
+  },
+  "US28176E1082": {
+    "ticker": "US28176E1082",
+    "isin": "US28176E1082",
+    "name": "Edwards Lifesciences Corporation",
+    "sector": "Healthcare",
+    "geography": "United States"
+  },
+  "US23918K1088": {
+    "ticker": "US23918K1088",
+    "isin": "US23918K1088",
+    "name": "DaVita Inc.",
+    "sector": "Healthcare",
+    "geography": "United States"
+  },
+  "US1598641074": {
+    "ticker": "US1598641074",
+    "isin": "US1598641074",
+    "name": "Charles River Laboratories International, Inc.",
+    "sector": "Healthcare",
+    "geography": "United States"
+  },
+  "US77311W1018": {
+    "ticker": "US77311W1018",
+    "isin": "US77311W1018",
+    "name": "Rocket Companies, Inc.",
+    "sector": "Financial Services",
+    "geography": "United States"
+  },
+  "US1033041013": {
+    "ticker": "US1033041013",
+    "isin": "US1033041013",
+    "name": "Boyd Gaming Corporation",
+    "sector": "Consumer Cyclical",
+    "geography": "United States"
+  },
+  "US60770K1079": {
+    "ticker": "US60770K1079",
+    "isin": "US60770K1079",
+    "name": "Moderna, Inc.",
+    "sector": "Healthcare",
+    "geography": "United States"
+  },
+  "US3205171057": {
+    "ticker": "US3205171057",
+    "isin": "US3205171057",
+    "name": "First Horizon Corporation",
+    "sector": "Financial Services",
+    "geography": "United States"
+  },
+  "US26142V1052": {
+    "ticker": "US26142V1052",
+    "isin": "US26142V1052",
+    "name": "DraftKings Inc.",
+    "sector": "Consumer Cyclical",
+    "geography": "United States"
+  },
+  "US89417E1091": {
+    "ticker": "US89417E1091",
+    "isin": "US89417E1091",
+    "name": "The Travelers Companies, Inc.",
+    "sector": "Financial Services",
+    "geography": "United States"
+  },
+  "US64110D1046": {
+    "ticker": "US64110D1046",
+    "isin": "US64110D1046",
+    "name": "NetApp, Inc.",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "US3156161024": {
+    "ticker": "US3156161024",
+    "isin": "US3156161024",
+    "name": "F5, Inc.",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "US6795801009": {
+    "ticker": "US6795801009",
+    "isin": "US6795801009",
+    "name": "Old Dominion Freight Line, Inc.",
+    "sector": "Industrials",
+    "geography": "United States"
+  },
+  "US00206R1023": {
+    "ticker": "US00206R1023",
+    "isin": "US00206R1023",
+    "name": "AT&T Inc.",
+    "sector": "Communication Services",
+    "geography": "United States"
+  },
+  "US29786A1060": {
+    "ticker": "US29786A1060",
+    "isin": "US29786A1060",
+    "name": "Etsy, Inc.",
+    "sector": "Consumer Cyclical",
+    "geography": "United States"
+  },
+  "US3029411093": {
+    "ticker": "US3029411093",
+    "isin": "US3029411093",
+    "name": "FTI Consulting, Inc.",
+    "sector": "Industrials",
+    "geography": "United States"
+  },
+  "US2166485019": {
+    "ticker": "US2166485019",
+    "isin": "US2166485019",
+    "name": "The Cooper Companies, Inc.",
+    "sector": "Healthcare",
+    "geography": "United States"
+  },
+  "US5339001068": {
+    "ticker": "US5339001068",
+    "isin": "US5339001068",
+    "name": "Lincoln Electric Holdings, Inc.",
+    "sector": "Industrials",
+    "geography": "United States"
+  },
+  "GB0022569080": {
+    "ticker": "GB0022569080",
+    "isin": "GB0022569080",
+    "name": "Amdocs Limited",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "US09260D1072": {
+    "ticker": "US09260D1072",
+    "isin": "US09260D1072",
+    "name": "Blackstone Inc.",
+    "sector": "Financial Services",
+    "geography": "United States"
+  },
+  "US9282541013": {
+    "ticker": "US9282541013",
+    "isin": "US9282541013",
+    "name": "Virtu Financial, Inc.",
+    "sector": "Financial Services",
+    "geography": "United States"
+  },
+  "US2441991054": {
+    "ticker": "US2441991054",
+    "isin": "US2441991054",
+    "name": "Deere & Company",
+    "sector": "Industrials",
+    "geography": "United States"
+  },
+  "US90384S3031": {
+    "ticker": "US90384S3031",
+    "isin": "US90384S3031",
+    "name": "Ulta Beauty, Inc.",
+    "sector": "Consumer Cyclical",
+    "geography": "United States"
+  },
+  "US40434L1052": {
+    "ticker": "US40434L1052",
+    "isin": "US40434L1052",
+    "name": "HP Inc.",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "US9892071054": {
+    "ticker": "US9892071054",
+    "isin": "US9892071054",
+    "name": "Zebra Technologies Corporation",
+    "sector": "Technology",
+    "geography": "United States"
+  },
+  "US25746U1097": {
+    "ticker": "US25746U1097",
+    "isin": "US25746U1097",
+    "name": "Dominion Energy, Inc.",
+    "sector": "Utilities",
+    "geography": "United States"
+  },
+  "US8168511090": {
+    "ticker": "US8168511090",
+    "isin": "US8168511090",
+    "name": "Sempra",
+    "sector": "Utilities",
+    "geography": "United States"
+  },
+  "US0718131099": {
+    "ticker": "US0718131099",
+    "isin": "US0718131099",
+    "name": "Baxter International Inc.",
+    "sector": "Healthcare",
+    "geography": "United States"
+  },
+  "FR0010313833": {
+    "ticker": "FR0010313833",
+    "isin": "FR0010313833",
+    "name": "Arkema S.A.",
+    "sector": "Basic Materials",
+    "geography": "France"
+  },
+  "US73278L1052": {
+    "ticker": "US73278L1052",
+    "isin": "US73278L1052",
+    "name": "Pool Corporation",
+    "sector": "Industrials",
+    "geography": "United States"
+  },
+  "US95082P1057": {
+    "ticker": "US95082P1057",
+    "isin": "US95082P1057",
+    "name": "WESCO International, Inc.",
+    "sector": "Industrials",
+    "geography": "United States"
+  },
+  "US7591EP1005": {
+    "ticker": "US7591EP1005",
+    "isin": "US7591EP1005",
+    "name": "Regions Financial Corporation",
+    "sector": "Financial Services",
+    "geography": "United States"
+  },
+  "US3724601055": {
+    "ticker": "US3724601055",
+    "isin": "US3724601055",
+    "name": "Genuine Parts Company",
+    "sector": "Consumer Cyclical",
+    "geography": "United States"
+  },
+  "US0534841012": {
+    "ticker": "US0534841012",
+    "isin": "US0534841012",
+    "name": "AvalonBay Communities, Inc.",
+    "sector": "Real Estate",
+    "geography": "United States"
+  },
+  "US9553061055": {
+    "ticker": "US9553061055",
+    "isin": "US9553061055",
+    "name": "West Pharmaceutical Services, Inc.",
+    "sector": "Healthcare",
+    "geography": "United States"
+  },
+  "US5486611073": {
+    "ticker": "US5486611073",
+    "isin": "US5486611073",
+    "name": "Lowe's Companies, Inc.",
+    "sector": "Consumer Cyclical",
+    "geography": "United States"
+  },
+  "US57636Q1040": {
+    "ticker": "US57636Q1040",
+    "isin": "US57636Q1040",
+    "name": "Mastercard Incorporated",
+    "sector": "Financial Services",
+    "geography": "United States"
+  },
+  "GB0009895292": {
+    "ticker": "GB0009895292",
+    "isin": "GB0009895292",
+    "name": "AstraZeneca PLC",
+    "sector": "Healthcare",
+    "geography": "United Kingdom"
+  },
+  "CH0012032048": {
+    "ticker": "CH0012032048",
+    "isin": "CH0012032048",
+    "name": "Roche Holding AG",
+    "sector": "Healthcare",
+    "geography": "Switzerland"
+  },
+  "CH0038863350": {
+    "ticker": "CH0038863350",
+    "isin": "CH0038863350",
+    "name": "Nestl\u00e9 S.A.",
+    "sector": "Consumer Defensive",
+    "geography": "Switzerland"
+  },
+  "CH0012005267": {
+    "ticker": "CH0012005267",
+    "isin": "CH0012005267",
+    "name": "Novartis AG",
+    "sector": "Healthcare",
+    "geography": "Switzerland"
+  },
+  "DE0007164600": {
+    "ticker": "DE0007164600",
+    "isin": "DE0007164600",
+    "name": "SAP SE",
+    "sector": "Technology",
+    "geography": "Germany"
+  },
+  "GB00BP6MXD84": {
+    "ticker": "GB00BP6MXD84",
+    "isin": "GB00BP6MXD84",
+    "name": "Shell plc",
+    "sector": "Energy",
+    "geography": "United Kingdom"
+  },
+  "DE0007236101": {
+    "ticker": "DE0007236101",
+    "isin": "DE0007236101",
+    "name": "Siemens Aktiengesellschaft",
+    "sector": "Industrials",
+    "geography": "Germany"
+  },
+  "FR0000121014": {
+    "ticker": "FR0000121014",
+    "isin": "FR0000121014",
+    "name": "LVMH Mo\u00ebt Hennessy - Louis Vuitton, Soci\u00e9t\u00e9 Europ\u00e9enne",
+    "sector": "Consumer Cyclical",
+    "geography": "France"
+  },
+  "DE0008404005": {
+    "ticker": "DE0008404005",
+    "isin": "DE0008404005",
+    "name": "Allianz SE",
+    "sector": "Financial Services",
+    "geography": "Germany"
+  },
+  "DK0062498333": {
+    "ticker": "DK0062498333",
+    "isin": "DK0062498333",
+    "name": "Novo Nordisk A/S",
+    "sector": "Healthcare",
+    "geography": "Denmark"
+  },
+  "FR0000121972": {
+    "ticker": "FR0000121972",
+    "isin": "FR0000121972",
+    "name": "Schneider Electric S.E.",
+    "sector": "Industrials",
+    "geography": "France"
+  },
+  "GB00B10RZP78": {
+    "ticker": "GB00B10RZP78",
+    "isin": "GB00B10RZP78",
+    "name": "Unilever PLC",
+    "sector": "Consumer Defensive",
+    "geography": "United Kingdom"
+  },
+  "CH0244767585": {
+    "ticker": "CH0244767585",
+    "isin": "CH0244767585",
+    "name": "UBS Group AG",
+    "sector": "Financial Services",
+    "geography": "Switzerland"
+  },
+  "FR0000120578": {
+    "ticker": "FR0000120578",
+    "isin": "FR0000120578",
+    "name": "Sanofi",
+    "sector": "Healthcare",
+    "geography": "France"
+  },
+  "DE0005557508": {
+    "ticker": "DE0005557508",
+    "isin": "DE0005557508",
+    "name": "Deutsche Telekom AG",
+    "sector": "Communication Services",
+    "geography": "Germany"
+  },
+  "CH0210483332": {
+    "ticker": "CH0210483332",
+    "isin": "CH0210483332",
+    "name": "Compagnie Financi\u00e8re Richemont SA",
+    "sector": "Consumer Cyclical",
+    "geography": "Switzerland"
+  },
+  "CH0011075394": {
+    "ticker": "CH0011075394",
+    "isin": "CH0011075394",
+    "name": "Zurich Insurance Group AG",
+    "sector": "Financial Services",
+    "geography": "Switzerland"
+  },
+  "GB0007980591": {
+    "ticker": "GB0007980591",
+    "isin": "GB0007980591",
+    "name": "BP p.l.c.",
+    "sector": "Energy",
+    "geography": "United Kingdom"
+  },
+  "GB00BN7SWP63": {
+    "ticker": "GB00BN7SWP63",
+    "isin": "GB00BN7SWP63",
+    "name": "GSK plc",
+    "sector": "Healthcare",
+    "geography": "United Kingdom"
+  },
+  "FR0000052292": {
+    "ticker": "FR0000052292",
+    "isin": "FR0000052292",
+    "name": "Herm\u00e8s International Soci\u00e9t\u00e9 en commandite par actions",
+    "sector": "Consumer Cyclical",
+    "geography": "France"
+  },
+  "FR0000131104": {
+    "ticker": "FR0000131104",
+    "isin": "FR0000131104",
+    "name": "BNP Paribas SA",
+    "sector": "Financial Services",
+    "geography": "France"
+  },
+  "IT0003128367": {
+    "ticker": "IT0003128367",
+    "isin": "IT0003128367",
+    "name": "Enel SpA",
+    "sector": "Utilities",
+    "geography": "Italy"
+  },
+  "DE0008430026": {
+    "ticker": "DE0008430026",
+    "isin": "DE0008430026",
+    "name": "M\u00fcnchener R\u00fcckversicherungs-Gesellschaft Aktiengesellschaft in M\u00fcnchen",
+    "sector": "Financial Services",
+    "geography": "Germany"
+  },
+  "FR0000120628": {
+    "ticker": "FR0000120628",
+    "isin": "FR0000120628",
+    "name": "AXA SA",
+    "sector": "Financial Services",
+    "geography": "France"
+  },
+  "GB00BDR05C01": {
+    "ticker": "GB00BDR05C01",
+    "isin": "GB00BDR05C01",
+    "name": "National Grid plc",
+    "sector": "Utilities",
+    "geography": "United Kingdom"
+  },
+  "GB00B2B0DG97": {
+    "ticker": "GB00B2B0DG97",
+    "isin": "GB00B2B0DG97",
+    "name": "RELX PLC",
+    "sector": "Industrials",
+    "geography": "United Kingdom"
+  },
+  "GB0007188757": {
+    "ticker": "GB0007188757",
+    "isin": "GB0007188757",
+    "name": "Rio Tinto Group",
+    "sector": "Basic Materials",
+    "geography": "United Kingdom"
+  },
+  "BE0974293251": {
+    "ticker": "BE0974293251",
+    "isin": "BE0974293251",
+    "name": "Anheuser-Busch InBev SA/NV",
+    "sector": "Consumer Defensive",
+    "geography": "Belgium"
+  },
+  "ES0148396007": {
+    "ticker": "ES0148396007",
+    "isin": "ES0148396007",
+    "name": "Industria de Dise\u00f1o Textil, S.A.",
+    "sector": "Consumer Cyclical",
+    "geography": "Spain"
+  },
+  "SE0015811963": {
+    "ticker": "SE0015811963",
+    "isin": "SE0015811963",
+    "name": "Investor AB (publ)",
+    "sector": "Financial Services",
+    "geography": "Sweden"
+  },
+  "GB00BD6K4575": {
+    "ticker": "GB00BD6K4575",
+    "isin": "GB00BD6K4575",
+    "name": "Compass Group PLC",
+    "sector": "Consumer Cyclical",
+    "geography": "United Kingdom"
+  },
+  "FR0000120644": {
+    "ticker": "FR0000120644",
+    "isin": "FR0000120644",
+    "name": "Danone S.A.",
+    "sector": "Consumer Defensive",
+    "geography": "France"
+  },
+  "GB00B0SWJX34": {
+    "ticker": "GB00B0SWJX34",
+    "isin": "GB00B0SWJX34",
+    "name": "London Stock Exchange Group plc",
+    "sector": "Financial Services",
+    "geography": "United Kingdom"
+  },
+  "NL0010832176": {
+    "ticker": "NL0010832176",
+    "isin": "NL0010832176",
+    "name": "argenx SE",
+    "sector": "Healthcare",
+    "geography": "Netherlands"
+  },
+  "FR001400T5U9": {
+    "ticker": "FR001400T5U9",
+    "isin": "FR001400T5U9",
+    "name": "Not Found",
+    "sector": "Unknown",
+    "geography": "Unknown"
+  },
+  "GB00B24CGK77": {
+    "ticker": "GB00B24CGK77",
+    "isin": "GB00B24CGK77",
+    "name": "Reckitt Benckiser Group plc",
+    "sector": "Consumer Defensive",
+    "geography": "United Kingdom"
+  },
+  "GB0002374006": {
+    "ticker": "GB0002374006",
+    "isin": "GB0002374006",
+    "name": "Diageo plc",
+    "sector": "Consumer Defensive",
+    "geography": "United Kingdom"
+  },
+  "DE0006231004": {
+    "ticker": "DE0006231004",
+    "isin": "DE0006231004",
+    "name": "Infineon Technologies AG",
+    "sector": "Technology",
+    "geography": "Germany"
+  },
+  "NL0011585146": {
+    "ticker": "NL0011585146",
+    "isin": "NL0011585146",
+    "name": "Ferrari N.V.",
+    "sector": "Consumer Cyclical",
+    "geography": "Italy"
+  },
+  "DE0007100000": {
+    "ticker": "DE0007100000",
+    "isin": "DE0007100000",
+    "name": "Mercedes-Benz Group AG",
+    "sector": "Consumer Cyclical",
+    "geography": "Germany"
+  },
+  "FR0000125007": {
+    "ticker": "FR0000125007",
+    "isin": "FR0000125007",
+    "name": "Compagnie de Saint-Gobain S.A.",
+    "sector": "Industrials",
+    "geography": "France"
+  },
+  "CH0013841017": {
+    "ticker": "CH0013841017",
+    "isin": "CH0013841017",
+    "name": "Lonza Group AG",
+    "sector": "Healthcare",
+    "geography": "Switzerland"
+  },
+  "FR001400UH43": {
+    "ticker": "FR001400UH43",
+    "isin": "FR001400UH43",
+    "name": "Not Found",
+    "sector": "Unknown",
+    "geography": "Unknown"
+  },
+  "JE00B4T3BW64": {
+    "ticker": "JE00B4T3BW64",
+    "isin": "JE00B4T3BW64",
+    "name": "Glencore plc",
+    "sector": "Basic Materials",
+    "geography": "Switzerland"
+  },
+  "DE0005810055": {
+    "ticker": "DE0005810055",
+    "isin": "DE0005810055",
+    "name": "Deutsche B\u00f6rse AG",
+    "sector": "Financial Services",
+    "geography": "Germany"
+  },
+  "DE0005552004": {
+    "ticker": "DE0005552004",
+    "isin": "DE0005552004",
+    "name": "Deutsche Post AG",
+    "sector": "Industrials",
+    "geography": "Germany"
+  },
+  "NL0012969182": {
+    "ticker": "NL0012969182",
+    "isin": "NL0012969182",
+    "name": "Adyen N.V.",
+    "sector": "Technology",
+    "geography": "Netherlands"
+  },
+  "SE0000115446": {
+    "ticker": "SE0000115446",
+    "isin": "SE0000115446",
+    "name": "AB Volvo (publ)",
+    "sector": "Industrials",
+    "geography": "Sweden"
+  },
+  "FR0000120073": {
+    "ticker": "FR0000120073",
+    "isin": "FR0000120073",
+    "name": "L'Air Liquide S.A.",
+    "sector": "Basic Materials",
+    "geography": "France"
+  },
+  "DE000BASF111": {
+    "ticker": "DE000BASF111",
+    "isin": "DE000BASF111",
+    "name": "BASF SE",
+    "sector": "Basic Materials",
+    "geography": "Germany"
+  },
+  "GB00BMX86B70": {
+    "ticker": "GB00BMX86B70",
+    "isin": "GB00BMX86B70",
+    "name": "Haleon plc",
+    "sector": "Healthcare",
+    "geography": "United Kingdom"
+  },
+  "DK0060079531": {
+    "ticker": "DK0060079531",
+    "isin": "DK0060079531",
+    "name": "DSV A/S",
+    "sector": "Industrials",
+    "geography": "Denmark"
+  },
+  "SE0017486889": {
+    "ticker": "SE0017486889",
+    "isin": "SE0017486889",
+    "name": "Atlas Copco AB (publ)",
+    "sector": "Industrials",
+    "geography": "Sweden"
+  },
+  "IT0003132476": {
+    "ticker": "IT0003132476",
+    "isin": "IT0003132476",
+    "name": "Eni S.p.A.",
+    "sector": "Energy",
+    "geography": "Italy"
+  },
+  "GB00B19NLV48": {
+    "ticker": "GB00B19NLV48",
+    "isin": "GB00B19NLV48",
+    "name": "Experian plc",
+    "sector": "Industrials",
+    "geography": "Ireland"
+  },
+  "GB00BTK05J60": {
+    "ticker": "GB00BTK05J60",
+    "isin": "GB00BTK05J60",
+    "name": "Anglo American plc",
+    "sector": "Basic Materials",
+    "geography": "United Kingdom"
+  },
+  "FR0000120321": {
+    "ticker": "FR0000120321",
+    "isin": "FR0000120321",
+    "name": "L'Or\u00e9al S.A.",
+    "sector": "Consumer Defensive",
+    "geography": "France"
+  },
+  "CH0432492467": {
+    "ticker": "CH0432492467",
+    "isin": "CH0432492467",
+    "name": "Alcon Inc.",
+    "sector": "Healthcare",
+    "geography": "Switzerland"
+  },
+  "NL0011794037": {
+    "ticker": "NL0011794037",
+    "isin": "NL0011794037",
+    "name": "Koninklijke Ahold Delhaize N.V.",
+    "sector": "Consumer Defensive",
+    "geography": "Netherlands"
+  },
+  "SE0007100581": {
+    "ticker": "SE0007100581",
+    "isin": "SE0007100581",
+    "name": "ASSA ABLOY AB (publ)",
+    "sector": "Industrials",
+    "geography": "Sweden"
+  },
+  "CH0010645932": {
+    "ticker": "CH0010645932",
+    "isin": "CH0010645932",
+    "name": "Givaudan SA",
+    "sector": "Basic Materials",
+    "geography": "Switzerland"
+  },
+  "FI0009000681": {
+    "ticker": "FI0009000681",
+    "isin": "FI0009000681",
+    "name": "Nokia Oyj",
+    "sector": "Technology",
+    "geography": "Finland"
+  },
+  "BE0003739530": {
+    "ticker": "BE0003739530",
+    "isin": "BE0003739530",
+    "name": "UCB SA",
+    "sector": "Healthcare",
+    "geography": "Belgium"
+  },
+  "ES0109067019": {
+    "ticker": "ES0109067019",
+    "isin": "ES0109067019",
+    "name": "Amadeus IT Group, S.A.",
+    "sector": "Technology",
+    "geography": "Spain"
+  },
+  "GB0007908733": {
+    "ticker": "GB0007908733",
+    "isin": "GB0007908733",
+    "name": "SSE plc",
+    "sector": "Utilities",
+    "geography": "United Kingdom"
+  },
+  "GB0004544929": {
+    "ticker": "GB0004544929",
+    "isin": "GB0004544929",
+    "name": "Imperial Brands PLC",
+    "sector": "Consumer Defensive",
+    "geography": "United Kingdom"
+  },
+  "SE0012853455": {
+    "ticker": "SE0012853455",
+    "isin": "SE0012853455",
+    "name": "EQT AB (publ)",
+    "sector": "Financial Services",
+    "geography": "Sweden"
+  },
+  "DE000BAY0017": {
+    "ticker": "DE000BAY0017",
+    "isin": "DE000BAY0017",
+    "name": "Bayer Aktiengesellschaft",
+    "sector": "Healthcare",
+    "geography": "Germany"
+  },
+  "DE000A1EWWW0": {
+    "ticker": "DE000A1EWWW0",
+    "isin": "DE000A1EWWW0",
+    "name": "adidas AG",
+    "sector": "Consumer Cyclical",
+    "geography": "Germany"
+  },
+  "SE0000148884": {
+    "ticker": "SE0000148884",
+    "isin": "SE0000148884",
+    "name": "Skandinaviska Enskilda Banken AB (publ)",
+    "sector": "Financial Services",
+    "geography": "Sweden"
+  },
+  "CH0418792922": {
+    "ticker": "CH0418792922",
+    "isin": "CH0418792922",
+    "name": "Sika AG",
+    "sector": "Basic Materials",
+    "geography": "Switzerland"
+  },
+  "FR001400U6U4": {
+    "ticker": "FR001400U6U4",
+    "isin": "FR001400U6U4",
+    "name": "Not Found",
+    "sector": "Unknown",
+    "geography": "Unknown"
+  },
+  "SE0000108656": {
+    "ticker": "SE0000108656",
+    "isin": "SE0000108656",
+    "name": "Telefonaktiebolaget LM Ericsson (publ)",
+    "sector": "Technology",
+    "geography": "Sweden"
+  },
+  "DE0005190003": {
+    "ticker": "DE0005190003",
+    "isin": "DE0005190003",
+    "name": "Bayerische Motoren Werke Aktiengesellschaft",
+    "sector": "Consumer Cyclical",
+    "geography": "Germany"
+  },
+  "NL0015000IY2": {
+    "ticker": "NL0015000IY2",
+    "isin": "NL0015000IY2",
+    "name": "Universal Music Group N.V.",
+    "sector": "Communication Services",
+    "geography": "Netherlands"
+  },
+  "SE0000242455": {
+    "ticker": "SE0000242455",
+    "isin": "SE0000242455",
+    "name": "Swedbank AB (publ)",
+    "sector": "Financial Services",
+    "geography": "Sweden"
+  },
+  "GB0000536739": {
+    "ticker": "GB0000536739",
+    "isin": "GB0000536739",
+    "name": "Ashtead Group plc",
+    "sector": "Industrials",
+    "geography": "United Kingdom"
+  },
+  "NL0000334118": {
+    "ticker": "NL0000334118",
+    "isin": "NL0000334118",
+    "name": "ASM International NV",
+    "sector": "Technology",
+    "geography": "Netherlands"
+  },
+  "FI0009013403": {
+    "ticker": "FI0009013403",
+    "isin": "FI0009013403",
+    "name": "KONE Oyj",
+    "sector": "Industrials",
+    "geography": "Finland"
+  },
+  "CH0024608827": {
+    "ticker": "CH0024608827",
+    "isin": "CH0024608827",
+    "name": "Partners Group Holding AG",
+    "sector": "Financial Services",
+    "geography": "Switzerland"
+  },
+  "CH0030170408": {
+    "ticker": "CH0030170408",
+    "isin": "CH0030170408",
+    "name": "Geberit AG",
+    "sector": "Industrials",
+    "geography": "Switzerland"
+  },
+  "NL0000395903": {
+    "ticker": "NL0000395903",
+    "isin": "NL0000395903",
+    "name": "Wolters Kluwer N.V.",
+    "sector": "Industrials",
+    "geography": "Netherlands"
+  },
+  "GB00BH4HKS39": {
+    "ticker": "GB00BH4HKS39",
+    "isin": "GB00BH4HKS39",
+    "name": "Vodafone Group Public Limited Company",
+    "sector": "Communication Services",
+    "geography": "United Kingdom"
+  },
+  "CH1430134226": {
+    "ticker": "CH1430134226",
+    "isin": "CH1430134226",
+    "name": "AMRIZE N",
+    "sector": "Basic Materials",
+    "geography": "Switzerland"
+  },
+  "DK0061539921": {
+    "ticker": "DK0061539921",
+    "isin": "DK0061539921",
+    "name": "Vestas Wind Systems A/S",
+    "sector": "Industrials",
+    "geography": "Denmark"
+  },
+  "SE0015961909": {
+    "ticker": "SE0015961909",
+    "isin": "SE0015961909",
+    "name": "Hexagon AB (publ)",
+    "sector": "Technology",
+    "geography": "Sweden"
+  },
+  "DE000DTR0CK8": {
+    "ticker": "DE000DTR0CK8",
+    "isin": "DE000DTR0CK8",
+    "name": "Daimler Truck Holding AG",
+    "sector": "Industrials",
+    "geography": "Germany"
+  },
+  "NL0000009165": {
+    "ticker": "NL0000009165",
+    "isin": "NL0000009165",
+    "name": "Heineken N.V.",
+    "sector": "Consumer Defensive",
+    "geography": "Netherlands"
+  },
+  "DE0007664039": {
+    "ticker": "DE0007664039",
+    "isin": "DE0007664039",
+    "name": "Volkswagen AG",
+    "sector": "Consumer Cyclical",
+    "geography": "Germany"
+  },
+  "FR0000124141": {
+    "ticker": "FR0000124141",
+    "isin": "FR0000124141",
+    "name": "Veolia Environnement SA",
+    "sector": "Industrials",
+    "geography": "France"
+  },
+  "NO0010161896": {
+    "ticker": "NO0010161896",
+    "isin": "NO0010161896",
+    "name": "DNB Bank ASA",
+    "sector": "Financial Services",
+    "geography": "Norway"
+  },
+  "DK0060336014": {
+    "ticker": "DK0060336014",
+    "isin": "DK0060336014",
+    "name": "Novozymes A/S",
+    "sector": "Basic Materials",
+    "geography": "Denmark"
+  },
+  "DE000A1ML7J1": {
+    "ticker": "DE000A1ML7J1",
+    "isin": "DE000A1ML7J1",
+    "name": "Vonovia SE",
+    "sector": "Real Estate",
+    "geography": "Germany"
+  },
+  "NL0000009538": {
+    "ticker": "NL0000009538",
+    "isin": "NL0000009538",
+    "name": "Koninklijke Philips N.V.",
+    "sector": "Healthcare",
+    "geography": "Netherlands"
+  },
+  "IT0005508921": {
+    "ticker": "IT0005508921",
+    "isin": "IT0005508921",
+    "name": "Banca Monte dei Paschi di Siena S.p.A.",
+    "sector": "Financial Services",
+    "geography": "Italy"
+  },
+  "FR0000045072": {
+    "ticker": "FR0000045072",
+    "isin": "FR0000045072",
+    "name": "Cr\u00e9dit Agricole S.A.",
+    "sector": "Financial Services",
+    "geography": "France"
+  },
+  "SE0007100599": {
+    "ticker": "SE0007100599",
+    "isin": "SE0007100599",
+    "name": "Svenska Handelsbanken AB (publ)",
+    "sector": "Financial Services",
+    "geography": "Sweden"
+  },
+  "NL00150001Q9": {
+    "ticker": "NL00150001Q9",
+    "isin": "NL00150001Q9",
+    "name": "Stellantis N.V.",
+    "sector": "Consumer Cyclical",
+    "geography": "Netherlands"
+  },
+  "FR0014003TT8": {
+    "ticker": "FR0014003TT8",
+    "isin": "FR0014003TT8",
+    "name": "Dassault Syst\u00e8mes SE",
+    "sector": "Technology",
+    "geography": "France"
+  },
+  "ES0105046017": {
+    "ticker": "ES0105046017",
+    "isin": "ES0105046017",
+    "name": "Aena S.M.E., S.A.",
+    "sector": "Industrials",
+    "geography": "Spain"
+  },
+  "GB00BHJYC057": {
+    "ticker": "GB00BHJYC057",
+    "isin": "GB00BHJYC057",
+    "name": "InterContinental Hotels Group PLC",
+    "sector": "Consumer Cyclical",
+    "geography": "United Kingdom"
+  },
+  "DK0010272202": {
+    "ticker": "DK0010272202",
+    "isin": "DK0010272202",
+    "name": "Genmab A/S",
+    "sector": "Healthcare",
+    "geography": "Denmark"
+  },
+  "CH0008742519": {
+    "ticker": "CH0008742519",
+    "isin": "CH0008742519",
+    "name": "Swisscom AG",
+    "sector": "Communication Services",
+    "geography": "Switzerland"
+  },
+  "CH1256740924": {
+    "ticker": "CH1256740924",
+    "isin": "CH1256740924",
+    "name": "SGS SA",
+    "sector": "Industrials",
+    "geography": "Switzerland"
+  },
+  "NL0000009082": {
+    "ticker": "NL0000009082",
+    "isin": "NL0000009082",
+    "name": "Koninklijke KPN N.V.",
+    "sector": "Communication Services",
+    "geography": "Netherlands"
+  },
+  "DE0008402215": {
+    "ticker": "DE0008402215",
+    "isin": "DE0008402215",
+    "name": "Hannover R\u00fcck SE",
+    "sector": "Financial Services",
+    "geography": "Germany"
+  },
+  "LU1598757687": {
+    "ticker": "LU1598757687",
+    "isin": "LU1598757687",
+    "name": "ArcelorMittal S.A.",
+    "sector": "Basic Materials",
+    "geography": "Luxembourg"
+  },
+  "GB0005603997": {
+    "ticker": "GB0005603997",
+    "isin": "GB0005603997",
+    "name": "Legal & General Group Plc",
+    "sector": "Financial Services",
+    "geography": "United Kingdom"
+  },
+  "PLPKO0000016": {
+    "ticker": "PLPKO0000016",
+    "isin": "PLPKO0000016",
+    "name": "Powszechna Kasa Oszczednosci Bank Polski Sp\u00f3lka Akcyjna",
+    "sector": "Financial Services",
+    "geography": "Poland"
+  },
+  "DE0006599905": {
+    "ticker": "DE0006599905",
+    "isin": "DE0006599905",
+    "name": "Merck KGaA",
+    "sector": "Healthcare",
+    "geography": "Germany"
+  },
+  "SE0009922164": {
+    "ticker": "SE0009922164",
+    "isin": "SE0009922164",
+    "name": "Essity AB (publ)",
+    "sector": "Consumer Defensive",
+    "geography": "Sweden"
+  },
+  "PLPKN0000018": {
+    "ticker": "PLPKN0000018",
+    "isin": "PLPKN0000018",
+    "name": "Orlen S.A.",
+    "sector": "Energy",
+    "geography": "Poland"
+  },
+  "NO0010096985": {
+    "ticker": "NO0010096985",
+    "isin": "NO0010096985",
+    "name": "Equinor ASA",
+    "sector": "Energy",
+    "geography": "Norway"
+  },
+  "FR0000053951": {
+    "ticker": "FR0000053951",
+    "isin": "FR0000053951",
+    "name": "Not Found",
+    "sector": "Unknown",
+    "geography": "Unknown"
+  },
+  "DE000SHL1006": {
+    "ticker": "DE000SHL1006",
+    "isin": "DE000SHL1006",
+    "name": "Siemens Healthineers AG",
+    "sector": "Healthcare",
+    "geography": "Germany"
+  },
+  "ES0178430E18": {
+    "ticker": "ES0178430E18",
+    "isin": "ES0178430E18",
+    "name": "Telef\u00f3nica, S.A.",
+    "sector": "Communication Services",
+    "geography": "Spain"
+  },
+  "GB0030913577": {
+    "ticker": "GB0030913577",
+    "isin": "GB0030913577",
+    "name": "BT Group plc",
+    "sector": "Communication Services",
+    "geography": "United Kingdom"
+  },
+  "NL0000226223": {
+    "ticker": "NL0000226223",
+    "isin": "NL0000226223",
+    "name": "STMicroelectronics N.V.",
+    "sector": "Technology",
+    "geography": "Netherlands"
+  },
+  "IT0000072170": {
+    "ticker": "IT0000072170",
+    "isin": "IT0000072170",
+    "name": "FinecoBank Banca Fineco S.p.A.",
+    "sector": "Financial Services",
+    "geography": "Italy"
+  },
+  "IT0003242622": {
+    "ticker": "IT0003242622",
+    "isin": "IT0003242622",
+    "name": "Terna S.p.A.",
+    "sector": "Utilities",
+    "geography": "Italy"
+  },
+  "CH0024638196": {
+    "ticker": "CH0024638196",
+    "isin": "CH0024638196",
+    "name": "Schindler Holding AG",
+    "sector": "Industrials",
+    "geography": "Switzerland"
+  },
+  "CH1216478797": {
+    "ticker": "CH1216478797",
+    "isin": "CH1216478797",
+    "name": "DSM-Firmenich AG",
+    "sector": "Basic Materials",
+    "geography": "Switzerland"
+  },
+  "IE0004906560": {
+    "ticker": "IE0004906560",
+    "isin": "IE0004906560",
+    "name": "Kerry Group plc",
+    "sector": "Consumer Defensive",
+    "geography": "Ireland"
+  },
+  "IT0004965148": {
+    "ticker": "IT0004965148",
+    "isin": "IT0004965148",
+    "name": "Moncler S.p.A.",
+    "sector": "Consumer Cyclical",
+    "geography": "Italy"
+  },
+  "CH0102484968": {
+    "ticker": "CH0102484968",
+    "isin": "CH0102484968",
+    "name": "Julius B\u00e4r Gruppe AG",
+    "sector": "Financial Services",
+    "geography": "Switzerland"
+  },
+  "ES0105066007": {
+    "ticker": "ES0105066007",
+    "isin": "ES0105066007",
+    "name": "Cellnex Telecom, S.A.",
+    "sector": "Real Estate",
+    "geography": "Spain"
+  },
+  "GB00B8C3BL03": {
+    "ticker": "GB00B8C3BL03",
+    "isin": "GB00B8C3BL03",
+    "name": "The Sage Group plc",
+    "sector": "Technology",
+    "geography": "United Kingdom"
+  },
+  "FI0009005987": {
+    "ticker": "FI0009005987",
+    "isin": "FI0009005987",
+    "name": "UPM-Kymmene Oyj",
+    "sector": "Basic Materials",
+    "geography": "Finland"
+  },
+  "CH1175448666": {
+    "ticker": "CH1175448666",
+    "isin": "CH1175448666",
+    "name": "Straumann Holding AG",
+    "sector": "Healthcare",
+    "geography": "Switzerland"
+  },
+  "DK0060448595": {
+    "ticker": "DK0060448595",
+    "isin": "DK0060448595",
+    "name": "Coloplast A/S",
+    "sector": "Healthcare",
+    "geography": "Denmark"
+  },
+  "SE0000695876": {
+    "ticker": "SE0000695876",
+    "isin": "SE0000695876",
+    "name": "Alfa Laval AB (publ)",
+    "sector": "Industrials",
+    "geography": "Sweden"
+  },
+  "GB00B082RF11": {
+    "ticker": "GB00B082RF11",
+    "isin": "GB00B082RF11",
+    "name": "Rentokil Initial plc",
+    "sector": "Industrials",
+    "geography": "United Kingdom"
+  },
+  "FR0000130452": {
+    "ticker": "FR0000130452",
+    "isin": "FR0000130452",
+    "name": "Eiffage SA",
+    "sector": "Industrials",
+    "geography": "France"
+  },
+  "SE0015658109": {
+    "ticker": "SE0015658109",
+    "isin": "SE0015658109",
+    "name": "Not Found",
+    "sector": "Unknown",
+    "geography": "Unknown"
+  },
+  "PTEDP0AM0009": {
+    "ticker": "PTEDP0AM0009",
+    "isin": "PTEDP0AM0009",
+    "name": "EDP, S.A.",
+    "sector": "Utilities",
+    "geography": "Portugal"
+  },
+  "DE0006048432": {
+    "ticker": "DE0006048432",
+    "isin": "DE0006048432",
+    "name": "Henkel AG & Co. KGaA",
+    "sector": "Consumer Defensive",
+    "geography": "Germany"
+  },
+  "NL0006294274": {
+    "ticker": "NL0006294274",
+    "isin": "NL0006294274",
+    "name": "Euronext N.V.",
+    "sector": "Financial Services",
+    "geography": "Netherlands"
+  },
+  "IE0004927939": {
+    "ticker": "IE0004927939",
+    "isin": "IE0004927939",
+    "name": "Kingspan Group plc",
+    "sector": "Industrials",
+    "geography": "Ireland"
+  },
+  "CH0012549785": {
+    "ticker": "CH0012549785",
+    "isin": "CH0012549785",
+    "name": "Sonova Holding AG",
+    "sector": "Healthcare",
+    "geography": "Switzerland"
+  },
+  "SE0020050417": {
+    "ticker": "SE0020050417",
+    "isin": "SE0020050417",
+    "name": "Boliden AB (publ)",
+    "sector": "Basic Materials",
+    "geography": "Sweden"
+  },
+  "NL0013267909": {
+    "ticker": "NL0013267909",
+    "isin": "NL0013267909",
+    "name": "Akzo Nobel N.V.",
+    "sector": "Basic Materials",
+    "geography": "Netherlands"
+  },
+  "GB00B5ZN1N88": {
+    "ticker": "GB00B5ZN1N88",
+    "isin": "GB00B5ZN1N88",
+    "name": "SEGRO Plc",
+    "sector": "Real Estate",
+    "geography": "United Kingdom"
+  },
+  "FR0006174348": {
+    "ticker": "FR0006174348",
+    "isin": "FR0006174348",
+    "name": "Bureau Veritas SA",
+    "sector": "Industrials",
+    "geography": "France"
+  },
+  "FR0000120404": {
+    "ticker": "FR0000120404",
+    "isin": "FR0000120404",
+    "name": "Accor SA",
+    "sector": "Consumer Cyclical",
+    "geography": "France"
+  },
+  "GB00B02J6398": {
+    "ticker": "GB00B02J6398",
+    "isin": "GB00B02J6398",
+    "name": "Admiral Group plc",
+    "sector": "Financial Services",
+    "geography": "United Kingdom"
+  },
+  "NO0013536151": {
+    "ticker": "NO0013536151",
+    "isin": "NO0013536151",
+    "name": "Kongsberg Gruppen ASA",
+    "sector": "Industrials",
+    "geography": "Norway"
+  },
+  "FR0013326246": {
+    "ticker": "FR0013326246",
+    "isin": "FR0013326246",
+    "name": "Unibail-Rodamco-Westfield SE",
+    "sector": "Real Estate",
+    "geography": "France"
+  },
+  "CH0198251305": {
+    "ticker": "CH0198251305",
+    "isin": "CH0198251305",
+    "name": "Coca-Cola HBC AG",
+    "sector": "Consumer Defensive",
+    "geography": "Switzerland"
+  },
+  "CH0311864901": {
+    "ticker": "CH0311864901",
+    "isin": "CH0311864901",
+    "name": "VAT Group AG",
+    "sector": "Industrials",
+    "geography": "Switzerland"
+  },
+  "CH0025238863": {
+    "ticker": "CH0025238863",
+    "isin": "CH0025238863",
+    "name": "Kuehne + Nagel International AG",
+    "sector": "Industrials",
+    "geography": "Switzerland"
+  },
+  "DK0010181759": {
+    "ticker": "DK0010181759",
+    "isin": "DK0010181759",
+    "name": "Carlsberg A/S",
+    "sector": "Consumer Defensive",
+    "geography": "Denmark"
+  },
+  "BE0974264930": {
+    "ticker": "BE0974264930",
+    "isin": "BE0974264930",
+    "name": "ageas SA/NV",
+    "sector": "Financial Services",
+    "geography": "Belgium"
+  },
+  "DE000SYM9999": {
+    "ticker": "DE000SYM9999",
+    "isin": "DE000SYM9999",
+    "name": "Symrise AG",
+    "sector": "Basic Materials",
+    "geography": "Germany"
+  },
+  "GB00B39J2M42": {
+    "ticker": "GB00B39J2M42",
+    "isin": "GB00B39J2M42",
+    "name": "United Utilities Group PLC",
+    "sector": "Utilities",
+    "geography": "United Kingdom"
+  },
+  "GB00BL9YR756": {
+    "ticker": "GB00BL9YR756",
+    "isin": "GB00BL9YR756",
+    "name": "Wise plc",
+    "sector": "Technology",
+    "geography": "United Kingdom"
+  },
+  "AT0000BAWAG2": {
+    "ticker": "AT0000BAWAG2",
+    "isin": "AT0000BAWAG2",
+    "name": "BAWAG Group AG",
+    "sector": "Financial Services",
+    "geography": "Austria"
+  },
+  "GB0031638363": {
+    "ticker": "GB0031638363",
+    "isin": "GB0031638363",
+    "name": "Intertek Group plc",
+    "sector": "Industrials",
+    "geography": "United Kingdom"
+  },
+  "GB00B1FH8J72": {
+    "ticker": "GB00B1FH8J72",
+    "isin": "GB00B1FH8J72",
+    "name": "Severn Trent PLC",
+    "sector": "Utilities",
+    "geography": "United Kingdom"
+  },
+  "NL0015002CX3": {
+    "ticker": "NL0015002CX3",
+    "isin": "NL0015002CX3",
+    "name": "Qiagen N.V.",
+    "sector": "Healthcare",
+    "geography": "Netherlands"
+  },
+  "DK0060094928": {
+    "ticker": "DK0060094928",
+    "isin": "DK0060094928",
+    "name": "\u00d8rsted A/S",
+    "sector": "Utilities",
+    "geography": "Denmark"
+  },
+  "GB0009465807": {
+    "ticker": "GB0009465807",
+    "isin": "GB0009465807",
+    "name": "The Weir Group PLC",
+    "sector": "Industrials",
+    "geography": "United Kingdom"
+  },
+  "DE0005785802": {
+    "ticker": "DE0005785802",
+    "isin": "DE0005785802",
+    "name": "Fresenius Medical Care AG",
+    "sector": "Healthcare",
+    "geography": "Germany"
+  },
+  "GB00BNGDN821": {
+    "ticker": "GB00BNGDN821",
+    "isin": "GB00BNGDN821",
+    "name": "Melrose Industries PLC",
+    "sector": "Industrials",
+    "geography": "United Kingdom"
+  },
+  "BMG0112X1056": {
+    "ticker": "BMG0112X1056",
+    "isin": "BMG0112X1056",
+    "name": "Aegon Ltd.",
+    "sector": "Financial Services",
+    "geography": "Netherlands"
+  },
+  "SE0012673267": {
+    "ticker": "SE0012673267",
+    "isin": "SE0012673267",
+    "name": "Evolution AB (publ)",
+    "sector": "Consumer Cyclical",
+    "geography": "Sweden"
+  },
+  "DE0005200000": {
+    "ticker": "DE0005200000",
+    "isin": "DE0005200000",
+    "name": "Beiersdorf Aktiengesellschaft",
+    "sector": "Consumer Defensive",
+    "geography": "Germany"
+  },
+  "NO0010063308": {
+    "ticker": "NO0010063308",
+    "isin": "NO0010063308",
+    "name": "Telenor ASA",
+    "sector": "Communication Services",
+    "geography": "Norway"
+  },
+  "FR0010220475": {
+    "ticker": "FR0010220475",
+    "isin": "FR0010220475",
+    "name": "Alstom SA",
+    "sector": "Industrials",
+    "geography": "France"
+  },
+  "GB00B0744B38": {
+    "ticker": "GB00B0744B38",
+    "isin": "GB00B0744B38",
+    "name": "Bunzl plc",
+    "sector": "Consumer Defensive",
+    "geography": "United Kingdom"
+  },
+  "GB0031274896": {
+    "ticker": "GB0031274896",
+    "isin": "GB0031274896",
+    "name": "Marks and Spencer Group plc",
+    "sector": "Consumer Cyclical",
+    "geography": "United Kingdom"
+  },
+  "NO0003054108": {
+    "ticker": "NO0003054108",
+    "isin": "NO0003054108",
+    "name": "Mowi ASA",
+    "sector": "Consumer Defensive",
+    "geography": "Norway"
+  },
+  "FR0000120172": {
+    "ticker": "FR0000120172",
+    "isin": "FR0000120172",
+    "name": "Carrefour SA",
+    "sector": "Consumer Defensive",
+    "geography": "France"
+  },
+  "SE0000667925": {
+    "ticker": "SE0000667925",
+    "isin": "SE0000667925",
+    "name": "Telia Company AB (publ)",
+    "sector": "Communication Services",
+    "geography": "Sweden"
+  },
+  "GB0001826634": {
+    "ticker": "GB0001826634",
+    "isin": "GB0001826634",
+    "name": "Diploma PLC",
+    "sector": "Industrials",
+    "geography": "United Kingdom"
+  },
+  "PLPZU0000011": {
+    "ticker": "PLPZU0000011",
+    "isin": "PLPZU0000011",
+    "name": "Powszechny Zaklad Ubezpieczen SA",
+    "sector": "Financial Services",
+    "geography": "Poland"
+  },
+  "SE0000113250": {
+    "ticker": "SE0000113250",
+    "isin": "SE0000113250",
+    "name": "Skanska AB (publ)",
+    "sector": "Industrials",
+    "geography": "Sweden"
+  },
+  "DK0060252690": {
+    "ticker": "DK0060252690",
+    "isin": "DK0060252690",
+    "name": "Pandora A/S",
+    "sector": "Consumer Cyclical",
+    "geography": "Denmark"
+  },
+  "NO0005052605": {
+    "ticker": "NO0005052605",
+    "isin": "NO0005052605",
+    "name": "Norsk Hydro ASA",
+    "sector": "Basic Materials",
+    "geography": "Norway"
+  },
+  "PTGAL0AM0009": {
+    "ticker": "PTGAL0AM0009",
+    "isin": "PTGAL0AM0009",
+    "name": "Galp Energia, SGPS, S.A.",
+    "sector": "Energy",
+    "geography": "Portugal"
+  },
+  "GB0007669376": {
+    "ticker": "GB0007669376",
+    "isin": "GB0007669376",
+    "name": "St. James's Place plc",
+    "sector": "Financial Services",
+    "geography": "United Kingdom"
+  },
+  "SE0000108227": {
+    "ticker": "SE0000108227",
+    "isin": "SE0000108227",
+    "name": "AB SKF (publ)",
+    "sector": "Industrials",
+    "geography": "Sweden"
+  },
+  "PLPEKAO00016": {
+    "ticker": "PLPEKAO00016",
+    "isin": "PLPEKAO00016",
+    "name": "Bank Polska Kasa Opieki S.A.",
+    "sector": "Financial Services",
+    "geography": "Poland"
+  },
+  "GB0006731235": {
+    "ticker": "GB0006731235",
+    "isin": "GB0006731235",
+    "name": "Associated British Foods plc",
+    "sector": "Consumer Defensive",
+    "geography": "United Kingdom"
+  },
+  "SE0000106270": {
+    "ticker": "SE0000106270",
+    "isin": "SE0000106270",
+    "name": "H & M Hennes & Mauritz AB (publ)",
+    "sector": "Consumer Cyclical",
+    "geography": "Sweden"
+  },
+  "SE0000872095": {
+    "ticker": "SE0000872095",
+    "isin": "SE0000872095",
+    "name": "Swedish Orphan Biovitrum AB (publ)",
+    "sector": "Healthcare",
+    "geography": "Sweden"
+  },
+  "DK0060636678": {
+    "ticker": "DK0060636678",
+    "isin": "DK0060636678",
+    "name": "Tryg A/S",
+    "sector": "Financial Services",
+    "geography": "Denmark"
+  },
+  "GB0006776081": {
+    "ticker": "GB0006776081",
+    "isin": "GB0006776081",
+    "name": "Pearson plc",
+    "sector": "Communication Services",
+    "geography": "United Kingdom"
+  },
+  "FR0000121964": {
+    "ticker": "FR0000121964",
+    "isin": "FR0000121964",
+    "name": "Kl\u00e9pierre SA",
+    "sector": "Real Estate",
+    "geography": "France"
+  },
+  "DK0010244508": {
+    "ticker": "DK0010244508",
+    "isin": "DK0010244508",
+    "name": "A.P. M\u00f8ller - M\u00e6rsk A/S",
+    "sector": "Industrials",
+    "geography": "Denmark"
+  },
+  "SE0014781795": {
+    "ticker": "SE0014781795",
+    "isin": "SE0014781795",
+    "name": "Addtech AB (publ.)",
+    "sector": "Industrials",
+    "geography": "Sweden"
+  },
+  "CH0018294154": {
+    "ticker": "CH0018294154",
+    "isin": "CH0018294154",
+    "name": "PSP Swiss Property AG",
+    "sector": "Real Estate",
+    "geography": "Switzerland"
+  },
+  "FR0012757854": {
+    "ticker": "FR0012757854",
+    "isin": "FR0012757854",
+    "name": "SPIE SA",
+    "sector": "Industrials",
+    "geography": "France"
+  },
+  "FR0011726835": {
+    "ticker": "FR0011726835",
+    "isin": "FR0011726835",
+    "name": "Gaztransport & Technigaz SA",
+    "sector": "Energy",
+    "geography": "France"
+  },
+  "SE0000114837": {
+    "ticker": "SE0000114837",
+    "isin": "SE0000114837",
+    "name": "Trelleborg AB (publ)",
+    "sector": "Industrials",
+    "geography": "Sweden"
+  },
+  "NL0012059018": {
+    "ticker": "NL0012059018",
+    "isin": "NL0012059018",
+    "name": "Exor N.V.",
+    "sector": "Industrials",
+    "geography": "Netherlands"
+  },
+  "FR0010451203": {
+    "ticker": "FR0010451203",
+    "isin": "FR0010451203",
+    "name": "Rexel S.A.",
+    "sector": "Technology",
+    "geography": "France"
+  },
+  "NL0000008977": {
+    "ticker": "NL0000008977",
+    "isin": "NL0000008977",
+    "name": "Heineken Holding N.V.",
+    "sector": "Consumer Defensive",
+    "geography": "Netherlands"
+  },
+  "FR0000131906": {
+    "ticker": "FR0000131906",
+    "isin": "FR0000131906",
+    "name": "Renault SA",
+    "sector": "Consumer Cyclical",
+    "geography": "France"
+  },
+  "SE0015949201": {
+    "ticker": "SE0015949201",
+    "isin": "SE0015949201",
+    "name": "Lifco AB (publ)",
+    "sector": "Industrials",
+    "geography": "Sweden"
+  },
+  "NO0003733800": {
+    "ticker": "NO0003733800",
+    "isin": "NO0003733800",
+    "name": "Orkla ASA",
+    "sector": "Consumer Defensive",
+    "geography": "Norway"
+  },
+  "GB00BGLP8L22": {
+    "ticker": "GB00BGLP8L22",
+    "isin": "GB00BGLP8L22",
+    "name": "IMI plc",
+    "sector": "Industrials",
+    "geography": "United Kingdom"
+  },
+  "GB00BYQ0JC66": {
+    "ticker": "GB00BYQ0JC66",
+    "isin": "GB00BYQ0JC66",
+    "name": "Beazley plc",
+    "sector": "Financial Services",
+    "geography": "United Kingdom"
+  },
+  "GB00BVYVFW23": {
+    "ticker": "GB00BVYVFW23",
+    "isin": "GB00BVYVFW23",
+    "name": "Auto Trader Group plc",
+    "sector": "Communication Services",
+    "geography": "United Kingdom"
+  },
+  "LU2598331598": {
+    "ticker": "LU2598331598",
+    "isin": "LU2598331598",
+    "name": "Tenaris S.A.",
+    "sector": "Energy",
+    "geography": "Luxembourg"
+  },
+  "FR0014000MR3": {
+    "ticker": "FR0014000MR3",
+    "isin": "FR0014000MR3",
+    "name": "Eurofins Scientific SE",
+    "sector": "Healthcare",
+    "geography": "Luxembourg"
+  },
+  "AT0000743059": {
+    "ticker": "AT0000743059",
+    "isin": "AT0000743059",
+    "name": "OMV Aktiengesellschaft",
+    "sector": "Energy",
+    "geography": "Austria"
+  },
+  "GB0009697037": {
+    "ticker": "GB0009697037",
+    "isin": "GB0009697037",
+    "name": "Babcock International Group PLC",
+    "sector": "Industrials",
+    "geography": "United Kingdom"
+  },
+  "PLKGHM000017": {
+    "ticker": "PLKGHM000017",
+    "isin": "PLKGHM000017",
+    "name": "KGHM Polska Miedz S.A.",
+    "sector": "Basic Materials",
+    "geography": "Poland"
+  },
+  "PTJMT0AE0001": {
+    "ticker": "PTJMT0AE0001",
+    "isin": "PTJMT0AE0001",
+    "name": "Jer\u00f3nimo Martins, SGPS, S.A.",
+    "sector": "Consumer Defensive",
+    "geography": "Portugal"
+  },
+  "NO0010345853": {
+    "ticker": "NO0010345853",
+    "isin": "NO0010345853",
+    "name": "Aker BP ASA",
+    "sector": "Energy",
+    "geography": "Norway"
+  },
+  "DE000A12DM80": {
+    "ticker": "DE000A12DM80",
+    "isin": "DE000A12DM80",
+    "name": "Scout24 SE",
+    "sector": "Communication Services",
+    "geography": "Germany"
+  },
+  "GB00BYT1DJ19": {
+    "ticker": "GB00BYT1DJ19",
+    "isin": "GB00BYT1DJ19",
+    "name": "ICG plc",
+    "sector": "Financial Services",
+    "geography": "United Kingdom"
+  },
+  "SE0000163594": {
+    "ticker": "SE0000163594",
+    "isin": "SE0000163594",
+    "name": "Securitas AB (publ)",
+    "sector": "Industrials",
+    "geography": "Sweden"
+  },
+  "CH1169360919": {
+    "ticker": "CH1169360919",
+    "isin": "CH1169360919",
+    "name": "Accelleron Industries AG",
+    "sector": "Industrials",
+    "geography": "Switzerland"
+  },
+  "NO0003053605": {
+    "ticker": "NO0003053605",
+    "isin": "NO0003053605",
+    "name": "Storebrand ASA",
+    "sector": "Financial Services",
+    "geography": "Norway"
+  },
+  "DE000KBX1006": {
+    "ticker": "DE000KBX1006",
+    "isin": "DE000KBX1006",
+    "name": "Knorr-Bremse AG",
+    "sector": "Consumer Cyclical",
+    "geography": "Germany"
+  },
+  "GB00B019KW72": {
+    "ticker": "GB00B019KW72",
+    "isin": "GB00B019KW72",
+    "name": "J Sainsbury plc",
+    "sector": "Consumer Defensive",
+    "geography": "United Kingdom"
+  },
+  "IT0003828271": {
+    "ticker": "IT0003828271",
+    "isin": "IT0003828271",
+    "name": "Recordati Industria Chimica e Farmaceutica S.p.A.",
+    "sector": "Healthcare",
+    "geography": "Italy"
+  },
+  "BE0003797140": {
+    "ticker": "BE0003797140",
+    "isin": "BE0003797140",
+    "name": "Groupe Bruxelles Lambert SA",
+    "sector": "Financial Services",
+    "geography": "Belgium"
+  },
+  "FI0009007884": {
+    "ticker": "FI0009007884",
+    "isin": "FI0009007884",
+    "name": "Elisa Oyj",
+    "sector": "Communication Services",
+    "geography": "Finland"
+  },
+  "FI0009005961": {
+    "ticker": "FI0009005961",
+    "isin": "FI0009005961",
+    "name": "Stora Enso Oyj",
+    "sector": "Basic Materials",
+    "geography": "Finland"
+  },
+  "ES0173093024": {
+    "ticker": "ES0173093024",
+    "isin": "ES0173093024",
+    "name": "Redeia Corporaci\u00f3n, S.A.",
+    "sector": "Utilities",
+    "geography": "Spain"
+  },
+  "FI0009005870": {
+    "ticker": "FI0009005870",
+    "isin": "FI0009005870",
+    "name": "Konecranes Plc",
+    "sector": "Industrials",
+    "geography": "Finland"
+  },
+  "BMG4593F1389": {
+    "ticker": "BMG4593F1389",
+    "isin": "BMG4593F1389",
+    "name": "Hiscox Ltd",
+    "sector": "Financial Services",
+    "geography": "Bermuda"
+  },
+  "GB0033195214": {
+    "ticker": "GB0033195214",
+    "isin": "GB0033195214",
+    "name": "Kingfisher plc",
+    "sector": "Consumer Cyclical",
+    "geography": "United Kingdom"
+  },
+  "CH0012255151": {
+    "ticker": "CH0012255151",
+    "isin": "CH0012255151",
+    "name": "The Swatch Group AG",
+    "sector": "Consumer Cyclical",
+    "geography": "Switzerland"
+  },
+  "DE0007165631": {
+    "ticker": "DE0007165631",
+    "isin": "DE0007165631",
+    "name": "Sartorius Aktiengesellschaft",
+    "sector": "Healthcare",
+    "geography": "Germany"
+  },
+  "GB0000811801": {
+    "ticker": "GB0000811801",
+    "isin": "GB0000811801",
+    "name": "Barratt Redrow plc",
+    "sector": "Consumer Cyclical",
+    "geography": "United Kingdom"
+  },
+  "DE000PAH0038": {
+    "ticker": "DE000PAH0038",
+    "isin": "DE000PAH0038",
+    "name": "Porsche Automobil Holding SE",
+    "sector": "Consumer Cyclical",
+    "geography": "Germany"
+  },
+  "GB0003718474": {
+    "ticker": "GB0003718474",
+    "isin": "GB0003718474",
+    "name": "Games Workshop Group PLC",
+    "sector": "Consumer Cyclical",
+    "geography": "United Kingdom"
+  },
+  "NO0010208051": {
+    "ticker": "NO0010208051",
+    "isin": "NO0010208051",
+    "name": "Yara International ASA",
+    "sector": "Basic Materials",
+    "geography": "Norway"
+  },
+  "LU2237380790": {
+    "ticker": "LU2237380790",
+    "isin": "LU2237380790",
+    "name": "Not Found",
+    "sector": "Unknown",
+    "geography": "Unknown"
+  },
+  "SE0000112724": {
+    "ticker": "SE0000112724",
+    "isin": "SE0000112724",
+    "name": "Svenska Cellulosa Aktiebolaget SCA (publ)",
+    "sector": "Basic Materials",
+    "geography": "Sweden"
+  },
+  "CH0010675863": {
+    "ticker": "CH0010675863",
+    "isin": "CH0010675863",
+    "name": "Swissquote Group Holding SA",
+    "sector": "Financial Services",
+    "geography": "Switzerland"
+  },
+  "GB00B1KJJ408": {
+    "ticker": "GB00B1KJJ408",
+    "isin": "GB00B1KJJ408",
+    "name": "Whitbread plc",
+    "sector": "Consumer Cyclical",
+    "geography": "United Kingdom"
+  },
+  "SE0001515552": {
+    "ticker": "SE0001515552",
+    "isin": "SE0001515552",
+    "name": "Indutrade AB (publ)",
+    "sector": "Industrials",
+    "geography": "Sweden"
+  },
+  "BE0003822393": {
+    "ticker": "BE0003822393",
+    "isin": "BE0003822393",
+    "name": "Elia Group SA/NV",
+    "sector": "Utilities",
+    "geography": "Belgium"
+  },
+  "FR0013154002": {
+    "ticker": "FR0013154002",
+    "isin": "FR0013154002",
+    "name": "Sartorius Stedim Biotech S.A.",
+    "sector": "Healthcare",
+    "geography": "France"
+  },
+  "IT0005211237": {
+    "ticker": "IT0005211237",
+    "isin": "IT0005211237",
+    "name": "Italgas S.p.A.",
+    "sector": "Utilities",
+    "geography": "Italy"
+  },
+  "DK0010287663": {
+    "ticker": "DK0010287663",
+    "isin": "DK0010287663",
+    "name": "NKT A/S",
+    "sector": "Industrials",
+    "geography": "Denmark"
+  },
+  "SE0000107203": {
+    "ticker": "SE0000107203",
+    "isin": "SE0000107203",
+    "name": "AB Industriv\u00e4rden (publ)",
+    "sector": "Financial Services",
+    "geography": "Sweden"
+  },
+  "CH0009002962": {
+    "ticker": "CH0009002962",
+    "isin": "CH0009002962",
+    "name": "Barry Callebaut AG",
+    "sector": "Consumer Defensive",
+    "geography": "Switzerland"
+  },
+  "DE0006452907": {
+    "ticker": "DE0006452907",
+    "isin": "DE0006452907",
+    "name": "Nemetschek SE",
+    "sector": "Technology",
+    "geography": "Germany"
+  },
+  "DE000A1DAHH0": {
+    "ticker": "DE000A1DAHH0",
+    "isin": "DE000A1DAHH0",
+    "name": "Brenntag SE",
+    "sector": "Basic Materials",
+    "geography": "Germany"
+  },
+  "GB00BWFGQN14": {
+    "ticker": "GB00BWFGQN14",
+    "isin": "GB00BWFGQN14",
+    "name": "Spirax Group plc",
+    "sector": "Industrials",
+    "geography": "United Kingdom"
+  },
+  "FR0014004L86": {
+    "ticker": "FR0014004L86",
+    "isin": "FR0014004L86",
+    "name": "Dassault Aviation soci\u00e9t\u00e9 anonyme",
+    "sector": "Industrials",
+    "geography": "France"
+  },
+  "IE0002424939": {
+    "ticker": "IE0002424939",
+    "isin": "IE0002424939",
+    "name": "DCC plc",
+    "sector": "Energy",
+    "geography": "Ireland"
+  },
+  "FI0009000202": {
+    "ticker": "FI0009000202",
+    "isin": "FI0009000202",
+    "name": "Not Found",
+    "sector": "Unknown",
+    "geography": "Unknown"
+  },
+  "SE0015949748": {
+    "ticker": "SE0015949748",
+    "isin": "SE0015949748",
+    "name": "Beijer Ref AB (publ)",
+    "sector": "Industrials",
+    "geography": "Sweden"
+  },
+  "IM00B5VQMV65": {
+    "ticker": "IM00B5VQMV65",
+    "isin": "IM00B5VQMV65",
+    "name": "Entain Plc",
+    "sector": "Consumer Cyclical",
+    "geography": "Isle of Man"
+  },
+  "DE000RENK730": {
+    "ticker": "DE000RENK730",
+    "isin": "DE000RENK730",
+    "name": "RENK Group AG",
+    "sector": "Industrials",
+    "geography": "Germany"
+  },
+  "FR0013280286": {
+    "ticker": "FR0013280286",
+    "isin": "FR0013280286",
+    "name": "bioM\u00e9rieux S.A.",
+    "sector": "Healthcare",
+    "geography": "France"
+  },
+  "PLLPP0000011": {
+    "ticker": "PLLPP0000011",
+    "isin": "PLLPP0000011",
+    "name": "LPP SA",
+    "sector": "Consumer Cyclical",
+    "geography": "Poland"
+  },
+  "CH0360674466": {
+    "ticker": "CH0360674466",
+    "isin": "CH0360674466",
+    "name": "Galenica AG",
+    "sector": "Healthcare",
+    "geography": "Switzerland"
+  },
+  "DE000ZAL1111": {
+    "ticker": "DE000ZAL1111",
+    "isin": "DE000ZAL1111",
+    "name": "Zalando SE",
+    "sector": "Consumer Cyclical",
+    "geography": "Germany"
+  },
+  "NL0014559478": {
+    "ticker": "NL0014559478",
+    "isin": "NL0014559478",
+    "name": "Not Found",
+    "sector": "Unknown",
+    "geography": "Unknown"
+  },
+  "DK0060854669": {
+    "ticker": "DK0060854669",
+    "isin": "DK0060854669",
+    "name": "Ringkj\u00f8bing Landbobank A/S",
+    "sector": "Financial Services",
+    "geography": "Denmark"
+  },
+  "CH0319416936": {
+    "ticker": "CH0319416936",
+    "isin": "CH0319416936",
+    "name": "Flughafen Z\u00fcrich AG",
+    "sector": "Industrials",
+    "geography": "Switzerland"
+  },
+  "GB00BYW0PQ60": {
+    "ticker": "GB00BYW0PQ60",
+    "isin": "GB00BYW0PQ60",
+    "name": "Land Securities Group Plc",
+    "sector": "Real Estate",
+    "geography": "United Kingdom"
+  },
+  "IT0005541336": {
+    "ticker": "IT0005541336",
+    "isin": "IT0005541336",
+    "name": "Lottomatica Group S.p.A.",
+    "sector": "Consumer Cyclical",
+    "geography": "Italy"
+  },
+  "FR0010259150": {
+    "ticker": "FR0010259150",
+    "isin": "FR0010259150",
+    "name": "Ipsen S.A.",
+    "sector": "Healthcare",
+    "geography": "France"
+  },
+  "CH0023405456": {
+    "ticker": "CH0023405456",
+    "isin": "CH0023405456",
+    "name": "Avolta AG",
+    "sector": "Consumer Cyclical",
+    "geography": "Switzerland"
+  },
+  "BE0003764785": {
+    "ticker": "BE0003764785",
+    "isin": "BE0003764785",
+    "name": "Ackermans & Van Haaren NV",
+    "sector": "Industrials",
+    "geography": "Belgium"
+  },
+  "PLDINPL00011": {
+    "ticker": "PLDINPL00011",
+    "isin": "PLDINPL00011",
+    "name": "Dino Polska S.A.",
+    "sector": "Consumer Defensive",
+    "geography": "Poland"
+  },
+  "ES0105025003": {
+    "ticker": "ES0105025003",
+    "isin": "ES0105025003",
+    "name": "MERLIN Properties SOCIMI, S.A.",
+    "sector": "Real Estate",
+    "geography": "Spain"
+  },
+  "DE000LEG1110": {
+    "ticker": "DE000LEG1110",
+    "isin": "DE000LEG1110",
+    "name": "LEG Immobilien SE",
+    "sector": "Real Estate",
+    "geography": "Germany"
+  },
+  "GB0005576813": {
+    "ticker": "GB0005576813",
+    "isin": "GB0005576813",
+    "name": "Howden Joinery Group Plc",
+    "sector": "Consumer Cyclical",
+    "geography": "United Kingdom"
+  },
+  "AT0000746409": {
+    "ticker": "AT0000746409",
+    "isin": "AT0000746409",
+    "name": "VERBUND AG",
+    "sector": "Utilities",
+    "geography": "Austria"
+  },
+  "GB00BD3VFW73": {
+    "ticker": "GB00BD3VFW73",
+    "isin": "GB00BD3VFW73",
+    "name": "Convatec Group PLC",
+    "sector": "Healthcare",
+    "geography": "United Kingdom"
+  },
+  "SE0017832488": {
+    "ticker": "SE0017832488",
+    "isin": "SE0017832488",
+    "name": "Fastighets AB Balder (publ)",
+    "sector": "Real Estate",
+    "geography": "Sweden"
+  },
+  "DE000PAG9113": {
+    "ticker": "DE000PAG9113",
+    "isin": "DE000PAG9113",
+    "name": "Dr. Ing. h.c. F. Porsche AG",
+    "sector": "Consumer Cyclical",
+    "geography": "Germany"
+  },
+  "FR0012333284": {
+    "ticker": "FR0012333284",
+    "isin": "FR0012333284",
+    "name": "ABIVAX Soci\u00e9t\u00e9 Anonyme",
+    "sector": "Healthcare",
+    "geography": "France"
+  },
+  "FR0010533075": {
+    "ticker": "FR0010533075",
+    "isin": "FR0010533075",
+    "name": "Getlink SE",
+    "sector": "Industrials",
+    "geography": "France"
+  },
+  "BE0974349814": {
+    "ticker": "BE0974349814",
+    "isin": "BE0974349814",
+    "name": "Not Found",
+    "sector": "Unknown",
+    "geography": "Unknown"
+  },
+  "GB00BGDT3G23": {
+    "ticker": "GB00BGDT3G23",
+    "isin": "GB00BGDT3G23",
+    "name": "Rightmove plc",
+    "sector": "Communication Services",
+    "geography": "United Kingdom"
+  },
+  "FR0004125920": {
+    "ticker": "FR0004125920",
+    "isin": "FR0004125920",
+    "name": "Amundi S.A.",
+    "sector": "Financial Services",
+    "geography": "France"
+  },
+  "DE0005470306": {
+    "ticker": "DE0005470306",
+    "isin": "DE0005470306",
+    "name": "CTS Eventim AG & Co. KGaA",
+    "sector": "Communication Services",
+    "geography": "Germany"
+  },
+  "DE0007500001": {
+    "ticker": "DE0007500001",
+    "isin": "DE0007500001",
+    "name": "thyssenkrupp AG",
+    "sector": "Industrials",
+    "geography": "Germany"
+  },
+  "FR0010908533": {
+    "ticker": "FR0010908533",
+    "isin": "FR0010908533",
+    "name": "Edenred SE",
+    "sector": "Financial Services",
+    "geography": "France"
+  },
+  "AT0000730007": {
+    "ticker": "AT0000730007",
+    "isin": "AT0000730007",
+    "name": "Andritz AG",
+    "sector": "Industrials",
+    "geography": "Austria"
+  },
+  "CH1169151003": {
+    "ticker": "CH1169151003",
+    "isin": "CH1169151003",
+    "name": "Georg Fischer AG",
+    "sector": "Industrials",
+    "geography": "Switzerland"
+  },
+  "GB0031743007": {
+    "ticker": "GB0031743007",
+    "isin": "GB0031743007",
+    "name": "Burberry Group plc",
+    "sector": "Consumer Cyclical",
+    "geography": "United Kingdom"
+  },
+  "DK0060257814": {
+    "ticker": "DK0060257814",
+    "isin": "DK0060257814",
+    "name": "Zealand Pharma A/S",
+    "sector": "Healthcare",
+    "geography": "Denmark"
+  },
+  "GB0003308607": {
+    "ticker": "GB0003308607",
+    "isin": "GB0003308607",
+    "name": "Spectris plc",
+    "sector": "Technology",
+    "geography": "United Kingdom"
+  },
+  "SE0005127818": {
+    "ticker": "SE0005127818",
+    "isin": "SE0005127818",
+    "name": "AB Sagax (publ)",
+    "sector": "Real Estate",
+    "geography": "Sweden"
+  },
+  "DK0010307958": {
+    "ticker": "DK0010307958",
+    "isin": "DK0010307958",
+    "name": "Jyske Bank A/S",
+    "sector": "Financial Services",
+    "geography": "Denmark"
+  },
+  "CH0012138605": {
+    "ticker": "CH0012138605",
+    "isin": "CH0012138605",
+    "name": "Adecco Group AG",
+    "sector": "Industrials",
+    "geography": "Switzerland"
+  },
+  "DK0061802139": {
+    "ticker": "DK0061802139",
+    "isin": "DK0061802139",
+    "name": "ALK-Abell\u00f3 A/S",
+    "sector": "Healthcare",
+    "geography": "Denmark"
+  },
+  "DE000KGX8881": {
+    "ticker": "DE000KGX8881",
+    "isin": "DE000KGX8881",
+    "name": "KION GROUP AG",
+    "sector": "Industrials",
+    "geography": "Germany"
+  },
+  "GB00B4WFW713": {
+    "ticker": "GB00B4WFW713",
+    "isin": "GB00B4WFW713",
+    "name": "LondonMetric Property Plc",
+    "sector": "Real Estate",
+    "geography": "United Kingdom"
+  },
+  "BE0974464977": {
+    "ticker": "BE0974464977",
+    "isin": "BE0974464977",
+    "name": "Syensqo SA/NV",
+    "sector": "Basic Materials",
+    "geography": "Belgium"
+  },
+  "JE00B8KF9B49": {
+    "ticker": "JE00B8KF9B49",
+    "isin": "JE00B8KF9B49",
+    "name": "WPP plc",
+    "sector": "Communication Services",
+    "geography": "United Kingdom"
+  },
+  "GB0001367019": {
+    "ticker": "GB0001367019",
+    "isin": "GB0001367019",
+    "name": "British Land Company PLC",
+    "sector": "Real Estate",
+    "geography": "United Kingdom"
+  },
+  "SE0000202624": {
+    "ticker": "SE0000202624",
+    "isin": "SE0000202624",
+    "name": "Getinge AB (publ)",
+    "sector": "Healthcare",
+    "geography": "Sweden"
+  },
+  "DE0008232125": {
+    "ticker": "DE0008232125",
+    "isin": "DE0008232125",
+    "name": "Deutsche Lufthansa AG",
+    "sector": "Industrials",
+    "geography": "Germany"
+  },
+  "PLBZ00000044": {
+    "ticker": "PLBZ00000044",
+    "isin": "PLBZ00000044",
+    "name": "Santander Bank Polska S.A.",
+    "sector": "Financial Services",
+    "geography": "Poland"
+  },
+  "FI4000074984": {
+    "ticker": "FI4000074984",
+    "isin": "FI4000074984",
+    "name": "Valmet Oyj",
+    "sector": "Industrials",
+    "geography": "Finland"
+  },
+  "CH0016440353": {
+    "ticker": "CH0016440353",
+    "isin": "CH0016440353",
+    "name": "EMS-CHEMIE HOLDING AG",
+    "sector": "Basic Materials",
+    "geography": "Switzerland"
+  },
+  "NL0010801007": {
+    "ticker": "NL0010801007",
+    "isin": "NL0010801007",
+    "name": "IMCD N.V.",
+    "sector": "Basic Materials",
+    "geography": "Netherlands"
+  },
+  "AT0000937503": {
+    "ticker": "AT0000937503",
+    "isin": "AT0000937503",
+    "name": "Voestalpine AG",
+    "sector": "Basic Materials",
+    "geography": "Austria"
+  },
+  "NL0015000LU4": {
+    "ticker": "NL0015000LU4",
+    "isin": "NL0015000LU4",
+    "name": "Iveco Group N.V.",
+    "sector": "Industrials",
+    "geography": "Italy"
+  },
+  "SE0015988019": {
+    "ticker": "SE0015988019",
+    "isin": "SE0015988019",
+    "name": "NIBE Industrier AB (publ)",
+    "sector": "Industrials",
+    "geography": "Sweden"
+  },
+  "DK0060542181": {
+    "ticker": "DK0060542181",
+    "isin": "DK0060542181",
+    "name": "ISS A/S",
+    "sector": "Industrials",
+    "geography": "Denmark"
+  },
+  "GB00BZ4BQC70": {
+    "ticker": "GB00BZ4BQC70",
+    "isin": "GB00BZ4BQC70",
+    "name": "Johnson Matthey Plc",
+    "sector": "Basic Materials",
+    "geography": "United Kingdom"
+  },
+  "GB00B06QFB75": {
+    "ticker": "GB00B06QFB75",
+    "isin": "GB00B06QFB75",
+    "name": "IG Group Holdings plc",
+    "sector": "Financial Services",
+    "geography": "United Kingdom"
+  },
+  "GB0008782301": {
+    "ticker": "GB0008782301",
+    "isin": "GB0008782301",
+    "name": "Taylor Wimpey plc",
+    "sector": "Consumer Cyclical",
+    "geography": "United Kingdom"
+  },
+  "GB0006825383": {
+    "ticker": "GB0006825383",
+    "isin": "GB0006825383",
+    "name": "Persimmon Plc",
+    "sector": "Consumer Cyclical",
+    "geography": "United Kingdom"
+  },
+  "IT0001233417": {
+    "ticker": "IT0001233417",
+    "isin": "IT0001233417",
+    "name": "A2A S.p.A.",
+    "sector": "Utilities",
+    "geography": "Italy"
+  },
+  "JE00BRX98089": {
+    "ticker": "JE00BRX98089",
+    "isin": "JE00BRX98089",
+    "name": "CVC Capital Partners plc",
+    "sector": "Financial Services",
+    "geography": "Jersey"
+  },
+  "PLOPTTC00011": {
+    "ticker": "PLOPTTC00011",
+    "isin": "PLOPTTC00011",
+    "name": "CD Projekt S.A.",
+    "sector": "Communication Services",
+    "geography": "Poland"
+  },
+  "SE0022419784": {
+    "ticker": "SE0022419784",
+    "isin": "SE0022419784",
+    "name": "Sectra AB (publ)",
+    "sector": "Healthcare",
+    "geography": "Sweden"
+  },
+  "GB00BF8Q6K64": {
+    "ticker": "GB00BF8Q6K64",
+    "isin": "GB00BF8Q6K64",
+    "name": "Aberdeen Group Plc",
+    "sector": "Financial Services",
+    "geography": "United Kingdom"
+  },
+  "ES0118594417": {
+    "ticker": "ES0118594417",
+    "isin": "ES0118594417",
+    "name": "Indra Sistemas, S.A.",
+    "sector": "Technology",
+    "geography": "Spain"
+  },
+  "SE0000379190": {
+    "ticker": "SE0000379190",
+    "isin": "SE0000379190",
+    "name": "Castellum AB (publ)",
+    "sector": "Real Estate",
+    "geography": "Sweden"
+  },
+  "SE0012454072": {
+    "ticker": "SE0012454072",
+    "isin": "SE0012454072",
+    "name": "Avanza Bank Holding AB (publ)",
+    "sector": "Financial Services",
+    "geography": "Sweden"
+  },
+  "GB00BP0RGD03": {
+    "ticker": "GB00BP0RGD03",
+    "isin": "GB00BP0RGD03",
+    "name": "The Berkeley Group Holdings plc",
+    "sector": "Consumer Cyclical",
+    "geography": "United Kingdom"
+  },
+  "CH0012453913": {
+    "ticker": "CH0012453913",
+    "isin": "CH0012453913",
+    "name": "Temenos AG",
+    "sector": "Technology",
+    "geography": "Switzerland"
+  },
+  "GB00B17BBQ50": {
+    "ticker": "GB00B17BBQ50",
+    "isin": "GB00B17BBQ50",
+    "name": "Investec Group",
+    "sector": "Financial Services",
+    "geography": "South Africa"
+  },
+  "BE0003717312": {
+    "ticker": "BE0003717312",
+    "isin": "BE0003717312",
+    "name": "Sofina Soci\u00e9t\u00e9 Anonyme",
+    "sector": "Financial Services",
+    "geography": "Belgium"
+  },
+  "SE0014990966": {
+    "ticker": "SE0014990966",
+    "isin": "SE0014990966",
+    "name": "Lagercrantz Group AB (publ)",
+    "sector": "Industrials",
+    "geography": "Sweden"
+  },
+  "SE0015192067": {
+    "ticker": "SE0015192067",
+    "isin": "SE0015192067",
+    "name": "Nordnet AB (publ)",
+    "sector": "Financial Services",
+    "geography": "Sweden"
+  },
+  "FR0000044448": {
+    "ticker": "FR0000044448",
+    "isin": "FR0000044448",
+    "name": "Nexans S.A.",
+    "sector": "Industrials",
+    "geography": "France"
+  },
+  "NO0010631567": {
+    "ticker": "NO0010631567",
+    "isin": "NO0010631567",
+    "name": "SpareBank 1 S\u00f8r-Norge ASA",
+    "sector": "Financial Services",
+    "geography": "Norway"
+  },
+  "SE0011337708": {
+    "ticker": "SE0011337708",
+    "isin": "SE0011337708",
+    "name": "AAK AB (publ.)",
+    "sector": "Consumer Defensive",
+    "geography": "Sweden"
+  },
+  "GB0000961622": {
+    "ticker": "GB0000961622",
+    "isin": "GB0000961622",
+    "name": "Balfour Beatty plc",
+    "sector": "Industrials",
+    "geography": "United Kingdom"
+  },
+  "FR0012435121": {
+    "ticker": "FR0012435121",
+    "isin": "FR0012435121",
+    "name": "Elis SA",
+    "sector": "Industrials",
+    "geography": "France"
+  },
+  "NL0015435975": {
+    "ticker": "NL0015435975",
+    "isin": "NL0015435975",
+    "name": "Davide Campari-Milano N.V.",
+    "sector": "Consumer Defensive",
+    "geography": "Italy"
+  },
+  "NO0010310956": {
+    "ticker": "NO0010310956",
+    "isin": "NO0010310956",
+    "name": "SalMar ASA",
+    "sector": "Consumer Defensive",
+    "geography": "Norway"
+  },
+  "NL0000360618": {
+    "ticker": "NL0000360618",
+    "isin": "NL0000360618",
+    "name": "SBM Offshore N.V.",
+    "sector": "Energy",
+    "geography": "Netherlands"
+  },
+  "ES0127797019": {
+    "ticker": "ES0127797019",
+    "isin": "ES0127797019",
+    "name": "EDP Renov\u00e1veis, S.A.",
+    "sector": "Utilities",
+    "geography": "Spain"
+  },
+  "GB00BJFFLV09": {
+    "ticker": "GB00BJFFLV09",
+    "isin": "GB00BJFFLV09",
+    "name": "Croda International Plc",
+    "sector": "Basic Materials",
+    "geography": "United Kingdom"
+  },
+  "DE000A2E4K43": {
+    "ticker": "DE000A2E4K43",
+    "isin": "DE000A2E4K43",
+    "name": "Delivery Hero SE",
+    "sector": "Consumer Cyclical",
+    "geography": "Germany"
+  },
+  "IT0003261697": {
+    "ticker": "IT0003261697",
+    "isin": "IT0003261697",
+    "name": "Azimut Holding S.p.A.",
+    "sector": "Financial Services",
+    "geography": "Italy"
+  },
+  "BE0974259880": {
+    "ticker": "BE0974259880",
+    "isin": "BE0974259880",
+    "name": "D'Ieteren Group SA",
+    "sector": "Consumer Cyclical",
+    "geography": "Belgium"
+  },
+  "IT0001347308": {
+    "ticker": "IT0001347308",
+    "isin": "IT0001347308",
+    "name": "Buzzi S.p.A.",
+    "sector": "Basic Materials",
+    "geography": "Italy"
+  },
+  "FR0010040865": {
+    "ticker": "FR0010040865",
+    "isin": "FR0010040865",
+    "name": "Gecina",
+    "sector": "Real Estate",
+    "geography": "France"
+  },
+  "PLBRE0000012": {
+    "ticker": "PLBRE0000012",
+    "isin": "PLBRE0000012",
+    "name": "mBank S.A.",
+    "sector": "Financial Services",
+    "geography": "Poland"
+  },
+  "ES0130960018": {
+    "ticker": "ES0130960018",
+    "isin": "ES0130960018",
+    "name": "Enag\u00e1s, S.A.",
+    "sector": "Utilities",
+    "geography": "Spain"
+  },
+  "BE0003851681": {
+    "ticker": "BE0003851681",
+    "isin": "BE0003851681",
+    "name": "Aedifica NV/SA",
+    "sector": "Real Estate",
+    "geography": "Belgium"
+  },
+  "DK0010311471": {
+    "ticker": "DK0010311471",
+    "isin": "DK0010311471",
+    "name": "Sydbank A/S",
+    "sector": "Financial Services",
+    "geography": "Denmark"
+  },
+  "GB0000904986": {
+    "ticker": "GB0000904986",
+    "isin": "GB0000904986",
+    "name": "Bellway p.l.c.",
+    "sector": "Consumer Cyclical",
+    "geography": "United Kingdom"
+  },
+  "DE0007010803": {
+    "ticker": "DE0007010803",
+    "isin": "DE0007010803",
+    "name": "RATIONAL Aktiengesellschaft",
+    "sector": "Industrials",
+    "geography": "Germany"
+  },
+  "GB00BP9LHF23": {
+    "ticker": "GB00BP9LHF23",
+    "isin": "GB00BP9LHF23",
+    "name": "Schroders plc",
+    "sector": "Financial Services",
+    "geography": "United Kingdom"
+  },
+  "GB00BMWC6P49": {
+    "ticker": "GB00BMWC6P49",
+    "isin": "GB00BMWC6P49",
+    "name": "Mondi plc",
+    "sector": "Basic Materials",
+    "geography": "United Kingdom"
+  },
+  "ES0116870314": {
+    "ticker": "ES0116870314",
+    "isin": "ES0116870314",
+    "name": "Naturgy Energy Group, S.A.",
+    "sector": "Utilities",
+    "geography": "Spain"
+  },
+  "DE0005909006": {
+    "ticker": "DE0005909006",
+    "isin": "DE0005909006",
+    "name": "Bilfinger SE",
+    "sector": "Industrials",
+    "geography": "Germany"
+  },
+  "GB00BG49KP99": {
+    "ticker": "GB00BG49KP99",
+    "isin": "GB00BG49KP99",
+    "name": "Tritax Big Box REIT plc",
+    "sector": "Real Estate",
+    "geography": "United Kingdom"
+  },
+  "LU0075646355": {
+    "ticker": "LU0075646355",
+    "isin": "LU0075646355",
+    "name": "Subsea 7 S.A.",
+    "sector": "Energy",
+    "geography": "Luxembourg"
+  },
+  "DE000A0Z2ZZ5": {
+    "ticker": "DE000A0Z2ZZ5",
+    "isin": "DE000A0Z2ZZ5",
+    "name": "freenet AG",
+    "sector": "Communication Services",
+    "geography": "Germany"
+  },
+  "GB00BF4HYT85": {
+    "ticker": "GB00BF4HYT85",
+    "isin": "GB00BF4HYT85",
+    "name": "Lion Finance Group PLC",
+    "sector": "Financial Services",
+    "geography": "United Kingdom"
+  },
+  "CH0008837566": {
+    "ticker": "CH0008837566",
+    "isin": "CH0008837566",
+    "name": "Allreal Holding AG",
+    "sector": "Real Estate",
+    "geography": "Switzerland"
+  },
+  "BE0003593044": {
+    "ticker": "BE0003593044",
+    "isin": "BE0003593044",
+    "name": "Cofinimmo SA",
+    "sector": "Real Estate",
+    "geography": "Belgium"
+  },
+  "IT0001078911": {
+    "ticker": "IT0001078911",
+    "isin": "IT0001078911",
+    "name": "Interpump Group S.p.A.",
+    "sector": "Industrials",
+    "geography": "Italy"
+  },
+  "DE000A0D6554": {
+    "ticker": "DE000A0D6554",
+    "isin": "DE000A0D6554",
+    "name": "Nordex SE",
+    "sector": "Industrials",
+    "geography": "Germany"
+  },
+  "IT0001250932": {
+    "ticker": "IT0001250932",
+    "isin": "IT0001250932",
+    "name": "Hera S.p.A.",
+    "sector": "Utilities",
+    "geography": "Italy"
+  },
+  "NL0000379121": {
+    "ticker": "NL0000379121",
+    "isin": "NL0000379121",
+    "name": "Randstad N.V.",
+    "sector": "Industrials",
+    "geography": "Netherlands"
+  },
+  "JE00BJ1DLW90": {
+    "ticker": "JE00BJ1DLW90",
+    "isin": "JE00BJ1DLW90",
+    "name": "Man Group Plc",
+    "sector": "Financial Services",
+    "geography": "United Kingdom"
+  },
+  "FR0000051807": {
+    "ticker": "FR0000051807",
+    "isin": "FR0000051807",
+    "name": "Teleperformance SE",
+    "sector": "Industrials",
+    "geography": "France"
+  },
+  "FR0010340141": {
+    "ticker": "FR0010340141",
+    "isin": "FR0010340141",
+    "name": "Aeroports de Paris SA",
+    "sector": "Industrials",
+    "geography": "France"
+  },
+  "DE000A2LQ884": {
+    "ticker": "DE000A2LQ884",
+    "isin": "DE000A2LQ884",
+    "name": "AUTO1 Group SE",
+    "sector": "Consumer Cyclical",
+    "geography": "Germany"
+  },
+  "CH1386220409": {
+    "ticker": "CH1386220409",
+    "isin": "CH1386220409",
+    "name": "Sunrise Communications AG",
+    "sector": "Communication Services",
+    "geography": "Switzerland"
+  },
+  "IT0004764699": {
+    "ticker": "IT0004764699",
+    "isin": "IT0004764699",
+    "name": "Brunello Cucinelli S.p.A.",
+    "sector": "Consumer Cyclical",
+    "geography": "Italy"
+  },
+  "FR0000064578": {
+    "ticker": "FR0000064578",
+    "isin": "FR0000064578",
+    "name": "Covivio",
+    "sector": "Real Estate",
+    "geography": "France"
+  },
+  "IT0001031084": {
+    "ticker": "IT0001031084",
+    "isin": "IT0001031084",
+    "name": "Banca Generali S.p.A.",
+    "sector": "Financial Services",
+    "geography": "Italy"
+  },
+  "DE0008303504": {
+    "ticker": "DE0008303504",
+    "isin": "DE0008303504",
+    "name": "TAG Immobilien AG",
+    "sector": "Real Estate",
+    "geography": "Germany"
+  },
+  "SE0006993770": {
+    "ticker": "SE0006993770",
+    "isin": "SE0006993770",
+    "name": "Not Found",
+    "sector": "Unknown",
+    "geography": "Unknown"
+  },
+  "SE0025158629": {
+    "ticker": "SE0025158629",
+    "isin": "SE0025158629",
+    "name": "Mycronic AB (publ)",
+    "sector": "Industrials",
+    "geography": "Sweden"
+  },
+  "GB00B0LCW083": {
+    "ticker": "GB00B0LCW083",
+    "isin": "GB00B0LCW083",
+    "name": "Hikma Pharmaceuticals PLC",
+    "sector": "Healthcare",
+    "geography": "United Kingdom"
+  },
+  "GB00BVFNZH21": {
+    "ticker": "GB00BVFNZH21",
+    "isin": "GB00BVFNZH21",
+    "name": "Rotork plc",
+    "sector": "Industrials",
+    "geography": "United Kingdom"
+  },
+  "CH0011108872": {
+    "ticker": "CH0011108872",
+    "isin": "CH0011108872",
+    "name": "Mobimo Holding AG",
+    "sector": "Real Estate",
+    "geography": "Switzerland"
+  },
+  "BE0003867844": {
+    "ticker": "BE0003867844",
+    "isin": "BE0003867844",
+    "name": "KBC Ancora SA",
+    "sector": "Financial Services",
+    "geography": "Belgium"
+  },
+  "GB00BVGBY890": {
+    "ticker": "GB00BVGBY890",
+    "isin": "GB00BVGBY890",
+    "name": "Zegona Communications plc",
+    "sector": "Communication Services",
+    "geography": "United Kingdom"
+  },
+  "DE0005158703": {
+    "ticker": "DE0005158703",
+    "isin": "DE0005158703",
+    "name": "Bechtle AG",
+    "sector": "Technology",
+    "geography": "Germany"
+  },
+  "DE0005773303": {
+    "ticker": "DE0005773303",
+    "isin": "DE0005773303",
+    "name": "Fraport AG",
+    "sector": "Industrials",
+    "geography": "Germany"
+  },
+  "SE0000108847": {
+    "ticker": "SE0000108847",
+    "isin": "SE0000108847",
+    "name": "L E Lundbergf\u00f6retagen AB (publ)",
+    "sector": "Industrials",
+    "geography": "Sweden"
+  },
+  "DE0006766504": {
+    "ticker": "DE0006766504",
+    "isin": "DE0006766504",
+    "name": "Aurubis AG",
+    "sector": "Industrials",
+    "geography": "Germany"
+  },
+  "ES0171996087": {
+    "ticker": "ES0171996087",
+    "isin": "ES0171996087",
+    "name": "Grifols, S.A.",
+    "sector": "Healthcare",
+    "geography": "Spain"
+  },
+  "DE000TUAG505": {
+    "ticker": "DE000TUAG505",
+    "isin": "DE000TUAG505",
+    "name": "TUI AG",
+    "sector": "Consumer Cyclical",
+    "geography": "Germany"
+  },
+  "IT0005282865": {
+    "ticker": "IT0005282865",
+    "isin": "IT0005282865",
+    "name": "Reply S.p.A.",
+    "sector": "Technology",
+    "geography": "Italy"
+  },
+  "CH1429326825": {
+    "ticker": "CH1429326825",
+    "isin": "CH1429326825",
+    "name": "Siegfried Holding AG",
+    "sector": "Healthcare",
+    "geography": "Switzerland"
+  },
+  "SE0000120669": {
+    "ticker": "SE0000120669",
+    "isin": "SE0000120669",
+    "name": "SSAB AB (publ)",
+    "sector": "Basic Materials",
+    "geography": "Sweden"
+  },
+  "IL0011284465": {
+    "ticker": "IL0011284465",
+    "isin": "IL0011284465",
+    "name": "Plus500 Ltd.",
+    "sector": "Financial Services",
+    "geography": "Israel"
+  },
+  "DE000EVNK013": {
+    "ticker": "DE000EVNK013",
+    "isin": "DE000EVNK013",
+    "name": "Evonik Industries AG",
+    "sector": "Basic Materials",
+    "geography": "Germany"
+  },
+  "GB0002318888": {
+    "ticker": "GB0002318888",
+    "isin": "GB0002318888",
+    "name": "Cranswick plc",
+    "sector": "Consumer Defensive",
+    "geography": "United Kingdom"
+  },
+  "IE0000669501": {
+    "ticker": "IE0000669501",
+    "isin": "IE0000669501",
+    "name": "Glanbia plc",
+    "sector": "Consumer Defensive",
+    "geography": "Ireland"
+  },
+  "BE0003604155": {
+    "ticker": "BE0003604155",
+    "isin": "BE0003604155",
+    "name": "Lotus Bakeries NV",
+    "sector": "Consumer Defensive",
+    "geography": "Belgium"
+  },
+  "NL0006237562": {
+    "ticker": "NL0006237562",
+    "isin": "NL0006237562",
+    "name": "Arcadis NV",
+    "sector": "Industrials",
+    "geography": "Netherlands"
+  },
+  "FR0013269123": {
+    "ticker": "FR0013269123",
+    "isin": "FR0013269123",
+    "name": "Rubis",
+    "sector": "Energy",
+    "geography": "France"
+  },
+  "FR0013451333": {
+    "ticker": "FR0013451333",
+    "isin": "FR0013451333",
+    "name": "FDJ UNITED",
+    "sector": "Consumer Cyclical",
+    "geography": "France"
+  },
+  "CH0225173167": {
+    "ticker": "CH0225173167",
+    "isin": "CH0225173167",
+    "name": "Cembra Money Bank AG",
+    "sector": "Financial Services",
+    "geography": "Switzerland"
+  },
+  "SE0010100958": {
+    "ticker": "SE0010100958",
+    "isin": "SE0010100958",
+    "name": "Investment AB Latour (publ)",
+    "sector": "Industrials",
+    "geography": "Sweden"
+  },
+  "DK0060634707": {
+    "ticker": "DK0060634707",
+    "isin": "DK0060634707",
+    "name": "Royal Unibrew A/S",
+    "sector": "Consumer Defensive",
+    "geography": "Denmark"
+  },
+  "CY0200352116": {
+    "ticker": "CY0200352116",
+    "isin": "CY0200352116",
+    "name": "Frontline plc",
+    "sector": "Energy",
+    "geography": "Cyprus"
+  },
+  "SE0018012635": {
+    "ticker": "SE0018012635",
+    "isin": "SE0018012635",
+    "name": "Wihlborgs Fastigheter AB (publ)",
+    "sector": "Real Estate",
+    "geography": "Sweden"
+  },
+  "SE0006422390": {
+    "ticker": "SE0006422390",
+    "isin": "SE0006422390",
+    "name": "Thule Group AB (publ)",
+    "sector": "Consumer Cyclical",
+    "geography": "Sweden"
+  },
+  "GB00B61TVQ02": {
+    "ticker": "GB00B61TVQ02",
+    "isin": "GB00B61TVQ02",
+    "name": "Not Found",
+    "sector": "Unknown",
+    "geography": "Unknown"
+  },
+  "SE0007692850": {
+    "ticker": "SE0007692850",
+    "isin": "SE0007692850",
+    "name": "Camurus AB (publ)",
+    "sector": "Healthcare",
+    "geography": "Sweden"
+  },
+  "SE0011090018": {
+    "ticker": "SE0011090018",
+    "isin": "SE0011090018",
+    "name": "Holmen AB (publ)",
+    "sector": "Basic Materials",
+    "geography": "Sweden"
+  },
+  "GB0033986497": {
+    "ticker": "GB0033986497",
+    "isin": "GB0033986497",
+    "name": "ITV plc",
+    "sector": "Communication Services",
+    "geography": "United Kingdom"
+  },
+  "FR0013258662": {
+    "ticker": "FR0013258662",
+    "isin": "FR0013258662",
+    "name": "AYVENS",
+    "sector": "Industrials",
+    "geography": "France"
+  },
+  "GB0007973794": {
+    "ticker": "GB0007973794",
+    "isin": "GB0007973794",
+    "name": "Serco Group plc",
+    "sector": "Industrials",
+    "geography": "United Kingdom"
+  },
+  "NO0011202772": {
+    "ticker": "NO0011202772",
+    "isin": "NO0011202772",
+    "name": "V\u00e5r Energi ASA",
+    "sector": "Energy",
+    "geography": "Norway"
+  },
+  "FI0009000459": {
+    "ticker": "FI0009000459",
+    "isin": "FI0009000459",
+    "name": "Huhtam\u00e4ki Oyj",
+    "sector": "Consumer Cyclical",
+    "geography": "Finland"
+  },
+  "FR0013506730": {
+    "ticker": "FR0013506730",
+    "isin": "FR0013506730",
+    "name": "Vallourec S.A.",
+    "sector": "Basic Materials",
+    "geography": "France"
+  },
+  "GB0003096442": {
+    "ticker": "GB0003096442",
+    "isin": "GB0003096442",
+    "name": "RS Group plc",
+    "sector": "Industrials",
+    "geography": "United Kingdom"
+  },
+  "FR0000039299": {
+    "ticker": "FR0000039299",
+    "isin": "FR0000039299",
+    "name": "Bollor\u00e9 SE",
+    "sector": "Communication Services",
+    "geography": "France"
+  },
+  "CH0435377954": {
+    "ticker": "CH0435377954",
+    "isin": "CH0435377954",
+    "name": "SIG Group AG",
+    "sector": "Consumer Cyclical",
+    "geography": "Switzerland"
+  },
+  "GB00BNNTLN49": {
+    "ticker": "GB00BNNTLN49",
+    "isin": "GB00BNNTLN49",
+    "name": "Pennon Group Plc",
+    "sector": "Utilities",
+    "geography": "United Kingdom"
+  },
+  "SE0014960373": {
+    "ticker": "SE0014960373",
+    "isin": "SE0014960373",
+    "name": "Sweco AB (publ)",
+    "sector": "Industrials",
+    "geography": "Sweden"
+  },
+  "LU2290522684": {
+    "ticker": "LU2290522684",
+    "isin": "LU2290522684",
+    "name": "InPost S.A.",
+    "sector": "Industrials",
+    "geography": "Luxembourg"
+  },
+  "DE000FTG1111": {
+    "ticker": "DE000FTG1111",
+    "isin": "DE000FTG1111",
+    "name": "flatexDEGIRO AG",
+    "sector": "Financial Services",
+    "geography": "Germany"
+  },
+  "ES0180907000": {
+    "ticker": "ES0180907000",
+    "isin": "ES0180907000",
+    "name": "Unicaja Banco, S.A.",
+    "sector": "Financial Services",
+    "geography": "Spain"
+  },
+  "JE00BMDZN391": {
+    "ticker": "JE00BMDZN391",
+    "isin": "JE00BMDZN391",
+    "name": "TP ICAP Group PLC",
+    "sector": "Financial Services",
+    "geography": "Jersey"
+  },
+  "IT0005495657": {
+    "ticker": "IT0005495657",
+    "isin": "IT0005495657",
+    "name": "Saipem SpA",
+    "sector": "Energy",
+    "geography": "Italy"
+  },
+  "GB00BNTJ3546": {
+    "ticker": "GB00BNTJ3546",
+    "isin": "GB00BNTJ3546",
+    "name": "Allfunds Group plc",
+    "sector": "Financial Services",
+    "geography": "United Kingdom"
+  },
+  "DK0063855168": {
+    "ticker": "DK0063855168",
+    "isin": "DK0063855168",
+    "name": "Rockwool A/S",
+    "sector": "Industrials",
+    "geography": "Denmark"
+  },
+  "CH0528751586": {
+    "ticker": "CH0528751586",
+    "isin": "CH0528751586",
+    "name": "VZ Holding AG",
+    "sector": "Financial Services",
+    "geography": "Switzerland"
+  },
+  "CH0531751755": {
+    "ticker": "CH0531751755",
+    "isin": "CH0531751755",
+    "name": "Banque Cantonale Vaudoise",
+    "sector": "Financial Services",
+    "geography": "Switzerland"
+  },
+  "AT0000831706": {
+    "ticker": "AT0000831706",
+    "isin": "AT0000831706",
+    "name": "Wienerberger AG",
+    "sector": "Basic Materials",
+    "geography": "Austria"
+  },
+  "FI4000552526": {
+    "ticker": "FI4000552526",
+    "isin": "FI4000552526",
+    "name": "Mandatum Oyj",
+    "sector": "Financial Services",
+    "geography": "Finland"
+  },
+  "FI0009004824": {
+    "ticker": "FI0009004824",
+    "isin": "FI0009004824",
+    "name": "Kemira Oyj",
+    "sector": "Basic Materials",
+    "geography": "Finland"
+  },
+  "GB0031215220": {
+    "ticker": "GB0031215220",
+    "isin": "GB0031215220",
+    "name": "Carnival Corporation & plc",
+    "sector": "Consumer Cyclical",
+    "geography": "United States"
+  },
+  "DK0060738599": {
+    "ticker": "DK0060738599",
+    "isin": "DK0060738599",
+    "name": "Demant A/S",
+    "sector": "Healthcare",
+    "geography": "Denmark"
+  },
+  "IT0005366767": {
+    "ticker": "IT0005366767",
+    "isin": "IT0005366767",
+    "name": "Nexi S.p.A.",
+    "sector": "Technology",
+    "geography": "Italy"
+  },
+  "BE0974320526": {
+    "ticker": "BE0974320526",
+    "isin": "BE0974320526",
+    "name": "Umicore SA",
+    "sector": "Industrials",
+    "geography": "Belgium"
+  },
+  "GB00B1VNSX38": {
+    "ticker": "GB00B1VNSX38",
+    "isin": "GB00B1VNSX38",
+    "name": "Drax Group plc",
+    "sector": "Utilities",
+    "geography": "United Kingdom"
+  },
+  "GB00BYRJ5J14": {
+    "ticker": "GB00BYRJ5J14",
+    "isin": "GB00BYRJ5J14",
+    "name": "Primary Health Properties Plc",
+    "sector": "Real Estate",
+    "geography": "United Kingdom"
+  },
+  "FR0000121204": {
+    "ticker": "FR0000121204",
+    "isin": "FR0000121204",
+    "name": "Wendel",
+    "sector": "Financial Services",
+    "geography": "France"
+  },
+  "GB00BM8Q5M07": {
+    "ticker": "GB00BM8Q5M07",
+    "isin": "GB00BM8Q5M07",
+    "name": "JD Sports Fashion Plc",
+    "sector": "Consumer Cyclical",
+    "geography": "United Kingdom"
+  },
+  "NO0012470089": {
+    "ticker": "NO0012470089",
+    "isin": "NO0012470089",
+    "name": "Tomra Systems ASA",
+    "sector": "Industrials",
+    "geography": "Norway"
+  },
+  "DK0010234467": {
+    "ticker": "DK0010234467",
+    "isin": "DK0010234467",
+    "name": "FLSmidth & Co. A/S",
+    "sector": "Industrials",
+    "geography": "Denmark"
+  },
+  "NL0000852564": {
+    "ticker": "NL0000852564",
+    "isin": "NL0000852564",
+    "name": "Aalberts N.V.",
+    "sector": "Industrials",
+    "geography": "Netherlands"
+  },
+  "NL0011821392": {
+    "ticker": "NL0011821392",
+    "isin": "NL0011821392",
+    "name": "Signify N.V.",
+    "sector": "Industrials",
+    "geography": "Netherlands"
+  },
+  "ES0183746314": {
+    "ticker": "ES0183746314",
+    "isin": "ES0183746314",
+    "name": "Vidrala, S.A.",
+    "sector": "Consumer Cyclical",
+    "geography": "Spain"
+  },
+  "SE0014504817": {
+    "ticker": "SE0014504817",
+    "isin": "SE0014504817",
+    "name": "Not Found",
+    "sector": "Unknown",
+    "geography": "Unknown"
+  },
+  "NL0009432491": {
+    "ticker": "NL0009432491",
+    "isin": "NL0009432491",
+    "name": "Koninklijke Vopak N.V.",
+    "sector": "Energy",
+    "geography": "Netherlands"
+  },
+  "FR0000050809": {
+    "ticker": "FR0000050809",
+    "isin": "FR0000050809",
+    "name": "Sopra Steria Group SA",
+    "sector": "Technology",
+    "geography": "France"
+  },
+  "DE000A3E5D64": {
+    "ticker": "DE000A3E5D64",
+    "isin": "DE000A3E5D64",
+    "name": "Fuchs SE",
+    "sector": "Basic Materials",
+    "geography": "Germany"
+  },
+  "FO0000000179": {
+    "ticker": "FO0000000179",
+    "isin": "FO0000000179",
+    "name": "P/F Bakkafrost",
+    "sector": "Consumer Defensive",
+    "geography": "Denmark"
+  },
+  "IT0005090300": {
+    "ticker": "IT0005090300",
+    "isin": "IT0005090300",
+    "name": "Infrastrutture Wireless Italiane S.p.A.",
+    "sector": "Real Estate",
+    "geography": "Italy"
+  },
+  "DK0060946788": {
+    "ticker": "DK0060946788",
+    "isin": "DK0060946788",
+    "name": "Ambu A/S",
+    "sector": "Healthcare",
+    "geography": "Denmark"
+  },
+  "GB00BYT18307": {
+    "ticker": "GB00BYT18307",
+    "isin": "GB00BYT18307",
+    "name": "TBC Bank Group PLC",
+    "sector": "Financial Services",
+    "geography": "United Kingdom"
+  },
+  "FR0000071946": {
+    "ticker": "FR0000071946",
+    "isin": "FR0000071946",
+    "name": "Alten S.A.",
+    "sector": "Technology",
+    "geography": "France"
+  },
+  "SE0017780133": {
+    "ticker": "SE0017780133",
+    "isin": "SE0017780133",
+    "name": "Wallenstam AB (publ)",
+    "sector": "Real Estate",
+    "geography": "Sweden"
+  },
+  "GB00BYZDVK82": {
+    "ticker": "GB00BYZDVK82",
+    "isin": "GB00BYZDVK82",
+    "name": "Softcat plc",
+    "sector": "Technology",
+    "geography": "United Kingdom"
+  },
+  "CH0012100191": {
+    "ticker": "CH0012100191",
+    "isin": "CH0012100191",
+    "name": "Tecan Group AG",
+    "sector": "Healthcare",
+    "geography": "Switzerland"
+  },
+  "CH0002432174": {
+    "ticker": "CH0002432174",
+    "isin": "CH0002432174",
+    "name": "Bucher Industries AG",
+    "sector": "Industrials",
+    "geography": "Switzerland"
+  },
+  "GB00B62G9D36": {
+    "ticker": "GB00B62G9D36",
+    "isin": "GB00B62G9D36",
+    "name": "Shaftesbury Capital PLC",
+    "sector": "Real Estate",
+    "geography": "United Kingdom"
+  },
+  "LU1072616219": {
+    "ticker": "LU1072616219",
+    "isin": "LU1072616219",
+    "name": "B&M European Value Retail S.A.",
+    "sector": "Consumer Defensive",
+    "geography": "Luxembourg"
+  },
+  "GB00B0WMWD03": {
+    "ticker": "GB00B0WMWD03",
+    "isin": "GB00B0WMWD03",
+    "name": "QinetiQ Group plc",
+    "sector": "Industrials",
+    "geography": "United Kingdom"
+  },
+  "CH0038388911": {
+    "ticker": "CH0038388911",
+    "isin": "CH0038388911",
+    "name": "Sulzer Ltd",
+    "sector": "Industrials",
+    "geography": "Switzerland"
+  },
+  "FR0000130403": {
+    "ticker": "FR0000130403",
+    "isin": "FR0000130403",
+    "name": "Christian Dior SE",
+    "sector": "Consumer Cyclical",
+    "geography": "France"
+  },
+  "ES0184262212": {
+    "ticker": "ES0184262212",
+    "isin": "ES0184262212",
+    "name": "Viscofan, S.A.",
+    "sector": "Consumer Cyclical",
+    "geography": "Spain"
+  },
+  "CH0012142631": {
+    "ticker": "CH0012142631",
+    "isin": "CH0012142631",
+    "name": "Clariant AG",
+    "sector": "Basic Materials",
+    "geography": "Switzerland"
+  },
+  "GB0002869419": {
+    "ticker": "GB0002869419",
+    "isin": "GB0002869419",
+    "name": "Big Yellow Group Plc",
+    "sector": "Real Estate",
+    "geography": "United Kingdom"
+  },
+  "ES0105777017": {
+    "ticker": "ES0105777017",
+    "isin": "ES0105777017",
+    "name": "Not Found",
+    "sector": "Unknown",
+    "geography": "Unknown"
+  },
+  "IE00B00MZ448": {
+    "ticker": "IE00B00MZ448",
+    "isin": "IE00B00MZ448",
+    "name": "Grafton Group plc",
+    "sector": "Industrials",
+    "geography": "Ireland"
+  },
+  "GB00BND88V85": {
+    "ticker": "GB00BND88V85",
+    "isin": "GB00BND88V85",
+    "name": "Bridgepoint Group plc",
+    "sector": "Financial Services",
+    "geography": "United Kingdom"
+  },
+  "GB00B7KR2P84": {
+    "ticker": "GB00B7KR2P84",
+    "isin": "GB00B7KR2P84",
+    "name": "easyJet plc",
+    "sector": "Industrials",
+    "geography": "United Kingdom"
+  },
+  "NO0003055501": {
+    "ticker": "NO0003055501",
+    "isin": "NO0003055501",
+    "name": "Nordic Semiconductor ASA",
+    "sector": "Technology",
+    "geography": "Norway"
+  },
+  "DE000AUM0V10": {
+    "ticker": "DE000AUM0V10",
+    "isin": "DE000AUM0V10",
+    "name": "Aumovio SE",
+    "sector": "Consumer Cyclical",
+    "geography": "Germany"
+  },
+  "GB0006928617": {
+    "ticker": "GB0006928617",
+    "isin": "GB0006928617",
+    "name": "Not Found",
+    "sector": "Unknown",
+    "geography": "Unknown"
+  },
+  "DE000KSAG888": {
+    "ticker": "DE000KSAG888",
+    "isin": "DE000KSAG888",
+    "name": "K+S Aktiengesellschaft",
+    "sector": "Basic Materials",
+    "geography": "Germany"
+  },
+  "CH0126673539": {
+    "ticker": "CH0126673539",
+    "isin": "CH0126673539",
+    "name": "DKSH Holding AG",
+    "sector": "Industrials",
+    "geography": "Switzerland"
+  },
+  "DK0015998017": {
+    "ticker": "DK0015998017",
+    "isin": "DK0015998017",
+    "name": "Bavarian Nordic A/S",
+    "sector": "Healthcare",
+    "geography": "Denmark"
+  },
+  "GB0001859296": {
+    "ticker": "GB0001859296",
+    "isin": "GB0001859296",
+    "name": "Vistry Group PLC",
+    "sector": "Consumer Cyclical",
+    "geography": "United Kingdom"
+  },
+  "GB0002652740": {
+    "ticker": "GB0002652740",
+    "isin": "GB0002652740",
+    "name": "Derwent London Plc",
+    "sector": "Real Estate",
+    "geography": "United Kingdom"
+  },
+  "DE0006969603": {
+    "ticker": "DE0006969603",
+    "isin": "DE0006969603",
+    "name": "PUMA SE",
+    "sector": "Consumer Cyclical",
+    "geography": "Germany"
+  },
+  "CH0239229302": {
+    "ticker": "CH0239229302",
+    "isin": "CH0239229302",
+    "name": "SFS Group AG",
+    "sector": "Industrials",
+    "geography": "Switzerland"
+  },
+  "FI4000571013": {
+    "ticker": "FI4000571013",
+    "isin": "FI4000571013",
+    "name": "Hiab Oyj",
+    "sector": "Industrials",
+    "geography": "Finland"
+  },
+  "SE0007074281": {
+    "ticker": "SE0007074281",
+    "isin": "SE0007074281",
+    "name": "HEXPOL AB (publ)",
+    "sector": "Basic Materials",
+    "geography": "Sweden"
+  },
+  "FR0000121220": {
+    "ticker": "FR0000121220",
+    "isin": "FR0000121220",
+    "name": "Sodexo S.A.",
+    "sector": "Industrials",
+    "geography": "France"
+  },
+  "IT0003492391": {
+    "ticker": "IT0003492391",
+    "isin": "IT0003492391",
+    "name": "DiaSorin S.p.A.",
+    "sector": "Healthcare",
+    "geography": "Italy"
+  },
+  "GB00B63QSB39": {
+    "ticker": "GB00B63QSB39",
+    "isin": "GB00B63QSB39",
+    "name": "Greggs plc",
+    "sector": "Consumer Cyclical",
+    "geography": "United Kingdom"
+  },
+  "IT0004056880": {
+    "ticker": "IT0004056880",
+    "isin": "IT0004056880",
+    "name": "Amplifon S.p.A.",
+    "sector": "Healthcare",
+    "geography": "Italy"
+  },
+  "SE0015671995": {
+    "ticker": "SE0015671995",
+    "isin": "SE0015671995",
+    "name": "Hemnet Group AB (publ)",
+    "sector": "Communication Services",
+    "geography": "Sweden"
+  },
+  "GB00BP92CJ43": {
+    "ticker": "GB00BP92CJ43",
+    "isin": "GB00BP92CJ43",
+    "name": "Tate & Lyle plc",
+    "sector": "Consumer Defensive",
+    "geography": "United Kingdom"
+  },
+  "FR001400UH76": {
+    "ticker": "FR001400UH76",
+    "isin": "FR001400UH76",
+    "name": "Not Found",
+    "sector": "Unknown",
+    "geography": "Unknown"
+  },
+  "BE0974400328": {
+    "ticker": "BE0974400328",
+    "isin": "BE0974400328",
+    "name": "Azelis Group NV",
+    "sector": "Basic Materials",
+    "geography": "Belgium"
+  },
+  "SE0022060521": {
+    "ticker": "SE0022060521",
+    "isin": "SE0022060521",
+    "name": "Kinnevik AB",
+    "sector": "Financial Services",
+    "geography": "Sweden"
+  },
+  "FR001400S2Z6": {
+    "ticker": "FR001400S2Z6",
+    "isin": "FR001400S2Z6",
+    "name": "Not Found",
+    "sector": "Unknown",
+    "geography": "Unknown"
+  },
+  "DE0005470405": {
+    "ticker": "DE0005470405",
+    "isin": "DE0005470405",
+    "name": "LANXESS Aktiengesellschaft",
+    "sector": "Basic Materials",
+    "geography": "Germany"
+  },
+  "GB00B3MBS747": {
+    "ticker": "GB00B3MBS747",
+    "isin": "GB00B3MBS747",
+    "name": "Ocado Group plc",
+    "sector": "Consumer Defensive",
+    "geography": "United Kingdom"
+  },
+  "FR0000121121": {
+    "ticker": "FR0000121121",
+    "isin": "FR0000121121",
+    "name": "Eurazeo SE",
+    "sector": "Financial Services",
+    "geography": "France"
+  },
+  "FR001400UH84": {
+    "ticker": "FR001400UH84",
+    "isin": "FR001400UH84",
+    "name": "Not Found",
+    "sector": "Unknown",
+    "geography": "Unknown"
+  },
+  "FR0000121709": {
+    "ticker": "FR0000121709",
+    "isin": "FR0000121709",
+    "name": "SEB SA",
+    "sector": "Consumer Cyclical",
+    "geography": "France"
+  },
+  "ES06837469D8": {
+    "ticker": "ES06837469D8",
+    "isin": "ES06837469D8",
+    "name": "Not Found",
+    "sector": "Unknown",
+    "geography": "Unknown"
+  },
+  "DE000TKMS001": {
+    "ticker": "DE000TKMS001",
+    "isin": "DE000TKMS001",
+    "name": "TKMS AG & Co KGaA",
+    "sector": "Industrials",
+    "geography": "Germany"
+  },
+  "GB00B7FC0762": {
+    "ticker": "GB00B7FC0762",
+    "isin": "GB00B7FC0762",
+    "name": "Not Found",
+    "sector": "Unknown",
+    "geography": "Unknown"
+  }
+}

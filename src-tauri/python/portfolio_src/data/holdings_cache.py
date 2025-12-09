@@ -16,17 +16,22 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+from portfolio_src import config # Import centralized config
+
 import pandas as pd
 
 from prism_utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 
-# Directory paths
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-LOCAL_CACHE_DIR = PROJECT_ROOT / "data" / "working" / "etf_holdings_cache"
-COMMUNITY_DIR = PROJECT_ROOT / "community_data" / "etf_holdings"
-MANUAL_UPLOAD_DIR = PROJECT_ROOT / "data" / "inputs" / "manual_holdings"
+# Directory paths defined in config
+# Use persistent working directory for cache
+LOCAL_CACHE_DIR = config.WORKING_DIR / "etf_holdings_cache"
+# Community Data: This is bundled. In dev = PROJECT_ROOT/community_data. 
+# In frozen app, config.PROJECT_ROOT points to temp bundle location where assets are extracted.
+COMMUNITY_DIR = config.PROJECT_ROOT / "community_data" / "etf_holdings"
+# Manual Uploads: Use persistent inputs directory
+MANUAL_UPLOAD_DIR = config.MANUAL_INPUTS_DIR
 
 
 class ManualUploadRequired(Exception):

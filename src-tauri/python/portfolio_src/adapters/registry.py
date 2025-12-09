@@ -7,7 +7,10 @@ from typing import Optional
 import pandas as pd
 
 # Add the project root to the Python path
+# Add the project root to the Python path
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+
+from portfolio_src import config # Import centralized config
 
 from adapters.vaneck import VanEckAdapter
 from adapters.ishares import ISharesAdapter
@@ -39,8 +42,8 @@ class AdapterRegistry:
 
     def __init__(
         self,
-        config_path: str = os.path.join(
-            project_root, "config", "adapter_registry.json"
+        config_path: str = str(
+            config.CONFIG_DIR / "adapter_registry.json"
         ),
         use_cache: bool = True,
     ):
@@ -72,8 +75,11 @@ class AdapterRegistry:
             return {}
 
     def _log_feature_request(self, provider_key, isin):
-        """Appends a feature request to the BACKLOG.md file."""
-        backlog_path = os.path.join(project_root, "docs", "BACKLOG.md")
+        """Appends a feature request to the BACKLOG.md file (deprecated/local only)."""
+        # In frozen app, writing to project root is not useful.
+        # Ideally this should log to a robust location or be removed.
+        # For now, we try to write to a log file in OUTPUTS
+        backlog_path = config.OUTPUTS_DIR / "missing_adapters.log"
         try:
             # Read existing content to check for duplicates
             existing_content = ""

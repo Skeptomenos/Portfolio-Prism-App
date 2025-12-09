@@ -2,7 +2,13 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from dashboard.utils import load_direct_holdings, load_exposure_report
+from pathlib import Path
+
+from portfolio_src.dashboard.utils import (
+    load_direct_holdings,
+    load_exposure_report,
+    get_project_root,
+)
 
 
 def calculate_hhi(weights: pd.Series) -> float:
@@ -42,7 +48,53 @@ def render():
         "Monitor concentration risk and see how your investments are allocated across asset types."
     )
 
-    # Load Data
+    # Load Data (Fix 21: Added Pipeline Runner)
+    with st.expander("⚙️ Pipeline Control", expanded=False):
+        st.write("If data looks missing or outdated, run the analysis pipeline.")
+        if st.button("Run Analysis Pipeline", type="primary", key="xray_run_pipeline"):
+            progress_bar = st.progress(0.0)
+            status_text = st.empty()
+            
+            try:
+                from portfolio_src.core.pipeline import Pipeline
+                from portfolio_src.dashboard.utils import DATA_DIR
+                
+                def update_progress(msg: str, pct: float):
+                    progress_bar.progress(pct)
+                    status_text.text(msg)
+
+                pipeline = Pipeline(data_dir=DATA_DIR)
+                status_text.text("Starting pipeline...")
+                result = pipeline.run(progress_callback=update_progress)
+                
+                if result.success:
+                    st.success(f"Analysis complete! Processed {result.etfs_processed} ETFs.")
+                    st.balloons()
+                    st.rerun()
+                else:
+                    st.error("Pipeline failed. Check Pipeline Health tab for details.")
+            except Exception as e:
+                st.error(f"Pipeline crashed: {e}")
+            finally:
+                progress_bar.empty()
+
+        # Fix 24: Added Community Sync next to pipeline control
+        if st.button("🔄 Sync Community Data", key="xray_sync_community"):
+            with st.spinner("Syncing latest ETF data from community..."):
+                try:
+                    from portfolio_src.data.community_sync import get_community_sync
+                    syncer = get_community_sync()
+                    results = syncer.pull_community_data()
+                    
+                    msg = f"Synced {len(results['downloaded'])} ETFs."
+                    if results['failed']:
+                         msg += f" (Failed: {len(results['failed'])})"
+                    
+                    st.success(msg)
+                    # No rerun needed here, just info
+                except Exception as e:
+                    st.error(f"Sync failed: {e}")
+
     direct_df = load_direct_holdings()
     exposure_df = load_exposure_report()
 

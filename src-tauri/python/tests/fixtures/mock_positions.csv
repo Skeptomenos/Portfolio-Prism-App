@@ -1,0 +1,9 @@
+ISIN,Name,Quantity,AvgCost,CurrentPrice,NetValue,TR_Name,Asset_Class
+US0378331005,Apple Inc.,10.0,150.00,175.50,1755.00,Apple Inc.,Stock
+US5949181045,Microsoft Corporation,5.0,350.00,380.25,1901.25,Microsoft Corporation,Stock
+US0231351067,Amazon.com Inc.,2.0,145.00,178.90,357.80,Amazon.com Inc.,Stock
+DE0007164600,SAP SE,15.0,140.00,155.80,2337.00,SAP SE,Stock
+NL0010273215,ASML Holding N.V.,3.0,650.00,720.00,2160.00,ASML Holding N.V.,Stock
+IE00B4L5Y983,iShares Core MSCI World UCITS ETF,50.0,75.00,82.50,4125.00,iShares Core MSCI World,ETF
+IE00B3RBWM25,Vanguard FTSE All-World UCITS ETF,30.0,95.00,105.00,3150.00,Vanguard FTSE All-World,ETF
+LU0274208692,Xtrackers MSCI Emerging Markets UCITS ETF,25.0,45.00,48.75,1218.75,Xtrackers MSCI EM,ETF

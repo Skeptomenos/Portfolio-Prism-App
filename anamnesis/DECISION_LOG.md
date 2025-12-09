@@ -168,3 +168,42 @@ This document tracks significant architectural decisions (ADRs) for the project.
   - (+) `npm run tauri dev` works from repo root
   - (-) Required updating all documentation paths
   - (-) React prototype moved to `legacy/react-prototype/`
+
+---
+
+## [2024-12-08] TR Daemon Subprocess Architecture
+
+- **Context:** pytr library creates `asyncio.Lock()` at import time, causing `RuntimeError: There is no current event loop` in Streamlit's ScriptRunner thread within PyInstaller bundle.
+- **Decision:** Isolate pytr in a long-running subprocess daemon (`tr_daemon.py`) with its own asyncio event loop. Communication via JSON-RPC over stdin/stdout.
+- **Consequences:**
+  - (+) pytr imports safely in isolated process
+  - (+) Session state persists across Streamlit reruns
+  - (+) Architecture-ready for React/Rust migration (Rust spawns same daemon)
+  - (+) Clean separation of concerns (UI ↔ TR API)
+  - (-) Additional complexity (subprocess management, IPC protocol)
+  - (-) Requires separate binary for frozen mode (see next decision)
+
+---
+
+## [2024-12-08] TR Daemon as Separate PyInstaller Binary (Planned)
+
+- **Context:** In PyInstaller frozen bundle, `sys.executable` points to the main bundle binary, not a Python interpreter. Cannot spawn `tr_daemon.py` as subprocess using `[sys.executable, script.py]`.
+- **Decision:** Build `tr_daemon.py` as a separate PyInstaller binary (`tr-daemon`) registered as Tauri sidecar.
+- **Consequences:**
+  - (+) Works in frozen mode — spawn `tr-daemon` binary directly
+  - (+) Same approach for Rust migration — Rust spawns same binary
+  - (+) Smaller daemon binary (~10-15MB) excludes Streamlit/pandas
+  - (-) Two binaries to build and maintain
+  - (-) Total bundle size increases by ~10-15MB
+- **Status:** Plan documented in `docs/PLAN_TR_DAEMON_BINARY.md`, implementation pending
+
+---
+
+## [2024-12-08] pytr v0.4.2 Method Name Typo Compatibility
+
+- **Context:** pytr v0.4.2 (PyPI) has typo: `inititate_weblogin` instead of `initiate_weblogin`. GitHub master has correct spelling.
+- **Decision:** Add compatibility layer checking for both method names.
+- **Consequences:**
+  - (+) Works with current PyPI version
+  - (+) Will work when pytr is updated with correct spelling
+  - (-) Slightly more complex code

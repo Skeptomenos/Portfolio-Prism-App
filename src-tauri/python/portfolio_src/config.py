@@ -37,9 +37,15 @@ REPORTS_DIR = OUTPUTS_DIR  # For now, reports go to root of outputs
 
 # File Paths
 TRUE_EXPOSURE_REPORT = REPORTS_DIR / "true_exposure_report.csv"
+DIRECT_HOLDINGS_REPORT = REPORTS_DIR / "direct_holdings_report.csv"
 HOLDINGS_BREAKDOWN_PATH = OUTPUTS_DIR / "holdings_breakdown.csv"
 TRADES_FILE = OUTPUTS_DIR / "trades.csv"
 POSITIONS_FILE = OUTPUTS_DIR / "positions_with_prices.csv"
+
+# Cache and error tracking
+ENRICHMENT_CACHE_PATH = WORKING_DIR / "enrichment_cache.json"
+PIPELINE_ERRORS_PATH = OUTPUTS_DIR / "pipeline_errors.json"
+PIPELINE_HEALTH_PATH = OUTPUTS_DIR / "pipeline_health.json"
 
 # Ensure directories exist
 for directory in [

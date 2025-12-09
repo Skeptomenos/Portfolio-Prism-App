@@ -9,12 +9,11 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
-from pathlib import Path
 
-# Constants
-PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
-HOLDINGS_PATH = PROJECT_ROOT / "data" / "working" / "calculated_holdings.csv"
-UNIVERSE_PATH = PROJECT_ROOT / "config" / "asset_universe.csv"
+# Use centralized path constants from utils
+from portfolio_src.dashboard.utils import HOLDINGS_PATH, CONFIG_DIR
+
+UNIVERSE_PATH = CONFIG_DIR / "asset_universe.csv"
 
 
 @st.cache_data
@@ -263,7 +262,7 @@ def render_winners_losers(df: pd.DataFrame):
 
 def render_portfolio_insights(df: pd.DataFrame):
     """Render portfolio health summary with insights."""
-    from dashboard.insights import (
+    from ..insights import (
         generate_portfolio_summary,
         generate_performance_insights,
     )
@@ -372,7 +371,7 @@ def render():
     )
 
     # Auto-snapshot on load (if >24h old)
-    from dashboard.utils import save_snapshot_if_needed
+    from ..utils import save_snapshot_if_needed
 
     if save_snapshot_if_needed():
         st.toast("Portfolio snapshot saved", icon="📸")

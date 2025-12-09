@@ -3,14 +3,12 @@ import pandas as pd
 import shutil
 from datetime import datetime
 from pathlib import Path
-from dashboard.utils import load_asset_universe
+from portfolio_src.dashboard.utils import load_asset_universe, CONFIG_DIR
 from data.holdings_cache import get_holdings_cache, MANUAL_UPLOAD_DIR
 from data.community_sync import get_community_sync
 from data.holdings_normalizer import normalize_holdings
 
-# Constants
-PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
-CONFIG_DIR = PROJECT_ROOT / "config"
+# Use centralized path from utils
 UNIVERSE_PATH = CONFIG_DIR / "asset_universe.csv"
 
 

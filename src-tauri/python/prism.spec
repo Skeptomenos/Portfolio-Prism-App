@@ -66,10 +66,15 @@ hidden_imports = [
     'pdfminer.pdfparser',
     'pdfminer.pdfpage',
     'deep_translator',
+    # Data enrichment
+    'yfinance',
 ]
 
 # Add all streamlit submodules
 hidden_imports += collect_submodules('streamlit')
+
+# Add all pytr submodules (12 modules: account, alarms, api, details, dl, event, main, portfolio, timeline, transactions, translation, utils)
+hidden_imports += collect_submodules('pytr')
 
 a = Analysis(
     ['prism_boot.py'],
@@ -113,7 +118,7 @@ exe = EXE(
     name='prism',
     debug=False,
     bootloader_ignore_signals=False,
-    strip=False,
+    strip=True,
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,

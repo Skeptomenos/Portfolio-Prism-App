@@ -27,6 +27,9 @@ python-dotenv
 pdfplumber
 deep-translator
 
+# Data enrichment
+yfinance
+
 # Phase 4: Auth & Hive dependencies
 keyring
 supabase
