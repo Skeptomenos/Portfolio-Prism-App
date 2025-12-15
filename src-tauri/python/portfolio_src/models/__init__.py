@@ -11,9 +11,9 @@ Usage:
     from models import Position, ETFHolding, ExposureRecord
 """
 
-from models.portfolio import Position, DirectPosition, ETFPosition
-from models.holdings import ETFHolding, ClassifiedHolding, EnrichedHolding
-from models.exposure import ExposureRecord, AggregatedExposure
+from .portfolio import Position, DirectPosition, ETFPosition
+from .holdings import ETFHolding, ClassifiedHolding, EnrichedHolding
+from .exposure import ExposureRecord, AggregatedExposure
 
 __all__ = [
     # Portfolio models
