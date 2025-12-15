@@ -58,17 +58,19 @@
 
 ### Workstream: data-engine
 
-- [ ] **TASK-101:** Implement SQLite Schema
+- [x] **TASK-101:** Implement SQLite Schema
     - **Dependencies:** TASK-003
-    - **Status:** Backlog
+    - **Status:** Done
     - **Workstream:** data-engine
     - **Context:** Create `src-tauri/python/portfolio_src/data/schema.sql` matching `specs/data_schema.md`. Use `sqlite3` to init DB at `PRISM_DATA_DIR`.
+    - **Commit:** `61b14fa`
 
-- [ ] **TASK-102:** Create Pydantic Data Contracts
+- [x] **TASK-102:** Create Pydantic Data Contracts
     - **Dependencies:** TASK-101
-    - **Status:** Backlog
+    - **Status:** Done
     - **Workstream:** data-engine
-    - **Context:** Create `src-tauri/python/portfolio_src/models/contracts.py`. Implement `Asset`, `Position`, `Transaction` classes matching `specs/data_schema.md`.
+    - **Context:** Create `src-tauri/python/portfolio_src/models/contracts.py`. Implement IPC command/response contracts.
+    - **Commit:** `e1056ac`
 
 - [ ] **TASK-103:** Data Migration Script
     - **Dependencies:** TASK-102
@@ -88,23 +90,26 @@
 
 ### Workstream: data-engine
 
-- [ ] **TASK-201:** Headless Entry Point
-    - **Dependencies:** TASK-104
-    - **Status:** Backlog
+- [x] **TASK-201:** Headless Entry Point
+    - **Dependencies:** TASK-102
+    - **Status:** Done
     - **Workstream:** data-engine
-    - **Context:** Create `src-tauri/python/headless.py`. Implement `while True: readline()` loop. Handle `JSONDecodeError`. **Ref:** `specs/tech.md`.
+    - **Context:** Create `src-tauri/python/prism_headless.py`. Implement stdin/stdout JSON RPC loop with command dispatch.
+    - **Commit:** `0763656`
 
-- [ ] **TASK-202:** Rust Sidecar Spawning
+- [x] **TASK-202:** Rust Sidecar Spawning
     - **Dependencies:** TASK-201
-    - **Status:** Backlog
+    - **Status:** Done
     - **Workstream:** data-engine
-    - **Context:** Update `src-tauri/src/lib.rs`. Use `tauri::api::process::Command`. Implement `write_stdin` function. **Constraint:** Must capture stdout line-by-line.
+    - **Context:** Create `python_engine.rs` with IPC manager. Update `lib.rs` to spawn headless sidecar with proper stdin/stdout handling.
+    - **Commit:** `d826489`
 
-- [ ] **TASK-203:** Implement IPC Command Handler (Python)
+- [x] **TASK-203:** Implement IPC Command Handler (Python)
     - **Dependencies:** TASK-201
-    - **Status:** Backlog
+    - **Status:** Done
     - **Workstream:** data-engine
-    - **Context:** Map JSON commands (`sync_portfolio`) to Service calls. Return JSON response. **Ref:** `specs/ipc_api.md`.
+    - **Context:** Implement `get_health` and `get_dashboard_data` handlers in prism_headless.py. (Included in TASK-201)
+    - **Commit:** `0763656`
 
 - [ ] **TASK-204:** Implement Throttled Asyncio Decomposer
     - **Dependencies:** TASK-203

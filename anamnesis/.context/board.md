@@ -1,8 +1,8 @@
 # Project Board
 
 > **Auto-generated from `anamnesis/specs/tasks.md`**
-> **Last Updated:** 2024-12-15 (Session 2)
-> **Active Workstream:** frontend
+> **Last Updated:** 2024-12-15 (Vertical Slice Complete)
+> **Active Workstream:** data-engine / frontend
 
 ---
 
@@ -10,9 +10,17 @@
 
 | Total | Backlog | Open | In Progress | Blocked | Done |
 |-------|---------|------|-------------|---------|------|
-| 23    | 9       | 3    | 0           | 0       | 11   |
+| 23    | 6       | 3    | 0           | 0       | 14   |
 
-**Progress:** [████░░░░░░░░░░░░░░░░] 48% (11/23 tasks)
+**Progress:** [██████████░░░░░░░░░░] 61% (14/23 tasks)
+
+---
+
+## Milestone: Vertical Slice Complete
+
+The end-to-end data flow is now operational:
+- React → Rust → Python (stdin/stdout IPC) → SQLite
+- App shows empty state when no positions (ready for TR Auth)
 
 ---
 
@@ -20,9 +28,10 @@
 
 <!-- Dependencies met, ready to start -->
 
-- [ ] **TASK-101:** Implement SQLite Schema
-    - *Dependencies:* TASK-003 (Done)
+- [ ] **TASK-103:** Data Migration Script
+    - *Dependencies:* TASK-102 (Done)
     - *Workstream:* data-engine
+    - *Note:* Deferred - will use TR Auth for real data
 
 - [ ] **TASK-401:** Dashboard Metric Cards
     - *Dependencies:* TASK-303 (Done)
@@ -39,36 +48,37 @@
 <!-- Not yet prioritized or dependencies not met -->
 
 ### Data Engine (Phase 1-2)
-- [ ] **TASK-101:** Implement SQLite Schema (Waiting for TASK-003 ✓)
-- [ ] **TASK-102:** Create Pydantic Data Contracts (Waiting for TASK-101)
-- [ ] **TASK-103:** Data Migration Script (Waiting for TASK-102)
 - [ ] **TASK-104:** Refactor Decomposer to Read SQLite (Waiting for TASK-103)
-- [ ] **TASK-201:** Headless Entry Point (Waiting for TASK-104)
-- [ ] **TASK-202:** Rust Sidecar Spawning (Waiting for TASK-201)
-- [ ] **TASK-203:** Implement IPC Command Handler (Python) (Waiting for TASK-201)
-- [ ] **TASK-204:** Implement Throttled Asyncio Decomposer (Waiting for TASK-203)
-- [ ] **TASK-205:** Implement Async Auth State Machine (Waiting for TASK-203)
+- [ ] **TASK-204:** Implement Throttled Asyncio Decomposer (Waiting for TASK-203 ✓)
+- [ ] **TASK-205:** Implement Async Auth State Machine (Waiting for TASK-203 ✓)
 
 ### Frontend (Phase 4)
-- [ ] **TASK-401:** Dashboard Metric Cards (Waiting for TASK-303)
 - [ ] **TASK-402:** Portfolio Chart (Waiting for TASK-401)
 - [ ] **TASK-403:** Holdings Data Table (Waiting for TASK-401)
 - [ ] **TASK-404:** Implement Auth Challenge Modal (Waiting for TASK-205)
 
 ### Infrastructure (Phase 5)
-- [ ] **TASK-501:** Verify PII Scrubber (Waiting for TASK-202)
-- [ ] **TASK-502:** GitHub Actions CI/CD (Waiting for TASK-003 ✓)
+- [ ] **TASK-501:** Verify PII Scrubber (Waiting for TASK-202 ✓)
 
 ---
 
 ## Done
 
-<!-- Recently completed -->
+<!-- Completed tasks -->
 
 ### Phase 0: Infrastructure & Migration
 - [x] **TASK-001:** Archive Legacy Dashboard Code — `865a91d`
 - [x] **TASK-002:** Migrate In-Flight Infrastructure Tasks — `06370b2`
 - [x] **TASK-003:** Scaffold React Environment — `8fde700`
+
+### Phase 1: Data Layer (Vertical Slice)
+- [x] **TASK-101:** Implement SQLite Schema — `61b14fa`
+- [x] **TASK-102:** Create Pydantic Data Contracts — `e1056ac`
+
+### Phase 2: Headless Engine (Vertical Slice)
+- [x] **TASK-201:** Headless Entry Point — `0763656`
+- [x] **TASK-202:** Rust Sidecar Spawning — `d826489`
+- [x] **TASK-203:** IPC Command Handler — `0763656`
 
 ### Phase 3: Frontend Foundation
 - [x] **TASK-301:** Frontend State Setup — `f80f9e9`
