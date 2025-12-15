@@ -7,51 +7,42 @@
 
 ## Current Idea
 
-Build a **privacy-first desktop portfolio analyzer** that wraps an existing Python/Streamlit analytics engine in a native Tauri container. The app enables investors to analyze their portfolios locally without relying on cloud services, while optionally contributing to a community knowledge base ("The Hive") for ISIN resolution.
+Build a **privacy-first desktop portfolio analyzer** using a "Three-Tier Hybrid" architecture: **Tauri (Rust)** for the shell, **React** for the UI, and a **Headless Python Engine** for analytics. The app enables investors to analyze their portfolios locally without relying on cloud services, while optionally contributing to a community knowledge base ("The Hive").
 
 ## Evolution
 
-- **2024-12**: Initial feasibility analysis completed. Tauri v2 selected over Electron for smaller bundle size (~50MB vs 300MB+) and native WebKit rendering.
-- **2024-12**: Playwright scraping deprecated in favor of community-sourced ETF data ("The Hive") to reduce bundle size by ~300MB.
-- **2024-12**: Phase 1 (Proto-Organism) completed — Tauri↔Python IPC working.
-- **2024-12**: Phase 2 (Skeleton) completed — PyInstaller binary (62MB) with Streamlit bundled.
-- **2024-12**: Phase 3 (Brain) completed — POC code transplanted to `portfolio_src/`, binary rebuilt (84MB).
-- **Current**: Phase 4 in progress (~70%) — Auth & Hive code exists, blockers documented.
+- **2024-12**: Initial feasibility analysis completed. Tauri v2 selected over Electron.
+- **2024-12**: Phase 1-3 completed (Streamlit POC).
+- **2024-12**: Strategic Pivot to **React-First UI** to enable rapid feedback loops and native feel.
+- **Current**: **Phase 0 (Infrastructure & Migration)**. Establishing the React foundation and archiving legacy Streamlit code.
 
 ## Success Looks Like
 
-- [ ] **MVP Launch:** Standalone `.app` that runs portfolio analysis without Python installed
-- [ ] **2FA Flow:** User can authenticate with Trade Republic via in-app 2FA
-- [ ] **Offline Mode:** App functions with cached data when disconnected
-- [ ] **Community Contribution:** New ISIN resolutions sync to/from Supabase "Hive"
-- [ ] **Auto-Updates:** App checks for and applies updates via GitHub Releases
+- [ ] **MVP Launch:** Standalone `.app` running React UI + Python Engine
+- [ ] **Instant Startup:** App launches and displays dashboard in < 2 seconds
+- [ ] **2FA Flow:** Native React modal for Trade Republic authentication
+- [ ] **Offline Mode:** App functions with cached data (SQLite/Parquet) when disconnected
+- [ ] **Zero-Effort Reporting:** Crashes automatically reported to GitHub Issues (opt-in)
 
 ## Constraints
 
 - **No Chromium:** Tauri uses system WebKit — app must not bundle a browser engine
-- **API Key Security:** Finnhub key must be proxied via Cloudflare Worker, never embedded in client
-- **Local-First:** Core functionality must work offline; cloud features are optional enhancements
-- **Single Developer:** Pragmatic scope — favor working software over comprehensive features
-- **macOS Primary:** Windows/Linux compatibility is secondary goal
+- **API Key Security:** Finnhub key must be proxied via Cloudflare Worker
+- **Local-First:** Core functionality must work offline; cloud features are optional
+- **React-First:** No new Streamlit development. All UI must be React components.
+- **Throttled Sync:** Python engine must respect API rate limits (max 5 concurrent requests)
 
 ## Current Phase
 
-**Phase 3 Complete.** POC dashboard code transplanted to `src-tauri/python/portfolio_src/`. Binary rebuilt (105MB, Dec 8).
+**Phase 0: Infrastructure & Migration.**
+We are actively transitioning from the Streamlit POC to the React MVP architecture.
 
-**Phase 4 In Progress (~90%).** Major progress on TR integration:
-
-- ✅ TR Login 2FA flow working (daemon architecture implemented)
-- ✅ Session persistence via cookies
-- ✅ Fixed duplicate header/form usage bug (refactored `dashboard/__init__.py`)
-- ✅ Portfolio display in Performance tab working (data path fix)
-- ⏳ Daemon binary for frozen mode (plan exists: `docs/PLAN_TR_DAEMON_BINARY.md`)
-- ⏳ Cloudflare Worker not deployed
-- ⏳ Supabase project not configured
-
-**Project Layout:** Standard Tauri layout at repo root (flattened from `tauri-app/`)
+**Workstreams:**
+*   `infrastructure`: Active (Archiving legacy, Scaffolding React)
+*   `data-engine`: Pending (SQLite Schema, Headless Refactor)
+*   `frontend`: Pending (State, IPC Bridge)
 
 **Next Steps:**
-
-1. Verify Performance tab displays data after TR sync
-2. Implement TR daemon as separate binary (frozen mode fix)
-3. Deploy Cloudflare Worker for API proxy
+1.  Archive legacy dashboard code
+2.  Scaffold Vite+React project in `src/`
+3.  Implement SQLite schema and migration scripts
