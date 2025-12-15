@@ -1,14 +1,15 @@
-import { useState } from 'react';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/views/Dashboard';
 import XRayView from './components/views/XRayView';
 import OverlapView from './components/views/OverlapView';
 import HoldingsView from './components/views/HoldingsView';
+import { useCurrentView } from './store/useAppStore';
 
-export type ViewType = 'dashboard' | 'xray' | 'overlap' | 'holdings' | 'data' | 'health';
+// Re-export ViewType from types for backward compatibility
+export type { ViewType } from './types';
 
 function App() {
-    const [currentView, setCurrentView] = useState<ViewType>('dashboard');
+    const currentView = useCurrentView();
 
     const renderView = () => {
         switch (currentView) {
@@ -27,7 +28,7 @@ function App() {
 
     return (
         <div style={{ display: 'flex', height: '100vh', width: '100vw' }}>
-            <Sidebar currentView={currentView} onViewChange={setCurrentView} />
+            <Sidebar />
             <main style={{ flex: 1, overflow: 'auto', padding: '32px' }}>
                 {renderView()}
             </main>

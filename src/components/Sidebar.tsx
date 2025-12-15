@@ -1,10 +1,6 @@
 import { LayoutDashboard, Layers, GitCompare, Database, Settings, Activity } from 'lucide-react';
-import type { ViewType } from '../App';
-
-interface SidebarProps {
-    currentView: ViewType;
-    onViewChange: (view: ViewType) => void;
-}
+import { useAppStore, useCurrentView, useEngineStatus } from '../store/useAppStore';
+import type { ViewType } from '../types';
 
 const navItems = [
     { id: 'dashboard' as ViewType, icon: LayoutDashboard, label: 'Dashboard' },
@@ -15,7 +11,45 @@ const navItems = [
     { id: 'health' as ViewType, icon: Activity, label: 'Health' },
 ];
 
-export default function Sidebar({ currentView, onViewChange }: SidebarProps) {
+/**
+ * Get status display info based on engine status
+ */
+function getStatusDisplay(status: string) {
+    switch (status) {
+        case 'idle':
+            return { color: '#10b981', label: 'Synced', glow: 'rgba(16, 185, 129, 0.5)' };
+        case 'processing':
+            return { color: '#f59e0b', label: 'Syncing...', glow: 'rgba(245, 158, 11, 0.5)' };
+        case 'error':
+            return { color: '#ef4444', label: 'Error', glow: 'rgba(239, 68, 68, 0.5)' };
+        case 'connecting':
+            return { color: '#3b82f6', label: 'Connecting...', glow: 'rgba(59, 130, 246, 0.5)' };
+        default:
+            return { color: '#6b7280', label: 'Disconnected', glow: 'rgba(107, 114, 128, 0.5)' };
+    }
+}
+
+export default function Sidebar() {
+    const currentView = useCurrentView();
+    const engineStatus = useEngineStatus();
+    const setCurrentView = useAppStore((state) => state.setCurrentView);
+    const lastSyncTime = useAppStore((state) => state.lastSyncTime);
+    
+    const statusDisplay = getStatusDisplay(engineStatus);
+    
+    // Format last sync time
+    const formatLastSync = () => {
+        if (!lastSyncTime) return 'Never';
+        const now = new Date();
+        const diff = now.getTime() - lastSyncTime.getTime();
+        const minutes = Math.floor(diff / 60000);
+        if (minutes < 1) return 'Just now';
+        if (minutes < 60) return `${minutes}m ago`;
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24) return `${hours}h ago`;
+        return lastSyncTime.toLocaleDateString();
+    };
+
     return (
         <div
             style={{
@@ -58,7 +92,7 @@ export default function Sidebar({ currentView, onViewChange }: SidebarProps) {
                     return (
                         <button
                             key={item.id}
-                            onClick={() => onViewChange(item.id)}
+                            onClick={() => setCurrentView(item.id)}
                             style={{
                                 width: '100%',
                                 display: 'flex',
@@ -98,8 +132,8 @@ export default function Sidebar({ currentView, onViewChange }: SidebarProps) {
             <div
                 style={{
                     padding: '12px',
-                    background: 'rgba(16, 185, 129, 0.1)',
-                    border: '1px solid rgba(16, 185, 129, 0.2)',
+                    background: `${statusDisplay.color}15`,
+                    border: `1px solid ${statusDisplay.color}30`,
                     borderRadius: '8px',
                 }}
             >
@@ -109,16 +143,16 @@ export default function Sidebar({ currentView, onViewChange }: SidebarProps) {
                             width: '8px',
                             height: '8px',
                             borderRadius: '50%',
-                            background: '#10b981',
-                            boxShadow: '0 0 8px rgba(16, 185, 129, 0.5)',
+                            background: statusDisplay.color,
+                            boxShadow: `0 0 8px ${statusDisplay.glow}`,
                         }}
                     />
                     <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                        Synced
+                        {statusDisplay.label}
                     </span>
                 </div>
                 <p style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '4px' }}>
-                    Last updated: Just now
+                    Last updated: {formatLastSync()}
                 </p>
             </div>
         </div>
