@@ -42,7 +42,14 @@ def get_db_path() -> Path:
 
 def get_schema_path() -> Path:
     """Get path to the schema.sql file."""
-    return Path(__file__).parent / "schema.sql"
+    import sys
+
+    if hasattr(sys, "_MEIPASS"):
+        # PyInstaller frozen mode - schema is in bundled data
+        return Path(sys._MEIPASS) / "portfolio_src" / "data" / "schema.sql"
+    else:
+        # Development mode
+        return Path(__file__).parent / "schema.sql"
 
 
 def init_db(db_path: Optional[str] = None) -> sqlite3.Connection:
@@ -72,12 +79,22 @@ def init_db(db_path: Optional[str] = None) -> sqlite3.Connection:
 
     # Read and execute schema
     schema_path = get_schema_path()
+
+    # Debug logging (stderr to avoid polluting IPC stdout)
+    import sys as _sys
+
+    print(f"[DB] Database path: {db_path}", file=_sys.stderr)
+    print(f"[DB] Schema path: {schema_path}", file=_sys.stderr)
+    print(f"[DB] Schema exists: {schema_path.exists()}", file=_sys.stderr)
+
     if schema_path.exists():
         with open(schema_path, "r") as f:
             schema_sql = f.read()
         conn.executescript(schema_sql)
         conn.commit()
+        print(f"[DB] Schema applied successfully", file=_sys.stderr)
     else:
+        print(f"[DB] ERROR: Schema file not found!", file=_sys.stderr)
         raise FileNotFoundError(f"Schema file not found: {schema_path}")
 
     # Cache connection if not in-memory
@@ -249,3 +266,183 @@ def count_positions(portfolio_id: int = 1) -> int:
         "SELECT COUNT(*) FROM positions WHERE portfolio_id = ?", (portfolio_id,)
     )
     return cursor.fetchone()[0]
+
+
+# =============================================================================
+# Write Functions (for TR sync)
+# =============================================================================
+
+
+def upsert_asset(
+    isin: str,
+    name: str,
+    symbol: str,
+    asset_class: str = "stock",
+    sector: Optional[str] = None,
+    region: Optional[str] = None,
+) -> None:
+    """
+    Insert or update asset in universe.
+
+    Args:
+        isin: ISIN identifier
+        name: Asset name
+        symbol: Trading symbol
+        asset_class: Asset class (stock, etf, bond, etc.)
+        sector: Sector classification
+        region: Geographic region
+    """
+    conn = get_connection()
+    conn.execute(
+        """
+        INSERT INTO assets (isin, name, symbol, asset_class, sector, region)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(isin) DO UPDATE SET
+            name = excluded.name,
+            symbol = excluded.symbol,
+            asset_class = excluded.asset_class,
+            sector = excluded.sector,
+            region = excluded.region,
+            updated_at = CURRENT_TIMESTAMP
+    """,
+        (isin, name, symbol, asset_class, sector, region),
+    )
+    conn.commit()
+
+
+def upsert_position(
+    portfolio_id: int,
+    isin: str,
+    quantity: float,
+    cost_basis: float,
+    current_price: Optional[float] = None,
+) -> None:
+    """
+    Insert or update position.
+
+    Args:
+        portfolio_id: Portfolio ID
+        isin: ISIN identifier
+        quantity: Number of shares/units
+        cost_basis: Average cost per share
+        current_price: Current market price (optional)
+    """
+    conn = get_connection()
+    conn.execute(
+        """
+        INSERT INTO positions (portfolio_id, isin, quantity, cost_basis, current_price)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(portfolio_id, isin) DO UPDATE SET
+            quantity = excluded.quantity,
+            cost_basis = excluded.cost_basis,
+            current_price = excluded.current_price,
+            updated_at = CURRENT_TIMESTAMP
+    """,
+        (portfolio_id, isin, quantity, cost_basis, current_price),
+    )
+    conn.commit()
+
+
+def sync_positions_from_tr(portfolio_id: int, tr_positions: list[dict]) -> dict:
+    """
+    Bulk sync positions from Trade Republic data.
+
+    Args:
+        portfolio_id: Portfolio ID to sync to
+        tr_positions: List of TR position dicts with keys:
+            - isin: ISIN identifier
+            - name: Asset name
+            - symbol: Trading symbol
+            - quantity: Number of shares
+            - cost_basis: Average cost per share
+            - current_price: Current market price
+            - asset_class: Asset classification
+            - sector: Sector (optional)
+            - region: Region (optional)
+
+    Returns:
+        Dict with sync statistics:
+            - synced_positions: Total positions processed
+            - new_positions: New positions added
+            - updated_positions: Existing positions updated
+            - total_value: Total portfolio value
+    """
+    if not tr_positions:
+        return {
+            "synced_positions": 0,
+            "new_positions": 0,
+            "updated_positions": 0,
+            "total_value": 0.0,
+        }
+
+    new_positions = 0
+    updated_positions = 0
+    total_value = 0.0
+
+    with transaction() as conn:
+        # Get existing positions for comparison
+        cursor = conn.execute(
+            "SELECT isin FROM positions WHERE portfolio_id = ?", (portfolio_id,)
+        )
+        existing_isins = {row[0] for row in cursor.fetchall()}
+
+        for pos in tr_positions:
+            isin = pos["isin"]
+            name = pos["name"]
+            symbol = pos["symbol"]
+            quantity = float(pos["quantity"])
+            cost_basis = float(pos["cost_basis"])
+            current_price = pos.get("current_price")
+            if current_price is not None:
+                current_price = float(current_price)
+
+            asset_class = pos.get("asset_class", "Equity")
+            sector = pos.get("sector")
+            region = pos.get("region")
+
+            # Upsert asset first
+            conn.execute(
+                """
+                INSERT INTO assets (isin, name, symbol, asset_class, sector, region)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(isin) DO UPDATE SET
+                    name = excluded.name,
+                    symbol = excluded.symbol,
+                    asset_class = excluded.asset_class,
+                    sector = excluded.sector,
+                    region = excluded.region,
+                    updated_at = CURRENT_TIMESTAMP
+            """,
+                (isin, name, symbol, asset_class, sector, region),
+            )
+
+            # Upsert position
+            conn.execute(
+                """
+                INSERT INTO positions (portfolio_id, isin, quantity, cost_basis, current_price)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(portfolio_id, isin) DO UPDATE SET
+                    quantity = excluded.quantity,
+                    cost_basis = excluded.cost_basis,
+                    current_price = excluded.current_price,
+                    updated_at = CURRENT_TIMESTAMP
+            """,
+                (portfolio_id, isin, quantity, cost_basis, current_price),
+            )
+
+            # Track statistics
+            if isin in existing_isins:
+                updated_positions += 1
+            else:
+                new_positions += 1
+
+            # Calculate value (use current_price if available, else cost_basis)
+            price = current_price if current_price is not None else cost_basis
+            total_value += quantity * price
+
+    return {
+        "synced_positions": len(tr_positions),
+        "new_positions": new_positions,
+        "updated_positions": updated_positions,
+        "total_value": round(total_value, 2),
+    }

@@ -9,7 +9,10 @@
 mod commands;
 mod python_engine;
 
-use commands::{get_dashboard_data, get_engine_health, sync_portfolio};
+use commands::{
+    get_dashboard_data, get_engine_health, get_positions, sync_portfolio, 
+    tr_get_auth_status, tr_check_saved_session, tr_login, tr_submit_2fa, tr_logout
+};
 use python_engine::{PythonEngine, StdoutMessage};
 use std::sync::Arc;
 use tauri::{Emitter, Manager};
@@ -166,7 +169,13 @@ pub fn run() {
             greet,
             get_engine_health,
             get_dashboard_data,
-            sync_portfolio
+            get_positions,
+            sync_portfolio,
+            tr_get_auth_status,
+            tr_check_saved_session,
+            tr_login,
+            tr_submit_2fa,
+            tr_logout
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

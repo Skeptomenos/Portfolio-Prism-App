@@ -10,7 +10,13 @@ import type {
   EngineHealth, 
   EngineStatusEvent, 
   PortfolioUpdatedEvent,
-  SyncProgress 
+  SyncProgress,
+  AuthStatus,
+  SessionCheck,
+  AuthResponse,
+  LogoutResponse,
+  PortfolioSyncResult,
+  PositionsResponse
 } from '../types';
 
 // =============================================================================
@@ -40,9 +46,33 @@ export interface TauriCommands {
     args: { portfolioId: number };
     returns: DashboardData;
   };
+  get_positions: {
+    args: { portfolioId: number };
+    returns: PositionsResponse;
+  };
   sync_portfolio: {
     args: { force: boolean; portfolioId: number };
-    returns: { success: boolean; message: string };
+    returns: PortfolioSyncResult;
+  };
+  tr_get_auth_status: {
+    args: Record<string, never>;
+    returns: AuthStatus;
+  };
+  tr_check_saved_session: {
+    args: Record<string, never>;
+    returns: SessionCheck;
+  };
+  tr_login: {
+    args: { phone: string; pin: string; remember: boolean };
+    returns: AuthResponse;
+  };
+  tr_submit_2fa: {
+    args: { code: string };
+    returns: AuthResponse;
+  };
+  tr_logout: {
+    args: Record<string, never>;
+    returns: LogoutResponse;
   };
 }
 

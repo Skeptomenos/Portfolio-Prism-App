@@ -9,7 +9,7 @@
 // Navigation
 // =============================================================================
 
-export type ViewType = 'dashboard' | 'xray' | 'overlap' | 'holdings' | 'data' | 'health';
+export type ViewType = 'dashboard' | 'xray' | 'overlap' | 'holdings' | 'data' | 'health' | 'trade-republic';
 
 // =============================================================================
 // Engine Status (from Rust/Python sidecar)
@@ -42,7 +42,9 @@ export interface DashboardData {
     region: Record<string, number>;
   };
   topHoldings: Holding[];
-  lastUpdated: string;
+  lastUpdated: string | null;
+  isEmpty?: boolean;
+  positionCount?: number;
 }
 
 export interface Holding {
@@ -110,3 +112,102 @@ export interface Notification {
   dismissable?: boolean;
   duration?: number; // ms, undefined = persistent
 }
+
+// =============================================================================
+// Trade Republic Auth Types
+// =============================================================================
+
+export type AuthState = 'idle' | 'waiting_2fa' | 'authenticated' | 'error';
+
+export interface AuthStatus {
+  authState: AuthState;
+  hasStoredCredentials: boolean;
+  lastError?: string;
+}
+
+export interface SessionCheck {
+  hasSession: boolean;
+  phoneNumber?: string; // Masked: +49***1234
+  prompt: 'restore_session' | 'login_required';
+}
+
+export interface AuthResponse {
+  authState: AuthState;
+  message: string;
+  countdown?: number; // For 2FA timer
+}
+
+export interface LogoutResponse {
+  authState: 'idle';
+  message: string;
+}
+
+export interface PortfolioSyncResult {
+  syncedPositions: number;
+  newPositions: number;
+  updatedPositions: number;
+  totalValue: number;
+  durationMs: number;
+}
+
+// =============================================================================
+// Position Data (Full Trade Republic Export)
+// =============================================================================
+
+export interface Position {
+  isin: string;
+  name: string;
+  ticker?: string;
+  instrumentType: 'stock' | 'etf' | 'crypto' | 'bond' | 'derivative' | 'other';
+  quantity: number;
+  avgBuyPrice: number;
+  currentPrice: number;
+  currentValue: number;
+  totalCost: number;
+  pnlEur: number;
+  pnlPercent: number;
+  weight: number;
+  currency: string;
+  notes?: string;
+  lastUpdated: string;
+}
+
+export interface PositionsResponse {
+  positions: Position[];
+  totalValue: number;
+  totalCost: number;
+  totalPnl: number;
+  totalPnlPercent: number;
+  lastSyncTime?: string;
+}
+
+// =============================================================================
+// Toast Notifications
+// =============================================================================
+
+export interface Toast {
+  id: string;
+  type: 'success' | 'error' | 'info' | 'warning';
+  title: string;
+  message?: string;
+  duration?: number; // ms, default 4000
+}
+
+export type TRErrorCode = 
+  | 'TR_AUTH_REQUIRED'
+  | 'TR_INVALID_CREDENTIALS'
+  | 'TR_LOGIN_FAILED'
+  | 'TR_2FA_REQUIRED'
+  | 'TR_2FA_INVALID'
+  | 'TR_2FA_EXPIRED'
+  | 'TR_RATE_LIMITED'
+  | 'TR_SESSION_EXPIRED'
+  | 'TR_NETWORK_ERROR'
+  | 'TR_DAEMON_ERROR'
+  | 'TR_SYNC_FAILED'
+  | 'TR_COMPONENTS_MISSING'
+  | 'TR_AUTH_ERROR'
+  | 'TR_SESSION_CHECK_ERROR'
+  | 'TR_LOGIN_ERROR'
+  | 'TR_2FA_ERROR'
+  | 'TR_LOGOUT_ERROR';

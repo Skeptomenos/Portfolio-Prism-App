@@ -66,11 +66,54 @@ pub struct DashboardData {
     pub position_count: u32,
 }
 
+// Note: SyncResult was replaced by PortfolioSyncResult
+
+// =============================================================================
+// Trade Republic Auth Types
+// =============================================================================
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SyncResult {
-    pub success: bool,
+pub struct AuthStatus {
+    pub auth_state: String,
+    pub has_stored_credentials: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_error: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionCheck {
+    pub has_session: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub phone_number: Option<String>,
+    pub prompt: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthResponse {
+    pub auth_state: String,
     pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub countdown: Option<u32>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LogoutResponse {
+    pub auth_state: String,
+    pub message: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PortfolioSyncResult {
+    pub synced_positions: u32,
+    pub new_positions: u32,
+    pub updated_positions: u32,
+    pub total_value: f64,
+    pub duration_ms: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -79,6 +122,40 @@ pub struct SyncProgress {
     pub status: String,
     pub progress: u8,
     pub message: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Position {
+    pub isin: String,
+    pub name: String,
+    #[serde(default)]
+    pub ticker: String,
+    pub instrument_type: String,
+    pub quantity: f64,
+    pub avg_buy_price: f64,
+    pub current_price: f64,
+    pub current_value: f64,
+    pub total_cost: f64,
+    pub pnl_eur: f64,
+    pub pnl_percent: f64,
+    pub weight: f64,
+    pub currency: String,
+    #[serde(default)]
+    pub notes: String,
+    pub last_updated: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PositionsResponse {
+    pub positions: Vec<Position>,
+    pub total_value: f64,
+    pub total_cost: f64,
+    pub total_pnl: f64,
+    pub total_pnl_percent: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_sync_time: Option<String>,
 }
 
 // =============================================================================
@@ -225,64 +302,311 @@ pub async fn get_dashboard_data(
     Ok(mock_dashboard_data())
 }
 
-/// Trigger portfolio sync
+/// Get all positions for a portfolio (full data for the table)
+#[tauri::command]
+pub async fn get_positions(
+    portfolio_id: u32,
+    engine: State<'_, Arc<PythonEngine>>,
+) -> Result<PositionsResponse, String> {
+    if !engine.is_connected().await {
+        // Return empty response if engine not connected
+        return Ok(PositionsResponse {
+            positions: vec![],
+            total_value: 0.0,
+            total_cost: 0.0,
+            total_pnl: 0.0,
+            total_pnl_percent: 0.0,
+            last_sync_time: None,
+        });
+    }
+
+    match engine
+        .send_command("get_positions", json!({"portfolioId": portfolio_id}))
+        .await
+    {
+        Ok(response) => {
+            if response.status == "success" {
+                if let Some(data) = response.data {
+                    let positions_response: Result<PositionsResponse, _> = serde_json::from_value(data);
+                    match positions_response {
+                        Ok(p) => return Ok(p),
+                        Err(e) => {
+                            eprintln!("Failed to parse positions data: {}", e);
+                            return Err(format!("Failed to parse positions: {}", e));
+                        }
+                    }
+                }
+            }
+            if let Some(err) = response.error {
+                return Err(err.message);
+            }
+            Err("Unknown error getting positions".to_string())
+        }
+        Err(e) => Err(format!("Failed to get positions: {}", e)),
+    }
+}
+
+/// Trigger portfolio sync with real Trade Republic data
 #[tauri::command]
 pub async fn sync_portfolio(
     app_handle: AppHandle,
     portfolio_id: u32,
     force: bool,
-) -> Result<SyncResult, String> {
-    // TODO: Implement real sync via Python engine (TASK-205)
-    // For now, simulate sync with progress events
+    engine: State<'_, Arc<PythonEngine>>,
+) -> Result<PortfolioSyncResult, String> {
+    if !engine.is_connected().await {
+        return Err("Python engine not connected".to_string());
+    }
 
-    let _ = force; // Suppress unused warning
-
-    // Clone app_handle for the async block
-    let handle = app_handle.clone();
-
-    // Spawn a task to emit progress events
-    tauri::async_runtime::spawn(async move {
-        let steps = vec![
-            (10, "Connecting to Trade Republic..."),
-            (30, "Fetching portfolio data..."),
-            (50, "Enriching holdings data..."),
-            (70, "Calculating analytics..."),
-            (90, "Finalizing..."),
-            (100, "Sync complete!"),
-        ];
-
-        for (progress, message) in steps {
-            let status = if progress == 100 { "complete" } else { "syncing" };
-
-            let payload = SyncProgress {
-                status: status.to_string(),
-                progress,
-                message: message.to_string(),
-            };
-
-            let _ = handle.emit("sync-progress", payload);
-            tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-        }
-
-        // Emit portfolio-updated event
-        #[derive(Clone, Serialize)]
-        #[serde(rename_all = "camelCase")]
-        struct PortfolioUpdated {
-            timestamp: String,
-            portfolio_id: u32,
-        }
-
-        let _ = handle.emit(
-            "portfolio-updated",
-            PortfolioUpdated {
-                timestamp: chrono::Utc::now().to_rfc3339(),
-                portfolio_id,
-            },
-        );
+    let payload = json!({
+        "portfolioId": portfolio_id,
+        "force": force
     });
 
-    Ok(SyncResult {
-        success: true,
-        message: "Sync started".to_string(),
-    })
+    // Clone app_handle for the async block
+    let _handle = app_handle.clone();
+
+    // TODO: Implement event listening from Python engine
+    // For now, progress events are handled via direct responses
+    // engine.listen_events("sync_progress", move |event_data| {
+    //     if let (Some(progress), Some(message)) = (
+    //         event_data.get("progress").and_then(|v| v.as_u64()),
+    //         event_data.get("message").and_then(|v| v.as_str()),
+    //     ) {
+    //         let payload = SyncProgress {
+    //             status: "syncing".to_string(),
+    //             progress: progress as u8,
+    //             message: message.to_string(),
+    //         };
+    //         let _ = handle.emit("sync-progress", payload);
+    //     }
+    // }).await;
+
+    match engine.send_command("sync_portfolio", payload).await {
+        Ok(response) => {
+            if response.status == "success" {
+                if let Some(data) = response.data {
+                    let sync_result: Result<PortfolioSyncResult, _> = serde_json::from_value(data);
+                    match sync_result {
+                        Ok(result) => {
+                            // Emit final completion event
+                            let payload = SyncProgress {
+                                status: "complete".to_string(),
+                                progress: 100,
+                                message: "Sync complete!".to_string(),
+                            };
+                            let _ = app_handle.emit("sync-progress", payload);
+
+                            // Emit portfolio-updated event
+                            #[derive(Clone, Serialize)]
+                            #[serde(rename_all = "camelCase")]
+                            struct PortfolioUpdated {
+                                timestamp: String,
+                                portfolio_id: u32,
+                            }
+
+                            let _ = app_handle.emit(
+                                "portfolio-updated",
+                                PortfolioUpdated {
+                                    timestamp: chrono::Utc::now().to_rfc3339(),
+                                    portfolio_id,
+                                },
+                            );
+
+                            Ok(result)
+                        }
+                        Err(e) => {
+                            eprintln!("Failed to parse sync result: {}", e);
+                            Err("Failed to parse sync result".to_string())
+                        }
+                    }
+                } else {
+                    Err("No data in sync response".to_string())
+                }
+            } else {
+                Err(response.error.map(|e| e.message).unwrap_or_else(|| "Sync failed".to_string()))
+            }
+        }
+        Err(e) => Err(format!("Failed to sync portfolio: {}", e)),
+    }
+}
+
+/// Get current Trade Republic authentication status
+#[tauri::command]
+pub async fn tr_get_auth_status(
+    engine: State<'_, Arc<PythonEngine>>,
+) -> Result<AuthStatus, String> {
+    if !engine.is_connected().await {
+        return Ok(AuthStatus {
+            auth_state: "idle".to_string(),
+            has_stored_credentials: false,
+            last_error: Some("Python engine not connected".to_string()),
+        });
+    }
+
+    match engine.send_command("tr_get_auth_status", json!({})).await {
+        Ok(response) => {
+            if response.status == "success" {
+                if let Some(data) = response.data {
+                    let auth_status: Result<AuthStatus, _> = serde_json::from_value(data);
+                    match auth_status {
+                        Ok(status) => Ok(status),
+                        Err(e) => {
+                            eprintln!("Failed to parse auth status: {}", e);
+                            Err("Failed to parse auth status".to_string())
+                        }
+                    }
+                } else {
+                    Err("No data in auth status response".to_string())
+                }
+            } else {
+                Err(response.error.map(|e| e.message).unwrap_or_else(|| "Auth status check failed".to_string()))
+            }
+        }
+        Err(e) => Err(format!("Failed to get auth status: {}", e)),
+    }
+}
+
+/// Check for saved Trade Republic session
+#[tauri::command]
+pub async fn tr_check_saved_session(
+    engine: State<'_, Arc<PythonEngine>>,
+) -> Result<SessionCheck, String> {
+    if !engine.is_connected().await {
+        return Ok(SessionCheck {
+            has_session: false,
+            phone_number: None,
+            prompt: "login_required".to_string(),
+        });
+    }
+
+    match engine.send_command("tr_check_saved_session", json!({})).await {
+        Ok(response) => {
+            if response.status == "success" {
+                if let Some(data) = response.data {
+                    let session_check: Result<SessionCheck, _> = serde_json::from_value(data);
+                    match session_check {
+                        Ok(check) => Ok(check),
+                        Err(e) => {
+                            eprintln!("Failed to parse session check: {}", e);
+                            Err("Failed to parse session check".to_string())
+                        }
+                    }
+                } else {
+                    Err("No data in session check response".to_string())
+                }
+            } else {
+                Err(response.error.map(|e| e.message).unwrap_or_else(|| "Session check failed".to_string()))
+            }
+        }
+        Err(e) => Err(format!("Failed to check session: {}", e)),
+    }
+}
+
+/// Start Trade Republic login process
+#[tauri::command]
+pub async fn tr_login(
+    phone: String,
+    pin: String,
+    remember: bool,
+    engine: State<'_, Arc<PythonEngine>>,
+) -> Result<AuthResponse, String> {
+    if !engine.is_connected().await {
+        return Err("Python engine not connected".to_string());
+    }
+
+    let payload = json!({
+        "phone": phone,
+        "pin": pin,
+        "remember": remember
+    });
+
+    match engine.send_command("tr_login", payload).await {
+        Ok(response) => {
+            if response.status == "success" {
+                if let Some(data) = response.data {
+                    let auth_response: Result<AuthResponse, _> = serde_json::from_value(data);
+                    match auth_response {
+                        Ok(resp) => Ok(resp),
+                        Err(e) => {
+                            eprintln!("Failed to parse auth response: {}", e);
+                            Err("Failed to parse auth response".to_string())
+                        }
+                    }
+                } else {
+                    Err("No data in auth response".to_string())
+                }
+            } else {
+                Err(response.error.map(|e| e.message).unwrap_or_else(|| "Login failed".to_string()))
+            }
+        }
+        Err(e) => Err(format!("Failed to login: {}", e)),
+    }
+}
+
+/// Submit 2FA code for Trade Republic
+#[tauri::command]
+pub async fn tr_submit_2fa(
+    code: String,
+    engine: State<'_, Arc<PythonEngine>>,
+) -> Result<AuthResponse, String> {
+    if !engine.is_connected().await {
+        return Err("Python engine not connected".to_string());
+    }
+
+    let payload = json!({ "code": code });
+
+    match engine.send_command("tr_submit_2fa", payload).await {
+        Ok(response) => {
+            if response.status == "success" {
+                if let Some(data) = response.data {
+                    let auth_response: Result<AuthResponse, _> = serde_json::from_value(data);
+                    match auth_response {
+                        Ok(resp) => Ok(resp),
+                        Err(e) => {
+                            eprintln!("Failed to parse 2FA response: {}", e);
+                            Err("Failed to parse 2FA response".to_string())
+                        }
+                    }
+                } else {
+                    Err("No data in 2FA response".to_string())
+                }
+            } else {
+                Err(response.error.map(|e| e.message).unwrap_or_else(|| "2FA verification failed".to_string()))
+            }
+        }
+        Err(e) => Err(format!("Failed to submit 2FA: {}", e)),
+    }
+}
+
+/// Logout from Trade Republic
+#[tauri::command]
+pub async fn tr_logout(
+    engine: State<'_, Arc<PythonEngine>>,
+) -> Result<LogoutResponse, String> {
+    if !engine.is_connected().await {
+        return Err("Python engine not connected".to_string());
+    }
+
+    match engine.send_command("tr_logout", json!({})).await {
+        Ok(response) => {
+            if response.status == "success" {
+                if let Some(data) = response.data {
+                    let logout_response: Result<LogoutResponse, _> = serde_json::from_value(data);
+                    match logout_response {
+                        Ok(resp) => Ok(resp),
+                        Err(e) => {
+                            eprintln!("Failed to parse logout response: {}", e);
+                            Err("Failed to parse logout response".to_string())
+                        }
+                    }
+                } else {
+                    Err("No data in logout response".to_string())
+                }
+            } else {
+                Err(response.error.map(|e| e.message).unwrap_or_else(|| "Logout failed".to_string()))
+            }
+        }
+        Err(e) => Err(format!("Failed to logout: {}", e)),
+    }
 }

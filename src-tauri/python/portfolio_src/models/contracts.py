@@ -144,16 +144,89 @@ class DashboardResponse(SuccessResponse):
 class SyncResultData(BaseModel):
     """Data payload for sync_portfolio command."""
 
-    synced_assets: int = Field(..., description="Number of assets synced")
-    duration_ms: int = Field(..., description="Sync duration in milliseconds")
+    synced_positions: int = Field(..., description="Number of positions synced")
     new_positions: int = Field(0, description="Number of new positions added")
     updated_positions: int = Field(0, description="Number of positions updated")
+    total_value: float = Field(0.0, description="Total portfolio value after sync")
+    duration_ms: int = Field(..., description="Sync duration in milliseconds")
 
 
 class SyncResponse(SuccessResponse):
     """Response for sync_portfolio command."""
 
     data: SyncResultData
+
+
+# =============================================================================
+# TRADE REPUBLIC AUTH RESPONSES
+# =============================================================================
+
+
+class AuthStateData(BaseModel):
+    """Data payload for tr_get_auth_status command."""
+
+    auth_state: Literal["idle", "waiting_2fa", "authenticated", "error"] = Field(
+        ..., description="Current authentication state"
+    )
+    has_stored_credentials: bool = Field(
+        False, description="Whether stored credentials exist"
+    )
+    last_error: Optional[str] = Field(None, description="Last error message, if any")
+
+
+class AuthStateResponse(SuccessResponse):
+    """Response for tr_get_auth_status command."""
+
+    data: AuthStateData
+
+
+class SessionCheckData(BaseModel):
+    """Data payload for tr_check_saved_session command."""
+
+    has_session: bool = Field(..., description="Whether a saved session exists")
+    phone_number: Optional[str] = Field(
+        None, description="Masked phone number (+49***1234)"
+    )
+    prompt: Literal["restore_session", "login_required"] = Field(
+        ..., description="UI prompt to show"
+    )
+
+
+class SessionCheckResponse(SuccessResponse):
+    """Response for tr_check_saved_session command."""
+
+    data: SessionCheckData
+
+
+class AuthData(BaseModel):
+    """Data payload for tr_login and tr_submit_2fa commands."""
+
+    auth_state: Literal["idle", "waiting_2fa", "authenticated", "error"] = Field(
+        ..., description="Current authentication state"
+    )
+    message: str = Field(..., description="Status message for user")
+    countdown: Optional[int] = Field(
+        None, description="Countdown timer for 2FA (seconds)"
+    )
+
+
+class AuthResponse(SuccessResponse):
+    """Response for tr_login and tr_submit_2fa commands."""
+
+    data: AuthData
+
+
+class LogoutData(BaseModel):
+    """Data payload for tr_logout command."""
+
+    auth_state: Literal["idle"] = Field(..., description="Auth state after logout")
+    message: str = Field(..., description="Logout confirmation message")
+
+
+class LogoutResponse(SuccessResponse):
+    """Response for tr_logout command."""
+
+    data: LogoutData
 
 
 # =============================================================================

@@ -70,6 +70,26 @@ class TRAuthManager:
         """Check if we have a valid session."""
         return self._state == AuthState.AUTHENTICATED
 
+    @property
+    def last_error(self) -> Optional[str]:
+        """Get last error message if any."""
+        return getattr(self, "_last_error", None)
+
+    def has_credentials(self) -> bool:
+        """Check if stored credentials exist."""
+        phone, pin = self.get_stored_credentials()
+        return phone is not None and pin is not None
+
+    def get_stored_phone(self) -> Optional[str]:
+        """Get stored phone number for masking."""
+        phone, _ = self.get_stored_credentials()
+        return phone
+
+    def logout(self) -> None:
+        """Logout and clear session."""
+        self.clear_credentials()
+        self._last_error = None
+
     def clear_credentials(self, phone: Optional[str] = None) -> bool:
         """Clear stored credentials (delegates to daemon)."""
         # Call logout on daemon to clear cookies
@@ -77,7 +97,7 @@ class TRAuthManager:
             self.bridge.logout()
         except Exception:
             pass
-            
+
         self._state = AuthState.IDLE
         self._phone_number = None
         return True
@@ -222,6 +242,7 @@ class TRAuthManager:
 
         try:
             import keyring
+
             keyring.set_password("PortfolioPrism", "tr_phone", phone)
             keyring.set_password("PortfolioPrism", "tr_pin", pin)
             return True
@@ -237,6 +258,7 @@ class TRAuthManager:
 
         try:
             import keyring
+
             phone = keyring.get_password("PortfolioPrism", "tr_phone")
             pin = keyring.get_password("PortfolioPrism", "tr_pin")
             if phone and pin:
@@ -258,6 +280,7 @@ class TRAuthManager:
         try:
             import keyring
             import keyring.errors
+
             try:
                 keyring.delete_password("PortfolioPrism", "tr_phone")
             except keyring.errors.PasswordDeleteError:
@@ -274,19 +297,23 @@ class TRAuthManager:
         """Save credentials to a local JSON file (Dev Mode/Fallback)."""
         try:
             if not self.data_dir:
-                 from pathlib import Path
-                 # Default if not set
-                 self.data_dir = Path(os.getenv("PRISM_DATA_DIR", "~/.prism/data")).expanduser()
-            
+                from pathlib import Path
+
+                # Default if not set
+                self.data_dir = Path(
+                    os.getenv("PRISM_DATA_DIR", "~/.prism/data")
+                ).expanduser()
+
             config_dir = self.data_dir / "config"
             config_dir.mkdir(parents=True, exist_ok=True)
             cred_file = config_dir / ".credentials.json"
-            
+
             # Simple encoding to avoid plain text staring at you
             import base64
+
             data = {
                 "phone": base64.b64encode(phone.encode()).decode(),
-                "pin": base64.b64encode(pin.encode()).decode()
+                "pin": base64.b64encode(pin.encode()).decode(),
             }
             cred_file.write_text(json.dumps(data))
             return True
@@ -297,14 +324,18 @@ class TRAuthManager:
         """Load credentials from local JSON file."""
         try:
             if not self.data_dir:
-                 from pathlib import Path
-                 self.data_dir = Path(os.getenv("PRISM_DATA_DIR", "~/.prism/data")).expanduser()
-                 
+                from pathlib import Path
+
+                self.data_dir = Path(
+                    os.getenv("PRISM_DATA_DIR", "~/.prism/data")
+                ).expanduser()
+
             cred_file = self.data_dir / "config" / ".credentials.json"
             if not cred_file.exists():
                 return None, None
-                
+
             import base64
+
             data = json.loads(cred_file.read_text())
             phone = base64.b64decode(data["phone"]).decode()
             pin = base64.b64decode(data["pin"]).decode()

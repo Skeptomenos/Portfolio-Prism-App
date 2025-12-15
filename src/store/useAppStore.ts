@@ -11,7 +11,7 @@
 
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import type { ViewType, EngineStatus, SyncProgress, Notification } from '../types';
+import type { ViewType, EngineStatus, SyncProgress, Notification, AuthState, Toast } from '../types';
 
 // =============================================================================
 // State Interface
@@ -31,6 +31,19 @@ interface AppState {
   
   // Portfolio Context
   activePortfolioId: number;
+  
+  // Auth State
+  authState: AuthState;
+  isAuthPanelOpen: boolean;
+  authError: string | null;
+  savedPhone: string | null;
+  rememberMe: boolean;
+  
+  // Toast Notifications
+  toasts: Toast[];
+  
+  // Editing state (for unsaved changes warning)
+  hasUnsavedChanges: boolean;
 }
 
 interface AppActions {
@@ -50,10 +63,26 @@ interface AppActions {
   // Portfolio
   setActivePortfolioId: (id: number) => void;
   
+  // Auth Actions
+  openAuthPanel: () => void;
+  closeAuthPanel: () => void;
+  setAuthState: (state: AuthState) => void;
+  setAuthError: (error: string | null) => void;
+  setSavedPhone: (phone: string | null) => void;
+  setRememberMe: (remember: boolean) => void;
+  
   // Compound Actions
   startSync: () => void;
   completeSync: () => void;
   failSync: (error: string) => void;
+  
+  // Toast Actions
+  addToast: (toast: Omit<Toast, 'id'>) => void;
+  dismissToast: (id: string) => void;
+  clearToasts: () => void;
+  
+  // Editing state
+  setHasUnsavedChanges: (hasChanges: boolean) => void;
 }
 
 type AppStore = AppState & AppActions;
@@ -69,6 +98,19 @@ const initialState: AppState = {
   lastSyncTime: null,
   notifications: [],
   activePortfolioId: 1, // Default portfolio
+  
+  // Auth State
+  authState: 'idle',
+  isAuthPanelOpen: false,
+  authError: null,
+  savedPhone: null,
+  rememberMe: false,
+  
+  // Toast Notifications
+  toasts: [],
+  
+  // Editing state
+  hasUnsavedChanges: false,
 };
 
 // =============================================================================
@@ -123,6 +165,22 @@ export const useAppStore = create<AppStore>()(
       // Portfolio
       setActivePortfolioId: (id) => set({ activePortfolioId: id }, false, 'setActivePortfolioId'),
 
+      // Auth Actions
+      openAuthPanel: () => set({ isAuthPanelOpen: true }, false, 'openAuthPanel'),
+      
+      closeAuthPanel: () => set({ 
+        isAuthPanelOpen: false, 
+        authError: null 
+      }, false, 'closeAuthPanel'),
+      
+      setAuthState: (state) => set({ authState: state }, false, 'setAuthState'),
+      
+      setAuthError: (error) => set({ authError: error }, false, 'setAuthError'),
+      
+      setSavedPhone: (phone) => set({ savedPhone: phone }, false, 'setSavedPhone'),
+      
+      setRememberMe: (remember) => set({ rememberMe: remember }, false, 'setRememberMe'),
+
       // Compound Actions
       startSync: () =>
         set(
@@ -154,6 +212,42 @@ export const useAppStore = create<AppStore>()(
           false,
           'failSync'
         ),
+
+      // Toast Actions
+      addToast: (toast) => {
+        const id = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const duration = toast.duration ?? 4000;
+        
+        set(
+          (state) => ({
+            toasts: [...state.toasts, { ...toast, id }],
+          }),
+          false,
+          'addToast'
+        );
+        
+        // Auto-dismiss after duration
+        if (duration > 0) {
+          setTimeout(() => {
+            get().dismissToast(id);
+          }, duration);
+        }
+      },
+      
+      dismissToast: (id) =>
+        set(
+          (state) => ({
+            toasts: state.toasts.filter((t) => t.id !== id),
+          }),
+          false,
+          'dismissToast'
+        ),
+      
+      clearToasts: () => set({ toasts: [] }, false, 'clearToasts'),
+      
+      // Editing state
+      setHasUnsavedChanges: (hasChanges) => 
+        set({ hasUnsavedChanges: hasChanges }, false, 'setHasUnsavedChanges'),
     }),
     { name: 'AppStore' }
   )
@@ -168,3 +262,24 @@ export const useEngineStatus = () => useAppStore((state) => state.engineStatus);
 export const useSyncProgress = () => useAppStore((state) => state.syncProgress);
 export const useNotifications = () => useAppStore((state) => state.notifications);
 export const useActivePortfolioId = () => useAppStore((state) => state.activePortfolioId);
+
+// Auth selectors
+export const useAuthState = () => useAppStore((state) => state.authState);
+export const useIsAuthPanelOpen = () => useAppStore((state) => state.isAuthPanelOpen);
+export const useAuthError = () => useAppStore((state) => state.authError);
+export const useSavedPhone = () => useAppStore((state) => state.savedPhone);
+export const useRememberMe = () => useAppStore((state) => state.rememberMe);
+
+// Auth actions
+export const useOpenAuthPanel = () => useAppStore((state) => state.openAuthPanel);
+export const useCloseAuthPanel = () => useAppStore((state) => state.closeAuthPanel);
+export const useSetAuthState = () => useAppStore((state) => state.setAuthState);
+
+// Toast selectors and actions
+export const useToasts = () => useAppStore((state) => state.toasts);
+export const useAddToast = () => useAppStore((state) => state.addToast);
+export const useDismissToast = () => useAppStore((state) => state.dismissToast);
+
+// Editing state
+export const useHasUnsavedChanges = () => useAppStore((state) => state.hasUnsavedChanges);
+export const useSetHasUnsavedChanges = () => useAppStore((state) => state.setHasUnsavedChanges);

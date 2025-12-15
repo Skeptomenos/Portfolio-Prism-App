@@ -143,15 +143,12 @@ export function useSyncPortfolio() {
       startSync();
       return syncPortfolio(activePortfolioId, force);
     },
-    onSuccess: (result) => {
-      if (result.success) {
-        completeSync();
-        // Invalidate queries to refetch fresh data
-        queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-        queryClient.invalidateQueries({ queryKey: ['holdings'] });
-      } else {
-        failSync(result.message);
-      }
+    onSuccess: () => {
+      // If sync completed successfully, it will have syncedPositions > 0
+      completeSync();
+      // Invalidate queries to refetch fresh data
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['holdings'] });
     },
     onError: (error) => {
       failSync(error instanceof Error ? error.message : 'Unknown error');

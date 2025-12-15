@@ -1,10 +1,11 @@
-import { LayoutDashboard, Layers, GitCompare, Database, Settings, Activity } from 'lucide-react';
-import { useAppStore, useCurrentView } from '../store/useAppStore';
+import { LayoutDashboard, Layers, GitCompare, Database, Settings, Activity, Link } from 'lucide-react';
+import { useAppStore, useCurrentView, useAuthState } from '../store/useAppStore';
 import SystemStatus from './SystemStatus';
 import type { ViewType } from '../types';
 
 const navItems = [
     { id: 'dashboard' as ViewType, icon: LayoutDashboard, label: 'Dashboard' },
+    { id: 'trade-republic' as ViewType, icon: Link, label: 'Trade Republic' },
     { id: 'xray' as ViewType, icon: Layers, label: 'X-Ray' },
     { id: 'overlap' as ViewType, icon: GitCompare, label: 'Overlap' },
     { id: 'holdings' as ViewType, icon: Database, label: 'Holdings' },
@@ -15,6 +16,7 @@ const navItems = [
 export default function Sidebar() {
     const currentView = useCurrentView();
     const setCurrentView = useAppStore((state) => state.setCurrentView);
+    const authState = useAuthState();
 
     return (
         <div
@@ -89,6 +91,17 @@ export default function Sidebar() {
                         >
                             <Icon size={20} />
                             <span>{item.label}</span>
+                            {item.id === 'trade-republic' && authState === 'authenticated' && (
+                                <span
+                                    style={{
+                                        width: '8px',
+                                        height: '8px',
+                                        borderRadius: '50%',
+                                        background: '#10b981',
+                                        marginLeft: 'auto',
+                                    }}
+                                />
+                            )}
                         </button>
                     );
                 })}
