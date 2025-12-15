@@ -4,12 +4,20 @@ import XRayView from './components/views/XRayView';
 import OverlapView from './components/views/OverlapView';
 import HoldingsView from './components/views/HoldingsView';
 import { useCurrentView } from './store/useAppStore';
+import { useTauriEvents } from './hooks/useTauriEvents';
+import { getEnvironment } from './lib/ipc';
 
 // Re-export ViewType from types for backward compatibility
 export type { ViewType } from './types';
 
 function App() {
     const currentView = useCurrentView();
+    
+    // Initialize Tauri event listeners
+    useTauriEvents();
+    
+    // Log environment on first render
+    console.log(`[App] Running in ${getEnvironment()} environment`);
 
     const renderView = () => {
         switch (currentView) {

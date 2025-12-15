@@ -2,56 +2,17 @@
  * Portfolio Data Query Hooks
  * 
  * These hooks provide async data fetching with caching via TanStack Query.
- * Currently using mock data - will be replaced with Tauri IPC calls in TASK-302.
+ * Uses the IPC layer which falls back to mock data when not in Tauri.
  */
 
-import { useQuery } from '@tanstack/react-query';
-import type { DashboardData, Holding, XRayData, OverlapData } from '../types';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { getDashboardData, getHoldings, syncPortfolio } from '../lib/ipc';
+import { useAppStore } from '../store/useAppStore';
+import type { XRayData, OverlapData } from '../types';
 
 // =============================================================================
-// Mock Data (to be replaced with Tauri IPC calls)
+// Mock Data for X-Ray and Overlap (not yet in Rust backend)
 // =============================================================================
-
-const MOCK_DASHBOARD_DATA: DashboardData = {
-  totalValue: 124592,
-  totalGain: 12459,
-  gainPercentage: 11.1,
-  allocations: {
-    sector: {
-      Technology: 0.35,
-      Healthcare: 0.18,
-      Financials: 0.15,
-      'Consumer Discretionary': 0.12,
-      Industrials: 0.10,
-      Other: 0.10,
-    },
-    region: {
-      'North America': 0.62,
-      Europe: 0.22,
-      'Asia Pacific': 0.12,
-      'Emerging Markets': 0.04,
-    },
-  },
-  topHoldings: [
-    { isin: 'US0378331005', name: 'Apple Inc.', ticker: 'AAPL', value: 8420, weight: 0.068, pnl: 842, pnlPercentage: 11.1 },
-    { isin: 'US5949181045', name: 'Microsoft Corp.', ticker: 'MSFT', value: 7150, weight: 0.057, pnl: 650, pnlPercentage: 10.0 },
-    { isin: 'US67066G1040', name: 'NVIDIA Corp.', ticker: 'NVDA', value: 6890, weight: 0.055, pnl: 1240, pnlPercentage: 21.9 },
-    { isin: 'US0231351067', name: 'Amazon.com Inc.', ticker: 'AMZN', value: 5320, weight: 0.043, pnl: 420, pnlPercentage: 8.6 },
-    { isin: 'US30303M1027', name: 'Meta Platforms', ticker: 'META', value: 4280, weight: 0.034, pnl: -120, pnlPercentage: -2.7 },
-  ],
-  lastUpdated: new Date().toISOString(),
-};
-
-const MOCK_HOLDINGS_DATA: Holding[] = [
-  { isin: 'US0378331005', name: 'Apple Inc.', ticker: 'AAPL', value: 8420, weight: 0.068, pnl: 842, pnlPercentage: 11.1 },
-  { isin: 'US5949181045', name: 'Microsoft Corp.', ticker: 'MSFT', value: 7150, weight: 0.057, pnl: 650, pnlPercentage: 10.0 },
-  { isin: 'US67066G1040', name: 'NVIDIA Corp.', ticker: 'NVDA', value: 6890, weight: 0.055, pnl: 1240, pnlPercentage: 21.9 },
-  { isin: 'US0231351067', name: 'Amazon.com Inc.', ticker: 'AMZN', value: 5320, weight: 0.043, pnl: 420, pnlPercentage: 8.6 },
-  { isin: 'US30303M1027', name: 'Meta Platforms', ticker: 'META', value: 4280, weight: 0.034, pnl: -120, pnlPercentage: -2.7 },
-  { isin: 'US02079K3059', name: 'Alphabet Inc.', ticker: 'GOOGL', value: 3950, weight: 0.032, pnl: 290, pnlPercentage: 7.9 },
-  { isin: 'US88160R1014', name: 'Tesla Inc.', ticker: 'TSLA', value: 3120, weight: 0.025, pnl: -180, pnlPercentage: -5.5 },
-  { isin: 'US4592001014', name: 'IBM Corp.', ticker: 'IBM', value: 2840, weight: 0.023, pnl: 140, pnlPercentage: 5.2 },
-];
 
 const MOCK_XRAY_DATA: XRayData = {
   totalUniqueStocks: 142,
@@ -88,37 +49,9 @@ const MOCK_OVERLAP_DATA: OverlapData = {
   ],
 };
 
-// =============================================================================
-// Mock API Functions (simulate network delay)
-// =============================================================================
-
-async function fetchDashboardData(portfolioId: number): Promise<DashboardData> {
-  // Simulate network delay
+// Simulate delay for mock data
+async function simulateDelay(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 300 + Math.random() * 200));
-  
-  // In the future, this will be:
-  // return await invoke('get_dashboard_data', { portfolioId });
-  
-  console.log(`[Mock API] Fetching dashboard data for portfolio ${portfolioId}`);
-  return MOCK_DASHBOARD_DATA;
-}
-
-async function fetchHoldingsData(portfolioId: number): Promise<Holding[]> {
-  await new Promise((resolve) => setTimeout(resolve, 300 + Math.random() * 200));
-  console.log(`[Mock API] Fetching holdings data for portfolio ${portfolioId}`);
-  return MOCK_HOLDINGS_DATA;
-}
-
-async function fetchXRayData(portfolioId: number): Promise<XRayData> {
-  await new Promise((resolve) => setTimeout(resolve, 300 + Math.random() * 200));
-  console.log(`[Mock API] Fetching X-Ray data for portfolio ${portfolioId}`);
-  return MOCK_XRAY_DATA;
-}
-
-async function fetchOverlapData(portfolioId: number): Promise<OverlapData> {
-  await new Promise((resolve) => setTimeout(resolve, 300 + Math.random() * 200));
-  console.log(`[Mock API] Fetching overlap data for portfolio ${portfolioId}`);
-  return MOCK_OVERLAP_DATA;
 }
 
 // =============================================================================
@@ -127,48 +60,88 @@ async function fetchOverlapData(portfolioId: number): Promise<OverlapData> {
 
 /**
  * Fetch dashboard summary data
+ * Uses IPC layer (Tauri or mock fallback)
  */
 export function useDashboardData(portfolioId: number) {
   return useQuery({
     queryKey: ['dashboard', portfolioId],
-    queryFn: () => fetchDashboardData(portfolioId),
+    queryFn: () => getDashboardData(portfolioId),
   });
 }
 
 /**
  * Fetch all holdings
+ * Uses IPC layer (Tauri or mock fallback)
  */
 export function useHoldingsData(portfolioId: number) {
   return useQuery({
     queryKey: ['holdings', portfolioId],
-    queryFn: () => fetchHoldingsData(portfolioId),
+    queryFn: () => getHoldings(portfolioId),
   });
 }
 
 /**
  * Fetch X-Ray (look-through) data
+ * Currently mock only - will be added to Rust backend later
  */
 export function useXRayData(portfolioId: number) {
   return useQuery({
     queryKey: ['xray', portfolioId],
-    queryFn: () => fetchXRayData(portfolioId),
+    queryFn: async () => {
+      console.log(`[Mock] Fetching X-Ray data for portfolio ${portfolioId}`);
+      await simulateDelay();
+      return MOCK_XRAY_DATA;
+    },
   });
 }
 
 /**
  * Fetch ETF overlap data
+ * Currently mock only - will be added to Rust backend later
  */
 export function useOverlapData(portfolioId: number) {
   return useQuery({
     queryKey: ['overlap', portfolioId],
-    queryFn: () => fetchOverlapData(portfolioId),
+    queryFn: async () => {
+      console.log(`[Mock] Fetching overlap data for portfolio ${portfolioId}`);
+      await simulateDelay();
+      return MOCK_OVERLAP_DATA;
+    },
   });
 }
 
 // =============================================================================
-// Mutation Hooks (for actions that modify data)
+// Mutation Hooks
 // =============================================================================
 
-// Will be added in TASK-302 when IPC is ready:
-// - useSyncPortfolio()
-// - useRefreshPrices()
+/**
+ * Trigger portfolio sync
+ * Uses IPC layer to communicate with Rust/Python backend
+ */
+export function useSyncPortfolio() {
+  const queryClient = useQueryClient();
+  const startSync = useAppStore((state) => state.startSync);
+  const completeSync = useAppStore((state) => state.completeSync);
+  const failSync = useAppStore((state) => state.failSync);
+  const activePortfolioId = useAppStore((state) => state.activePortfolioId);
+
+  return useMutation({
+    mutationFn: async ({ force = false }: { force?: boolean } = {}) => {
+      startSync();
+      return syncPortfolio(activePortfolioId, force);
+    },
+    onSuccess: (result) => {
+      if (result.success) {
+        completeSync();
+        // Invalidate queries to refetch fresh data
+        queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+        queryClient.invalidateQueries({ queryKey: ['holdings'] });
+      } else {
+        failSync(result.message);
+      }
+    },
+    onError: (error) => {
+      failSync(error instanceof Error ? error.message : 'Unknown error');
+    },
+  });
+}
