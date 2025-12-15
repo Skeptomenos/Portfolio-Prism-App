@@ -2,6 +2,12 @@
 
 > **Purpose:** Defines the technology stack, constraints, and architectural patterns for Portfolio Prism.
 > **Also read:** `anamnesis/.context/tech-stack.md` for approved dependencies.
+> **See Strategy:** `anamnesis/strategy/architecture-overview.md` for the Master Architecture.
+
+> ⚠️ **STRATEGIC PIVOT (Dec 2025):** This project has shifted from a Streamlit-based UI to a **React-based UI**. 
+> - **Status of Streamlit:** Existing Python dashboard code (`src-tauri/python/portfolio_src/dashboard/`) is now **Reference Only** (Golden Master for calculations). 
+> - **New Direction:** All new UI work happens in `src/` (React). The Python backend is being refactored into a **Headless Analytics Engine**.
+> - **Reasoning:** To enable rapid feedback loops, instant startup, and a true native feel.
 
 ---
 
@@ -9,78 +15,84 @@
 
 ### Shell Layer (Rust)
 - **Framework:** Tauri v2
-- **Purpose:** Native window management, OS integration, sidecar spawning
-- **Key Plugins:** `tauri-plugin-shell`, `tauri-plugin-updater`
+- **Purpose:** Native window management, OS integration, sidecar spawning, PII Scrubbing
+- **Key Plugins:** `tauri-plugin-shell`, `tauri-plugin-updater`, `tauri-plugin-log`
+- **Key Libraries:** `serde_json` for Rust↔Python communication
 
 ### Frontend Layer (TypeScript)
 - **Framework:** React 18 + Vite
-- **Purpose:** User interface, navigation, loading states
-- **Communication:** Listens for `python-ready` event, redirects to sidecar URL
+- **UI Library:** ShadCN/UI + Tailwind CSS (Apple-inspired minimalism)
+- **State Management:** Zustand (App State), TanStack Query (Async Data)
+- **Purpose:** The *only* user interface. Renders data from SQLite/Parquet.
 
 ### Engine Layer (Python)
-- **Framework:** Streamlit (dashboard) / FastAPI (future API)
-- **Purpose:** Portfolio analytics, data processing, Trade Republic integration
-- **Bundling:** PyInstaller for standalone binary
+- **Framework:** Headless Script (No server framework). Event loop listening to Stdin.
+- **Purpose:** Portfolio analytics, Data ETL (Decompose -> Enrich -> Aggregate).
+- **Bundling:** PyInstaller for standalone binary.
+- **Concurrency:** `asyncio` for throttled I/O parallelization.
 
 ### Data Layer
-- **Local:** SQLite in `~/Library/Application Support/PortfolioPrism/`
-- **Cloud:** Supabase (community "Hive" for ISIN resolution)
-- **Cache:** Local JSON/CSV for offline support
+- **Vault Location:** `~/Library/Application Support/PortfolioPrism/`
+- **Transactional:** SQLite (User Settings, Portfolio State, Transaction Ledger).
+- **Analytical:** Parquet (Calculated Analytics, Market Data Cache).
+- **Cloud:** Supabase (Community "Hive" for ISIN resolution only).
 
 ### Infrastructure
-- **Proxy:** Cloudflare Workers (API key protection)
-- **Updates:** GitHub Releases + `tauri-plugin-updater`
-- **Auth:** `keyring` for OS Keychain, Supabase Auth for community features
+- **Proxy:** Cloudflare Workers (GitHub Issue Reporting, API key protection).
+- **Updates:** GitHub Releases + `tauri-plugin-updater`.
+- **Auth:** `keyring` for OS Keychain (Broker credentials).
 
 ---
 
 ## 2. Forbidden Technologies (Anti-Patterns)
-
 | Technology | Reason |
 |------------|--------|
 | **Electron** | Bundles Chromium (~200MB+), violates "Browser Free" constraint |
-| **Playwright** | ~300MB bundle size, replaced by community "Hive" pattern |
+| **Streamlit (for Production UI)** | Deprecated. Blocks rapid feedback loop. Use React. |
 | **Embedded API Keys** | Security risk — all keys must be proxied via Cloudflare Worker |
-| **Global State (Redux/MobX)** | Overkill for current scope — use React Context if needed |
-| **Synchronous Python I/O** | Blocks Streamlit event loop — use `asyncio` for network calls |
-| **Hardcoded Ports** | Port collisions — always use dynamic port binding (`port 0`) |
+| **Global State (Redux)** | Overkill — use Zustand for simple, atomic state |
+| **Synchronous Python I/O** | Blocks calculation throughput — use `asyncio` |
+| **ORM (SQLAlchemy/Django)** | Overkill — use raw SQL/Pydantic or lightweight wrapper |
 
 ---
 
 ## 3. Critical Libraries (Mandatory)
-
 | Domain | Library | Reason |
 |--------|---------|--------|
-| **Validation (Python)** | Pydantic | Schema enforcement for API responses, portfolio data |
-| **Validation (TS)** | Zod | Input validation, type inference |
+| **Validation (Python)** | Pydantic / Pandera | Data Contracts between Engine and Vault |
+| **Validation (TS)** | Zod | Input validation, type inference for IPC |
 | **Credentials** | keyring | Secure storage in OS Keychain (not plain text) |
-| **IPC** | serde_json | Rust↔Python communication via JSON stdout |
-| **Process Management** | tauri-plugin-shell | Sidecar lifecycle, Dead Man's Switch |
+| **Math (Python)** | Pandas / NumPy | Vectorized financial calculations |
+| **Testing (Python)** | Pytest + Syrupy | Snapshot testing for Data Contracts |
+| **Testing (Rust)** | Insta | Snapshot testing for IPC responses |
 
 ---
 
 ## 4. Architecture Standards
 
-### 4.1 Sidecar Pattern
-- Tauri spawns Python binary as child process
-- Python binds to `localhost:0` (random free port)
-- Python prints `{"event": "server_started", "port": 12345}` to stdout
-- Tauri parses stdout, redirects WebView to `http://localhost:<port>`
-- Closing window sends `SIGTERM` to Python; Python monitors `stdin` for EOF (Dead Man's Switch)
+### 4.1 The "Prism" Data Cycle
+1.  **UI Command:** React sends IPC `invoke('sync_portfolio')` to Rust.
+2.  **Engine Invocation:** Rust forwards command to Python via Stdin.
+3.  **Engine Execution:**
+    *   Python reads current state from **SQLite**.
+    *   Python fetches updates (Throttled Async) and computes (Vectorized).
+    *   Python writes results to **SQLite/Parquet**.
+    *   Python prints success JSON to Stdout.
+4.  **Reactive Update:** Rust detects success, emits `event('portfolio-updated')`.
+5.  **UI Refresh:** React (TanStack Query) invalidates cache, reads fresh data from Vault.
 
-### 4.2 Data Directory Migration
-- **Old Path:** `./data/` (dev mode, relative)
-- **New Path:** `~/Library/Application Support/PortfolioPrism/` (production)
-- Python reads `PRISM_DATA_DIR` env var, set by Tauri at spawn time
-- On first run, migrate data from old path if it exists
+### 4.2 State-at-Rest vs. State-in-Motion
+*   **Storage (Rest):** Data must be stored in ACID-compliant SQLite or immutable Parquet. NEVER pickle or raw JSON for critical user data.
+*   **Processing (Motion):** Data is loaded into Pandas DataFrames for calculation.
+*   **Boundary:** The "Decomposer" service is responsible for the SQL -> DataFrame conversion.
 
-### 4.3 Offline-First Design
-- All external API calls must be cached with TTL
-- Core analytics must function with cached data only
-- UI shows "Offline Mode" badge when disconnected
-- Sync/enrich features disabled when offline
+### 4.3 Zero-Effort Telemetry
+*   **Mechanism:** Rust acts as the central log aggregator.
+*   **Scrubber:** All logs pass through a regex-based PII scrubber before storage.
+*   **Reporting:** Critical crashes are automatically hashed, sanitized, and sent to the Cloudflare Worker Proxy (which posts to GitHub Issues) if the user opts in.
 
-### 4.4 Error Boundaries
-- Python: `sys.excepthook` captures crashes, sanitizes, sends to proxy
-- Rust: `panic_hook` for native crashes
-- All error reports strip PII (phone numbers, PINs, file paths with usernames)
+### 4.4 Data Directory Migration
+**Old Path:** `./data/` (dev mode, relative)
+**New Path:** `~/Library/Application Support/PortfolioPrism/` (production)
+- Python reads `PRISM_DATA_DIR` env var, set by Rust.
+- On startup, check for legacy data and migrate to the new SQLite/Parquet structure.

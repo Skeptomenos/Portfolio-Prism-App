@@ -1,8 +1,7 @@
 # Design Spec (The "How It Works")
 
 > **Usage:** Create visual diagrams for complex flows using Mermaid.js syntax.
-> **When Required:** Multi-step interactions, entity lifecycles, system boundaries.
-> **Pragmatism:** Skip this file if diagrams add no value for simple tasks.
+> **See Strategy:** `anamnesis/strategy/architecture-overview.md` for the Master Architecture.
 
 ---
 
@@ -12,92 +11,121 @@ High-level view of system boundaries and external actors.
 
 ```mermaid
 flowchart TB
-    User[User] --> App[Application]
-    App --> DB[(Database)]
-    App --> ExtAPI[External API]
+    User[User] --> App[Portfolio Prism]
+    
+    subgraph "Local Device (Trust Boundary)"
+        App --> Shell[Rust Shell]
+        Shell --> Engine[Python Engine]
+        Engine --> SQLite[(SQLite Vault)]
+        Engine --> Parquet[(Parquet Analytics)]
+    end
+    
+    subgraph "External World"
+        Engine --> Broker[Trade Republic API]
+        Engine --> Market[Finnhub/Yahoo API]
+        Engine --> Cloud[Supabase Hive]
+        Shell --> Updates[GitHub Releases]
+        Shell --> Proxy[Cloudflare Proxy]
+    end
+    
+    Proxy --> GitHub[GitHub Issues]
 ```
 
 ---
 
 ## 2. Sequence Diagrams
 
-For multi-step interactions (User -> API -> DB).
-
-### [Flow Name]
+### Data Sync Flow (Rapid Feedback Loop)
 
 ```mermaid
 sequenceDiagram
-    participant U as User
-    participant A as API
-    participant D as Database
+    participant UI as React UI
+    participant Rust as Rust Shell
+    participant Py as Python Engine
+    participant DB as SQLite/Parquet
     
-    U->>A: Request
-    A->>D: Query
-    D-->>A: Result
-    A-->>U: Response
+    Note over UI: User clicks "Sync"
+    UI->>Rust: invoke("sync_portfolio")
+    Rust->>Py: write_stdin(JSON Command)
+    
+    activate Py
+    Py->>DB: Read Portfolio State
+    Py->>Py: Fetch Updates (Async Throttled)
+    Py->>Py: Calculate Analytics (Vectorized)
+    Py->>DB: Write New State
+    Py-->>Rust: Print JSON Success
+    deactivate Py
+    
+    Rust-->>UI: emit("portfolio-updated")
+    
+    activate UI
+    UI->>Rust: invoke("get_dashboard_data")
+    Rust->>DB: Read(SQL) / Read(Parquet)
+    DB-->>Rust: Data
+    Rust-->>UI: JSON Data
+    UI->>UI: Re-render Charts
+    deactivate UI
 ```
-
-### [Add additional flows as needed]
 
 ---
 
-## 3. State Diagrams
+## 3. Component Diagram
 
-For entities with complex lifecycles.
+Modular architecture showing dependencies.
 
-### [Entity Name] Lifecycle
+```mermaid
+flowchart LR
+    subgraph "Frontend (React)"
+        Components[UI Components]
+        Store[Zustand Store]
+        Query[TanStack Query]
+    end
+    
+    subgraph "Shell (Rust)"
+        IPC[IPC Bridge]
+        Updater[Auto-Updater]
+        Scrubber[PII Scrubber]
+    end
+    
+    subgraph "Engine (Python)"
+        Decomposer[Decomposer Service]
+        Enricher[Enricher Service]
+        Aggregator[Aggregator Service]
+    end
+    
+    Components --> Store
+    Store --> Query
+    Query <--> IPC
+    IPC <--> Decomposer
+    Decomposer --> Enricher
+    Enricher --> Aggregator
+    
+    Scrubber -.-> Proxy[Cloudflare]
+```
+
+---
+
+## 4. State Diagrams
+
+### Engine Lifecycle
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Draft
-    Draft --> Pending: Submit
-    Pending --> Approved: Approve
-    Pending --> Rejected: Reject
-    Approved --> [*]
-    Rejected --> Draft: Revise
+    [*] --> Spawning
+    Spawning --> Handshake: Bind Port/Stdin
+    Handshake --> Idle: Ready Signal
+    
+    state Idle {
+        [*] --> Waiting
+        Waiting --> Processing: Command Received
+        Processing --> Waiting: Task Complete
+    }
+    
+    Idle --> Updating: Update Available
+    Updating --> Restarting
+    Restarting --> Spawning
+    
+    Processing --> Error: Exception
+    Error --> Reporting: Sanitize & Send
+    Reporting --> Idle
 ```
-
-### [Add additional state machines as needed]
-
----
-
-## 4. Component Diagram
-
-Optional: For modular architecture showing dependencies.
-
-```mermaid
-flowchart LR
-    subgraph Core
-        A[Module A]
-        B[Module B]
-    end
-    subgraph IO
-        C[Adapter C]
-        D[Adapter D]
-    end
-    A --> B
-    B --> C
-    B --> D
-```
-
----
-
-## 5. Data Flow Diagram
-
-Optional: For understanding data transformations.
-
-```mermaid
-flowchart LR
-    Input[Raw Input] --> Transform[Transform]
-    Transform --> Validate[Validate]
-    Validate --> Output[Clean Output]
-```
-
----
-
-## Notes
-
-- Keep diagrams focused and readable
-- One concept per diagram
-- Update diagrams when implementation diverges
-- Reference diagrams in `requirements.md` where relevant

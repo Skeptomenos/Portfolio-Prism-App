@@ -9,6 +9,7 @@ numpy>=1.24.0
 # Streamlit dependencies that may need explicit inclusion
 altair>=5.0.0
 pyarrow>=14.0.0
+matplotlib>=3.7.0
 
 # POC Dashboard requirements
 plotly>=5.18.0

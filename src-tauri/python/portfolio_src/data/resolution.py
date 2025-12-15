@@ -34,6 +34,7 @@ from config import ASSET_UNIVERSE_PATH, PROXY_URL, PROXY_API_KEY
 from prism_utils.isin_validator import is_valid_isin, is_placeholder_isin
 from prism_utils.logging_config import get_logger
 from data.manual_enrichments import load_manual_enrichments
+from data.proxy_client import get_proxy_client
 
 logger = get_logger(__name__)
 
@@ -381,25 +382,32 @@ class ISINResolver:
         return ResolutionResult(isin=None, status="unresolved", detail="api_all_failed")
 
     def _call_finnhub(self, ticker: str) -> Optional[str]:
-        """Call Finnhub API for ISIN (via proxy if configured)."""
+        """Call Finnhub API for ISIN (via proxy or direct)."""
         if not ticker:
             return None
 
-        # Require either proxy or direct API key
-        if not PROXY_URL and not FINNHUB_API_KEY:
-            return None
-
         try:
-            if PROXY_URL and PROXY_API_KEY:
-                # Distributed mode: route through proxy
-                response = requests.get(
-                    f"{PROXY_URL}/api/finnhub/profile",
-                    params={"symbol": ticker},
-                    headers={"X-API-Key": PROXY_API_KEY},
-                    timeout=10,
-                )
-            else:
-                # Local dev mode: direct Finnhub call
+            # Try proxy first (preferred method - uses Cloudflare worker)
+            proxy_client = get_proxy_client()
+            response = proxy_client.get_company_profile(ticker)
+
+            if response.success and response.data:
+                isin = response.data.get("isin")
+                if isin and is_valid_isin(isin):
+                    logger.debug(f"Finnhub proxy resolved {ticker} -> {isin}")
+                    return isin
+            elif not response.success:
+                logger.debug(f"Finnhub proxy error for {ticker}: {response.error}")
+
+            # Rate limiting
+            time.sleep(0.5)
+
+        except Exception as e:
+            logger.debug(f"Finnhub API error for {ticker}: {e}")
+
+        # Fallback to direct API call if proxy fails and we have API key
+        if FINNHUB_API_KEY:
+            try:
                 response = requests.get(
                     f"{FINNHUB_API_URL}/stock/profile2",
                     params={"symbol": ticker},
@@ -407,17 +415,18 @@ class ISINResolver:
                     timeout=10,
                 )
 
-            if response.status_code == 200:
-                data = response.json()
-                isin = data.get("isin")
-                if isin and is_valid_isin(isin):
-                    return isin
+                if response.status_code == 200:
+                    data = response.json()
+                    isin = data.get("isin")
+                    if isin and is_valid_isin(isin):
+                        logger.debug(f"Finnhub direct resolved {ticker} -> {isin}")
+                        return isin
 
-            # Rate limiting
-            time.sleep(1.1)
+                # Rate limiting for direct API
+                time.sleep(1.1)
 
-        except Exception as e:
-            logger.debug(f"Finnhub API error for {ticker}: {e}")
+            except Exception as e:
+                logger.debug(f"Finnhub direct API error for {ticker}: {e}")
 
         return None
 

@@ -10,6 +10,22 @@ compatibility_date = "2024-01-01"
 [vars]
 # Non-secret variables can go here
 
+# Observability
+[observability]
+enabled = false
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+persist = true
+invocation_logs = true
+
+[observability.traces]
+enabled = true
+persist = true
+head_sampling_rate = 1
+
 # Rate limiting can be enhanced with Cloudflare's Rate Limiting product
 # For now, we use in-memory limiting (resets on worker restart)
 

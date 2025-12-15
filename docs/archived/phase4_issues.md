@@ -1,95 +1,63 @@
 # Phase 4 Issues Assessment
 
 > **Date:** 2024-12-07
-> **Updated:** 2024-12-07 (Post-Investigation)
-> **Status:** Phase 4 ~70% Complete — Critical auth bugs identified, plan ready
+> **Status:** Phase 4 ~70% Complete — Issues require fixing before full functionality
 
 ---
 
 ## Summary
 
-Phase 4 (Auth & Hive) code exists but has **4 critical bugs** in the TR authentication code and **2 medium issues** (infrastructure). 
-
-**See also:** `docs/PLAN_NATIVE_INTEGRATION.md` for the comprehensive fix plan with verified pytr API details.
+Phase 4 (Auth & Hive) code exists but has **1 critical issue** and **3 medium issues** that need resolution. The TR Login, Hive Client, and Cloudflare Worker code are implemented but not fully integrated.
 
 ---
 
-## Critical Issues (TR Authentication)
+## Critical Issues
 
-> **Full details:** See `docs/PLAN_NATIVE_INTEGRATION.md` Section 2.4
-
-### Issue 1: Wrong Import Name in tr_auth.py ❌ NOT FIXED
-
-**File:** `src-tauri/python/portfolio_src/core/tr_auth.py` Line 26
-**Current:** `from pytr.api import Api as TRApi`
-**Fix:** `from pytr.api import TradeRepublicApi as TRApi`
-
-### Issue 2: Wrong Authentication Methods ❌ NOT FIXED
-
-**File:** `src-tauri/python/portfolio_src/core/tr_auth.py` Lines 201, 247
-**Current:** Uses `login()` and `complete_login()` (Device auth / non-existent)
-**Fix:** Use `inititate_weblogin()` and `complete_weblogin()` (Web Login flow)
-
-**Note:** `inititate_weblogin` is a typo in pytr library — this is correct.
-
-### Issue 3: Missing Session Persistence ❌ NOT FIXED
-
-**File:** `src-tauri/python/portfolio_src/core/tr_auth.py`
-**Issue:** No cookie-based session persistence
-**Fix:** Add `save_cookies=True` to API constructor, use `resume_websession()` on startup
-
-### Issue 4: Missing pytr Hidden Imports ❌ NOT FIXED
+### Issue 1: Missing Hidden Imports in prism.spec ✅ RESOLVED
 
 **File:** `src-tauri/python/prism.spec`
-**Issue:** Only has `'pytr'`, missing all submodules and dependencies
-**Fix:** Add ~30 hidden imports (see `PLAN_NATIVE_INTEGRATION.md` Section 2.3)
+**Lines:** 53-62 (hidden_imports list)
 
----
-
-## Resolved Issues
-
-### Issue 5: Hidden Imports for keyring/supabase ✅ RESOLVED
-
-**Resolved:** 2024-12-07
-
-### Issue 6: TR Login Not Accessible from Main Dashboard ✅ RESOLVED
+**Resolution:** Added all required hidden imports:
+- keyring, keyring.backends, keyring.backends.macOS
+- supabase, postgrest, gotrue, httpx, storage3, realtime
 
 **Resolved:** 2024-12-07
 
 ---
 
-## Medium Issues (Infrastructure)
+## Medium Issues
 
-### Issue 7: Cloudflare Worker Not Deployed
+### Issue 2: TR Login Not Accessible from Main Dashboard ✅ RESOLVED
+
+**File:** `src-tauri/python/portfolio_src/dashboard/app.py`
+
+**Resolution:** TR Login added as Tab 8:
+- Line 15: `from dashboard.pages import tr_login`
+- Lines 27-38: Added "🔐 TR Login" as 8th tab
+- Lines 61-62: `with tab8: tr_login.render_login_ui()`
+
+**Resolved:** 2024-12-07
+
+---
+
+### Issue 3: Cloudflare Worker Not Deployed ✅ RESOLVED
 
 **Files:**
 - `infrastructure/cloudflare/worker.js`
 - `infrastructure/cloudflare/wrangler.toml`
 
-**Current State:**
-Worker code exists but requires deployment and secret configuration.
+**Resolution:**
+- Worker deployed to: `https://portfolio-prism-proxy.bold-unit-582c.workers.dev`
+- All secrets configured (FINNHUB_API_KEY, GITHUB_TOKEN, GITHUB_REPO)
+- Observability (logs + traces) enabled in wrangler.toml
+- `proxy_client.py` updated with correct DEFAULT_PROXY_URL
 
-**Setup Required:**
-1. Install Wrangler CLI: `npm install -g wrangler`
-2. Login to Cloudflare: `wrangler login`
-3. Set secrets:
-   ```bash
-   cd infrastructure/cloudflare
-   wrangler secret put FINNHUB_API_KEY
-   wrangler secret put GITHUB_TOKEN
-   wrangler secret put GITHUB_REPO
-   ```
-4. Deploy: `wrangler deploy`
-
-**After Deploy:**
-- Update `proxy_client.py` `DEFAULT_PROXY_URL` if worker URL differs
-- Or set `PROXY_URL` environment variable
-
-**Severity:** MEDIUM — Finnhub API calls will fail, but app runs offline
+**Resolved:** 2025-12-09
 
 ---
 
-### Issue 8: Supabase Not Configured
+### Issue 4: Supabase Not Configured
 
 **File:** `src-tauri/python/portfolio_src/data/hive_client.py`
 
@@ -136,12 +104,10 @@ The client falls back to local cache if Supabase is unavailable. App will functi
 
 | File | Issue | Change Required |
 |------|-------|-----------------|
-| `portfolio_src/core/tr_auth.py` | #1-3 | Fix import, auth flow, session persistence |
-| `python/prism.spec` | #4 | Add ~30 pytr hidden imports |
-| `prism_utils/error_reporter.py` | NEW | Create error reporter module |
-| `data/tr_sync.py` | NEW | Create data sync module |
-| Cloudflare Worker | #7 | Deploy and configure secrets |
-| Supabase | #8 | Create project and table |
+| `python/prism.spec` | #1 | Add keyring, supabase hidden imports |
+| `portfolio_src/dashboard/app.py` | #2 | Add TR Login as Tab 8 |
+| Cloudflare Worker | #3 | Deploy and configure secrets |
+| Supabase | #4 | Create project and table |
 
 ---
 
@@ -149,16 +115,12 @@ The client falls back to local cache if Supabase is unavailable. App will functi
 
 After fixing issues:
 
-- [x] Add keyring/supabase hidden imports to prism.spec — Done
+- [x] Add hidden imports to prism.spec — Done
 - [x] Add TR Login as Tab 8 — Done
-- [ ] Fix tr_auth.py import: `Api` → `TradeRepublicApi`
-- [ ] Fix tr_auth.py auth flow: `login()` → `inititate_weblogin()`
-- [ ] Add pytr hidden imports to prism.spec (~30 imports)
-- [ ] Create error_reporter.py for verbose logging
-- [ ] Create tr_sync.py for portfolio fetching
-- [ ] Rebuild binary: `pyinstaller prism.spec`
-- [ ] Test TR Login with real account
-- [ ] Test portfolio sync with real account
+- [ ] Rebuild binary: `pyinstaller prism.spec && cp dist/prism ../binaries/prism-aarch64-apple-darwin`
+- [ ] Run `npm run tauri dev` — app launches
+- [ ] All 8 tabs render (including TR Login)
+- [ ] TR Login form appears, shows help section
 - [ ] Cloudflare Worker responds: `curl https://proxy.portfolio-prism.workers.dev/health`
 - [ ] Hive sync works (or gracefully falls back to cache)
 
@@ -166,22 +128,9 @@ After fixing issues:
 
 ## Recommended Fix Order
 
-> **Full implementation plan:** See `docs/PLAN_NATIVE_INTEGRATION.md`
-
-### Phase 1: Fix Auth & Dependencies (Critical)
-1. Fix `tr_auth.py` import — Issue #1
-2. Fix `tr_auth.py` auth flow — Issue #2
-3. Add session persistence — Issue #3
-4. Add pytr hidden imports — Issue #4
-5. Create `error_reporter.py`
-6. Rebuild binary
-7. Test with TR account
-
-### Phase 2: Data Sync
-8. Create `tr_sync.py`
-9. Add "Sync Portfolio" button to UI
-10. Test full flow
-
-### Phase 3: Infrastructure (Deferred)
-11. Deploy Cloudflare Worker — Issue #7
-12. Configure Supabase — Issue #8
+1. ~~**Fix Issue #1** — Add hidden imports to prism.spec~~ ✅ Done
+2. ~~**Fix Issue #2** — Add TR Login as Tab 8 in app.py~~ ✅ Done
+3. **Rebuild binary** — `pyinstaller prism.spec` ← NEXT
+4. **Test locally** — Verify tabs work
+5. **Deploy Cloudflare Worker** — Issue #3 (can be parallel)
+6. **Configure Supabase** — Issue #4 (can be deferred to post-MVP)

@@ -23,6 +23,23 @@
 
 ---
 
+## Phase Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  THINKING: Problem → Understanding → Options → Handoff         │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  T1 (Decompose) ──→ T2 (Empathize) ──→ T3 (Explore) ──→ T4 ──→ EXECUTION
+│       │                                      │                  │
+│       └──→ T1-RCA (Complex Bugs) ────────────┘                  │
+│                                                                 │
+│  T-RFL (Reflect) ←── Called from EXECUTION Phase 4 (Epilogue)  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
 ## Phase T1: Problem Decomposition (First Principles)
 
 > **Goal:** Strip the problem to its fundamental truths before building anything.
@@ -239,11 +256,51 @@ Before coding, ensure these exist:
 - `anamnesis/specs/requirements.md` — EARS syntax specs
 - `anamnesis/specs/tech.md` — Stack, forbidden patterns
 
-### T4.2: Transition Checklist
+### T4.2: Task Generation (AI-Assisted)
+
+> **Purpose:** Generate tasks from requirements with user approval.
+
+**Process:**
+
+1. **Extract Requirements:** Read `anamnesis/specs/requirements.md` and identify all "When... Then..." statements
+2. **Generate Tasks:** Create one task per requirement or logical grouping
+3. **Identify Dependencies:** Determine which tasks depend on others based on requirement relationships
+4. **Assign Workstreams:** Group related tasks into workstreams if applicable
+5. **Set Initial Status:** All new tasks start as `Backlog`
+6. **Present for Approval:** Show generated task list to user
+
+**Task Generation Template:**
+
+```markdown
+From REQ-XXX: "[requirement text]"
+
+- [ ] **TASK-XXX:** [Derived task title]
+    - **Dependencies:** [Identified dependencies or "None"]
+    - **Status:** Backlog
+    - **Workstream:** [workstream-name or "main"]
+    - **Context/Constraints:** From REQ-XXX: [key constraint]
+```
+
+7. **User Approval Required:**
+   > "I've generated [N] tasks from the requirements. Here's the proposed task list:
+   > [task list]
+   > Does this breakdown look correct? Should I adjust any tasks or dependencies?"
+
+8. **STOP** and await user confirmation before writing to `anamnesis/specs/tasks.md`.
+
+### T4.3: Transition Checklist
 
 - [ ] Problem defined, assumptions validated, approach approved
 - [ ] Specs created/updated
+- [ ] Tasks generated and approved (see T4.2)
 - [ ] Ready for `anamnesis/directives/EXECUTION.md`
+
+### T4.4: The Handshake (MANDATORY STOP)
+
+> **CRITICAL:** You cannot transition from Thinking to Execution in the same response.
+> 1. Summarize the plan.
+> 2. Ask "Ready to build?"
+> 3. **STOP.** Wait for the user's explicit "Go".
 
 **Next:** Read `anamnesis/directives/EXECUTION.md` to begin implementation.
 

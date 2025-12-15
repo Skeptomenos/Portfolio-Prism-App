@@ -1,189 +1,203 @@
 # Implementation Plan (The "When")
 
 > **Development Location:** Project root (standard Tauri layout)
-> **Last Updated:** 2024-12-07
+> **Last Updated:** 2024-12-12
+> **Strategy:** `anamnesis/strategy/architecture-overview.md`
+
+## Status Legend
+
+| Status | Meaning | Next Action |
+|--------|---------|-------------|
+| `Backlog` | Idea captured, not prioritized | Prioritize or park |
+| `Open` | Ready to work, dependencies met | Start work |
+| `In Progress` | Currently being worked on | Complete or block |
+| `Blocked` | Cannot proceed, waiting for dependency | Resolve blocker |
+| `Done` | Verified and complete | Archive when ready |
+| `Archive` | Historical reference | None |
 
 ---
 
-## Phase 1: The Proto-Organism (Connectivity) ✅ COMPLETE
+## Workstreams
 
-- [x] **TASK-101:** Initialize Tauri v2 project
-
-  - **Status:** Complete
-
-- [x] **TASK-102:** Create Python handshake script (`prism_boot.py`)
-
-  - **Context:** Dynamic port binding, JSON stdout, launches Streamlit
-  - **Status:** Complete
-
-- [x] **TASK-103:** Implement Rust sidecar spawning (`lib.rs`)
-
-  - **Context:** Uses `tauri-plugin-shell` sidecar API
-  - **Status:** Complete
-
-- [x] **TASK-104:** Implement frontend redirect logic (`main.ts`)
-
-  - **Context:** Polls `/_stcore/health` before redirect
-  - **Status:** Complete
-
-- [x] **TASK-105:** Verify IPC and port discovery works
-  - **Status:** Complete — tested and working
+| Workstream | Description | Status |
+|------------|-------------|--------|
+| `infrastructure` | CI/CD, Telemetry, Scaffolding | Active |
+| `data-engine` | Python Backend, SQLite, IPC | Active |
+| `frontend` | React UI, State Management | Active |
 
 ---
 
-## Phase 2: The Skeleton (Packaging) ✅ COMPLETE
+## Phase 0: Infrastructure & Migration
 
-- [x] **TASK-201:** Create `requirements-build.txt` with minimal deps
+### Workstream: infrastructure
 
-  - **Context:** streamlit, pandas, numpy, altair, pyarrow
-  - **Status:** Complete
+- [ ] **TASK-001:** Archive Legacy Dashboard Code
+    - **Dependencies:** None
+    - **Status:** Open
+    - **Workstream:** infrastructure
+    - **Context:** Move `src-tauri/python/portfolio_src/dashboard` to `src-tauri/python/reference_dashboard`. Update `app.py` to print a warning if run directly.
 
-- [x] **TASK-202:** Create PyInstaller spec file (`prism.spec`)
+- [ ] **TASK-002:** Migrate In-Flight Infrastructure Tasks
+    - **Dependencies:** None
+    - **Status:** Open
+    - **Workstream:** infrastructure
+    - **Context:** Verify Cloudflare Worker `infrastructure/cloudflare/worker.js` is deployable. Check Supabase credentials.
 
-  - **Context:** Handles Streamlit assets, hidden imports
-  - **Status:** Complete
-
-- [x] **TASK-203:** Build PyInstaller binary
-
-  - **Context:** `pyinstaller prism.spec` → 62MB binary
-  - **Status:** Complete
-
-- [x] **TASK-204:** Configure Tauri to use bundled binary
-
-  - **Context:** `externalBin` in `tauri.conf.json`
-  - **Status:** Complete
-
-- [x] **TASK-205:** Verify standalone app runs without Python installed
-  - **Status:** Complete — Streamlit placeholder renders
+- [ ] **TASK-003:** Scaffold React Environment
+    - **Dependencies:** TASK-001
+    - **Status:** Open
+    - **Workstream:** infrastructure
+    - **Context:** Clear `src/`. Initialize `npm create vite@latest` (React + TS). Install `shadcn-ui`, `tailwindcss`, `lucide-react`. Configure `tauri.conf.json` build command.
 
 ---
 
-## Phase 2.5: Pre-Phase 3 Fixes ✅ COMPLETE
+## Phase 1: The Vault & Contracts (Data Layer)
 
-- [x] **TASK-251:** Add Dead Man's Switch to `prism_boot.py`
+### Workstream: data-engine
 
-  - **Context:** Monitor stdin for EOF, self-terminate if parent dies
-  - **Status:** Complete — `dead_mans_switch()` thread in prism_boot.py:42-49
+- [ ] **TASK-101:** Implement SQLite Schema
+    - **Dependencies:** TASK-003
+    - **Status:** Backlog
+    - **Workstream:** data-engine
+    - **Context:** Create `src-tauri/python/portfolio_src/data/schema.sql` matching `specs/data_schema.md`. Use `sqlite3` to init DB at `PRISM_DATA_DIR`.
 
-- [x] **TASK-252:** Update `requirements-build.txt` for POC dependencies
-  - **Context:** Add: requests, beautifulsoup4, lxml, openpyxl, pydantic, pytr, cryptography, plotly, tqdm, pandera
-  - **Status:** Complete
+- [ ] **TASK-102:** Create Pydantic Data Contracts
+    - **Dependencies:** TASK-101
+    - **Status:** Backlog
+    - **Workstream:** data-engine
+    - **Context:** Create `src-tauri/python/portfolio_src/models/contracts.py`. Implement `Asset`, `Position`, `Transaction` classes matching `specs/data_schema.md`.
 
----
+- [ ] **TASK-103:** Data Migration Script
+    - **Dependencies:** TASK-102
+    - **Status:** Backlog
+    - **Workstream:** data-engine
+    - **Context:** Create `scripts/migrate_v1_to_sqlite.py`. Read legacy JSON/CSV, validate via Pydantic, insert into SQLite. **Constraint:** Idempotent. **Validation:** Implement "Double-Entry Verification" (Old vs New sums match).
 
-## Phase 3: The Brain (Logic Transplant) ✅ COMPLETE
-
-- [x] **TASK-301:** Copy POC source to Tauri app
-
-  - **Context:** `POC/src/` → `src-tauri/python/portfolio_src/`
-  - **Includes:** adapters/, core/, data/, models/, utils/, dashboard/, config.py
-  - **Status:** Complete
-
-- [x] **TASK-302:** Update `app.py` to import POC dashboard
-
-  - **Context:** Replace placeholder with actual dashboard tabs
-  - **Status:** Complete — imports from `dashboard.tabs`
-
-- [x] **TASK-303:** Implement `PRISM_DATA_DIR` in config.py
-
-  - **Context:** Read from env var, passed from Rust via `.env()`
-  - **Status:** Complete — lib.rs:28 passes PRISM_DATA_DIR
-
-- [x] **TASK-304:** Rebuild PyInstaller binary with POC code
-
-  - **Context:** Binary rebuilt Dec 7 08:46, 84MB
-  - **Status:** Complete
-
-- [x] **TASK-305:** Test with real portfolio data
-  - **Context:** Verify all dashboard tabs render correctly
-  - **Status:** Pending verification (requires manual test)
+- [ ] **TASK-104:** Refactor Decomposer to Read SQLite
+    - **Dependencies:** TASK-103
+    - **Status:** Backlog
+    - **Workstream:** data-engine
+    - **Context:** Update `portfolio_src/core/services/decomposer.py`. Replace file-based reads with SQL queries. **Test Gate:** `pytest` passes with mocked DB.
 
 ---
 
-## Phase 4: The Nervous System (Auth & Hive) ⏳ IN PROGRESS (~70%)
+## Phase 2: The Headless Engine (Backend)
 
-> **Issues documented in:** `docs/phase4_issues.md`
+### Workstream: data-engine
+
+- [ ] **TASK-201:** Headless Entry Point
+    - **Dependencies:** TASK-104
+    - **Status:** Backlog
+    - **Workstream:** data-engine
+    - **Context:** Create `src-tauri/python/headless.py`. Implement `while True: readline()` loop. Handle `JSONDecodeError`. **Ref:** `specs/tech.md`.
+
+- [ ] **TASK-202:** Rust Sidecar Spawning
+    - **Dependencies:** TASK-201
+    - **Status:** Backlog
+    - **Workstream:** data-engine
+    - **Context:** Update `src-tauri/src/lib.rs`. Use `tauri::api::process::Command`. Implement `write_stdin` function. **Constraint:** Must capture stdout line-by-line.
+
+- [ ] **TASK-203:** Implement IPC Command Handler (Python)
+    - **Dependencies:** TASK-201
+    - **Status:** Backlog
+    - **Workstream:** data-engine
+    - **Context:** Map JSON commands (`sync_portfolio`) to Service calls. Return JSON response. **Ref:** `specs/ipc_api.md`.
+
+- [ ] **TASK-204:** Implement Throttled Asyncio Decomposer
+    - **Dependencies:** TASK-203
+    - **Status:** Backlog
+    - **Workstream:** data-engine
+    - **Context:** Wrap `decomposer.fetch()` calls in `asyncio.gather` with `asyncio.Semaphore(5)`.
+
+- [ ] **TASK-205:** Implement Async Auth State Machine (Python)
+    - **Dependencies:** TASK-203
+    - **Status:** Backlog
+    - **Workstream:** data-engine
+    - **Context:** Implement State Machine for TR Auth. Emit `auth_challenge` events. Wait for `submit_challenge` commands. **Ref:** `specs/ipc_api.md`.
+
+---
+
+## Phase 3: The Skeleton UI (Frontend)
+
+### Workstream: frontend
+
+- [ ] **TASK-301:** Frontend State Setup
+    - **Dependencies:** TASK-003
+    - **Status:** Backlog
+    - **Workstream:** frontend
+    - **Context:** Install `zustand`, `@tanstack/react-query`. Create `src/store/useAppStore.ts`. **Goal:** Store `engineStatus` (connected/disconnected).
+
+- [ ] **TASK-302:** IPC Bridge
+    - **Dependencies:** TASK-202
+    - **Status:** Backlog
+    - **Workstream:** frontend
+    - **Context:** Create `src/lib/ipc.ts`. Wrap `invoke('send_command')` and `listen('engine-event')`. **Ref:** `specs/ipc_api.md`.
+
+- [ ] **TASK-303:** System Status Component
+    - **Dependencies:** TASK-302
+    - **Status:** Backlog
+    - **Workstream:** frontend
+    - **Context:** Create React component displaying "Engine Connected" (Green/Red) and "Sync Button".
+
+---
+
+## Phase 4: Feature Parity
+
+### Workstream: frontend
+
+- [ ] **TASK-401:** Dashboard Metric Cards
+    - **Dependencies:** TASK-303
+    - **Status:** Backlog
+    - **Workstream:** frontend
+    - **Context:** Render Total Value, PnL. Read from `get_dashboard_data` command.
+
+- [ ] **TASK-402:** Portfolio Chart
+    - **Dependencies:** TASK-401
+    - **Status:** Backlog
+    - **Workstream:** frontend
+    - **Context:** Install `recharts`. Render Line Chart from Parquet historical data.
+
+- [ ] **TASK-403:** Holdings Data Table
+    - **Dependencies:** TASK-401
+    - **Status:** Backlog
+    - **Workstream:** frontend
+    - **Context:** Implement sortable/filterable table using ShadCN/TanStack Table.
+
+- [ ] **TASK-404:** Implement Auth Challenge Modal (React)
+    - **Dependencies:** TASK-205
+    - **Status:** Backlog
+    - **Workstream:** frontend
+    - **Context:** Create Modal that listens for `auth_challenge` event. Input field for SMS/PIN. Sends `submit_challenge`.
+
+---
+
+## Phase 5: Polish & Release
+
+### Workstream: infrastructure
+
+- [ ] **TASK-501:** Verify PII Scrubber
+    - **Dependencies:** TASK-202
+    - **Status:** Backlog
+    - **Workstream:** infrastructure
+    - **Context:** Write test case injecting fake email into logs, assert it is scrubbed in `app.log`.
+
+- [ ] **TASK-502:** GitHub Actions CI/CD
+    - **Dependencies:** TASK-003
+    - **Status:** Backlog
+    - **Workstream:** infrastructure
+    - **Context:** Build Rust + Python + React assets. Release `.dmg`.
+
+---
+
+## Archive
+
+### Legacy Tasks (Streamlit Era)
 
 - [x] **TASK-401:** Create Trade Republic login UI in Streamlit
-
-  - **Context:** Phone + PIN → 2FA code flow
-  - **Status:** Complete — `portfolio_src/dashboard/pages/tr_login.py`
-
 - [x] **TASK-402:** Implement keyring storage for TR credentials
-
-  - **Context:** Use `keyring` library for macOS Keychain
-  - **Status:** Complete — `portfolio_src/core/tr_auth.py` with file fallback
-
 - [x] **TASK-403:** Set up Cloudflare Worker proxy
-
-  - **Context:** Protect Finnhub API key, rate limiting
-  - **Status:** Code complete — `infrastructure/cloudflare/worker.js`
-  - **Blocker:** Needs deployment and secret configuration
-
-- [x] **TASK-404:** Implement Hive sync client (Supabase)
-
-  - **Context:** Download master universe on launch
-  - **Status:** Complete — `portfolio_src/data/hive_client.py`
-  - **Blocker:** Needs Supabase project setup
-
-- [x] **TASK-405:** Implement silent ISIN contribution (alpha)
-  - **Context:** POST new resolutions to Supabase
-  - **Status:** Complete — `hive_client.py:contribute()` method
-
-### Phase 4 Blockers (see phase4_issues.md)
-
+- [x] **TASK-404:** Implement Hive sync client
+- [x] **TASK-405:** Implement silent ISIN contribution
 - [x] **TASK-406:** Add missing hidden imports to prism.spec
-
-  - **Context:** keyring, supabase, postgrest, gotrue, httpx, storage3, realtime
-  - **Priority:** CRITICAL
-  - **Status:** Complete — prism.spec:53-62
-
-- [x] **TASK-407:** Integrate TR Login as Tab 8 in main app
-
-  - **Context:** Decision: Option A (Tab 8) over Streamlit multipage
-  - **Priority:** Medium
-  - **Status:** Complete — app.py:15, 27-38, 61-62
-
-- [ ] **TASK-408:** Deploy Cloudflare Worker
-
-  - **Context:** wrangler deploy + secrets
-  - **Priority:** Medium
-  - **Status:** Pending
-
-- [ ] **TASK-409:** Configure Supabase project
-  - **Context:** Create master_universe table, get credentials
-  - **Priority:** Medium (can defer to post-MVP)
-  - **Status:** Pending
-
----
-
+- [x] **TASK-407:** Integrate TR Login as Tab 8
 - [x] **TASK-410:** Fix duplicate header/form bug
-  - **Context:** Refactored dashboard package init logic
-  - **Priority:** High
-  - **Status:** Complete
-
-## Phase 5: The Immune System (Polish) ⏳ PENDING
-
-- [ ] **TASK-501:** Configure `tauri-plugin-updater`
-
-  - **Context:** Check GitHub Releases for updates
-  - **Status:** Pending
-
-- [ ] **TASK-502:** Set up GitHub Actions for builds
-
-  - **Context:** Build `.dmg` on release tags
-  - **Status:** Pending
-
-- [ ] **TASK-503:** Implement crash reporting (`sys.excepthook`)
-
-  - **Context:** Sanitize PII, POST to proxy → GitHub Issues
-  - **Status:** Pending
-
-- [ ] **TASK-504:** Code sign and notarize for macOS
-
-  - **Context:** Apple Developer ID required
-  - **Status:** Pending
-
-- [ ] **TASK-505:** Lock down CSP in `tauri.conf.json`
-  - **Context:** Replace `"csp": null` with secure policy
-  - **Status:** Pending
