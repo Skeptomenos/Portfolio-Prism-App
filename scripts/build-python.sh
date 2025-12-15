@@ -19,15 +19,17 @@ echo "[1/3] Cleaning previous build..."
 rm -rf dist/ build/
 
 # Build
-echo "[2/3] Running PyInstaller..."
+echo "[2/4] Running PyInstaller for prism (Streamlit)..."
 pyinstaller prism.spec --noconfirm
-pyinstaller tr_daemon.spec --noconfirm
+
+echo "[3/4] Running PyInstaller for prism-headless (IPC)..."
+pyinstaller prism_headless.spec --noconfirm
 
 # Copy to binaries
-echo "[3/3] Copying to binaries folder..."
+echo "[4/4] Copying to binaries folder..."
 mkdir -p "$BINARIES_DIR"
 cp dist/prism "$BINARIES_DIR/prism-aarch64-apple-darwin"
-cp dist/tr-daemon "$BINARIES_DIR/tr-daemon-aarch64-apple-darwin"
+cp dist/prism-headless "$BINARIES_DIR/prism-headless-aarch64-apple-darwin"
 
 echo ""
 echo "=== Build Complete ==="

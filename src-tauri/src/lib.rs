@@ -7,8 +7,14 @@
 //! - Event emission to frontend
 
 mod commands;
+mod python_engine;
 
-use commands::{get_engine_health, get_dashboard_data, sync_portfolio};
+use commands::{get_dashboard_data, get_engine_health, sync_portfolio};
+use python_engine::{PythonEngine, StdoutMessage};
+use std::sync::Arc;
+use tauri::{Emitter, Manager};
+use tauri_plugin_shell::process::CommandEvent;
+use tauri_plugin_shell::ShellExt;
 
 // Legacy greet command (can be removed later)
 #[tauri::command]
@@ -21,55 +27,136 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
-            use tauri_plugin_shell::ShellExt;
-            use tauri_plugin_shell::process::CommandEvent;
-            use tauri::{Manager, Emitter};
+            // Create Python engine manager
+            let engine = Arc::new(PythonEngine::new());
+
+            // Store engine in app state
+            app.manage(engine.clone());
 
             let app_handle = app.handle().clone();
-            
+
             // Get the app data directory for storing user data
-            let data_dir = app.path()
+            let data_dir = app
+                .path()
                 .app_data_dir()
                 .expect("Failed to get app data directory");
             let data_dir_str = data_dir.to_string_lossy().to_string();
-            
+
             // Emit initial engine status
-            let _ = app_handle.emit("engine-status", serde_json::json!({
-                "status": "connecting",
-                "progress": 0,
-                "message": "Starting Python engine..."
-            }));
-            
+            let _ = app_handle.emit(
+                "engine-status",
+                serde_json::json!({
+                    "status": "connecting",
+                    "progress": 0,
+                    "message": "Starting Python engine..."
+                }),
+            );
+
+            // Clone engine for the async task
+            let engine_clone = engine.clone();
+            let app_handle_clone = app_handle.clone();
+
             tauri::async_runtime::spawn(async move {
-                // Use sidecar - this resolves to binaries/prism-<platform>
-                let sidecar_result = app_handle.shell().sidecar("prism")
+                // Try to spawn the headless sidecar first, fall back to prism
+                let sidecar_name = "prism-headless";
+
+                let sidecar_result = app_handle_clone
+                    .shell()
+                    .sidecar(sidecar_name)
                     .expect("Failed to create sidecar command")
                     .env("PRISM_DATA_DIR", &data_dir_str)
                     .spawn();
 
                 match sidecar_result {
-                    Ok((mut rx, _child)) => {
+                    Ok((mut rx, child)) => {
+                        // Store child for writing to stdin
+                        engine_clone.set_child(child).await;
+
+                        // Process stdout events
                         while let Some(event) = rx.recv().await {
-                            if let CommandEvent::Stdout(line) = event {
-                                let line_str = String::from_utf8_lossy(&line);
-                                println!("Python: {}", line_str);
-                                
-                                if line_str.contains("port") {
-                                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&line_str) {
-                                        let _ = app_handle.emit("python-ready", json);
+                            match event {
+                                CommandEvent::Stdout(line) => {
+                                    let line_str = String::from_utf8_lossy(&line);
+                                    let line_trimmed = line_str.trim();
+
+                                    if line_trimmed.is_empty() {
+                                        continue;
+                                    }
+
+                                    // Parse the message
+                                    if let Some(msg) = PythonEngine::parse_stdout(line_trimmed) {
+                                        match msg {
+                                            StdoutMessage::Ready(signal) => {
+                                                println!(
+                                                    "Python engine ready: version={}",
+                                                    signal.version
+                                                );
+                                                engine_clone
+                                                    .set_connected(signal.version.clone())
+                                                    .await;
+
+                                                // Emit connected status
+                                                let _ = app_handle_clone.emit(
+                                                    "engine-status",
+                                                    serde_json::json!({
+                                                        "status": "idle",
+                                                        "progress": 100,
+                                                        "message": format!("Engine v{} connected", signal.version)
+                                                    }),
+                                                );
+                                            }
+                                            StdoutMessage::Response(response) => {
+                                                engine_clone.handle_response(response).await;
+                                            }
+                                        }
+                                    } else {
+                                        // Log unparseable output
+                                        println!("Python stdout: {}", line_trimmed);
                                     }
                                 }
+                                CommandEvent::Stderr(line) => {
+                                    let line_str = String::from_utf8_lossy(&line);
+                                    eprintln!("Python stderr: {}", line_str.trim());
+                                }
+                                CommandEvent::Error(err) => {
+                                    eprintln!("Python error: {}", err);
+                                    engine_clone.set_disconnected().await;
+                                    let _ = app_handle_clone.emit(
+                                        "engine-status",
+                                        serde_json::json!({
+                                            "status": "error",
+                                            "progress": 0,
+                                            "message": format!("Engine error: {}", err)
+                                        }),
+                                    );
+                                }
+                                CommandEvent::Terminated(payload) => {
+                                    eprintln!("Python terminated: {:?}", payload);
+                                    engine_clone.set_disconnected().await;
+                                    let _ = app_handle_clone.emit(
+                                        "engine-status",
+                                        serde_json::json!({
+                                            "status": "disconnected",
+                                            "progress": 0,
+                                            "message": "Engine terminated"
+                                        }),
+                                    );
+                                }
+                                _ => {}
                             }
                         }
                     }
                     Err(e) => {
-                        eprintln!("Failed to spawn prism sidecar: {}", e);
-                        // Emit error status but continue - we can still serve mock data
-                        let _ = app_handle.emit("engine-status", serde_json::json!({
-                            "status": "error",
-                            "progress": 0,
-                            "message": format!("Python engine failed to start: {}", e)
-                        }));
+                        eprintln!("Failed to spawn {} sidecar: {}", sidecar_name, e);
+                        // Emit error status but continue - commands will use mock data
+                        let _ = app_handle_clone.emit(
+                            "engine-status",
+                            serde_json::json!({
+                                "status": "error",
+                                "progress": 0,
+                                "message": format!("Python engine failed to start: {}. Using mock data.", e)
+                            }),
+                        );
                     }
                 }
             });

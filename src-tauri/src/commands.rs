@@ -1,12 +1,14 @@
 //! Tauri Commands for IPC Bridge
 //!
 //! These commands are invoked from the React frontend via `invoke()`.
-//! Currently returning mock data - will connect to Python sidecar in TASK-201/202.
+//! Commands communicate with the Python engine via stdin/stdout IPC.
+//! Falls back to mock data if Python engine is not connected.
 
+use crate::python_engine::PythonEngine;
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter};
-use std::thread;
-use std::time::Duration;
+use serde_json::json;
+use std::sync::Arc;
+use tauri::{AppHandle, Emitter, State};
 
 // =============================================================================
 // Response Types (match TypeScript types in src/types/index.ts)
@@ -17,6 +19,10 @@ use std::time::Duration;
 pub struct EngineHealth {
     pub version: String,
     pub memory_usage_mb: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub uptime_seconds: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub db_path: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -30,6 +36,10 @@ pub struct Holding {
     pub weight: f64,
     pub pnl: f64,
     pub pnl_percentage: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub quantity: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub asset_class: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -37,6 +47,8 @@ pub struct Holding {
 pub struct Allocations {
     pub sector: std::collections::HashMap<String, f64>,
     pub region: std::collections::HashMap<String, f64>,
+    #[serde(default)]
+    pub asset_class: std::collections::HashMap<String, f64>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -47,7 +59,11 @@ pub struct DashboardData {
     pub gain_percentage: f64,
     pub allocations: Allocations,
     pub top_holdings: Vec<Holding>,
-    pub last_updated: String,
+    pub last_updated: Option<String>,
+    #[serde(default)]
+    pub is_empty: bool,
+    #[serde(default)]
+    pub position_count: u32,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -66,29 +82,10 @@ pub struct SyncProgress {
 }
 
 // =============================================================================
-// Commands
+// Mock Data (fallback when Python engine not connected)
 // =============================================================================
 
-/// Get engine health status
-#[tauri::command]
-pub async fn get_engine_health() -> Result<EngineHealth, String> {
-    // TODO: Query Python sidecar via stdin/stdout (TASK-201)
-    // For now, return mock data
-    
-    Ok(EngineHealth {
-        version: "0.1.0".to_string(),
-        memory_usage_mb: 45.2,
-    })
-}
-
-/// Get dashboard data for a portfolio
-#[tauri::command]
-pub async fn get_dashboard_data(portfolio_id: u32) -> Result<DashboardData, String> {
-    // TODO: Read from SQLite/Parquet via Python (TASK-201)
-    // For now, return mock data
-    
-    let _ = portfolio_id; // Suppress unused warning
-    
+fn mock_dashboard_data() -> DashboardData {
     let mut sector = std::collections::HashMap::new();
     sector.insert("Technology".to_string(), 0.35);
     sector.insert("Healthcare".to_string(), 0.18);
@@ -96,13 +93,13 @@ pub async fn get_dashboard_data(portfolio_id: u32) -> Result<DashboardData, Stri
     sector.insert("Consumer Discretionary".to_string(), 0.12);
     sector.insert("Industrials".to_string(), 0.10);
     sector.insert("Other".to_string(), 0.10);
-    
+
     let mut region = std::collections::HashMap::new();
     region.insert("North America".to_string(), 0.62);
     region.insert("Europe".to_string(), 0.22);
     region.insert("Asia Pacific".to_string(), 0.12);
     region.insert("Emerging Markets".to_string(), 0.04);
-    
+
     let top_holdings = vec![
         Holding {
             isin: "US0378331005".to_string(),
@@ -112,6 +109,8 @@ pub async fn get_dashboard_data(portfolio_id: u32) -> Result<DashboardData, Stri
             weight: 0.068,
             pnl: 842.0,
             pnl_percentage: 11.1,
+            quantity: Some(50.0),
+            asset_class: Some("Equity".to_string()),
         },
         Holding {
             isin: "US5949181045".to_string(),
@@ -121,44 +120,109 @@ pub async fn get_dashboard_data(portfolio_id: u32) -> Result<DashboardData, Stri
             weight: 0.057,
             pnl: 650.0,
             pnl_percentage: 10.0,
-        },
-        Holding {
-            isin: "US67066G1040".to_string(),
-            name: "NVIDIA Corp.".to_string(),
-            ticker: Some("NVDA".to_string()),
-            value: 6890.0,
-            weight: 0.055,
-            pnl: 1240.0,
-            pnl_percentage: 21.9,
-        },
-        Holding {
-            isin: "US0231351067".to_string(),
-            name: "Amazon.com Inc.".to_string(),
-            ticker: Some("AMZN".to_string()),
-            value: 5320.0,
-            weight: 0.043,
-            pnl: 420.0,
-            pnl_percentage: 8.6,
-        },
-        Holding {
-            isin: "US30303M1027".to_string(),
-            name: "Meta Platforms".to_string(),
-            ticker: Some("META".to_string()),
-            value: 4280.0,
-            weight: 0.034,
-            pnl: -120.0,
-            pnl_percentage: -2.7,
+            quantity: Some(18.0),
+            asset_class: Some("Equity".to_string()),
         },
     ];
-    
-    Ok(DashboardData {
+
+    DashboardData {
         total_value: 124592.0,
         total_gain: 12459.0,
         gain_percentage: 11.1,
-        allocations: Allocations { sector, region },
+        allocations: Allocations {
+            sector,
+            region,
+            asset_class: std::collections::HashMap::new(),
+        },
         top_holdings,
-        last_updated: chrono::Utc::now().to_rfc3339(),
+        last_updated: Some(chrono::Utc::now().to_rfc3339()),
+        is_empty: false,
+        position_count: 15,
+    }
+}
+
+// =============================================================================
+// Commands
+// =============================================================================
+
+/// Get engine health status
+#[tauri::command]
+pub async fn get_engine_health(
+    engine: State<'_, Arc<PythonEngine>>,
+) -> Result<EngineHealth, String> {
+    // Try to get real data from Python engine
+    if engine.is_connected().await {
+        match engine.send_command("get_health", json!({})).await {
+            Ok(response) => {
+                if response.status == "success" {
+                    if let Some(data) = response.data {
+                        // Parse the response data
+                        let health = EngineHealth {
+                            version: data["version"].as_str().unwrap_or("0.0.0").to_string(),
+                            memory_usage_mb: data["memoryUsageMb"].as_f64().unwrap_or(0.0),
+                            uptime_seconds: data["uptimeSeconds"].as_f64(),
+                            db_path: data["dbPath"].as_str().map(|s| s.to_string()),
+                        };
+                        return Ok(health);
+                    }
+                }
+                // Log error but fall through to mock
+                eprintln!("Engine health error: {:?}", response.error);
+            }
+            Err(e) => {
+                eprintln!("Failed to get engine health: {}", e);
+            }
+        }
+    }
+
+    // Fallback to mock data
+    Ok(EngineHealth {
+        version: engine
+            .get_version()
+            .await
+            .unwrap_or_else(|| "0.1.0 (mock)".to_string()),
+        memory_usage_mb: 0.0,
+        uptime_seconds: None,
+        db_path: None,
     })
+}
+
+/// Get dashboard data for a portfolio
+#[tauri::command]
+pub async fn get_dashboard_data(
+    portfolio_id: u32,
+    engine: State<'_, Arc<PythonEngine>>,
+) -> Result<DashboardData, String> {
+    // Try to get real data from Python engine
+    if engine.is_connected().await {
+        match engine
+            .send_command("get_dashboard_data", json!({"portfolioId": portfolio_id}))
+            .await
+        {
+            Ok(response) => {
+                if response.status == "success" {
+                    if let Some(data) = response.data {
+                        // Parse the response data
+                        let dashboard: Result<DashboardData, _> = serde_json::from_value(data);
+                        match dashboard {
+                            Ok(d) => return Ok(d),
+                            Err(e) => {
+                                eprintln!("Failed to parse dashboard data: {}", e);
+                            }
+                        }
+                    }
+                }
+                // Log error but fall through to mock
+                eprintln!("Dashboard data error: {:?}", response.error);
+            }
+            Err(e) => {
+                eprintln!("Failed to get dashboard data: {}", e);
+            }
+        }
+    }
+
+    // Fallback to mock data
+    Ok(mock_dashboard_data())
 }
 
 /// Trigger portfolio sync
@@ -168,14 +232,14 @@ pub async fn sync_portfolio(
     portfolio_id: u32,
     force: bool,
 ) -> Result<SyncResult, String> {
-    // TODO: Send command to Python sidecar (TASK-201)
+    // TODO: Implement real sync via Python engine (TASK-205)
     // For now, simulate sync with progress events
-    
+
     let _ = force; // Suppress unused warning
-    
+
     // Clone app_handle for the async block
     let handle = app_handle.clone();
-    
+
     // Spawn a task to emit progress events
     tauri::async_runtime::spawn(async move {
         let steps = vec![
@@ -186,20 +250,20 @@ pub async fn sync_portfolio(
             (90, "Finalizing..."),
             (100, "Sync complete!"),
         ];
-        
+
         for (progress, message) in steps {
             let status = if progress == 100 { "complete" } else { "syncing" };
-            
+
             let payload = SyncProgress {
                 status: status.to_string(),
                 progress,
                 message: message.to_string(),
             };
-            
+
             let _ = handle.emit("sync-progress", payload);
-            thread::sleep(Duration::from_millis(500));
+            tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
         }
-        
+
         // Emit portfolio-updated event
         #[derive(Clone, Serialize)]
         #[serde(rename_all = "camelCase")]
@@ -207,13 +271,16 @@ pub async fn sync_portfolio(
             timestamp: String,
             portfolio_id: u32,
         }
-        
-        let _ = handle.emit("portfolio-updated", PortfolioUpdated {
-            timestamp: chrono::Utc::now().to_rfc3339(),
-            portfolio_id,
-        });
+
+        let _ = handle.emit(
+            "portfolio-updated",
+            PortfolioUpdated {
+                timestamp: chrono::Utc::now().to_rfc3339(),
+                portfolio_id,
+            },
+        );
     });
-    
+
     Ok(SyncResult {
         success: true,
         message: "Sync started".to_string(),

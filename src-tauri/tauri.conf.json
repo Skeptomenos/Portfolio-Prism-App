@@ -27,6 +27,7 @@
     "targets": "all",
     "externalBin": [
       "binaries/prism",
+      "binaries/prism-headless",
       "binaries/tr-daemon"
     ],
     "icon": [
