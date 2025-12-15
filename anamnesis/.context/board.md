@@ -1,7 +1,7 @@
 # Project Board
 
 > **Auto-generated from `anamnesis/specs/tasks.md`**
-> **Last Updated:** 2024-12-15
+> **Last Updated:** 2024-12-15 (Session 2)
 > **Active Workstream:** frontend
 
 ---
@@ -10,9 +10,9 @@
 
 | Total | Backlog | Open | In Progress | Blocked | Done |
 |-------|---------|------|-------------|---------|------|
-| 23    | 12      | 1    | 0           | 0       | 10   |
+| 23    | 9       | 3    | 0           | 0       | 11   |
 
-**Progress:** [████░░░░░░░░░░░░░░░░] 43% (10/23 tasks)
+**Progress:** [████░░░░░░░░░░░░░░░░] 48% (11/23 tasks)
 
 ---
 
@@ -20,10 +20,17 @@
 
 <!-- Dependencies met, ready to start -->
 
-- [ ] **TASK-303:** System Status Component
-    - *Dependencies:* TASK-302 (Done)
+- [ ] **TASK-101:** Implement SQLite Schema
+    - *Dependencies:* TASK-003 (Done)
+    - *Workstream:* data-engine
+
+- [ ] **TASK-401:** Dashboard Metric Cards
+    - *Dependencies:* TASK-303 (Done)
     - *Workstream:* frontend
-    - *Context:* Create React component displaying "Engine Connected" (Green/Red) and "Sync Button".
+
+- [ ] **TASK-502:** GitHub Actions CI/CD
+    - *Dependencies:* TASK-003 (Done)
+    - *Workstream:* infrastructure
 
 ---
 
@@ -66,6 +73,7 @@
 ### Phase 3: Frontend Foundation
 - [x] **TASK-301:** Frontend State Setup — `f80f9e9`
 - [x] **TASK-302:** IPC Bridge — `9af1d4a`
+- [x] **TASK-303:** System Status Component — `acc5465`
 
 ---
 

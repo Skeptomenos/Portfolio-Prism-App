@@ -138,11 +138,12 @@
     - **Context:** Create `src/lib/ipc.ts`. Wrap `invoke('send_command')` and `listen('engine-event')`. **Ref:** `specs/ipc_api.md`.
     - **Commit:** `9af1d4a`
 
-- [ ] **TASK-303:** System Status Component
+- [x] **TASK-303:** System Status Component
     - **Dependencies:** TASK-302
-    - **Status:** Open
+    - **Status:** Done
     - **Workstream:** frontend
     - **Context:** Create React component displaying "Engine Connected" (Green/Red) and "Sync Button".
+    - **Commit:** `acc5465`
 
 ---
 
