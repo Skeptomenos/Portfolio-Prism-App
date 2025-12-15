@@ -1,7 +1,7 @@
 # Implementation Plan (The "When")
 
 > **Development Location:** Project root (standard Tauri layout)
-> **Last Updated:** 2024-12-12
+> **Last Updated:** 2024-12-15
 > **Strategy:** `anamnesis/strategy/architecture-overview.md`
 
 ## Status Legend
@@ -31,23 +31,26 @@
 
 ### Workstream: infrastructure
 
-- [ ] **TASK-001:** Archive Legacy Dashboard Code
+- [x] **TASK-001:** Archive Legacy Dashboard Code
     - **Dependencies:** None
-    - **Status:** Open
+    - **Status:** Done
     - **Workstream:** infrastructure
     - **Context:** Move `src-tauri/python/portfolio_src/dashboard` to `src-tauri/python/reference_dashboard`. Update `app.py` to print a warning if run directly.
+    - **Commit:** `865a91d`
 
-- [ ] **TASK-002:** Migrate In-Flight Infrastructure Tasks
+- [x] **TASK-002:** Migrate In-Flight Infrastructure Tasks
     - **Dependencies:** None
-    - **Status:** Open
+    - **Status:** Done
     - **Workstream:** infrastructure
     - **Context:** Verify Cloudflare Worker `infrastructure/cloudflare/worker.js` is deployable. Check Supabase credentials.
+    - **Commit:** `06370b2`
 
-- [ ] **TASK-003:** Scaffold React Environment
+- [x] **TASK-003:** Scaffold React Environment
     - **Dependencies:** TASK-001
-    - **Status:** Open
+    - **Status:** Done
     - **Workstream:** infrastructure
     - **Context:** Clear `src/`. Initialize `npm create vite@latest` (React + TS). Install `shadcn-ui`, `tailwindcss`, `lucide-react`. Configure `tauri.conf.json` build command.
+    - **Commit:** `8fde700`
 
 ---
 
@@ -121,21 +124,23 @@
 
 ### Workstream: frontend
 
-- [ ] **TASK-301:** Frontend State Setup
+- [x] **TASK-301:** Frontend State Setup
     - **Dependencies:** TASK-003
-    - **Status:** Backlog
+    - **Status:** Done
     - **Workstream:** frontend
     - **Context:** Install `zustand`, `@tanstack/react-query`. Create `src/store/useAppStore.ts`. **Goal:** Store `engineStatus` (connected/disconnected).
+    - **Commit:** `f80f9e9`
 
-- [ ] **TASK-302:** IPC Bridge
-    - **Dependencies:** TASK-202
-    - **Status:** Backlog
+- [x] **TASK-302:** IPC Bridge
+    - **Dependencies:** TASK-301
+    - **Status:** Done
     - **Workstream:** frontend
     - **Context:** Create `src/lib/ipc.ts`. Wrap `invoke('send_command')` and `listen('engine-event')`. **Ref:** `specs/ipc_api.md`.
+    - **Commit:** `9af1d4a`
 
 - [ ] **TASK-303:** System Status Component
     - **Dependencies:** TASK-302
-    - **Status:** Backlog
+    - **Status:** Open
     - **Workstream:** frontend
     - **Context:** Create React component displaying "Engine Connected" (Green/Red) and "Sync Button".
 
