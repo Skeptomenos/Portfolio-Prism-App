@@ -1,3 +1,39 @@
+"""
+DEPRECATED: This Streamlit dashboard is archived.
+The active UI is now React-based (see src/).
+This file is preserved for reference only.
+
+Location: src-tauri/python/reference_dashboard/dashboard/app.py
+Original:  src-tauri/python/portfolio_src/dashboard/app.py
+"""
+
+import sys
+import warnings
+
+# Block direct execution before any other imports
+if __name__ == "__main__":
+    print("=" * 60)
+    print("ERROR: This Streamlit dashboard is deprecated.")
+    print("The active UI is now React-based.")
+    print("")
+    print("To run the app, use: npm run tauri dev")
+    print("=" * 60)
+    sys.exit(1)
+
+# Emit deprecation warning when imported
+warnings.warn(
+    "\n\n"
+    "=" * 60 + "\n"
+    "DEPRECATED: This Streamlit dashboard is archived.\n"
+    "The active UI is now React-based.\n"
+    "This file is preserved for reference only.\n"
+    "=" * 60 + "\n",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
+# --- Original code below (preserved for reference) ---
+
 import streamlit as st
 from pathlib import Path
 from portfolio_src.config import DIRECT_HOLDINGS_REPORT
