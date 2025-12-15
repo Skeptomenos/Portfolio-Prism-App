@@ -1,0 +1,4 @@
+# Built Python binaries (large, rebuild with scripts/build-python.sh)
+dist/
+build/
+*.spec.bak

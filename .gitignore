@@ -161,3 +161,9 @@ dev-debug.log
 .vscode
 opencode.json
 .github
+# --------------------------------------------
+# Python Sidecar Binaries (rebuild with scripts/build-python.sh)
+# --------------------------------------------
+src-tauri/binaries/prism-*
+src-tauri/binaries/tr-daemon-*
+!src-tauri/binaries/.gitkeep
