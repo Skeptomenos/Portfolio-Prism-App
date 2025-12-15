@@ -6,7 +6,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getDashboardData, getHoldings, syncPortfolio } from '../lib/ipc';
+import { getDashboardData, getHoldings, syncPortfolio, getEngineHealth } from '../lib/ipc';
 import { useAppStore } from '../store/useAppStore';
 import type { XRayData, OverlapData } from '../types';
 
@@ -57,6 +57,19 @@ async function simulateDelay(): Promise<void> {
 // =============================================================================
 // Query Hooks
 // =============================================================================
+
+/**
+ * Fetch engine health status
+ * Uses IPC layer (Tauri or mock fallback)
+ */
+export function useEngineHealth() {
+  return useQuery({
+    queryKey: ['engineHealth'],
+    queryFn: getEngineHealth,
+    refetchInterval: 30000, // Refetch every 30 seconds
+    staleTime: 10000, // Consider stale after 10 seconds
+  });
+}
 
 /**
  * Fetch dashboard summary data
