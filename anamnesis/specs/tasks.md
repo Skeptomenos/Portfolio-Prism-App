@@ -1,8 +1,9 @@
 # Implementation Plan (The "When")
 
 > **Development Location:** Project root (standard Tauri layout)
-> **Last Updated:** 2024-12-15
+> **Last Updated:** 2024-12-15 (MVP Complete)
 > **Strategy:** `anamnesis/strategy/architecture-overview.md`
+> **Status:** MVP COMPLETE - Phase 0-4 Done, Phase 5 In Progress
 
 ## Status Legend
 
@@ -174,11 +175,12 @@
     - **Workstream:** frontend
     - **Context:** Implement sortable/filterable table using ShadCN/TanStack Table.
 
-- [ ] **TASK-404:** Implement Auth Challenge Modal (React)
-    - **Dependencies:** TASK-205
-    - **Status:** Backlog
+- [x] **TASK-404:** Implement Trade Republic Integration (React)
+    - **Dependencies:** TASK-303
+    - **Status:** Done
     - **Workstream:** frontend
-    - **Context:** Create Modal that listens for `auth_challenge` event. Input field for SMS/PIN. Sends `submit_challenge`.
+    - **Context:** Full Trade Republic integration: login flow, 2FA modal, session persistence, portfolio sync, auto-sync after login, portfolio table with TanStack Table, Dashboard with real data.
+    - **Commit:** `917d32a`
 
 ---
 
