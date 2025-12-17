@@ -24,11 +24,12 @@ The MVP is **functional**. Users can authenticate with Trade Republic, sync thei
 
 ### 2. Infrastructure (Near-term)
 
-| Feature | Description | Priority |
-|---------|-------------|----------|
-| GitHub Actions CI/CD | Automated builds on push, `.dmg` artifacts | High |
-| Code Signing | Apple Developer signing for Gatekeeper | Medium |
-| Telemetry (opt-in) | Crash reporting via Cloudflare Worker | Low |
+| Feature | Description | Priority | Dependency |
+|---------|-------------|----------|------------|
+| UV Dependency Migration | Convert to `pyproject.toml` + `uv.lock` for deterministic builds | **Critical** | Prerequisite for CI/CD |
+| GitHub Actions CI/CD | Automated builds on push, `.dmg` artifacts | High | UV Migration |
+| Code Signing | Apple Developer signing for Gatekeeper | Medium | CI/CD |
+| Telemetry (opt-in) | Crash reporting via Cloudflare Worker | Low | CI/CD |
 
 ### 3. Data Enrichment (Medium-term)
 
@@ -57,9 +58,10 @@ The MVP is **functional**. Users can authenticate with Trade Republic, sync thei
 
 ## Immediate Next Steps
 
-1. **TASK-401:** Add dashboard metric cards with charts
-2. **TASK-502:** Set up GitHub Actions for CI/CD
-3. **Alpha Release:** Build and distribute `.dmg` to testers
+1. **UV Migration:** Modernize Python dependency management (prerequisite for CI/CD)
+2. **TASK-401:** Add dashboard metric cards with charts
+3. **TASK-502:** Set up GitHub Actions for CI/CD (requires UV migration)
+4. **Alpha Release:** Build and distribute `.dmg` to testers
 
 ---
 
@@ -67,10 +69,11 @@ The MVP is **functional**. Users can authenticate with Trade Republic, sync thei
 
 See `anamnesis/specs/tasks.md` for detailed task tracking.
 
-| Task | Status | Notes |
-|------|--------|-------|
-| TASK-401 | Open | Dashboard metric cards |
-| TASK-402 | Backlog | Portfolio charts |
-| TASK-403 | Backlog | Enhanced holdings table |
-| TASK-501 | Backlog | PII scrubber verification |
-| TASK-502 | Open | GitHub Actions CI/CD |
+| Task | Status | Notes | Dependency |
+|------|--------|-------|------------|
+| **UV Migration** | Open | Critical prerequisite for CI/CD | None |
+| TASK-401 | Open | Dashboard metric cards | None |
+| TASK-402 | Backlog | Portfolio charts | TASK-401 |
+| TASK-403 | Backlog | Enhanced holdings table | TASK-401 |
+| TASK-501 | Backlog | PII scrubber verification | CI/CD |
+| TASK-502 | Open | GitHub Actions CI/CD | UV Migration |

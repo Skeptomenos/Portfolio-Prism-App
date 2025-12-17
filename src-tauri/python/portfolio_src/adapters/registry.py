@@ -12,13 +12,13 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..
 
 from portfolio_src import config # Import centralized config
 
-from adapters.vaneck import VanEckAdapter
-from adapters.ishares import ISharesAdapter
-from adapters.xtrackers import XtrackersAdapter
-from adapters.amundi import AmundiAdapter
-from adapters.vanguard import VanguardAdapter
-from data.holdings_cache import HoldingsCache, ManualUploadRequired
-from prism_utils.logging_config import get_logger
+from portfolio_src.adapters.vaneck import VanEckAdapter
+from portfolio_src.adapters.ishares import ISharesAdapter
+from portfolio_src.adapters.xtrackers import XtrackersAdapter
+from portfolio_src.adapters.amundi import AmundiAdapter
+from portfolio_src.adapters.vanguard import VanguardAdapter
+from portfolio_src.data.holdings_cache import HoldingsCache, ManualUploadRequired
+from portfolio_src.prism_utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 

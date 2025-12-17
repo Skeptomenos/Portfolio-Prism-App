@@ -44,6 +44,9 @@ interface AppState {
   
   // Editing state (for unsaved changes warning)
   hasUnsavedChanges: boolean;
+  
+  // Pipeline
+  lastPipelineRun: number | null;
 }
 
 interface AppActions {
@@ -54,6 +57,7 @@ interface AppActions {
   setEngineStatus: (status: EngineStatus) => void;
   setSyncProgress: (progress: SyncProgress | null) => void;
   setLastSyncTime: (time: Date | null) => void;
+  setLastPipelineRun: (timestamp: number | null) => void;
   
   // Notifications
   addNotification: (notification: Omit<Notification, 'id'>) => void;
@@ -111,6 +115,9 @@ const initialState: AppState = {
   
   // Editing state
   hasUnsavedChanges: false,
+  
+  // Pipeline
+  lastPipelineRun: null,
 };
 
 // =============================================================================
@@ -131,6 +138,8 @@ export const useAppStore = create<AppStore>()(
       setSyncProgress: (progress) => set({ syncProgress: progress }, false, 'setSyncProgress'),
       
       setLastSyncTime: (time) => set({ lastSyncTime: time }, false, 'setLastSyncTime'),
+
+      setLastPipelineRun: (timestamp) => set({ lastPipelineRun: timestamp }, false, 'setLastPipelineRun'),
 
       // Notifications
       addNotification: (notification) => {

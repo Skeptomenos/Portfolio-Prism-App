@@ -8,7 +8,7 @@ use crate::python_engine::PythonEngine;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::sync::Arc;
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 // =============================================================================
 // Response Types (match TypeScript types in src/types/index.ts)
@@ -327,7 +327,8 @@ pub async fn get_positions(
         Ok(response) => {
             if response.status == "success" {
                 if let Some(data) = response.data {
-                    let positions_response: Result<PositionsResponse, _> = serde_json::from_value(data);
+                    let positions_response: Result<PositionsResponse, _> =
+                        serde_json::from_value(data);
                     match positions_response {
                         Ok(p) => return Ok(p),
                         Err(e) => {
@@ -424,7 +425,10 @@ pub async fn sync_portfolio(
                     Err("No data in sync response".to_string())
                 }
             } else {
-                Err(response.error.map(|e| e.message).unwrap_or_else(|| "Sync failed".to_string()))
+                Err(response
+                    .error
+                    .map(|e| e.message)
+                    .unwrap_or_else(|| "Sync failed".to_string()))
             }
         }
         Err(e) => Err(format!("Failed to sync portfolio: {}", e)),
@@ -460,7 +464,10 @@ pub async fn tr_get_auth_status(
                     Err("No data in auth status response".to_string())
                 }
             } else {
-                Err(response.error.map(|e| e.message).unwrap_or_else(|| "Auth status check failed".to_string()))
+                Err(response
+                    .error
+                    .map(|e| e.message)
+                    .unwrap_or_else(|| "Auth status check failed".to_string()))
             }
         }
         Err(e) => Err(format!("Failed to get auth status: {}", e)),
@@ -480,7 +487,10 @@ pub async fn tr_check_saved_session(
         });
     }
 
-    match engine.send_command("tr_check_saved_session", json!({})).await {
+    match engine
+        .send_command("tr_check_saved_session", json!({}))
+        .await
+    {
         Ok(response) => {
             if response.status == "success" {
                 if let Some(data) = response.data {
@@ -496,7 +506,10 @@ pub async fn tr_check_saved_session(
                     Err("No data in session check response".to_string())
                 }
             } else {
-                Err(response.error.map(|e| e.message).unwrap_or_else(|| "Session check failed".to_string()))
+                Err(response
+                    .error
+                    .map(|e| e.message)
+                    .unwrap_or_else(|| "Session check failed".to_string()))
             }
         }
         Err(e) => Err(format!("Failed to check session: {}", e)),
@@ -537,7 +550,10 @@ pub async fn tr_login(
                     Err("No data in auth response".to_string())
                 }
             } else {
-                Err(response.error.map(|e| e.message).unwrap_or_else(|| "Login failed".to_string()))
+                Err(response
+                    .error
+                    .map(|e| e.message)
+                    .unwrap_or_else(|| "Login failed".to_string()))
             }
         }
         Err(e) => Err(format!("Failed to login: {}", e)),
@@ -572,7 +588,10 @@ pub async fn tr_submit_2fa(
                     Err("No data in 2FA response".to_string())
                 }
             } else {
-                Err(response.error.map(|e| e.message).unwrap_or_else(|| "2FA verification failed".to_string()))
+                Err(response
+                    .error
+                    .map(|e| e.message)
+                    .unwrap_or_else(|| "2FA verification failed".to_string()))
             }
         }
         Err(e) => Err(format!("Failed to submit 2FA: {}", e)),
@@ -581,9 +600,7 @@ pub async fn tr_submit_2fa(
 
 /// Logout from Trade Republic
 #[tauri::command]
-pub async fn tr_logout(
-    engine: State<'_, Arc<PythonEngine>>,
-) -> Result<LogoutResponse, String> {
+pub async fn tr_logout(engine: State<'_, Arc<PythonEngine>>) -> Result<LogoutResponse, String> {
     if !engine.is_connected().await {
         return Err("Python engine not connected".to_string());
     }
@@ -604,9 +621,79 @@ pub async fn tr_logout(
                     Err("No data in logout response".to_string())
                 }
             } else {
-                Err(response.error.map(|e| e.message).unwrap_or_else(|| "Logout failed".to_string()))
+                Err(response
+                    .error
+                    .map(|e| e.message)
+                    .unwrap_or_else(|| "Logout failed".to_string()))
             }
         }
         Err(e) => Err(format!("Failed to logout: {}", e)),
     }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PipelineResult {
+    pub success: bool,
+    pub errors: Vec<String>,
+    pub duration_ms: u32,
+}
+
+/// Trigger analytics pipeline manually
+#[tauri::command]
+pub async fn run_pipeline(engine: State<'_, Arc<PythonEngine>>) -> Result<PipelineResult, String> {
+    if !engine.is_connected().await {
+        return Err("Python engine not connected".to_string());
+    }
+
+    match engine.send_command("run_pipeline", json!({})).await {
+        Ok(response) => {
+            if response.status == "success" {
+                if let Some(data) = response.data {
+                    let result: Result<PipelineResult, _> = serde_json::from_value(data);
+                    match result {
+                        Ok(p) => Ok(p),
+                        Err(e) => {
+                            eprintln!("Failed to parse pipeline result: {}", e);
+                            Err("Failed to parse pipeline result".to_string())
+                        }
+                    }
+                } else {
+                    Err("No data in pipeline response".to_string())
+                }
+            } else {
+                Err(response
+                    .error
+                    .map(|e| e.message)
+                    .unwrap_or_else(|| "Pipeline failed".to_string()))
+            }
+        }
+        Err(e) => Err(format!("Failed to run pipeline: {}", e)),
+    }
+}
+
+/// Get the latest pipeline health report from disk
+#[tauri::command]
+pub async fn get_pipeline_report(app_handle: AppHandle) -> Result<serde_json::Value, String> {
+    use std::fs;
+
+    // Resolve app data dir
+    let data_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+
+    let report_path = data_dir.join("outputs").join("pipeline_health.json");
+
+    if !report_path.exists() {
+        return Err("Report file not found".to_string());
+    }
+
+    let content =
+        fs::read_to_string(report_path).map_err(|e| format!("Failed to read report: {}", e))?;
+
+    let json: serde_json::Value =
+        serde_json::from_str(&content).map_err(|e| format!("Failed to parse report: {}", e))?;
+
+    Ok(json)
 }

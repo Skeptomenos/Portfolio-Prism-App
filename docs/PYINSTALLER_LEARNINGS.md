@@ -171,6 +171,83 @@ a = Analysis(
 1. **Manual hidden imports break on library updates** - Prefer `collect_submodules()`
 2. **venv works but binary fails** - Usually missing hidden imports or data files
 3. **Import errors with correct package** - Check for module restructuring between versions
+4. **Binary hangs silently (no output)** - Bootloader/dyld deadlock. Check datas and hidden_imports.
+5. **Spec file corruption** - Always diff specs before building. Keep `.spec.full` backups.
+
+---
+
+## 6. macOS ARM64 Specific Issues
+
+**Date:** 2025-12-17  
+**Symptom:** Binary hangs immediately on startup. No output, even `os.write(2, ...)` at line 1 doesn't execute.  
+**Affected:** prism-headless binary with pandas/numpy/pyarrow
+
+### Problem
+
+On macOS ARM64, heavy C-extension libraries (pandas, numpy, pyarrow) can cause a **dyld deadlock** during PyInstaller bootloader initialization if:
+1. `datas` don't include the business logic (`portfolio_src`)
+2. `collect_submodules()` is not used for complex packages
+3. `strip=True` or `upx=True` corrupts ARM64 binaries
+
+The hang occurs BEFORE Python code executes - the bootloader gets stuck in dynamic library loading.
+
+### Root Cause (Our Case)
+
+The `prism_headless.spec` file was accidentally overwritten with `tr_daemon.spec` content:
+- Wrong entry point: `tr_daemon.py` instead of `prism_headless.py`
+- Wrong binary name: `prism-core` instead of `prism-headless`
+- Missing datas: `portfolio_src` and `default_config` not bundled
+- Missing hidden imports: pandas/numpy/pyarrow commented out
+
+### Solution
+
+```python
+# prism_headless.spec - CORRECT configuration for macOS ARM64
+
+from PyInstaller.utils.hooks import collect_submodules, copy_metadata
+
+# 1. Use collect_submodules for ALL heavy C-extension packages
+hidden_imports = [
+    *collect_submodules('pandas'),
+    *collect_submodules('numpy'),
+    *collect_submodules('pyarrow'),
+    *collect_submodules('pydantic'),
+    *collect_submodules('keyring.backends'),
+    *collect_submodules('pytr'),
+    # ... other imports
+]
+
+# 2. Bundle business logic and config
+datas=[
+    ('portfolio_src', 'portfolio_src'),
+    ('default_config', 'default_config'),
+    *copy_metadata('pandas'),
+    *copy_metadata('numpy'),
+    *copy_metadata('pydantic'),
+]
+
+# 3. NEVER strip or UPX on ARM64
+exe = EXE(
+    ...
+    strip=False,   # CRITICAL
+    upx=False,     # CRITICAL
+)
+```
+
+### Diagnostic Steps
+
+1. **Check spec file integrity:** `head -5 prism_headless.spec` - verify correct entry point
+2. **Check binary name:** `grep "name=" prism_headless.spec`
+3. **Verify datas not commented:** `grep -n "portfolio_src" prism_headless.spec`
+4. **Run from source first:** `uv run prism_headless.py` - if this works, the issue is in the spec
+
+### Lesson
+
+**Silent hangs on macOS ARM64 are almost always dyld/bootloader issues.** The Python interpreter never starts, so no Python debugging helps. Check:
+1. Spec file wasn't corrupted/overwritten
+2. All datas are bundled (especially business logic packages)
+3. `collect_submodules()` used for pandas/numpy/pyarrow
+4. `strip=False, upx=False` set
 
 ---
 

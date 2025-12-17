@@ -12,11 +12,11 @@ from typing import Optional
 
 import pandas as pd
 
-from core.health import health
-from core.enrichment_gaps import EnrichmentGap, EnrichmentGapCollector
-from data.resolution import ISINResolver
-from prism_utils.isin_validator import is_valid_isin
-from prism_utils.logging_config import get_logger
+from portfolio_src.core.health import health
+from portfolio_src.core.enrichment_gaps import EnrichmentGap, EnrichmentGapCollector
+from portfolio_src.data.resolution import ISINResolver
+from portfolio_src.prism_utils.isin_validator import is_valid_isin
+from portfolio_src.prism_utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 

@@ -81,12 +81,6 @@ impl PythonEngine {
         *ver = Some(version);
     }
 
-    /// Mark engine as disconnected
-    pub async fn set_disconnected(&self) {
-        let mut connected = self.connected.lock().await;
-        *connected = false;
-    }
-
     /// Check if engine is connected
     pub async fn is_connected(&self) -> bool {
         *self.connected.lock().await

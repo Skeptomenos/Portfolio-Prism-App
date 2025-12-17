@@ -21,8 +21,8 @@ from typing import Optional, Callable, List, Dict, Any
 from contextlib import contextmanager
 from pathlib import Path
 
-from prism_utils.logging_config import get_logger
-from config import RAW_DOWNLOADS_DIR
+from portfolio_src.prism_utils.logging_config import get_logger
+from portfolio_src.config import RAW_DOWNLOADS_DIR
 
 logger = get_logger(__name__)
 

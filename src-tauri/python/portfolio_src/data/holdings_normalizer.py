@@ -15,7 +15,7 @@ from typing import Optional
 
 import pandas as pd
 
-from prism_utils.logging_config import get_logger
+from portfolio_src.prism_utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 

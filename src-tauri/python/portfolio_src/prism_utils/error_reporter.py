@@ -2,7 +2,7 @@
 import json
 import requests
 from typing import List, Optional
-from ..config import PROXY_URL, PROXY_API_KEY  # Relative import for robustness
+from portfolio_src.config import PROXY_URL, PROXY_API_KEY
 
 
 def get_app_version() -> str:

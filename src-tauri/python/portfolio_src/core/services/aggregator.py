@@ -8,15 +8,15 @@ UI-agnostic, reusable with React.
 from typing import Dict, List, Tuple
 import pandas as pd
 
-from ..errors import PipelineError, ErrorPhase, ErrorType
-from ..utils import (
-    calculate_portfolio_total_value, 
-    get_isin_column, 
-    get_name_column, 
+from portfolio_src.core.errors import PipelineError, ErrorPhase, ErrorType
+from portfolio_src.core.utils import (
+    calculate_portfolio_total_value,
+    get_isin_column,
+    get_name_column,
     get_value_column,
     get_weight_column
 )
-from ...prism_utils.logging_config import get_logger
+from portfolio_src.prism_utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 

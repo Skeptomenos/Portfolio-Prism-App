@@ -207,3 +207,16 @@ This document tracks significant architectural decisions (ADRs) for the project.
   - (+) Works with current PyPI version
   - (+) Will work when pytr is updated with correct spelling
   - (-) Slightly more complex code
+
+---
+
+## [2025-12-17] Mandatory collect_submodules() for Heavy C-Extensions on ARM64
+
+- **Context:** `prism-headless` binary was hanging silently on macOS ARM64 before Python code executed. Root cause was missing `collect_submodules()` for pandas/numpy/pyarrow, causing dyld bootloader deadlock.
+- **Decision:** Mandate `collect_submodules()` for ALL heavy C-extension packages in PyInstaller specs. Mandate `strip=False, upx=False` for all ARM64 binaries.
+- **Consequences:**
+  - (+) Binaries start reliably on ARM64
+  - (+) All submodules bundled automatically (no silent breakage on library updates)
+  - (-) Larger binary size (~90MB for prism-headless)
+  - (-) Build time increases due to more modules analyzed
+- **Affected Packages:** pandas, numpy, pyarrow, pydantic, keyring, pytr

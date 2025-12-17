@@ -4,9 +4,9 @@ from typing import Literal
 
 import pandas as pd
 
-from models import AggregatedExposure
-from prism_utils.isin_validator import is_valid_isin, generate_group_key
-from prism_utils.logging_config import get_logger
+from portfolio_src.models import AggregatedExposure
+from portfolio_src.prism_utils.isin_validator import is_valid_isin, generate_group_key
+from portfolio_src.prism_utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 

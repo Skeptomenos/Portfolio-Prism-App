@@ -6,8 +6,8 @@ import yfinance as yf
 from dotenv import load_dotenv
 
 
-from data.caching import load_from_cache, save_to_cache, get_cache_key
-from prism_utils.validation import is_valid_isin
+from portfolio_src.data.caching import load_from_cache, save_to_cache, get_cache_key
+from portfolio_src.prism_utils.validation import is_valid_isin
 # Use absolute import to ensure we get the correct config
 from portfolio_src.config import ASSET_UNIVERSE_PATH, PROXY_URL, PROXY_API_KEY, OUTPUTS_DIR
 import pandas as pd
@@ -241,11 +241,11 @@ def enrich_securities_bulk(
 
     # Ensure debug log dir exists
     OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
-    debug_log(f"Starting bulk enrichment for {len(securities_to_fetch)} securities")
-
+    logger.info(f"Starting bulk enrichment for {len(securities_to_fetch)} securities")
+    
     # Counter for progress feedback
     count = 0
-    print("  - Progress: ", end="", flush=True)
+
 
     for security in securities_to_fetch:
         identifier = security.get("ticker") or security.get("isin")
@@ -279,7 +279,6 @@ def enrich_securities_bulk(
                 ):
                     enriched_results.append(cached_data)
                     # Visual feedback for cache hit
-                    print(".", end="", flush=True)
                     count += 1
                     continue
 
@@ -301,7 +300,7 @@ def enrich_securities_bulk(
             result["isin"] = _UNIVERSE_MAPPING[identifier]
             # If we have the ISIN, we might still want sector/geo from API,
             # but at least we have the ID.
-            print("L", end="", flush=True)  # L for Local
+            logger.debug(f"Resolved ISIN locally: {identifier} -> {_UNIVERSE_MAPPING[identifier]}")
 
         # Primary: Finnhub (via proxy if configured, otherwise direct)
         if PROXY_URL and PROXY_API_KEY:
@@ -331,13 +330,13 @@ def enrich_securities_bulk(
                             logger.debug(
                                 f"ISIN for {identifier}: {finnhub_isin} [Proxy]"
                             )
-                        print("P", end="", flush=True)  # P for Proxy
+                        logger.debug(f"Enriched {identifier} via Proxy")
                     else:
                         logger.warning(f"Empty profile from proxy for {identifier}")
                 time.sleep(1.1)  # Rate limiting
             except requests.exceptions.RequestException as e:
                 logger.warning(f"Proxy request error for {identifier}: {e}")
-                print("x", end="", flush=True)
+
         elif FINNHUB_API_KEY:
             # Local dev mode: direct Finnhub call
             try:
@@ -368,7 +367,8 @@ def enrich_securities_bulk(
                                 f"ISIN for {identifier}: {finnhub_isin} [Finnhub]"
                             )
                         # Visual feedback for API hit
-                        print("F", end="", flush=True)  # F for Finnhub
+                        # Visual feedback for API hit
+                        logger.debug(f"Enriched {identifier} via Finnhub")
                     else:
                         logger.warning(f"Empty profile from Finnhub for {identifier}")
 
@@ -377,7 +377,9 @@ def enrich_securities_bulk(
 
             except requests.exceptions.RequestException as e:
                 logger.warning(f"Finnhub request error for {identifier}: {e}")
-                print("x", end="", flush=True)
+            except requests.exceptions.RequestException as e:
+                logger.warning(f"Finnhub request error for {identifier}: {e}")
+
 
         # NEW: Wikidata ISIN Fallback (if still N/A after Finnhub)
         # Only run if we don't already have a valid ISIN
@@ -395,7 +397,9 @@ def enrich_securities_bulk(
 
                 if wikidata_isin:
                     result["isin"] = wikidata_isin
-                    print("W", end="", flush=True)  # W for Wikidata ISIN resolution
+                if wikidata_isin:
+                    result["isin"] = wikidata_isin
+                    logger.debug(f"Resolved ISIN via Wikidata: {identifier} -> {wikidata_isin}")
                 else:
                     logger.warning(f"✗ No ISIN for {identifier} from Wikidata")
 
@@ -407,7 +411,10 @@ def enrich_securities_bulk(
             yf_data = fetch_from_yfinance(identifier)
             if yf_data:
                 result.update(yf_data)
-                print("y", end="", flush=True)  # y for YFinance metadata
+            yf_data = fetch_from_yfinance(identifier)
+            if yf_data:
+                result.update(yf_data)
+                logger.debug(f"Enriched {identifier} via YFinance")
 
         # Log final ISIN status
         if result["isin"] == "N/A":
@@ -420,7 +427,7 @@ def enrich_securities_bulk(
         enriched_results.append(result)
         count += 1
 
-    print(" Done.")
+    logger.info("Bulk enrichment complete.")
     return enriched_results
 
 
@@ -441,9 +448,9 @@ def enrich_securities(
     Returns:
         list: A list of enriched security dictionaries.
     """
-    print(f"  - Enriching metadata for {len(securities)} securities...")
+    logger.info(f"Enriching metadata for {len(securities)} securities...")
     enriched_data = enrich_securities_bulk(securities, force_refresh=force_refresh)
-    print("  - Enrichment complete.")
+    logger.info("Enrichment complete.")
     return enriched_data
 
 

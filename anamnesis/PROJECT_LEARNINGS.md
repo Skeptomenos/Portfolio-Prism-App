@@ -54,6 +54,10 @@ This document tracks the specific constraints, patterns, and lessons learned _du
 ### 2.4 Throttled Agility
 - Python Engine uses `asyncio` for parallelism but enforces `Semaphore(5)` for rate limits.
 
+### 2.5 Hive RPC Delegation (New)
+- ALL data contributions and transactional logic MUST use PL/pgSQL RPC functions (`contribute_asset`, etc.).
+- **Rationale:** Ensures atomicity, safely bypasses RLS (via `SECURITY DEFINER`), and centralizes validation logic.
+
 ---
 
 ## 3. Anti-Patterns (What Failed / What to Avoid)
@@ -73,6 +77,10 @@ This document tracks the specific constraints, patterns, and lessons learned _du
 ### 3.4 Linear Completion Bias
 - **Problem:** Thinking "Finish Phase 4 Streamlit" before "Start Phase 0 React".
 - **Solution:** "Strangler Fig" pattern. Freeze legacy, build new foundation immediately.
+
+### 3.5 Brittle Environment Testing (New)
+- **Problem:** Integration tests fail due to inability to resolve nested modules (`portfolio_src`) and missing dependencies (`pandas`).
+- **Solution:** Integration tests require explicit environment setup: `cd src-tauri/python && source .venv/bin/activate && export PYTHONPATH=$PWD:$PYTHONPATH`. Avoid simple `uv run python script.py`.
 
 ---
 
@@ -109,3 +117,21 @@ This document tracks the specific constraints, patterns, and lessons learned _du
 ### 5.5 [2025-12-08] Frozen Import Errors
 - **Learning:** Relative imports fail inside a standalone PyInstaller binary.
 - **Solution:** For small shared modules, prefer **Embedding** code directly into the standalone script to eliminate import complexity.
+
+### 5.6 [2025-12-17] Spec File Overwrite Catastrophe
+- **Learning:** `prism_headless.spec` was silently overwritten with `tr_daemon.spec` content during debugging. Binary name and entry point were wrong.
+- **Mandate:** NEVER modify spec files without version control diff check. Keep `.spec.full` backup for critical specs.
+- **Symptom:** Binary hangs before Python executes (dyld deadlock).
+
+### 5.7 [2025-12-17] macOS ARM64 PyInstaller Requirements
+- **Learning:** Heavy C-extension libs (pandas/numpy/pyarrow) require `collect_submodules()` on ARM64. Missing modules cause bootloader hang, not import error.
+- **Mandate:** Always use `collect_submodules()` for: pandas, numpy, pyarrow, pydantic, keyring, pytr.
+- **Mandate:** Always set `strip=False, upx=False` for macOS ARM64 binaries.
+
+### 5.8 [2025-12-17] IPC Stdout Pollution
+- **Learning:** Any logging to stdout corrupts JSON IPC channel. Symptom: Rust fails to parse Python responses.
+- **Mandate:** ALL Python loggers MUST use `sys.stderr`. Audit `logging_config.py` after any logging changes.
+
+### 5.9 [2025-12-17] Hive Schema Normalization Error (New)
+- **Learning:** CSV data (`Stock`) conflicted with PostgreSQL ENUM (`Equity`). Column size limits (`VARCHAR(10)` for exchange) were too fragile for custom identifiers (`YAHOO_API`).
+- **Mandate:** Implement data normalization layers (`ASSET_CLASS_MAP`) on client-side migration scripts. Use robust column sizing (`VARCHAR(20)`) in PostgreSQL schemas.

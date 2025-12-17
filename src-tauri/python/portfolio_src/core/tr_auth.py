@@ -16,7 +16,7 @@ import json
 import sys
 from dataclasses import dataclass
 
-from .tr_bridge import TRBridge
+from portfolio_src.core.tr_bridge import TRBridge
 
 
 class AuthState(Enum):
@@ -197,75 +197,88 @@ class TRAuthManager:
                 message=f"2FA verification failed: {str(e)}",
             )
 
-    async def try_restore_session(self, phone_number: str) -> AuthResult:
+    async def try_restore_session(self, phone_number: str = None) -> AuthResult:
         """
-        Try to restore a previous session via daemon.
-
+        Try to restore a previous session using stored credentials.
+        
         Args:
-            phone_number: Phone number to look up
-
+            phone_number: app_id/phone (optional, unused but kept for signature)
+            
         Returns:
             AuthResult with state AUTHENTICATED if session restored
         """
         try:
+            # 1. Check if daemon is already authenticated
             status = self.bridge.get_status()
-
             if status.get("status") == "authenticated":
                 self._state = AuthState.AUTHENTICATED
-                self._phone_number = phone_number
                 return AuthResult(
                     success=True,
                     state=AuthState.AUTHENTICATED,
-                    message="Session restored from saved credentials.",
+                    message="Session already active.",
+                    session_token="active",
+                )
+
+            # 2. Retrieve detailed credentials
+            phone, pin = self.get_stored_credentials()
+            if not phone or not pin:
+                return AuthResult(
+                    success=False,
+                    state=AuthState.IDLE,
+                    message="No saved credentials found.",
+                )
+
+            # 3. Attempt login with stored credentials
+            # This calls the daemon, which checks cookies first, then tries login
+            # Use restore_only=True to prevent initiating new web login (avoids rate limits)
+            result = self.bridge.login(phone, pin, restore_only=True)
+            
+            if result.get("status") == "authenticated":
+                self._state = AuthState.AUTHENTICATED
+                self._phone_number = phone
+                return AuthResult(
+                    success=True,
+                    state=AuthState.AUTHENTICATED,
+                    message=result.get("message", "Session restored."),
                     session_token="restored",
+                )
+            elif result.get("code") == "SESSION_RESTORE_FAILED":
+                 return AuthResult(
+                    success=False,
+                    state=AuthState.IDLE,
+                    message="Session expired. Please log in again.",
+                 )
+            elif result.get("status") == "waiting_2fa":
+                # Token expired, need 2FA again
+                self._state = AuthState.WAITING_FOR_2FA
+                return AuthResult(
+                    success=False, # Not fully authenticated yet
+                    state=AuthState.WAITING_FOR_2FA,
+                    message="Session expired. 2FA required.",
                 )
             else:
                 return AuthResult(
                     success=False,
                     state=AuthState.IDLE,
-                    message="No valid saved session found. Please log in.",
+                    message=result.get("message", "Restore failed"),
                 )
 
         except Exception as e:
             return AuthResult(
                 success=False,
                 state=AuthState.IDLE,
-                message=f"Session restore check failed: {str(e)}",
+                message=f"Session restore failed: {str(e)}",
             )
 
     def save_credentials(self, phone: str, pin: str) -> bool:
-        """Securely save credentials to keychai (or file in dev)."""
-        # Fix 26: Use file in dev/unfrozen mode to avoid OS keychain prompts
-        is_frozen = getattr(sys, "frozen", False)
-        if not is_frozen:
-            return self._save_to_file(phone, pin)
-
-        try:
-            import keyring
-
-            keyring.set_password("PortfolioPrism", "tr_phone", phone)
-            keyring.set_password("PortfolioPrism", "tr_pin", pin)
-            return True
-        except Exception:
-            # Fallback to file
-            return self._save_to_file(phone, pin)
+        """Save credentials to local file (User requested file-based storage)."""
+        # Force file storage for reliability as requested
+        return self._save_to_file(phone, pin)
 
     def get_stored_credentials(self) -> tuple[Optional[str], Optional[str]]:
-        """Retrieve stored credentials from keychain (or file)."""
-        is_frozen = getattr(sys, "frozen", False)
-        if not is_frozen:
-            return self._load_from_file()
-
-        try:
-            import keyring
-
-            phone = keyring.get_password("PortfolioPrism", "tr_phone")
-            pin = keyring.get_password("PortfolioPrism", "tr_pin")
-            if phone and pin:
-                return phone, pin
-            return self._load_from_file()
-        except Exception:
-            return self._load_from_file()
+        """Retrieve stored credentials from file."""
+        # Force file storage for reliability
+        return self._load_from_file()
 
     def delete_credentials(self) -> bool:
         """Remove credentials from keychain and file."""

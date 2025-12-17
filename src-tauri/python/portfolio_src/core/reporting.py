@@ -13,9 +13,9 @@ Key changes in v2:
 import pandas as pd
 from typing import Optional
 
-from data.enrichment import enrich_securities
-from prism_utils.isin_validator import is_valid_isin
-from prism_utils.logging_config import get_logger
+from portfolio_src.data.enrichment import enrich_securities
+from portfolio_src.prism_utils.isin_validator import is_valid_isin
+from portfolio_src.prism_utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 

@@ -30,11 +30,11 @@ from typing import Dict, List, Literal, Optional, Any
 import pandas as pd
 import requests
 
-from config import ASSET_UNIVERSE_PATH, PROXY_URL, PROXY_API_KEY
-from prism_utils.isin_validator import is_valid_isin, is_placeholder_isin
-from prism_utils.logging_config import get_logger
-from data.manual_enrichments import load_manual_enrichments
-from data.proxy_client import get_proxy_client
+from portfolio_src.config import ASSET_UNIVERSE_PATH, PROXY_URL, PROXY_API_KEY
+from portfolio_src.prism_utils.isin_validator import is_valid_isin, is_placeholder_isin
+from portfolio_src.prism_utils.logging_config import get_logger
+from portfolio_src.data.manual_enrichments import load_manual_enrichments
+from portfolio_src.data.proxy_client import get_proxy_client
 
 logger = get_logger(__name__)
 

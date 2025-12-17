@@ -194,6 +194,29 @@ export async function syncPortfolio(
   };
 }
 
+/**
+ * Trigger analytics pipeline manually
+ */
+export async function runPipeline(): Promise<{ success: boolean; errors: string[]; durationMs: number }> {
+  if (isTauri()) {
+    try {
+      return await invoke('run_pipeline');
+    } catch (error) {
+      console.error('[IPC] run_pipeline failed:', error);
+      throw error;
+    }
+  }
+
+  // Mock fallback
+  console.log('[IPC Mock] run_pipeline');
+  await simulateDelay(1500);
+  return {
+    success: true,
+    errors: [],
+    durationMs: 1200
+  };
+}
+
 // =============================================================================
 // Trade Republic Auth Commands
 // =============================================================================
@@ -334,8 +357,38 @@ export async function checkConnection(): Promise<boolean> {
 }
 
 /**
- * Get the current runtime environment
+ * Get current runtime environment
  */
 export function getEnvironment(): 'tauri' | 'browser' {
   return isTauri() ? 'tauri' : 'browser';
+}
+
+/**
+ * Get the latest pipeline health report
+ */
+export async function getPipelineReport(): Promise<any> {
+  if (isTauri()) {
+    try {
+      return await invoke('get_pipeline_report');
+    } catch (error) {
+      console.error('[IPC] get_pipeline_report failed:', error);
+      throw error;
+    }
+  }
+
+  // Mock fallback
+  console.log('[IPC Mock] get_pipeline_report');
+  await simulateDelay();
+  return {
+    timestamp: new Date().toISOString(),
+    metrics: {
+      direct_holdings: 15,
+      etf_positions: 5,
+      etfs_processed: 5,
+      tier1_resolved: 5,
+      tier1_failed: 0
+    },
+    etf_stats: [],
+    failures: []
+  };
 }

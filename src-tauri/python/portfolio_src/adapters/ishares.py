@@ -5,15 +5,15 @@ import re
 import pandas as pd
 import requests
 from io import StringIO
-from data.caching import cache_adapter_data
-from prism_utils.logging_config import get_logger
+from portfolio_src.data.caching import cache_adapter_data
+from portfolio_src.prism_utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 
+from portfolio_src.config import CONFIG_DIR
+
 # Path to the external configuration file
-ISHARES_CONFIG_PATH = os.path.join(
-    os.path.dirname(__file__), "..", "..", "config", "ishares_config.json"
-)
+CONFIG_PATH = CONFIG_DIR / "ishares_config.json"
 
 
 class ISharesAdapter:
@@ -27,14 +27,14 @@ class ISharesAdapter:
         self.config = self._load_config()
 
     def _load_config(self):
-        if os.path.exists(ISHARES_CONFIG_PATH):
-            try:
-                with open(ISHARES_CONFIG_PATH, "r") as f:
-                    return json.load(f)
-            except json.JSONDecodeError:
-                logger.error(f"Error decoding JSON from {ISHARES_CONFIG_PATH}")
-                return {}
-        return {}
+        if not CONFIG_PATH.exists():
+            return {}
+        try:
+            with open(CONFIG_PATH, "r") as f:
+                return json.load(f)
+        except json.JSONDecodeError:
+            logger.error(f"Error decoding JSON from {CONFIG_PATH}")
+            return {}
 
     def _save_config(self):
         try:

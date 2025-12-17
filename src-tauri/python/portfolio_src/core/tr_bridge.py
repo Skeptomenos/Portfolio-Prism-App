@@ -14,13 +14,10 @@ import time
 from pathlib import Path
 from typing import Optional, Dict, Any, Union
 
-from .tr_protocol import (
-    TRMethod,
+from portfolio_src.core.tr_protocol import (
     TRRequest,
     TRResponse,
-    create_success_response,
-    create_error_response,
-    deserialize_response,
+    TRMethod,
 )
 
 
@@ -122,14 +119,22 @@ class TRBridge:
         
         # Try with platform suffix first (production build)
         sidecar_path = base_dir / f"{name}-{suffix}"
+        print(f"[TR Bridge] DEBUG: sys.executable: {sys.executable}", file=sys.stderr)
+        print(f"[TR Bridge] DEBUG: Base dir: {base_dir}", file=sys.stderr)
+        print(f"[TR Bridge] DEBUG: Looking for sidecar at {sidecar_path}", file=sys.stderr)
+        
         if sidecar_path.exists():
+            print(f"[TR Bridge] DEBUG: Found sidecar at {sidecar_path}", file=sys.stderr)
             return str(sidecar_path)
         
         # Try without suffix (Tauri dev mode)
         sidecar_path_no_suffix = base_dir / name
+        print(f"[TR Bridge] DEBUG: Looking for sidecar at {sidecar_path_no_suffix}", file=sys.stderr)
         if sidecar_path_no_suffix.exists():
+            print(f"[TR Bridge] DEBUG: Found sidecar at {sidecar_path_no_suffix}", file=sys.stderr)
             return str(sidecar_path_no_suffix)
 
+        print(f"[TR Bridge] ERROR: Sidecar binary not found. Base dir: {base_dir}, Contents: {list(base_dir.iterdir())}", file=sys.stderr)
         raise RuntimeError(f"Sidecar binary not found: tried {sidecar_path} and {sidecar_path_no_suffix}")
 
     def _monitor_stderr(self) -> None:
@@ -194,9 +199,9 @@ class TRBridge:
             self._is_running = False
             raise RuntimeError(f"Daemon communication failed: {e}")
 
-    def login(self, phone: str, pin: str) -> Dict[str, Any]:
+    def login(self, phone: str, pin: str, **kwargs) -> Dict[str, Any]:
         """Initiate login process."""
-        return self._send_command(TRMethod.LOGIN.value, phone=phone, pin=pin)
+        return self._send_command(TRMethod.LOGIN.value, phone=phone, pin=pin, **kwargs)
 
     def logout(self) -> Dict[str, Any]:
         """Logout and clear session."""

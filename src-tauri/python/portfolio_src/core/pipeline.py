@@ -17,13 +17,13 @@ from typing import Callable, Optional, List
 from pathlib import Path
 import pandas as pd
 
-from .errors import PipelineError, PipelineResult, ErrorPhase, ErrorType
-from .services.decomposer import Decomposer
-from .services.enricher import Enricher
-from .services.aggregator import Aggregator
-from ..config import PIPELINE_ERRORS_PATH, TRUE_EXPOSURE_REPORT, DIRECT_HOLDINGS_REPORT, PIPELINE_HEALTH_PATH, HOLDINGS_BREAKDOWN_PATH, DATA_DIR
-from ..prism_utils.logging_config import get_logger
-from .utils import calculate_portfolio_total_value, get_weight_column, get_isin_column, get_name_column
+from portfolio_src.core.errors import PipelineError, PipelineResult, ErrorPhase, ErrorType
+from portfolio_src.core.services.decomposer import Decomposer
+from portfolio_src.core.services.enricher import Enricher
+from portfolio_src.core.services.aggregator import Aggregator
+from portfolio_src.config import PIPELINE_ERRORS_PATH, TRUE_EXPOSURE_REPORT, DIRECT_HOLDINGS_REPORT, PIPELINE_HEALTH_PATH, HOLDINGS_BREAKDOWN_PATH, DATA_DIR
+from portfolio_src.prism_utils.logging_config import get_logger
+from portfolio_src.core.utils import calculate_portfolio_total_value, get_weight_column, get_isin_column, get_name_column
 
 logger = get_logger(__name__)
 
@@ -63,9 +63,9 @@ class Pipeline:
 
     def _init_services(self):
         """Initialize services with their dependencies."""
-        from ..data.holdings_cache import get_holdings_cache
-        from ..adapters.registry import AdapterRegistry
-        from ..data.enrichment import EnrichmentService
+        from portfolio_src.data.holdings_cache import get_holdings_cache
+        from portfolio_src.adapters.registry import AdapterRegistry
+        from portfolio_src.data.enrichment import EnrichmentService
         
         holdings_cache = get_holdings_cache()
         adapter_registry = AdapterRegistry()
@@ -200,13 +200,13 @@ class Pipeline:
 
     def _load_portfolio(self):
         """Load portfolio state."""
-        from ..data.state_manager import load_portfolio_state
+        from portfolio_src.data.state_manager import load_portfolio_state
         return load_portfolio_state()
 
     def _harvest(self) -> int:
         """Auto-harvest new securities. Non-fatal."""
         try:
-            from .harvesting import harvest_cache
+            from portfolio_src.core.harvesting import harvest_cache
             return harvest_cache()
         except ImportError:
             logger.debug("Harvesting module not available")

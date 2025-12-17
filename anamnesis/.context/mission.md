@@ -16,10 +16,12 @@ Build a **privacy-first desktop portfolio analyzer** using a "Three-Tier Hybrid"
 - **2024-12**: Phase 1-3 completed (Streamlit POC).
 - **2024-12**: Strategic Pivot to **React-First UI** to enable rapid feedback loops and native feel.
 - **2024-12-15**: **MVP COMPLETE** - Full Trade Republic integration working with real portfolio data.
+- **2024-12-17**: **CLEANUP COMPLETE** - Removed legacy Streamlit code and unified build system.
 
 ## Success Looks Like
 
 - [x] **MVP Launch:** Standalone `.app` running React UI + Python Engine
+- [x] **Cleanup:** Zero legacy code, single build pipeline
 - [x] **2FA Flow:** Native React modal for Trade Republic authentication
 - [x] **Real Data:** Portfolio sync from Trade Republic with 30+ positions
 - [x] **Dashboard:** Real-time portfolio value, P&L, and top holdings
@@ -37,21 +39,21 @@ Build a **privacy-first desktop portfolio analyzer** using a "Three-Tier Hybrid"
 
 ## Current Phase
 
-**Phase 5: Polish & Release.**
-The MVP is functional. We are now focused on:
-- Enhancing the Dashboard with better visualizations
-- Setting up CI/CD for automated builds
-- Preparing for alpha release
+**Phase 4.5: Hive Activation & Data Integrity.**
+The MVP is functional but lacking community data. We are now focused on:
+- Setting up the Supabase Hive database (Schema/RLS)
+- Integrating the Hive client into the Python engine
+- Seeding the Hive with existing asset data
 
 **Workstreams:**
-* `infrastructure`: Active (CI/CD, Telemetry)
-* `data-engine`: Stable (TR integration complete)
-* `frontend`: Active (Dashboard enhancements)
+* `data-engine`: Active (Hive Integration)
+* `infrastructure`: Active (Hive Setup, CI/CD)
+* `frontend`: Pending (Dashboard enhancements)
 
 **Next Steps:**
-1. Implement dashboard metric cards and charts (TASK-401, 402)
-2. Set up GitHub Actions CI/CD (TASK-502)
-3. Build and sign `.dmg` for macOS distribution
+1. Finalize Hive Schema and generate SQL (TASK-451)
+2. Implement Hive Client (TASK-452)
+3. Implement dashboard metric cards and charts (TASK-401, 402)
 
 ## What's Working
 

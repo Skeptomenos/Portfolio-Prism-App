@@ -12,9 +12,9 @@ from typing import Dict
 
 import pandas as pd
 
-from config import HOLDINGS_BREAKDOWN_PATH, TRUE_EXPOSURE_REPORT
-from models import AggregatedExposure
-from prism_utils.logging_config import get_logger
+from portfolio_src.config import HOLDINGS_BREAKDOWN_PATH, TRUE_EXPOSURE_REPORT
+from portfolio_src.models import AggregatedExposure
+from portfolio_src.prism_utils.logging_config import get_logger
 
 from .classification import classify_etf_holdings
 from .direct import process_direct_holdings

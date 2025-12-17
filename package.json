@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "build:python": "bash scripts/build-python.sh"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.12",

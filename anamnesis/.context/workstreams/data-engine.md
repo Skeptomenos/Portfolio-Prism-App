@@ -5,24 +5,15 @@
 
 ---
 
-## Active Tasks
+## Active Tasks (Hive Integration Sprint)
 
-### 1. SQLite Schema Implementation
-- [ ] Create `schema.sql` based on `specs/data_schema.md`.
-- [ ] Initialize SQLite database at `PRISM_DATA_DIR`.
+### 1. Hive Schema & Client
+- [ ] **TASK-451:** Finalize Hive Schema & Generate SQL.
+- [ ] **TASK-452:** Implement Hive Client (Read/Write) using new normalized schema.
 
-### 2. Pydantic Contracts
-- [ ] Create `contracts.py` with `Asset`, `Position`, `Transaction` models.
-- [ ] Ensure strict validation for data integrity.
-
-### 3. Data Migration
-- [ ] Write script to migrate legacy CSV/JSON data to new SQLite schema.
-- [ ] Verify data consistency post-migration.
-
-### 4. Headless Engine Refactor
-- [ ] Create `headless.py` entry point.
-- [ ] Implement `stdin` command loop.
-- [ ] Refactor `Decomposer` to read from SQLite.
+### 2. Data Migration
+- [ ] **TASK-453:** Create Hive Migration Script (`scripts/seed_hive.py`).
+- [ ] **TASK-454:** Deploy Hive Schema & Seed Data (Final deployment step).
 
 ## Decisions Log
 - **2024-12-12:** Engine is now "Headless" - no Streamlit. Pure IO worker.

@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Optional, Dict, Any
 from dataclasses import dataclass, asdict
 from enum import Enum
+from decimal import Decimal
 
 # Handle PyInstaller frozen mode - ensure SSL certificates work
 if getattr(sys, 'frozen', False):
@@ -69,16 +70,23 @@ class TRError(Exception):
         self.message = message
 
 
+def json_serial(obj):
+    """JSON serializer for objects not serializable by default json code"""
+    if isinstance(obj, Decimal):
+        return float(obj)
+    raise TypeError(f"Type {type(obj)} not serializable")
+
+
 def create_error_response(request_id: str, error_message: str) -> str:
     """Create error response."""
     response = TRResponse(result=None, error=error_message, id=request_id)
-    return json.dumps(asdict(response))
+    return json.dumps(asdict(response), default=json_serial)
 
 
 def create_success_response(request_id: str, result: dict) -> str:
     """Create success response."""
     response = TRResponse(result=result, error=None, id=request_id)
-    return json.dumps(asdict(response))
+    return json.dumps(asdict(response), default=json_serial)
 
 # --- END PROTOCOL DEFINITIONS ---
 
@@ -138,7 +146,7 @@ class TRDaemon:
             )
 
     async def handle_login(
-        self, phone: Optional[str], pin: Optional[str]
+        self, phone: Optional[str], pin: Optional[str], restore_only: bool = False
     ) -> Dict[str, Any]:
         """Handle login request."""
         try:
@@ -159,6 +167,13 @@ class TRDaemon:
                 return {
                     "status": "authenticated",
                     "message": "Session restored from saved cookies",
+                }
+
+            if restore_only:
+                return {
+                    "status": "error",
+                    "message": "Session could not be restored",
+                    "code": "SESSION_RESTORE_FAILED"
                 }
 
             # New login flow - Web Login
@@ -188,6 +203,24 @@ class TRDaemon:
                 file=sys.stderr,
             )
             traceback.print_exc(file=sys.stderr)
+            
+            # Inspect for TOO_MANY_REQUESTS in ValueError
+            # Structure: ValueError: [{'errorCode': 'TOO_MANY_REQUESTS', 'meta': {'nextAttemptInSeconds': 20}}]
+            if isinstance(e, ValueError) and e.args and isinstance(e.args[0], list):
+                try:
+                    error_data = e.args[0][0]
+                    if error_data.get("errorCode") == "TOO_MANY_REQUESTS":
+                        meta = error_data.get("meta", {})
+                        seconds = meta.get("nextAttemptInSeconds", 60)
+                        return {
+                            "status": "error", 
+                            "message": f"Too many login attempts. Please wait {seconds} seconds.",
+                            "code": "TOO_MANY_REQUESTS",
+                            "wait_seconds": seconds
+                        }
+                except Exception:
+                    pass
+
             return {"status": "error", "message": f"Login failed: {str(e)}"}
 
     async def handle_confirm_2fa(self, token: Optional[str]) -> Dict[str, Any]:
@@ -243,8 +276,9 @@ class TRDaemon:
             await portfolio_obj.portfolio_loop()
             
             # Extract data
-            portfolio_data = portfolio_obj.portfolio
-            positions = portfolio_data.get("positions", [])
+            # Extract data
+            # portfolio_obj.portfolio is already the list of positions in pytr
+            positions = portfolio_obj.portfolio
             cash = getattr(portfolio_obj, "cash", [])
             
             # DEBUG LOGGING & FALLBACK LOGIC
@@ -322,7 +356,11 @@ class TRDaemon:
             params = request.params
 
             if method == TRMethod.LOGIN.value:
-                result = await self.handle_login(params.get("phone"), params.get("pin"))
+                result = await self.handle_login(
+                    params.get("phone"), 
+                    params.get("pin"),
+                    params.get("restore_only", False)
+                )
             elif method == TRMethod.LOGOUT.value:
                 result = await self.handle_logout()
             elif method == TRMethod.CONFIRM_2FA.value:

@@ -13,9 +13,13 @@ import os
 import sys
 import shutil
 from pathlib import Path
-import logging
+from typing import List, Dict, Any
+from datetime import datetime
 
-logger = logging.getLogger(__name__)
+from portfolio_src.config import CONFIG_DIR
+from portfolio_src.prism_utils.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 def get_bundled_defaults_path() -> Path:
@@ -64,7 +68,6 @@ def initialize_user_data_dir(data_dir: Path) -> None:
     default_files = [
         "asset_universe.csv",
         "adapter_registry.json",
-        "ticker_map.json",
     ]
     
     for filename in default_files:
@@ -76,6 +79,19 @@ def initialize_user_data_dir(data_dir: Path) -> None:
             logger.info(f"Copied default config: {filename}")
         elif not src.exists():
             logger.warning(f"Bundled default not found: {src}")
+    
+    # Migrate ticker map
+    ticker_map_src = bundled_defaults / "ticker_map.json"
+    ticker_map_dst = CONFIG_DIR / "ticker_map.json"
+
+    if ticker_map_src.exists():
+        try:
+            # Ensure the destination directory exists
+            ticker_map_dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(ticker_map_src, ticker_map_dst)
+            logger.info(f"Migrated ticker map to {ticker_map_dst}")
+        except Exception as e:
+            logger.error(f"Failed to migrate ticker map: {e}")
     
     # Write version marker
     version_file = data_dir / "version.txt"

@@ -6,8 +6,8 @@ from typing import Any, List, Optional, Tuple
 import pandas as pd
 from pydantic import ValidationError
 
-from models import DirectPosition, ETFPosition
-from prism_utils.logging_config import get_logger
+from portfolio_src.models import DirectPosition, ETFPosition
+from portfolio_src.prism_utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 
@@ -23,7 +23,7 @@ def _to_optional_str(value: Any) -> Optional[str]:
     return str(value) if value else None
 
 
-from ..config import ASSET_UNIVERSE_PATH, WORKING_DIR
+from portfolio_src.config import ASSET_UNIVERSE_PATH, WORKING_DIR
 
 # Paths
 UNIVERSE_PATH = ASSET_UNIVERSE_PATH
@@ -103,7 +103,68 @@ def load_portfolio_state():
     Returns:
         (direct_positions, etf_positions) - Tuple of DataFrames
     """
-    # 1. Strategy: Relational Model
+    # 1. Strategy: SQLite Database (Primary)
+    try:
+        from portfolio_src.data.database import get_positions
+        db_positions = get_positions()
+        
+        if db_positions:
+            logger.info(f"Loading {len(db_positions)} positions from SQLite Database...")
+            
+            # Convert DB dicts to DataFrame with expected columns
+            df = pd.DataFrame(db_positions)
+            
+            # DB has columns: isin, quantity, cost_basis, current_price, name, symbol, asset_class...
+            # Pipeline expects: isin, name, quantity, asset_type, ticker_src, provider, avg_cost, tr_price
+            
+            # Rename for pipeline compatibility
+            df_clean = df.rename(columns={
+                "asset_class": "asset_type",
+                "cost_basis": "avg_cost", 
+                "current_price": "tr_price",
+                "tr_ticker": "ticker_src", # If available
+            })
+            
+            # Ensure required columns exist
+            required_cols = ["isin", "name", "quantity", "asset_type", "avg_cost", "tr_price"]
+            for col in required_cols:
+                if col not in df_clean.columns:
+                    df_clean[col] = None
+                    
+            # Fill missing
+            df_clean["name"] = df_clean["name"].fillna("Unknown Asset")
+            df_clean["asset_type"] = df_clean["asset_type"].fillna("Stock")
+            
+            # Apply Heuristics: Map "Equity" to "Stock" or "ETF" based on name
+            # The DB currently stores everything as "Equity" if not specified
+            def refine_asset_type(row):
+                current_type = str(row["asset_type"])
+                name = str(row["name"]).lower()
+                
+                if current_type == "Equity":
+                    is_etf_name = any(k in name for k in ["etf", "ishares", "msci", "s&p", "nasdaq", "stoxx", "core", "amundi", "vanguard"])
+                    return "ETF" if is_etf_name else "Stock"
+                return current_type
+
+            df_clean["asset_type"] = df_clean.apply(refine_asset_type, axis=1)
+            
+            # Split
+            direct_positions = df_clean[df_clean["asset_type"] == "Stock"].copy()
+            etf_positions = df_clean[df_clean["asset_type"] == "ETF"].copy()
+            
+            logger.info(f"Loaded {len(direct_positions)} Stocks and {len(etf_positions)} ETFs from database.")
+            
+            # Validate
+            direct_positions = _validate_positions(direct_positions, asset_type="Stock")
+            etf_positions = _validate_positions(etf_positions, asset_type="ETF")
+            
+            return direct_positions, etf_positions
+            
+    except Exception as e:
+        logger.warning(f"Failed to load from DB: {e}. Falling back to CSV.")
+
+
+    # 2. Strategy: Legacy CSV (Fallback)
     if os.path.exists(UNIVERSE_PATH):
         if os.path.exists(HOLDINGS_PATH):
             logger.info(
@@ -127,24 +188,22 @@ def load_portfolio_state():
                 df_uni = pd.read_csv(UNIVERSE_PATH)
                 df = pd.merge(df_hold, df_uni, on="ISIN", how="left")
 
-                # Verify all mapped now
-                still_unmapped = df[df["Name"].isna()]
-                if not still_unmapped.empty:
-                    logger.error(
-                        f"{len(still_unmapped)} assets still unmapped after auto-add!"
-                    )
+            return _process_csv_dataframe(df)
+            
         else:
             logger.warning(f"Calculated holdings file not found: {HOLDINGS_PATH}")
-            logger.warning(
-                "Please run the PDF parser first: python -m scripts.parse_pdfs_to_csv"
-            )
             return pd.DataFrame(), pd.DataFrame()
 
     else:
-        logger.warning("No portfolio state found.")
+        logger.warning("No portfolio state found (DB empty, CSV missing).")
         return pd.DataFrame(), pd.DataFrame()
-
-    # 2. Standardize for Pipeline
+    
+    
+def _process_csv_dataframe(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Helper to process DataFrame from CSV source.
+    Adapts legacy CSV schema to Pipeline schema.
+    """
     # Pipeline expects columns: isin, name, quantity, asset_type, ticker_src, provider
 
     # Rename columns to match pipeline standard (lowercase)
@@ -180,7 +239,7 @@ def load_portfolio_state():
     etf_positions = df_clean[df_clean["asset_type"] == "ETF"].copy()
 
     logger.info(
-        f"Loaded {len(direct_positions)} Stocks and {len(etf_positions)} ETFs from database."
+        f"Loaded {len(direct_positions)} Stocks and {len(etf_positions)} ETFs from CSV source."
     )
 
     # Validate positions using Pydantic models

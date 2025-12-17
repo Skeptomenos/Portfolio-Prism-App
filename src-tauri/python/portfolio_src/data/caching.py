@@ -4,9 +4,9 @@ import json
 import pandas as pd
 from functools import wraps
 from datetime import datetime, timedelta
-from prism_utils.logging_config import get_logger
-from prism_utils.metrics import tracker
-from prism_utils.isin_validator import is_valid_isin, is_placeholder_isin
+from portfolio_src.prism_utils.logging_config import get_logger
+from portfolio_src.prism_utils.metrics import tracker
+from portfolio_src.prism_utils.isin_validator import is_valid_isin, is_placeholder_isin
 
 logger = get_logger(__name__)
 

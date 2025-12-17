@@ -1,11 +1,12 @@
 import yfinance as yf
 import json
 import os
-from prism_utils.logging_config import get_logger
+from portfolio_src.config import CONFIG_DIR
+from portfolio_src.prism_utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 
-TICKER_MAP_PATH = "config/ticker_map.json"
+TICKER_MAP_PATH = CONFIG_DIR / "ticker_map.json"
 
 
 def load_ticker_map():

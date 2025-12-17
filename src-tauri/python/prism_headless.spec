@@ -2,15 +2,13 @@
 """
 PyInstaller spec file for Prism Headless Engine
 
-This creates a minimal single-file executable for the headless IPC engine.
+Creates a single-file executable for the headless IPC engine.
 No Streamlit, no web server - just JSON stdin/stdout communication.
-
-Size target: < 50MB (vs ~85MB for full Streamlit build)
 """
 
 import os
 import sys
-from PyInstaller.utils.hooks import collect_data_files, copy_metadata
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules, copy_metadata
 
 block_cipher = None
 
@@ -19,35 +17,36 @@ pandas_metadata = copy_metadata('pandas')
 numpy_metadata = copy_metadata('numpy')
 pydantic_metadata = copy_metadata('pydantic')
 
-# Hidden imports - minimal set for headless operation
+# Hidden imports - use collect_submodules for complex C-extension packages
 hidden_imports = [
-    # Core data processing
-    'pandas',
-    'numpy',
-    'pyarrow',
+    # Core
+    'certifi',
+    'psutil',
+    'sqlite3',
     
     # Validation
     'pydantic',
     'pydantic.deprecated',
     'pydantic.deprecated.decorator',
     
-    # System monitoring
-    'psutil',
+    # API clients
+    'requests',
+    'yfinance',
     
-    # Database (sqlite3 is built-in, but we use it)
-    'sqlite3',
+    # TR Auth
+    'pytr',
+    'keyring',
+    'keyring.backends',
+    'keyring.backends.macOS',
+    'cryptography',
     
-    # Future: API clients (uncomment when needed)
-    # 'requests',
-    # 'httpx',
-    # 'yfinance',
-    
-    # Future: TR Auth (uncomment when TASK-205 is implemented)
-    # 'pytr',
-    # 'keyring',
-    # 'keyring.backends',
-    # 'keyring.backends.macOS',
-    # 'cryptography',
+    # Heavy C-extension packages - MUST use collect_submodules on macOS ARM64
+    *collect_submodules('pandas'),
+    *collect_submodules('numpy'),
+    *collect_submodules('pyarrow'),
+    *collect_submodules('pydantic'),
+    *collect_submodules('keyring.backends'),
+    *collect_submodules('pytr'),
 ]
 
 a = Analysis(
@@ -55,8 +54,8 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[
-        ('portfolio_src', 'portfolio_src'),  # Business logic
-        ('default_config', 'default_config'),  # Default configs
+        ('portfolio_src', 'portfolio_src'),     # Business logic + schema.sql
+        ('default_config', 'default_config'),   # Configuration files
         *pandas_metadata,
         *numpy_metadata,
         *pydantic_metadata,
@@ -104,13 +103,13 @@ exe = EXE(
     name='prism-headless',
     debug=False,
     bootloader_ignore_signals=False,
-    strip=True,
-    upx=True,
+    strip=False,   # CRITICAL: Do not strip on macOS ARM64
+    upx=False,     # CRITICAL: Do not use UPX on macOS ARM64
     upx_exclude=[],
     runtime_tmpdir=None,
     console=True,  # Required for stdin/stdout IPC
     disable_windowed_traceback=False,
-    argv_emulation=True,
+    argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,

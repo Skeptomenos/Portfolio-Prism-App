@@ -23,14 +23,43 @@ import time
 import asyncio
 from pathlib import Path
 
-# Ensure stdout is line-buffered for IPC
-sys.stdout.reconfigure(line_buffering=True)
+# DEBUG: Low-level trace
+try:
+    os.write(2, b"[PRISM] Starting up...\n")
+except Exception:
+    pass
 
-# Track startup time for uptime calculation
-_start_time = time.time()
+# Handle PyInstaller frozen mode - ensure SSL certificates work
+if getattr(sys, "frozen", False):
+    try:
+        import certifi
+
+        os.environ["SSL_CERT_FILE"] = certifi.where()
+        os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
+    except ImportError:
+        pass
+
+# Ensure stdout is line-buffered for IPC
+try:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(line_buffering=True)
+except Exception:
+    pass
+
+import logging
+
+# Configure logging to write to stderr (so stdout is clean for IPC)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    stream=sys.stderr,
+)
+logger = logging.getLogger("PrismHeadless")
 
 # Version
 VERSION = "0.1.0"
+
+_start_time = time.time()
 
 
 def resource_path(relative_path: str) -> str:
@@ -48,10 +77,11 @@ def resource_path(relative_path: str) -> str:
 
 
 def setup_python_path():
-    """Add portfolio_src to Python path for imports."""
-    portfolio_src_path = resource_path("portfolio_src")
-    if portfolio_src_path not in sys.path:
-        sys.path.insert(0, portfolio_src_path)
+    """Confirms CWD is correct for imports."""
+    # We no longer modify sys.path here.
+    # The application relies on being run from the correct directory (src-tauri/python)
+    # or having PYTHONPATH set correctly.
+    pass
 
 
 def dead_mans_switch(shutdown_event):
@@ -106,141 +136,8 @@ def handle_get_health(cmd_id: int, payload: dict) -> dict:
     }
 
 
-def handle_tr_get_auth_status(cmd_id: int, payload: dict) -> dict:
-    """Handle tr_get_auth_status command."""
-    return {
-        "id": cmd_id,
-        "status": "success",
-        "data": {
-            "authState": "idle",
-            "hasStoredCredentials": False,
-            "lastError": None,
-        },
-    }
-
-
-def handle_tr_check_saved_session(cmd_id: int, payload: dict) -> dict:
-    """Handle tr_check_saved_session command."""
-    return {
-        "id": cmd_id,
-        "status": "success",
-        "data": {
-            "hasSession": False,
-            "phoneNumber": None,
-            "prompt": "login_required",
-        },
-    }
-
-
-def handle_tr_login(cmd_id: int, payload: dict) -> dict:
-    """Handle tr_login command."""
-    return {
-        "id": cmd_id,
-        "status": "success",
-        "data": {
-            "authState": "waiting_2fa",
-            "message": "Enter the 4-digit code from your Trade Republic app",
-            "countdown": 30,
-        },
-    }
-
-
-def handle_tr_submit_2fa(cmd_id: int, payload: dict) -> dict:
-    """Handle tr_submit_2fa command."""
-    return {
-        "id": cmd_id,
-        "status": "success",
-        "data": {
-            "authState": "authenticated",
-            "message": "Successfully authenticated with Trade Republic",
-        },
-    }
-
-
-def handle_tr_logout(cmd_id: int, payload: dict) -> dict:
-    """Handle tr_logout command."""
-    return {
-        "id": cmd_id,
-        "status": "success",
-        "data": {
-            "authState": "idle",
-            "message": "Logged out and session cleared",
-        },
-    }
-
-
-def handle_sync_portfolio(cmd_id: int, payload: dict) -> dict:
-    """Handle sync_portfolio command."""
-    import time
-    from portfolio_src.data.database import sync_positions_from_tr, update_sync_state
-
-    portfolio_id = payload.get("portfolioId", 1)
-
-    # Mock progress events
-    print(
-        json.dumps(
-            {
-                "event": "sync_progress",
-                "data": {"progress": 0, "message": "Starting sync..."},
-            }
-        )
-    )
-    sys.stdout.flush()
-
-    start_time = time.time()
-
-    # Mock data for testing
-    time.sleep(1)  # Simulate work
-
-    tr_positions = [
-        {
-            "isin": "US0378331005",
-            "name": "Apple Inc.",
-            "symbol": "AAPL",
-            "quantity": 50,
-            "cost_basis": 150.0,
-            "current_price": 175.0,
-            "asset_class": "Equity",
-        }
-    ]
-
-    # Sync to database
-    sync_result = sync_positions_from_tr(portfolio_id, tr_positions)
-
-    # Update sync state
-    update_sync_state(
-        "trade_republic",
-        "success",
-        f"Synced {sync_result['synced_positions']} positions",
-    )
-
-    duration_ms = int((time.time() - start_time) * 1000)
-
-    print(
-        json.dumps(
-            {
-                "event": "sync_progress",
-                "data": {"progress": 100, "message": "Sync complete!"},
-            }
-        )
-    )
-    sys.stdout.flush()
-
-    return {
-        "id": cmd_id,
-        "status": "success",
-        "data": {
-            "syncedPositions": sync_result["synced_positions"],
-            "newPositions": sync_result["new_positions"],
-            "updatedPositions": sync_result["updated_positions"],
-            "totalValue": sync_result["total_value"],
-            "durationMs": duration_ms,
-        },
-    }
-
-
 # =============================================================================
-# REAL TRADE REPUBLIC AUTH HANDLERS
+# TRADE REPUBLIC AUTH HANDLERS
 # =============================================================================
 
 # Global singleton for auth state management
@@ -489,8 +386,29 @@ def handle_sync_portfolio(cmd_id: int, payload: dict) -> dict:
     try:
         bridge = get_bridge()
 
-        # Check auth status first
+        # Check auth status
         status = bridge.get_status()
+
+        # Auto-restore if not authenticated
+        if status.get("status") != "authenticated":
+            emit_progress(2, "Restoring session...")
+            auth_manager = get_auth_manager()
+
+            # Use run_async helper if available or inline loop - reusing pattern from login
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                restore_result = loop.run_until_complete(
+                    auth_manager.try_restore_session()
+                )
+                if restore_result.success:
+                    emit_progress(5, "Session restored.")
+                    status = bridge.get_status()  # Refresh status
+            except Exception as e:
+                logger.error(f"Auto-restore failed: {e}")
+            finally:
+                loop.close()
+
         if status.get("status") != "authenticated":
             return error_response(
                 cmd_id,
@@ -538,7 +456,7 @@ def handle_sync_portfolio(cmd_id: int, payload: dict) -> dict:
 
         duration_ms = int((time.time() - start_time) * 1000)
 
-        emit_progress(100, "Sync complete!")
+        emit_progress(100, "Sync complete! Run Deep Analysis to update X-Ray.")
 
         return {
             "id": cmd_id,
@@ -555,6 +473,88 @@ def handle_sync_portfolio(cmd_id: int, payload: dict) -> dict:
     except Exception as e:
         update_sync_state("trade_republic", "error", str(e))
         return error_response(cmd_id, "TR_SYNC_FAILED", str(e))
+
+
+def handle_run_pipeline(cmd_id: int, payload: dict) -> dict:
+    """Handle run_pipeline command to trigger analytics independently."""
+    import time
+    from portfolio_src.core.pipeline import Pipeline
+
+    emit_progress(0, "Starting analytics pipeline...")
+
+    start_time = time.time()
+
+    try:
+        # Wrapper to map pipeline progress (0.0-1.0) to overall progress (0-100)
+        def pipeline_progress(msg, pct):
+            # UX: Artificial delay
+            time.sleep(0.3)
+            emit_progress(int(pct * 100), f"Analytics: {msg}")
+            logger.info(f"Pipeline Progress: {msg} ({pct * 100}%)")
+
+        pipeline = Pipeline()
+        result = pipeline.run(progress_callback=pipeline_progress)
+
+        duration_ms = int((time.time() - start_time) * 1000)
+
+        if not result.success:
+            logger.error(f"Pipeline failed: {result.errors}")
+            emit_progress(100, "Analytics completed with warnings.")
+
+            return {
+                "id": cmd_id,
+                "status": "success",  # Return success so UI can show warnings
+                "data": {
+                    "success": False,
+                    "errors": [str(e) for e in result.errors],
+                    "durationMs": duration_ms,
+                },
+            }
+        else:
+            emit_progress(100, "Analytics complete!")
+
+            return {
+                "id": cmd_id,
+                "status": "success",
+                "data": {"success": True, "errors": [], "durationMs": duration_ms},
+            }
+
+    except Exception as e:
+        logger.error(f"Failed to run pipeline: {e}", exc_info=True)
+        return error_response(cmd_id, "PIPELINE_ERROR", str(e))
+
+
+# =============================================================================
+# HELPER FUNCTIONS
+# =============================================================================
+
+
+def _get_allocations_from_report() -> dict:
+    """
+    Read the TRUE_EXPOSURE_REPORT csv and aggregate by Sector/Geography.
+    Returns: {"sector": {name: pct}, "region": {name: pct}}
+    """
+    try:
+        from portfolio_src.config import TRUE_EXPOSURE_REPORT
+        import pandas as pd
+
+        if not os.path.exists(TRUE_EXPOSURE_REPORT):
+            return None
+
+        df = pd.read_csv(TRUE_EXPOSURE_REPORT)
+        if df.empty:
+            return None
+
+        # Helper to aggregate and convert to dict
+        def agg_to_dict(group_col):
+            # Sum percentage by group
+            grp = df.groupby(group_col)["portfolio_percentage"].sum()
+            # Convert to dict, round to 2 decimals
+            return {k: round(v, 2) for k, v in grp.items() if v > 0}
+
+        return {"sector": agg_to_dict("sector"), "region": agg_to_dict("geography")}
+    except Exception:
+        return None
 
 
 # =============================================================================
@@ -637,6 +637,19 @@ def handle_get_dashboard_data(cmd_id: int, payload: dict) -> dict:
         ac = h.get("assetClass") or "Unknown"
         asset_class_alloc[ac] = asset_class_alloc.get(ac, 0) + h["weight"]
 
+    # Load Real Analytics Allocations
+    sector_alloc = {}
+    region_alloc = {}
+
+    try:
+        allocs = _get_allocations_from_report()
+        if allocs:
+            sector_alloc = allocs.get("sector", {})
+            region_alloc = allocs.get("region", {})
+    except Exception as e:
+        # Fallback to empty if analytics fail
+        pass
+
     return {
         "id": cmd_id,
         "status": "success",
@@ -645,8 +658,8 @@ def handle_get_dashboard_data(cmd_id: int, payload: dict) -> dict:
             "totalGain": round(total_gain, 2),
             "gainPercentage": round(gain_percentage, 1),
             "allocations": {
-                "sector": {},  # TODO: Populate from enrichment
-                "region": {},  # TODO: Populate from enrichment
+                "sector": sector_alloc,
+                "region": region_alloc,
                 "assetClass": asset_class_alloc,
             },
             "topHoldings": top_holdings,
@@ -782,6 +795,7 @@ def dispatch(cmd: dict) -> dict:
         "tr_submit_2fa": handle_tr_submit_2fa,
         "tr_logout": handle_tr_logout,
         "sync_portfolio": handle_sync_portfolio,
+        "run_pipeline": handle_run_pipeline,
     }
 
     handler = handlers.get(command)
@@ -805,6 +819,67 @@ def dispatch(cmd: dict) -> dict:
         }
 
 
+def install_default_config() -> None:
+    """
+    Ensure default configuration files exist in the user data directory.
+    Copies from bundled resources if missing.
+    """
+    import shutil
+
+    # We must import config after environment setup or inside the function
+    # but since PRISM_DATA_DIR is set in environment by Rust, config.py should resolve correctly.
+    try:
+        from portfolio_src.config import CONFIG_DIR, ASSET_UNIVERSE_PATH
+    except ImportError:
+        logger.error(
+            "Could not import portfolio_src.config. Skipping default config install."
+        )
+        return
+
+    logger.info(f"Checking configuration in: {CONFIG_DIR}")
+
+    # Ensure config dir exists
+    try:
+        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        logger.error(f"Failed to create config dir: {e}")
+        return
+
+    # List of files to install: filename -> target path (defaulting to CONFIG_DIR if not specific)
+    # Asset universe might be in CONFIG_DIR or DATA_DIR depending on config.py,
+    # but based on line 33 of config.py: ASSET_UNIVERSE_PATH = CONFIG_DIR / "asset_universe.csv"
+
+    files_to_install = [
+        "adapter_registry.json",
+        "asset_universe.csv",
+        "ishares_config.json",
+        "ticker_map.json",
+    ]
+
+    for filename in files_to_install:
+        target_path = CONFIG_DIR / filename
+
+        # If file already exists, skip (don't overwrite user changes)
+        if target_path.exists():
+            continue
+
+        # Look in bundled config
+        # content of resource_path is basically sys._MEIPASS + relative_path
+        # My spec mapped 'default_config' -> 'default_config' in root
+        bundled_path = Path(resource_path(os.path.join("default_config", filename)))
+
+        if bundled_path.exists():
+            try:
+                shutil.copy2(bundled_path, target_path)
+                logger.info(f"Installed default config: {filename}")
+            except Exception as e:
+                logger.error(f"Failed to install {filename}: {e}")
+        else:
+            # Only warn if it's the critical registry, others might be optional
+            log_level = logging.WARNING if "registry" in filename else logging.INFO
+            logger.log(log_level, f"Default config not found in bundle: {bundled_path}")
+
+
 def main():
     """Main entry point."""
     # Setup Python path for imports
@@ -822,6 +897,9 @@ def main():
     data_dir = os.environ.get("PRISM_DATA_DIR")
     if data_dir:
         os.makedirs(data_dir, exist_ok=True)
+
+    # Install default config if missing
+    install_default_config()
 
     # Initialize database
     from portfolio_src.data.database import init_db

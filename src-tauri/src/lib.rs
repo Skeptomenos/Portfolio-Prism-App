@@ -10,8 +10,8 @@ mod commands;
 mod python_engine;
 
 use commands::{
-    get_dashboard_data, get_engine_health, get_positions, sync_portfolio, 
-    tr_get_auth_status, tr_check_saved_session, tr_login, tr_submit_2fa, tr_logout
+    get_dashboard_data, get_engine_health, get_pipeline_report, get_positions, run_pipeline,
+    sync_portfolio, tr_check_saved_session, tr_get_auth_status, tr_login, tr_logout, tr_submit_2fa,
 };
 use python_engine::{PythonEngine, StdoutMessage};
 use std::sync::Arc;
@@ -27,142 +27,72 @@ fn greet(name: &str) -> String {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    env_logger::init();
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
             // Create Python engine manager
             let engine = Arc::new(PythonEngine::new());
 
-            // Store engine in app state
-            app.manage(engine.clone());
-
-            let app_handle = app.handle().clone();
-
-            // Get the app data directory for storing user data
+            // Spawn the sidecar
+            // Note: "prism" matches the externalBin name in tauri.conf.json
+            // We use prism-headless for the React UI (Phase 5 architecture)
             let data_dir = app
                 .path()
                 .app_data_dir()
-                .expect("Failed to get app data directory");
+                .expect("failed to get app data dir");
             let data_dir_str = data_dir.to_string_lossy().to_string();
 
-            // Emit initial engine status
-            let _ = app_handle.emit(
-                "engine-status",
-                serde_json::json!({
-                    "status": "connecting",
-                    "progress": 0,
-                    "message": "Starting Python engine..."
-                }),
-            );
+            let (mut rx, child) = app
+                .shell()
+                .sidecar("prism-headless")
+                .expect("failed to create sidecar")
+                .env("PRISM_DATA_DIR", &data_dir_str)
+                .spawn()
+                .expect("failed to spawn sidecar");
 
-            // Clone engine for the async task
+            // Set the child process for stdin writing
             let engine_clone = engine.clone();
-            let app_handle_clone = app_handle.clone();
+            tauri::async_runtime::spawn(async move {
+                engine_clone.set_child(child).await;
+            });
+
+            // Start reading stdout from the sidecar
+            let engine_clone = engine.clone();
+            let app_handle = app.handle().clone();
 
             tauri::async_runtime::spawn(async move {
-                // Try to spawn the headless sidecar first, fall back to prism
-                let sidecar_name = "prism-headless";
+                while let Some(event) = rx.recv().await {
+                    if let CommandEvent::Stdout(line_bytes) = event {
+                        let line = String::from_utf8_lossy(&line_bytes);
+                        // log::debug!("Python stdout: {}", line);
 
-                let sidecar_result = app_handle_clone
-                    .shell()
-                    .sidecar(sidecar_name)
-                    .expect("Failed to create sidecar command")
-                    .env("PRISM_DATA_DIR", &data_dir_str)
-                    .spawn();
-
-                match sidecar_result {
-                    Ok((mut rx, child)) => {
-                        // Store child for writing to stdin
-                        engine_clone.set_child(child).await;
-
-                        // Process stdout events
-                        while let Some(event) = rx.recv().await {
-                            match event {
-                                CommandEvent::Stdout(line) => {
-                                    let line_str = String::from_utf8_lossy(&line);
-                                    let line_trimmed = line_str.trim();
-
-                                    if line_trimmed.is_empty() {
-                                        continue;
-                                    }
-
-                                    // Parse the message
-                                    if let Some(msg) = PythonEngine::parse_stdout(line_trimmed) {
-                                        match msg {
-                                            StdoutMessage::Ready(signal) => {
-                                                println!(
-                                                    "Python engine ready: version={}",
-                                                    signal.version
-                                                );
-                                                engine_clone
-                                                    .set_connected(signal.version.clone())
-                                                    .await;
-
-                                                // Emit connected status
-                                                let _ = app_handle_clone.emit(
-                                                    "engine-status",
-                                                    serde_json::json!({
-                                                        "status": "idle",
-                                                        "progress": 100,
-                                                        "message": format!("Engine v{} connected", signal.version)
-                                                    }),
-                                                );
-                                            }
-                                            StdoutMessage::Response(response) => {
-                                                engine_clone.handle_response(response).await;
-                                            }
-                                        }
-                                    } else {
-                                        // Log unparseable output
-                                        println!("Python stdout: {}", line_trimmed);
-                                    }
-                                }
-                                CommandEvent::Stderr(line) => {
-                                    let line_str = String::from_utf8_lossy(&line);
-                                    eprintln!("Python stderr: {}", line_str.trim());
-                                }
-                                CommandEvent::Error(err) => {
-                                    eprintln!("Python error: {}", err);
-                                    engine_clone.set_disconnected().await;
-                                    let _ = app_handle_clone.emit(
-                                        "engine-status",
-                                        serde_json::json!({
-                                            "status": "error",
-                                            "progress": 0,
-                                            "message": format!("Engine error: {}", err)
-                                        }),
+                        if let Some(message) = PythonEngine::parse_stdout(&line) {
+                            match message {
+                                StdoutMessage::Ready(signal) => {
+                                    log::info!(
+                                        "Python engine started: PID {}, Version {}",
+                                        signal.pid,
+                                        signal.version
                                     );
+                                    engine_clone.set_connected(signal.version).await;
+                                    let _ = app_handle.emit("engine-ready", ());
                                 }
-                                CommandEvent::Terminated(payload) => {
-                                    eprintln!("Python terminated: {:?}", payload);
-                                    engine_clone.set_disconnected().await;
-                                    let _ = app_handle_clone.emit(
-                                        "engine-status",
-                                        serde_json::json!({
-                                            "status": "disconnected",
-                                            "progress": 0,
-                                            "message": "Engine terminated"
-                                        }),
-                                    );
+                                StdoutMessage::Response(response) => {
+                                    engine_clone.handle_response(response).await;
                                 }
-                                _ => {}
                             }
                         }
-                    }
-                    Err(e) => {
-                        eprintln!("Failed to spawn {} sidecar: {}", sidecar_name, e);
-                        // Emit error status but continue - commands will use mock data
-                        let _ = app_handle_clone.emit(
-                            "engine-status",
-                            serde_json::json!({
-                                "status": "error",
-                                "progress": 0,
-                                "message": format!("Python engine failed to start: {}. Using mock data.", e)
-                            }),
-                        );
+                    } else if let CommandEvent::Stderr(line_bytes) = event {
+                        let line = String::from_utf8_lossy(&line_bytes);
+                        log::error!("Python stderr: {}", line);
                     }
                 }
             });
+
+            // Make the engine available to commands via state
+            app.manage(engine);
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -175,7 +105,9 @@ pub fn run() {
             tr_check_saved_session,
             tr_login,
             tr_submit_2fa,
-            tr_logout
+            tr_logout,
+            run_pipeline,
+            get_pipeline_report
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

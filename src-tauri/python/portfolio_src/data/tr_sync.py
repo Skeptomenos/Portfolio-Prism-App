@@ -10,7 +10,7 @@ Fetches portfolio data using pytr library and saves to CSV.
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
-from ..prism_utils.logging_config import get_logger
+from portfolio_src.prism_utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 

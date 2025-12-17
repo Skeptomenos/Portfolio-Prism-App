@@ -1,9 +1,10 @@
 import json
 import os
 import yfinance as yf
-import re
 import pandas as pd
-from prism_utils.logging_config import get_logger
+from typing import Dict, Optional
+from portfolio_src.config import CONFIG_DIR
+from portfolio_src.prism_utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 
@@ -12,9 +13,7 @@ ASSET_NAMES_CACHE_PATH = os.path.join(
     os.path.dirname(__file__), "..", "..", "config", "asset_names.json"
 )
 # Path to the ticker map
-TICKER_MAP_PATH = os.path.join(
-    os.path.dirname(__file__), "..", "..", "config", "ticker_map.json"
-)
+TICKER_MAP_PATH = CONFIG_DIR / "ticker_map.json"
 
 
 def _load_cache():

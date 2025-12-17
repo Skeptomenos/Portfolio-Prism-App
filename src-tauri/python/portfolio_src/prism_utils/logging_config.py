@@ -9,8 +9,8 @@ def get_logger(name: str) -> logging.Logger:
     logger = logging.getLogger(name)
     logger.setLevel(logging.INFO)
 
-    # Create a handler
-    handler = logging.StreamHandler(sys.stdout)
+    # Create a handler - use stderr to avoid polluting stdout IPC channel
+    handler = logging.StreamHandler(sys.stderr)
 
     # Create a formatter and add it to the handler
     formatter = logging.Formatter(

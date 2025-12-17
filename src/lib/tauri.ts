@@ -74,6 +74,14 @@ export interface TauriCommands {
     args: Record<string, never>;
     returns: LogoutResponse;
   };
+  run_pipeline: {
+    args: Record<string, never>;
+    returns: { success: boolean; errors: string[]; durationMs: number };
+  };
+  get_pipeline_report: {
+    args: Record<string, never>;
+    returns: any;
+  };
 }
 
 /**

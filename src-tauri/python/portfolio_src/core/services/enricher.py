@@ -8,9 +8,9 @@ UI-agnostic, reusable with React.
 from typing import Dict, List, Tuple
 import pandas as pd
 
-from ..errors import PipelineError, ErrorPhase, ErrorType
-from ..utils import get_isin_column
-from ...prism_utils.logging_config import get_logger
+from portfolio_src.core.errors import PipelineError, ErrorPhase, ErrorType
+from portfolio_src.core.utils import get_isin_column
+from portfolio_src.prism_utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 

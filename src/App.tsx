@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/views/Dashboard';
 import XRayView from './components/views/XRayView';
+import HealthView from './components/views/HealthView';
 import OverlapView from './components/views/OverlapView';
 import HoldingsView from './components/views/HoldingsView';
 import TradeRepublicView from './components/views/TradeRepublicView';
@@ -62,6 +63,10 @@ function App() {
                 return <XRayView />;
             case 'overlap':
                 return <OverlapView />;
+            case 'data':
+                return <Dashboard />; // Data view not implemented yet
+            case 'health':
+                return <HealthView />;
             case 'holdings':
                 return <HoldingsView />;
             default:
