@@ -1,21 +1,7 @@
+import { useState, useEffect } from 'react';
+import { Loader2, AlertCircle } from 'lucide-react';
 import GlassCard from '../GlassCard';
-
-// Mock overlap data
-const etfs = ['VUSA', 'EQQQ', 'VWRL', 'IUIT', 'VFEM'];
-
-const overlapMatrix = [
-    [100, 85, 92, 78, 45],
-    [85, 100, 88, 95, 38],
-    [92, 88, 100, 82, 62],
-    [78, 95, 82, 100, 35],
-    [45, 38, 62, 35, 100],
-];
-
-const sharedStocks = [
-    { stock: 'Apple Inc.', etfs: ['VUSA', 'EQQQ', 'VWRL'], totalValue: 8420 },
-    { stock: 'Microsoft Corp.', etfs: ['VUSA', 'EQQQ', 'VWRL', 'IUIT'], totalValue: 7150 },
-    { stock: 'NVIDIA Corp.', etfs: ['EQQQ', 'IUIT', 'VWRL'], totalValue: 6890 },
-];
+import { getOverlapAnalysis } from '../../lib/ipc';
 
 const getOverlapColor = (value: number) => {
     if (value === 100) return 'rgba(59, 130, 246, 0.4)';
@@ -26,6 +12,63 @@ const getOverlapColor = (value: number) => {
 };
 
 export default function OverlapView() {
+    const [data, setData] = useState<{ etfs: string[], matrix: number[][], sharedHoldings: any[] } | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const loadData = async () => {
+        try {
+            setLoading(true);
+            const res = await getOverlapAnalysis();
+            setData(res);
+            setError(null);
+        } catch (err: any) {
+            console.error('Failed to load overlap analysis', err);
+            setError(err.message || 'Failed to load overlap data');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        loadData();
+    }, []);
+
+    if (loading) {
+        return (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '400px' }}>
+                <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div style={{ textAlign: 'center', padding: '48px' }}>
+                <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                <h3 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '8px' }}>Error Loading Data</h3>
+                <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>{error}</p>
+                <button 
+                    onClick={loadData}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg"
+                >
+                    Retry
+                </button>
+            </div>
+        );
+    }
+
+    if (!data || data.etfs.length === 0) {
+        return (
+            <div style={{ textAlign: 'center', padding: '48px' }}>
+                <h3 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '8px' }}>No Overlap Data</h3>
+                <p style={{ color: 'var(--text-secondary)' }}>Run the deep analysis in the Health tab to generate your ETF overlap analysis.</p>
+            </div>
+        );
+    }
+
+    const { etfs, matrix, sharedHoldings } = data;
+
     return (
         <div className="animate-fade-in">
             <div style={{ marginBottom: '32px' }}>
@@ -75,7 +118,7 @@ export default function OverlapView() {
                                     >
                                         {rowEtf}
                                     </td>
-                                    {overlapMatrix[rowIndex].map((value, colIndex) => (
+                                    {matrix[rowIndex].map((value, colIndex) => (
                                         <td
                                             key={colIndex}
                                             style={{
@@ -118,7 +161,7 @@ export default function OverlapView() {
                     Most Duplicated Holdings
                 </h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    {sharedStocks.map((item) => (
+                    {sharedHoldings.map((item) => (
                         <div
                             key={item.stock}
                             style={{
@@ -140,7 +183,7 @@ export default function OverlapView() {
                                 </div>
                             </div>
                             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                                {item.etfs.map((etf) => (
+                                {item.etfs.map((etf: string) => (
                                     <span
                                         key={etf}
                                         style={{

@@ -197,13 +197,15 @@ class TRAuthManager:
                 message=f"2FA verification failed: {str(e)}",
             )
 
-    async def try_restore_session(self, phone_number: str = None) -> AuthResult:
+    async def try_restore_session(
+        self, phone_number: Optional[str] = None
+    ) -> AuthResult:
         """
         Try to restore a previous session using stored credentials.
-        
+
         Args:
             phone_number: app_id/phone (optional, unused but kept for signature)
-            
+
         Returns:
             AuthResult with state AUTHENTICATED if session restored
         """
@@ -232,7 +234,7 @@ class TRAuthManager:
             # This calls the daemon, which checks cookies first, then tries login
             # Use restore_only=True to prevent initiating new web login (avoids rate limits)
             result = self.bridge.login(phone, pin, restore_only=True)
-            
+
             if result.get("status") == "authenticated":
                 self._state = AuthState.AUTHENTICATED
                 self._phone_number = phone
@@ -243,16 +245,16 @@ class TRAuthManager:
                     session_token="restored",
                 )
             elif result.get("code") == "SESSION_RESTORE_FAILED":
-                 return AuthResult(
+                return AuthResult(
                     success=False,
                     state=AuthState.IDLE,
                     message="Session expired. Please log in again.",
-                 )
+                )
             elif result.get("status") == "waiting_2fa":
                 # Token expired, need 2FA again
                 self._state = AuthState.WAITING_FOR_2FA
                 return AuthResult(
-                    success=False, # Not fully authenticated yet
+                    success=False,  # Not fully authenticated yet
                     state=AuthState.WAITING_FOR_2FA,
                     message="Session expired. 2FA required.",
                 )
@@ -284,9 +286,10 @@ class TRAuthManager:
         """Remove credentials from keychain and file."""
         # Clean file
         try:
-            cred_file = self.data_dir / "config" / ".credentials.json"
-            if cred_file.exists():
-                cred_file.unlink()
+            if self.data_dir:
+                cred_file = self.data_dir / "config" / ".credentials.json"
+                if cred_file.exists():
+                    cred_file.unlink()
         except Exception:
             pass
 

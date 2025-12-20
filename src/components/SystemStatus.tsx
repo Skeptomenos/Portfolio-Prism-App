@@ -7,9 +7,10 @@
  */
 
 import { useState } from 'react';
-import { RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
+import { RefreshCw, ChevronDown, ChevronUp, Zap, Globe } from 'lucide-react';
 import { useAppStore, useEngineStatus, useSyncProgress } from '../store/useAppStore';
 import { useSyncPortfolio, useEngineHealth } from '../hooks/usePortfolioData';
+import { isTauri } from '../lib/tauri';
 import type { EngineStatus } from '../types';
 
 // =============================================================================
@@ -254,11 +255,16 @@ export default function SystemStatus({
             borderTop: '1px solid rgba(255, 255, 255, 0.1)',
           }}
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <DetailRow label="Version" value={engineHealth?.version ?? '...'} />
-            <DetailRow label="Memory" value={engineHealth ? `${engineHealth.memoryUsageMb.toFixed(1)} MB` : '...'} />
-            <DetailRow label="Runtime" value="Tauri + Python" />
-          </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <DetailRow label="Version" value={engineHealth?.version ?? '...'} />
+              <DetailRow label="Memory" value={engineHealth ? `${engineHealth.memoryUsageMb.toFixed(1)} MB` : '...'} />
+              <DetailRow 
+                label="Runtime" 
+                value={isTauri() ? 'Native Shell' : 'Echo-Bridge'} 
+                icon={isTauri() ? <Zap size={10} /> : <Globe size={10} />}
+              />
+            </div>
+
         </div>
       )}
       
@@ -284,15 +290,19 @@ export default function SystemStatus({
 interface DetailRowProps {
   label: string;
   value: string;
+  icon?: React.ReactNode;
 }
 
-function DetailRow({ label, value }: DetailRowProps) {
+function DetailRow({ label, value, icon }: DetailRowProps) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
       <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{label}</span>
-      <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
-        {value}
-      </span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+        {icon && <span style={{ color: 'var(--text-tertiary)' }}>{icon}</span>}
+        <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
+          {value}
+        </span>
+      </div>
     </div>
   );
 }

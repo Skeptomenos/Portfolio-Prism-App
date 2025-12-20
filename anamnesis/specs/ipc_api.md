@@ -42,8 +42,37 @@ Triggers the full ETL pipeline.
   "status": "error",
   "command": "sync_portfolio",
   "error": {
-    "code": "API_LIMIT_EXCEEDED",
-    "message": "Too many requests to Finnhub."
+    "code": "DATA_FETCH_FAILED",
+    "message": "Failed to fetch historical data for {isin}. Error: {error_details}"
+  }
+}
+```
+
+**Response (YFinance Error):**
+```json
+{
+  "status": "error", 
+  "command": "sync_portfolio",
+  "error": {
+    "code": "TICKER_INVALID",
+    "message": "Invalid ticker format: {ticker}. Yahoo Finance error: {yf_error}"
+  }
+}
+```
+
+**Response (Security Delisted):**
+```json
+{
+  "status": "warning",
+  "command": "sync_portfolio",
+  "error": {
+    "code": "SECURITY_DELISTED", 
+    "message": "Security {isin} may be delisted or inactive. Manual entry recommended.",
+    "data": {
+      "ticker": ticker,
+      "name": security_name,
+      "reason": "possibly_delisted"
+    }
   }
 }
 ```

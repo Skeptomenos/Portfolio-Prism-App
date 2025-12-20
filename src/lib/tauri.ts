@@ -6,92 +6,15 @@
  */
 
 import type { 
-  DashboardData, 
-  EngineHealth, 
-  EngineStatusEvent, 
-  PortfolioUpdatedEvent,
-  SyncProgress,
-  AuthStatus,
-  SessionCheck,
-  AuthResponse,
-  LogoutResponse,
-  PortfolioSyncResult,
-  PositionsResponse
+  TauriCommands,
+  TauriEvents
 } from '../types';
-
-// =============================================================================
-// Environment Detection
-// =============================================================================
 
 /**
  * Check if we're running inside Tauri
  */
 export function isTauri(): boolean {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
-}
-
-// =============================================================================
-// Type Definitions for Tauri Commands
-// =============================================================================
-
-/**
- * Command names and their argument/return types
- */
-export interface TauriCommands {
-  get_engine_health: {
-    args: Record<string, never>;
-    returns: EngineHealth;
-  };
-  get_dashboard_data: {
-    args: { portfolioId: number };
-    returns: DashboardData;
-  };
-  get_positions: {
-    args: { portfolioId: number };
-    returns: PositionsResponse;
-  };
-  sync_portfolio: {
-    args: { force: boolean; portfolioId: number };
-    returns: PortfolioSyncResult;
-  };
-  tr_get_auth_status: {
-    args: Record<string, never>;
-    returns: AuthStatus;
-  };
-  tr_check_saved_session: {
-    args: Record<string, never>;
-    returns: SessionCheck;
-  };
-  tr_login: {
-    args: { phone: string; pin: string; remember: boolean };
-    returns: AuthResponse;
-  };
-  tr_submit_2fa: {
-    args: { code: string };
-    returns: AuthResponse;
-  };
-  tr_logout: {
-    args: Record<string, never>;
-    returns: LogoutResponse;
-  };
-  run_pipeline: {
-    args: Record<string, never>;
-    returns: { success: boolean; errors: string[]; durationMs: number };
-  };
-  get_pipeline_report: {
-    args: Record<string, never>;
-    returns: any;
-  };
-}
-
-/**
- * Event names and their payload types
- */
-export interface TauriEvents {
-  'engine-status': EngineStatusEvent;
-  'portfolio-updated': PortfolioUpdatedEvent;
-  'sync-progress': SyncProgress;
-  'python-ready': { port: number; status: string };
 }
 
 // =============================================================================

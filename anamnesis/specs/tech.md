@@ -89,6 +89,7 @@
 ### 4.3 Zero-Effort Telemetry
 *   **Mechanism:** Rust acts as the central log aggregator.
 *   **Scrubber:** All logs pass through a regex-based PII scrubber before storage.
+*   **Standards:** See `anamnesis/specs/observability.md` for log level mapping and CLI orchestration standards.
 *   **Reporting:** Critical crashes are automatically hashed, sanitized, and sent to the Cloudflare Worker Proxy (which posts to GitHub Issues) if the user opts in.
 
 ### 4.4 Data Directory Migration

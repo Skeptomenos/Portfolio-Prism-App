@@ -16,34 +16,43 @@ from datetime import datetime
 
 class ErrorPhase(Enum):
     """Phase where error occurred."""
+
     DATA_LOADING = "DATA_LOADING"
     ETF_DECOMPOSITION = "ETF_DECOMPOSITION"
     ENRICHMENT = "ENRICHMENT"
     AGGREGATION = "AGGREGATION"
     HARVESTING = "HARVESTING"
     REPORTING = "REPORTING"
+    VALIDATION = "VALIDATION"
 
 
 class ErrorType(Enum):
     """Type of error for categorization."""
+
     NO_ADAPTER = "NO_ADAPTER"
     API_FAILURE = "API_FAILURE"
     CACHE_MISS = "CACHE_MISS"
     VALIDATION_FAILED = "VALIDATION_FAILED"
     FILE_NOT_FOUND = "FILE_NOT_FOUND"
     PARSE_ERROR = "PARSE_ERROR"
+    SCHEMA_MISMATCH = "SCHEMA_MISMATCH"
     UNKNOWN = "UNKNOWN"
 
 
 @dataclass
-class PipelineError:
+class PipelineError(Exception):
     """Structured error for debugging and GitHub reporting."""
+
     phase: ErrorPhase
     error_type: ErrorType
     item: str  # ISIN or identifier (safe to share)
     message: str
     fix_hint: Optional[str] = None
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
+
+    def __post_init__(self):
+        # Initialize the Exception base class with the message
+        super().__init__(self.message)
 
     def to_dict(self) -> dict:
         """Convert to dictionary for JSON serialization."""
@@ -70,6 +79,7 @@ class PipelineError:
 @dataclass
 class PipelineResult:
     """Result of pipeline execution."""
+
     success: bool
     etfs_processed: int
     etfs_failed: int
@@ -85,3 +95,18 @@ class PipelineResult:
     def get_anonymized_errors(self) -> List[dict]:
         """Get errors safe for GitHub reporting."""
         return [e.anonymize() for e in self.errors]
+
+
+class SchemaError(PipelineError):
+    """Raised when DataFrame schema doesn't match expected format."""
+
+    def __init__(self, df_columns, required_columns, context="Unknown"):
+        missing = [col for col in required_columns if col not in df_columns]
+        message = f"Schema validation failed in {context}. Missing columns: {missing}. Available: {df_columns}"
+        super().__init__(
+            phase=ErrorPhase.VALIDATION,
+            error_type=ErrorType.SCHEMA_MISMATCH,
+            item=context,
+            message=message,
+            fix_hint=f"Check provider adapter output for required columns: {required_columns}",
+        )

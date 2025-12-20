@@ -1,0 +1,137 @@
+import pytest
+import pandas as pd
+import os
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+from datetime import date
+
+from portfolio_src.data.hive_client import AssetEntry, HiveResult
+from portfolio_src.core.services.enricher import HiveEnrichmentService
+from portfolio_src.data.state_manager import sync_asset_universe_with_hive
+
+
+class TestHiveIntegration:
+    @pytest.fixture
+    def mock_hive_client(self):
+        with patch("portfolio_src.data.state_manager.get_hive_client") as mock_get:
+            client = MagicMock()
+            mock_get.return_value = client
+            yield client
+
+    @pytest.fixture
+    def temp_universe_path(self, tmp_path):
+        path = tmp_path / "asset_universe.csv"
+        # Create initial local universe
+        df = pd.DataFrame(
+            [
+                {
+                    "ISIN": "LOCAL1",
+                    "Name": "Local Asset",
+                    "Asset_Class": "Stock",
+                    "Source": "manual",
+                }
+            ]
+        )
+        df.to_csv(path, index=False)
+        return path
+
+    def test_sync_asset_universe_merging(self, mock_hive_client, temp_universe_path):
+        """Verify Hive data is merged into local CSV correctly."""
+        # Setup mock Hive data
+        mock_hive_client.is_configured = True
+        mock_hive_client.sync_universe.return_value = HiveResult(success=True)
+        mock_hive_client._universe_cache = {
+            "HIVE1": AssetEntry(
+                isin="HIVE1",
+                name="Hive Asset",
+                asset_class="Stock",
+                base_currency="EUR",
+                ticker="H1.DE",
+            ),
+            "LOCAL1": AssetEntry(
+                isin="LOCAL1",
+                name="Updated Local",
+                asset_class="Stock",
+                base_currency="EUR",
+                ticker="L1.DE",
+            ),
+        }
+
+        with patch(
+            "portfolio_src.data.state_manager.UNIVERSE_PATH", temp_universe_path
+        ):
+            sync_asset_universe_with_hive(force=True)
+
+        # Verify merged CSV
+        df_merged = pd.read_csv(temp_universe_path)
+        assert len(df_merged) == 2
+        assert "HIVE1" in df_merged["ISIN"].values
+        # Verify Hive data took precedence for LOCAL1
+        local_row = df_merged[df_merged["ISIN"] == "LOCAL1"].iloc[0]
+        assert local_row["Name"] == "Updated Local"
+        assert local_row["Source"] == "hive"
+
+    def test_hive_enrichment_service_flow(self):
+        """Verify Hive -> API -> Contribution flow."""
+        with (
+            patch(
+                "portfolio_src.core.services.enricher.get_hive_client"
+            ) as mock_get_hive,
+            patch(
+                "portfolio_src.core.services.enricher.EnrichmentService"
+            ) as mock_api_service_cls,
+        ):
+            hive_client = mock_get_hive.return_value
+            api_service = mock_api_service_cls.return_value
+
+            # 1. Hive has ISIN1, missing ISIN2
+            hive_client.batch_lookup.return_value = {
+                "ISIN1": AssetEntry(
+                    isin="ISIN1",
+                    name="Hive Asset",
+                    asset_class="Stock",
+                    base_currency="EUR",
+                )
+            }
+
+            # 2. API provides ISIN2
+            api_service.get_metadata_batch.return_value = {
+                "ISIN2": {
+                    "isin": "ISIN2",
+                    "name": "API Asset",
+                    "sector": "Tech",
+                    "asset_class": "Stock",
+                }
+            }
+
+            service = HiveEnrichmentService()
+            results = service.get_metadata_batch(["ISIN1", "ISIN2"])
+
+            # Verify combined results
+            assert "ISIN1" in results
+            assert "ISIN2" in results
+            assert results["ISIN1"]["name"] == "Hive Asset"
+            assert results["ISIN2"]["name"] == "API Asset"
+
+            # Verify contribution was triggered for ISIN2
+            hive_client.batch_contribute.assert_called_once()
+            contributions = hive_client.batch_contribute.call_args[0][0]
+            assert any(c.isin == "ISIN2" for c in contributions)
+
+    def test_hive_sync_resilience(self, mock_hive_client, temp_universe_path):
+        """Verify sync handles Hive failure gracefully."""
+        mock_hive_client.is_configured = True
+        mock_hive_client.sync_universe.return_value = HiveResult(
+            success=False, error="Connection Timeout"
+        )
+
+        with patch(
+            "portfolio_src.data.state_manager.UNIVERSE_PATH", temp_universe_path
+        ):
+            # Should not raise exception
+            sync_asset_universe_with_hive()
+
+        # Local data should remain intact
+        df = pd.read_csv(temp_universe_path)
+        assert len(df) == 1
+        assert df.iloc[0]["ISIN"] == "LOCAL1"

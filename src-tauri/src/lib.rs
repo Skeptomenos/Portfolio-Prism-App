@@ -10,8 +10,9 @@ mod commands;
 mod python_engine;
 
 use commands::{
-    get_dashboard_data, get_engine_health, get_pipeline_report, get_positions, run_pipeline,
-    sync_portfolio, tr_check_saved_session, tr_get_auth_status, tr_login, tr_logout, tr_submit_2fa,
+    get_dashboard_data, get_engine_health, get_overlap_analysis, get_pipeline_report, get_positions,
+    get_true_holdings, run_pipeline, sync_portfolio, tr_check_saved_session, tr_get_auth_status,
+    tr_login, tr_logout, tr_submit_2fa, upload_holdings,
 };
 use python_engine::{PythonEngine, StdoutMessage};
 use std::sync::Arc;
@@ -65,16 +66,10 @@ pub fn run() {
                 while let Some(event) = rx.recv().await {
                     if let CommandEvent::Stdout(line_bytes) = event {
                         let line = String::from_utf8_lossy(&line_bytes);
-                        // log::debug!("Python stdout: {}", line);
-
                         if let Some(message) = PythonEngine::parse_stdout(&line) {
                             match message {
                                 StdoutMessage::Ready(signal) => {
-                                    log::info!(
-                                        "Python engine started: PID {}, Version {}",
-                                        signal.pid,
-                                        signal.version
-                                    );
+                                    println!("  \x1b[32m✓\x1b[0m Python Engine Ready (v{}, PID: {})", signal.version, signal.pid);
                                     engine_clone.set_connected(signal.version).await;
                                     let _ = app_handle.emit("engine-ready", ());
                                 }
@@ -85,7 +80,42 @@ pub fn run() {
                         }
                     } else if let CommandEvent::Stderr(line_bytes) = event {
                         let line = String::from_utf8_lossy(&line_bytes);
-                        log::error!("Python stderr: {}", line);
+                        let trimmed = line.trim();
+                        if trimmed.is_empty() {
+                            continue;
+                        }
+
+                        // Filter out repetitive noise
+                        if trimmed.contains("possibly delisted") || trimmed.contains("No historical data found") {
+                            continue;
+                        }
+                        
+                        if trimmed.contains("DEBUG") || trimmed.contains("DEBUG:") {
+                            continue;
+                        }
+
+                        if trimmed.contains("[TR Daemon]") && !trimmed.contains("ERROR") && !trimmed.contains("WARNING") {
+                            continue;
+                        }
+
+                        if trimmed.contains("[TR Bridge]") && !trimmed.contains("ERROR") {
+                            continue;
+                        }
+
+                        // Beautiful Log Formatting
+                        let (level_prefix, msg) = if trimmed.starts_with("[INFO]") {
+                            ("\x1b[34mINFO \x1b[0m", &trimmed[6..])
+                        } else if trimmed.starts_with("[WARNING]") {
+                            ("\x1b[33mWARN \x1b[0m", &trimmed[9..])
+                        } else if trimmed.starts_with("[ERROR]") {
+                            ("\x1b[31mERROR\x1b[0m", &trimmed[7..])
+                        } else if trimmed.contains("Traceback") || trimmed.contains("Error:") {
+                            ("\x1b[31mFATAL\x1b[0m", trimmed)
+                        } else {
+                            ("\x1b[90mLOG  \x1b[0m", trimmed)
+                        };
+
+                        println!("  \x1b[90mPRISM\x1b[0m ↳ {} {}", level_prefix, msg.trim());
                     }
                 }
             });
@@ -107,7 +137,10 @@ pub fn run() {
             tr_submit_2fa,
             tr_logout,
             run_pipeline,
-            get_pipeline_report
+            get_pipeline_report,
+            get_true_holdings,
+            get_overlap_analysis,
+            upload_holdings
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

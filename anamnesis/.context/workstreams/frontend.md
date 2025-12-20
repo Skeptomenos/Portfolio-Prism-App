@@ -6,19 +6,23 @@
 ---
 
 ## Active Tasks
+- [ ] **TASK-613:** Update HealthView with Trust Scores.
 
-### 1. State Management
-- [ ] Initialize Zustand Store for application state (User, Portfolio ID).
-- [ ] Setup TanStack Query for async data fetching (Engine Commands).
+## Completed Tasks
+### 1. State Management ✅
+- [x] Initialize Zustand Store for application state.
+- [x] Setup TanStack Query for async data fetching.
 
-### 2. IPC Bridge
-- [ ] Create `lib/ipc.ts` to wrap Tauri `invoke` commands.
-- [ ] Implement `useEngineEvent` hook for listening to Rust events.
+### 2. IPC Bridge ✅
+- [x] Create `lib/ipc.ts` to wrap Tauri `invoke` commands.
+- [x] Implement `useEngineEvent` hook.
+- [x] Implement `upload_holdings` IPC bridge.
 
-### 3. Feature Components
-- [ ] **System Status:** Component showing Engine health (RAM/Latency).
-- [ ] **Dashboard:** Metric cards and Recharts integration.
-- [ ] **Holdings:** ShadCN Data Table with sorting/filtering.
+### 3. Feature Components ✅
+- [x] **System Status:** Component showing Engine health.
+- [x] **Dashboard:** Metric cards and Recharts integration.
+- [x] **Holdings:** ShadCN Data Table.
+- [x] **HoldingsUpload:** Smart upload component with validation.
 
 ## Decisions Log
 - **2024-12-12:** Frontend is the *only* UI. No hybrid views.

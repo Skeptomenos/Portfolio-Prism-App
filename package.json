@@ -8,7 +8,9 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "build:python": "bash scripts/build-python.sh"
+    "dev:engine": "cd src-tauri/python && uv run prism_headless.py --http",
+    "build:python": "python3 scripts/prism.py build",
+    "start": "python3 scripts/prism.py all"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.12",
@@ -25,6 +27,7 @@
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",
+    "@types/node": "^25.0.3",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.7.0",

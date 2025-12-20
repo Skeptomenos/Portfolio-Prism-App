@@ -21,13 +21,19 @@ import json
 import threading
 import time
 import asyncio
+import argparse
 from pathlib import Path
+from typing import Any, Dict, List, Optional, cast
 
-# DEBUG: Low-level trace
+# FastAPI imports for Echo-Bridge
 try:
-    os.write(2, b"[PRISM] Starting up...\n")
-except Exception:
-    pass
+    from fastapi import FastAPI, Request
+    from fastapi.middleware.cors import CORSMiddleware
+    import uvicorn
+
+    HAS_HTTP = True
+except ImportError:
+    HAS_HTTP = False
 
 # Handle PyInstaller frozen mode - ensure SSL certificates work
 if getattr(sys, "frozen", False):
@@ -41,8 +47,9 @@ if getattr(sys, "frozen", False):
 
 # Ensure stdout is line-buffered for IPC
 try:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(line_buffering=True)
+    reconfig = getattr(sys.stdout, "reconfigure", None)
+    if reconfig:
+        reconfig(line_buffering=True)
 except Exception:
     pass
 
@@ -64,12 +71,7 @@ def resource_path(relative_path: str) -> str:
     Get absolute path to a resource.
     Works for both dev mode and PyInstaller frozen mode.
     """
-    if hasattr(sys, "_MEIPASS"):
-        # PyInstaller creates temp folder, stores path in _MEIPASS
-        base_path = sys._MEIPASS
-    else:
-        base_path = os.path.dirname(os.path.abspath(__file__))
-
+    base_path = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(base_path, relative_path)
 
 
@@ -195,7 +197,7 @@ def handle_tr_get_auth_status(cmd_id: int, payload: dict) -> dict:
             "idle": "idle",
             "waiting_2fa": "waiting_2fa",
         }
-        auth_state = auth_state_map.get(status.get("status"), "idle")
+        auth_state = auth_state_map.get(status.get("status", "idle"), "idle")
 
         # Check for stored credentials
         auth_manager = get_auth_manager()
@@ -375,7 +377,7 @@ def handle_sync_portfolio(cmd_id: int, payload: dict) -> dict:
     from portfolio_src.data.database import sync_positions_from_tr, update_sync_state
 
     portfolio_id = payload.get("portfolioId", 1)
-    force = payload.get("force", False)
+    # force = payload.get("force", False)
 
     # Emit progress
     emit_progress(0, "Starting sync...")
@@ -391,7 +393,6 @@ def handle_sync_portfolio(cmd_id: int, payload: dict) -> dict:
             emit_progress(2, "Restoring session...")
             auth_manager = get_auth_manager()
 
-            # Use run_async helper if available or inline loop - reusing pattern from login
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             try:
@@ -401,12 +402,17 @@ def handle_sync_portfolio(cmd_id: int, payload: dict) -> dict:
                 if restore_result.success:
                     emit_progress(5, "Session restored.")
                     status = bridge.get_status()  # Refresh status
+                else:
+                    logger.warning(
+                        f"Session restoration failed: {restore_result.message}"
+                    )
             except Exception as e:
                 logger.error(f"Auto-restore failed: {e}")
             finally:
                 loop.close()
 
         if status.get("status") != "authenticated":
+            logger.error("Authentication required: No active session found.")
             return error_response(
                 cmd_id,
                 "TR_AUTH_REQUIRED",
@@ -474,7 +480,6 @@ def handle_sync_portfolio(cmd_id: int, payload: dict) -> dict:
 
 def handle_run_pipeline(cmd_id: int, payload: dict) -> dict:
     """Handle run_pipeline command to trigger analytics independently."""
-    import time
     from portfolio_src.core.pipeline import Pipeline
 
     emit_progress(0, "Starting analytics pipeline...")
@@ -526,7 +531,7 @@ def handle_run_pipeline(cmd_id: int, payload: dict) -> dict:
 # =============================================================================
 
 
-def _get_allocations_from_report() -> dict:
+def _get_allocations_from_report() -> Optional[dict]:
     """
     Read the TRUE_EXPOSURE_REPORT csv and aggregate by Sector/Geography.
     Returns: {"sector": {name: pct}, "region": {name: pct}}
@@ -547,7 +552,7 @@ def _get_allocations_from_report() -> dict:
             # Sum percentage by group
             grp = df.groupby(group_col)["portfolio_percentage"].sum()
             # Convert to dict, round to 2 decimals
-            return {k: round(v, 2) for k, v in grp.items() if v > 0}
+            return {str(k): round(float(v), 2) for k, v in grp.items() if v > 0}
 
         return {"sector": agg_to_dict("sector"), "region": agg_to_dict("geography")}
     except Exception:
@@ -561,7 +566,7 @@ def _get_allocations_from_report() -> dict:
 
 def handle_get_dashboard_data(cmd_id: int, payload: dict) -> dict:
     """Handle get_dashboard_data command."""
-    from portfolio_src.data.database import get_positions, count_positions
+    from portfolio_src.data.database import get_positions
 
     portfolio_id = payload.get("portfolioId", 1)
     positions = get_positions(portfolio_id)
@@ -585,14 +590,14 @@ def handle_get_dashboard_data(cmd_id: int, payload: dict) -> dict:
         }
 
     # Calculate totals from positions
-    total_value = 0
-    total_cost = 0
+    total_value = 0.0
+    total_cost = 0.0
     holdings = []
 
     for pos in positions:
-        quantity = pos.get("quantity", 0)
-        current_price = pos.get("current_price") or pos.get("cost_basis") or 0
-        cost_basis = pos.get("cost_basis") or current_price
+        quantity = float(pos.get("quantity", 0))
+        current_price = float(pos.get("current_price") or pos.get("cost_basis") or 0)
+        cost_basis = float(pos.get("cost_basis") or current_price)
 
         value = quantity * current_price
         cost = quantity * cost_basis
@@ -608,7 +613,7 @@ def handle_get_dashboard_data(cmd_id: int, payload: dict) -> dict:
                 "name": pos.get("name") or pos.get("isin", "Unknown"),
                 "ticker": pos.get("symbol"),
                 "value": round(value, 2),
-                "weight": 0,  # Calculated after we have total
+                "weight": 0.0,  # Calculated after we have total
                 "pnl": round(pnl, 2),
                 "pnlPercentage": round(pnl_pct, 1),
                 "quantity": quantity,
@@ -618,7 +623,7 @@ def handle_get_dashboard_data(cmd_id: int, payload: dict) -> dict:
 
     # Calculate weights
     for h in holdings:
-        h["weight"] = round(h["value"] / total_value, 4) if total_value > 0 else 0
+        h["weight"] = round(h["value"] / total_value, 4) if total_value > 0 else 0.0
 
     # Sort by value descending, take top 10
     holdings.sort(key=lambda x: x["value"], reverse=True)
@@ -626,13 +631,13 @@ def handle_get_dashboard_data(cmd_id: int, payload: dict) -> dict:
 
     # Calculate total gain
     total_gain = total_value - total_cost
-    gain_percentage = (total_gain / total_cost * 100) if total_cost > 0 else 0
+    gain_percentage = (total_gain / total_cost * 100) if total_cost > 0 else 0.0
 
     # Build allocations (simplified - use asset_class for now)
     asset_class_alloc = {}
     for h in holdings:
-        ac = h.get("assetClass") or "Unknown"
-        asset_class_alloc[ac] = asset_class_alloc.get(ac, 0) + h["weight"]
+        ac = str(h.get("assetClass") or "Unknown")
+        asset_class_alloc[ac] = asset_class_alloc.get(ac, 0.0) + h["weight"]
 
     # Load Real Analytics Allocations
     sector_alloc = {}
@@ -651,17 +656,17 @@ def handle_get_dashboard_data(cmd_id: int, payload: dict) -> dict:
     day_change = 0.0
     day_change_pct = 0.0
     history = []
-    
+
     try:
         from portfolio_src.data.history_manager import HistoryManager
-        
+
         history_mgr = HistoryManager()
         # Pass the raw database positions (dicts) to the manager
         day_change, day_change_pct = history_mgr.calculate_day_change(positions)
-        
+
         # Calculate 30-day history for chart
         history = history_mgr.get_portfolio_history(positions, days=30)
-        
+
     except Exception as e:
         logger.error(f"History calculation failed: {e}")
 
@@ -674,7 +679,7 @@ def handle_get_dashboard_data(cmd_id: int, payload: dict) -> dict:
             "gainPercentage": round(gain_percentage, 1),
             "dayChange": day_change,
             "dayChangePercent": day_change_pct,
-            "history": history,  # New field
+            "history": history,
             "allocations": {
                 "sector": sector_alloc,
                 "region": region_alloc,
@@ -711,14 +716,14 @@ def handle_get_positions(cmd_id: int, payload: dict) -> dict:
         }
 
     # Calculate totals
-    total_value = 0
-    total_cost = 0
+    total_value = 0.0
+    total_cost = 0.0
     positions = []
 
     for pos in positions_raw:
-        quantity = pos.get("quantity", 0)
-        current_price = pos.get("current_price") or pos.get("cost_basis") or 0
-        avg_buy_price = pos.get("cost_basis") or current_price
+        quantity = float(pos.get("quantity", 0))
+        current_price = float(pos.get("current_price") or pos.get("cost_basis") or 0)
+        avg_buy_price = float(pos.get("cost_basis") or current_price)
 
         current_value = quantity * current_price
         total_cost_pos = quantity * avg_buy_price
@@ -759,7 +764,7 @@ def handle_get_positions(cmd_id: int, payload: dict) -> dict:
                 "totalCost": round(total_cost_pos, 2),
                 "pnlEur": round(pnl_eur, 2),
                 "pnlPercent": round(pnl_percent, 2),
-                "weight": 0,  # Calculated after we have total
+                "weight": 0.0,  # Calculated after we have total
                 "currency": pos.get("currency") or "EUR",
                 "notes": pos.get("notes") or "",
                 "lastUpdated": pos.get("updated_at") or datetime.now().isoformat(),
@@ -769,7 +774,7 @@ def handle_get_positions(cmd_id: int, payload: dict) -> dict:
     # Calculate weights
     for p in positions:
         p["weight"] = (
-            round(p["currentValue"] / total_value * 100, 2) if total_value > 0 else 0
+            round(p["currentValue"] / total_value * 100, 2) if total_value > 0 else 0.0
         )
 
     # Sort by value descending
@@ -781,7 +786,7 @@ def handle_get_positions(cmd_id: int, payload: dict) -> dict:
 
     # Calculate total P&L
     total_pnl = total_value - total_cost
-    total_pnl_percent = (total_pnl / total_cost * 100) if total_cost > 0 else 0
+    total_pnl_percent = (total_pnl / total_cost * 100) if total_cost > 0 else 0.0
 
     return {
         "id": cmd_id,
@@ -797,6 +802,220 @@ def handle_get_positions(cmd_id: int, payload: dict) -> dict:
     }
 
 
+def handle_upload_holdings(cmd_id: int, payload: dict) -> dict:
+    """Handle upload_holdings command."""
+    from portfolio_src.core.data_cleaner import DataCleaner
+    from portfolio_src.data.holdings_cache import get_holdings_cache
+    from portfolio_src.data.hive_client import get_hive_client
+
+    file_path = payload.get("filePath")
+    etf_isin = payload.get("etfIsin")
+
+    if not file_path or not etf_isin:
+        return error_response(
+            cmd_id, "INVALID_PARAMS", "filePath and etfIsin are required"
+        )
+
+    try:
+        # 1. Smart Load & Clean
+        df_raw = DataCleaner.smart_load(file_path)
+        df_clean = DataCleaner.cleanup(df_raw)
+
+        if df_clean.empty:
+            return error_response(
+                cmd_id, "CLEANUP_FAILED", "No valid holdings found in file"
+            )
+
+        # 2. Validate Weight Sum
+        total_weight = float(df_clean["weight"].sum())
+        if not (99.0 <= total_weight <= 101.0):
+            logger.warning(f"Holdings weight sum for {etf_isin} is {total_weight}%")
+
+        # 3. Save to Local Cache
+        cache = get_holdings_cache()
+        cache._save_to_local_cache(etf_isin, df_clean, source="manual_upload")
+
+        # 4. Contribute to Hive
+        hive_client = get_hive_client()
+        contribution_success = False
+        if hive_client.is_configured:
+            contribution_success = hive_client.contribute_etf_holdings(
+                etf_isin, df_clean
+            )
+
+        return {
+            "id": cmd_id,
+            "status": "success",
+            "data": {
+                "isin": etf_isin,
+                "holdingsCount": len(df_clean),
+                "totalWeight": round(total_weight, 2),
+                "contributedToHive": contribution_success,
+            },
+        }
+    except Exception as e:
+        logger.error(f"Manual upload failed for {etf_isin}: {e}", exc_info=True)
+        return error_response(cmd_id, "UPLOAD_FAILED", str(e))
+
+
+def handle_get_true_holdings(cmd_id: int, payload: dict) -> dict:
+    """Handle get_true_holdings command - returns decomposed holdings from CSV."""
+    from portfolio_src.config import HOLDINGS_BREAKDOWN_PATH
+    import pandas as pd
+
+    if not os.path.exists(HOLDINGS_BREAKDOWN_PATH):
+        return {"id": cmd_id, "status": "success", "data": {"holdings": []}}
+
+    try:
+        df = pd.read_csv(HOLDINGS_BREAKDOWN_PATH)
+        if df.empty:
+            return {"id": cmd_id, "status": "success", "data": {"holdings": []}}
+
+        # Group by child_isin to get total value across all ETFs
+        # We use child_name as well to keep it in the result
+        grouped = df.groupby(["child_isin", "child_name"], as_index=False).agg(
+            {"value_eur": "sum", "sector": "first", "geography": "first"}
+        )
+
+        holdings = []
+        for _, row in grouped.iterrows():
+            child_isin = str(row["child_isin"])
+
+            # Get sources for this specific child
+            sources_df = df[df["child_isin"] == child_isin]
+            sources = []
+            for _, s_row in sources_df.iterrows():
+                sources.append(
+                    {
+                        "etf": str(s_row["parent_isin"]),
+                        "value": round(float(s_row["value_eur"]), 2),
+                        "weight": round(float(s_row["weight_percent"]) / 100.0, 4),
+                    }
+                )
+
+            holdings.append(
+                {
+                    "stock": str(row["child_name"]),
+                    "ticker": child_isin,
+                    "totalValue": round(float(row["value_eur"]), 2),
+                    "sector": str(row["sector"]),
+                    "geography": str(row["geography"]),
+                    "sources": sources,
+                }
+            )
+
+        # Sort by total value descending
+        holdings.sort(key=lambda x: x["totalValue"], reverse=True)
+
+        return {"id": cmd_id, "status": "success", "data": {"holdings": holdings}}
+    except Exception as e:
+        logger.error(f"Failed to get true holdings: {e}", exc_info=True)
+        return error_response(cmd_id, "HOLDINGS_ERROR", str(e))
+
+
+def handle_get_overlap_analysis(cmd_id: int, payload: dict) -> dict:
+    """Handle get_overlap_analysis command."""
+    import numpy as np
+    from portfolio_src.config import HOLDINGS_BREAKDOWN_PATH
+    import pandas as pd
+
+    if not os.path.exists(HOLDINGS_BREAKDOWN_PATH):
+        return {
+            "id": cmd_id,
+            "status": "success",
+            "data": {"etfs": [], "matrix": [], "sharedHoldings": []},
+        }
+
+    try:
+        df = pd.read_csv(HOLDINGS_BREAKDOWN_PATH)
+        if df.empty:
+            return {
+                "id": cmd_id,
+                "status": "success",
+                "data": {"etfs": [], "matrix": [], "sharedHoldings": []},
+            }
+
+        # 1. Get list of unique ETFs
+        etfs = sorted(df["parent_isin"].unique().tolist())
+        if not etfs:
+            return {
+                "id": cmd_id,
+                "status": "success",
+                "data": {"etfs": [], "matrix": [], "sharedHoldings": []},
+            }
+
+        # 2. Calculate Overlap Matrix
+        n = len(etfs)
+        matrix = np.zeros((n, n))
+
+        # Pivot to get weights of each child in each parent
+        pivot_df = df.pivot(
+            index="child_isin", columns="parent_isin", values="weight_percent"
+        ).fillna(0)
+
+        for i in range(n):
+            for j in range(n):
+                if i == j:
+                    matrix[i][j] = 100.0
+                else:
+                    # Sum of minimum weights
+                    overlap = np.minimum(pivot_df[etfs[i]], pivot_df[etfs[j]]).sum()
+                    matrix[i][j] = round(float(overlap), 1)
+
+        # 3. Get Most Shared Holdings
+        # Group by child_isin and count parents
+        shared_grouped = df.groupby(["child_isin", "child_name"], as_index=False).agg(
+            {"value_eur": "sum"}
+        )
+
+        # Add parent list separately to avoid aggregation issues with lists in some pandas versions
+        shared_holdings = []
+        for _, row in shared_grouped.iterrows():
+            child_isin = str(row["child_isin"])
+            parents = df[df["child_isin"] == child_isin]["parent_isin"].tolist()
+
+            if len(parents) > 1:
+                shared_holdings.append(
+                    {
+                        "stock": str(row["child_name"]),
+                        "etfs": parents,
+                        "totalValue": round(float(row["value_eur"]), 2),
+                    }
+                )
+
+        # Sort by total value descending
+        shared_holdings.sort(key=lambda x: x["totalValue"], reverse=True)
+        shared_holdings = shared_holdings[:10]
+
+        return {
+            "id": cmd_id,
+            "status": "success",
+            "data": {
+                "etfs": etfs,
+                "matrix": matrix.tolist(),
+                "sharedHoldings": shared_holdings,
+            },
+        }
+    except Exception as e:
+        logger.error(f"Failed to get overlap analysis: {e}", exc_info=True)
+        return error_response(cmd_id, "OVERLAP_ERROR", str(e))
+
+
+def handle_get_pipeline_report(cmd_id: int, payload: dict) -> dict:
+    """Handle get_pipeline_report command."""
+    from portfolio_src.config import PIPELINE_HEALTH_PATH
+
+    if not os.path.exists(PIPELINE_HEALTH_PATH):
+        return {"id": cmd_id, "status": "success", "data": None}
+
+    try:
+        with open(PIPELINE_HEALTH_PATH, "r") as f:
+            data = json.load(f)
+        return {"id": cmd_id, "status": "success", "data": data}
+    except Exception as e:
+        return error_response(cmd_id, "REPORT_ERROR", str(e))
+
+
 def dispatch(cmd: dict) -> dict:
     """Route command to appropriate handler."""
     command = cmd.get("command", "")
@@ -805,6 +1024,7 @@ def dispatch(cmd: dict) -> dict:
 
     handlers = {
         "get_health": handle_get_health,
+        "get_engine_health": handle_get_health,  # Alias for Tauri parity
         "get_dashboard_data": handle_get_dashboard_data,
         "get_positions": handle_get_positions,
         "tr_get_auth_status": handle_tr_get_auth_status,
@@ -814,6 +1034,10 @@ def dispatch(cmd: dict) -> dict:
         "tr_logout": handle_tr_logout,
         "sync_portfolio": handle_sync_portfolio,
         "run_pipeline": handle_run_pipeline,
+        "upload_holdings": handle_upload_holdings,
+        "get_true_holdings": handle_get_true_holdings,
+        "get_overlap_analysis": handle_get_overlap_analysis,
+        "get_pipeline_report": handle_get_pipeline_report,
     }
 
     handler = handlers.get(command)
@@ -847,7 +1071,7 @@ def install_default_config() -> None:
     # We must import config after environment setup or inside the function
     # but since PRISM_DATA_DIR is set in environment by Rust, config.py should resolve correctly.
     try:
-        from portfolio_src.config import CONFIG_DIR, ASSET_UNIVERSE_PATH
+        from portfolio_src.config import CONFIG_DIR
     except ImportError:
         logger.error(
             "Could not import portfolio_src.config. Skipping default config install."
@@ -864,9 +1088,6 @@ def install_default_config() -> None:
         return
 
     # List of files to install: filename -> target path (defaulting to CONFIG_DIR if not specific)
-    # Asset universe might be in CONFIG_DIR or DATA_DIR depending on config.py,
-    # but based on line 33 of config.py: ASSET_UNIVERSE_PATH = CONFIG_DIR / "asset_universe.csv"
-
     files_to_install = [
         "adapter_registry.json",
         "asset_universe.csv",
@@ -882,8 +1103,6 @@ def install_default_config() -> None:
             continue
 
         # Look in bundled config
-        # content of resource_path is basically sys._MEIPASS + relative_path
-        # My spec mapped 'default_config' -> 'default_config' in root
         bundled_path = Path(resource_path(os.path.join("default_config", filename)))
 
         if bundled_path.exists():
@@ -898,8 +1117,68 @@ def install_default_config() -> None:
             logger.log(log_level, f"Default config not found in bundle: {bundled_path}")
 
 
+# =============================================================================
+# HTTP SERVER (Echo-Bridge)
+# =============================================================================
+
+if HAS_HTTP:
+    app = FastAPI(title="Prism Echo-Bridge")
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://localhost:5000",
+        ],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    ECHO_TOKEN = os.environ.get("PRISM_ECHO_TOKEN", "dev-echo-bridge-secret")
+
+    @app.post("/command")
+    async def http_command(request: Request):
+        token = request.headers.get("X-Echo-Bridge-Token")
+        if token != ECHO_TOKEN:
+            return {
+                "id": 0,
+                "status": "error",
+                "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Invalid Echo-Bridge token",
+                },
+            }
+
+        try:
+            cmd = await request.json()
+            return dispatch(cmd)
+        except Exception as e:
+            return {
+                "id": 0,
+                "status": "error",
+                "error": {"code": "HTTP_ERROR", "message": "Internal server error"},
+            }
+
+    @app.get("/health")
+    async def http_health():
+        """Health check for Echo-Bridge."""
+        return {"status": "ok", "version": VERSION}
+
+
 def main():
     """Main entry point."""
+    parser = argparse.ArgumentParser(description="Prism Headless Engine")
+    parser.add_argument(
+        "--http", action="store_true", help="Start HTTP server (Echo-Bridge)"
+    )
+    parser.add_argument("--port", type=int, default=5000, help="HTTP server port")
+    parser.add_argument(
+        "--host", type=str, default="127.0.0.1", help="HTTP server host"
+    )
+    args = parser.parse_args()
+
     # Setup Python path for imports
     setup_python_path()
 
@@ -924,6 +1203,15 @@ def main():
 
     init_db()
 
+    if args.http:
+        if not HAS_HTTP:
+            print("Error: fastapi and uvicorn are required for HTTP mode.")
+            sys.exit(1)
+
+        logger.info(f"Starting Echo-Bridge on http://{args.host}:{args.port}")
+        uvicorn.run(app, host=args.host, port=args.port, log_level="info")
+        return
+
     # Print ready signal (Rust looks for this)
     ready_signal = {"status": "ready", "version": VERSION, "pid": os.getpid()}
     print(json.dumps(ready_signal))
@@ -945,7 +1233,7 @@ def main():
             try:
                 cmd = json.loads(line)
             except json.JSONDecodeError as e:
-                error_response = {
+                error_resp = {
                     "id": 0,
                     "status": "error",
                     "error": {
@@ -953,7 +1241,7 @@ def main():
                         "message": f"Failed to parse JSON: {e}",
                     },
                 }
-                print(json.dumps(error_response))
+                print(json.dumps(error_resp))
                 continue
 
             # Dispatch and respond
@@ -965,12 +1253,12 @@ def main():
             break
         except Exception as e:
             # Catch-all for unexpected errors
-            error_response = {
+            error_resp = {
                 "id": 0,
                 "status": "error",
                 "error": {"code": "INTERNAL_ERROR", "message": str(e)},
             }
-            print(json.dumps(error_response))
+            print(json.dumps(error_resp))
             sys.stdout.flush()
 
 

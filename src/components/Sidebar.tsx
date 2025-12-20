@@ -1,5 +1,7 @@
-import { LayoutDashboard, Layers, GitCompare, Database, Settings, Activity, Link } from 'lucide-react';
+import { useState } from 'react';
+import { LayoutDashboard, Layers, GitCompare, Database, Settings, Activity, Link, MessageSquare } from 'lucide-react';
 import { useAppStore, useCurrentView, useAuthState } from '../store/useAppStore';
+import { FeedbackDialog } from './feedback/FeedbackDialog';
 import SystemStatus from './SystemStatus';
 import type { ViewType } from '../types';
 
@@ -17,6 +19,7 @@ export default function Sidebar() {
     const currentView = useCurrentView();
     const setCurrentView = useAppStore((state) => state.setCurrentView);
     const authState = useAuthState();
+    const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
 
     return (
         <div
@@ -107,8 +110,44 @@ export default function Sidebar() {
                 })}
             </nav>
 
+            {/* Feedback Button */}
+            <button
+                onClick={() => setIsFeedbackOpen(true)}
+                style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '12px',
+                    marginBottom: '16px',
+                    background: 'rgba(255, 255, 255, 0.02)',
+                    border: '1px solid rgba(255, 255, 255, 0.05)',
+                    borderRadius: '8px',
+                    color: 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    fontSize: '14px',
+                }}
+                onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                }}
+                onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)';
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.05)';
+                }}
+            >
+                <MessageSquare size={16} />
+                <span>Send Feedback</span>
+            </button>
+
             {/* Status Footer */}
             <SystemStatus />
+            
+            <FeedbackDialog 
+                isOpen={isFeedbackOpen} 
+                onClose={() => setIsFeedbackOpen(false)} 
+            />
         </div>
     );
 }

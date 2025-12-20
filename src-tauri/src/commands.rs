@@ -672,6 +672,88 @@ pub async fn run_pipeline(engine: State<'_, Arc<PythonEngine>>) -> Result<Pipeli
     }
 }
 
+/// Get decomposed true holdings
+#[tauri::command]
+pub async fn get_true_holdings(
+    engine: State<'_, Arc<PythonEngine>>,
+) -> Result<serde_json::Value, String> {
+    if !engine.is_connected().await {
+        return Err("Python engine not connected".to_string());
+    }
+
+    match engine.send_command("get_true_holdings", json!({})).await {
+        Ok(response) => {
+            if response.status == "success" {
+                if let Some(data) = response.data {
+                    return Ok(data);
+                }
+            }
+            if let Some(err) = response.error {
+                return Err(err.message);
+            }
+            Err("Unknown error getting true holdings".to_string())
+        }
+        Err(e) => Err(format!("Failed to get true holdings: {}", e)),
+    }
+}
+
+/// Get overlap analysis
+#[tauri::command]
+pub async fn get_overlap_analysis(
+    engine: State<'_, Arc<PythonEngine>>,
+) -> Result<serde_json::Value, String> {
+    if !engine.is_connected().await {
+        return Err("Python engine not connected".to_string());
+    }
+
+    match engine.send_command("get_overlap_analysis", json!({})).await {
+        Ok(response) => {
+            if response.status == "success" {
+                if let Some(data) = response.data {
+                    return Ok(data);
+                }
+            }
+            if let Some(err) = response.error {
+                return Err(err.message);
+            }
+            Err("Unknown error getting overlap analysis".to_string())
+        }
+        Err(e) => Err(format!("Failed to get overlap analysis: {}", e)),
+    }
+}
+
+/// Upload manual ETF holdings
+#[tauri::command]
+pub async fn upload_holdings(
+    file_path: String,
+    etf_isin: String,
+    engine: State<'_, Arc<PythonEngine>>,
+) -> Result<serde_json::Value, String> {
+    if !engine.is_connected().await {
+        return Err("Python engine not connected".to_string());
+    }
+
+    let payload = json!({
+        "filePath": file_path,
+        "etfIsin": etf_isin
+    });
+
+    match engine.send_command("upload_holdings", payload).await {
+        Ok(response) => {
+            if response.status == "success" {
+                if let Some(data) = response.data {
+                    return Ok(data);
+                }
+            }
+            if let Some(err) = response.error {
+                return Err(err.message);
+            }
+            Err("Unknown error uploading holdings".to_string())
+        }
+        Err(e) => Err(format!("Failed to upload holdings: {}", e)),
+    }
+}
+
 /// Get the latest pipeline health report from disk
 #[tauri::command]
 pub async fn get_pipeline_report(app_handle: AppHandle) -> Result<serde_json::Value, String> {

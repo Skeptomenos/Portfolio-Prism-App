@@ -27,7 +27,7 @@ class PIIFilter(logging.Filter):
         msg = record.msg
         for pattern, replacement in self.PATTERNS:
             msg = re.sub(pattern, replacement, msg)
-        
+
         record.msg = msg
         return True
 
@@ -40,21 +40,27 @@ def configure_root_logger(level: int = logging.INFO):
     root = logging.getLogger()
     root.setLevel(level)
 
+    # Silence noisy 3rd party libraries
+    logging.getLogger("yfinance").setLevel(logging.CRITICAL)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
+    logging.getLogger("matplotlib").setLevel(logging.WARNING)
+    logging.getLogger("fsspec").setLevel(logging.WARNING)
+    logging.getLogger("asyncio").setLevel(logging.WARNING)
+
     # Remove existing handlers to avoid duplicates
     for h in root.handlers[:]:
         root.removeHandler(h)
 
     # Create handler (stderr to keep stdout clean for IPC)
     handler = logging.StreamHandler(sys.stderr)
-    
+
     # Add PII Filter
     handler.addFilter(PIIFilter())
 
-    # Create formatter
-    formatter = logging.Formatter(
-        "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
+    # Create formatter - Standardized for Rust parsing
+    # Format: [LEVEL] Name: Message
+    formatter = logging.Formatter("[%(levelname)s] %(name)s: %(message)s")
     handler.setFormatter(formatter)
 
     # Add handler to root
@@ -63,7 +69,7 @@ def configure_root_logger(level: int = logging.INFO):
 
 def get_logger(name: str) -> logging.Logger:
     """
-    Returns a named logger. 
+    Returns a named logger.
     Assumes configure_root_logger() has been called.
     """
     return logging.getLogger(name)

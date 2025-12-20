@@ -167,6 +167,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading) return;
     
     const cleanPhone = phone.replace(/\s/g, '');
     

@@ -1,37 +1,24 @@
 # Implementation Plan (The "When")
 
 > **Development Location:** Project root (standard Tauri layout)
-> **Last Updated:** 2024-12-15 (MVP Complete)
-> **Strategy:** `anamnesis/strategy/architecture-overview.md` > **Status:** MVP COMPLETE - Phase 0-4 Done, Phase 5 In Progress
-
-## Status Legend
-
-| Status        | Meaning                                | Next Action        |
-| ------------- | -------------------------------------- | ------------------ |
-| `Backlog`     | Idea captured, not prioritized         | Prioritize or park |
-| `Open`        | Ready to work, dependencies met        | Start work         |
-| `In Progress` | Currently being worked on              | Complete or block  |
-| `Blocked`     | Cannot proceed, waiting for dependency | Resolve blocker    |
-| `Done`        | Verified and complete                  | Archive when ready |
-| `Archive`     | Historical reference                   | None               |
-
----
-
-## Workstreams
-
-| Workstream       | Description                   | Status |
-| ---------------- | ----------------------------- | ------ |
-| `infrastructure` | CI/CD, Telemetry, Scaffolding | Active |
-| `data-engine`    | Python Backend, SQLite, IPC   | Active |
-| `frontend`       | React UI, State Management    | Active |
+> **Last Updated:** 2025-12-20 (Project Echo Complete)
 
 ---
 
 ## Done
 
-<!-- Recently completed -->
+- [x] **TASK-601:** Fix Pipeline Type & Import Errors
+- [x] **TASK-602:** Implement HiveEnrichmentService (Multi-tier strategy)
+- [x] **TASK-603:** Integrate market.py with Hive (Community Pricing)
+- [x] **TASK-604:** Implement Asset Universe Sync (Hive -> Local CSV)
+- [x] **TASK-605:** Rigorous Pipeline Testing (40/40 tests passed)
+- [x] **TASK-606:** Implement ETF Holdings Query & Hive Contribution
+- [x] **TASK-607:** Implement Smart Manual Upload (XLSX support + Heuristics)
+- [x] **TASK-608:** Create HoldingsUpload UI & HealthView Integration
+- [x] **TASK-701:** Implement Echo-Bridge (Unified FastAPI Sidecar)
+- [x] **TASK-702:** Implement Redacted Reporter (PII Scrubbing + GitHub Relay)
+- [x] **TASK-703:** Integrate Echo UI (Status Badge + Opt-out Toggle)
 
-_(Tasks moved to Archive)_
 
 ---
 
@@ -85,10 +72,33 @@ _(Tasks moved to Archive)_
 - [x] **TASK-453:** Create Hive Migration Script
 - [x] **TASK-454:** Deploy Hive Schema & Seed Data
 
-### Phase 5: Polish & Release
+### Phase 5: Polish & Release ✅ (COMPLETED)
 
 - [x] **TASK-501:** Verify PII Scrubber
 - [x] **TASK-502:** GitHub Actions CI/CD (Commit: `502-ci-cd`)
 - [x] **TASK-503:** Migrate to UV Dependency Management
 - [x] **TASK-505:** Config Auto-Installation
 - [x] **TASK-507:** Debug Binary Startup Hang
+
+### Phase 6: Community & Performance (IN PROGRESS)
+
+- [x] **TASK-601:** Fix Pipeline Type & Import Errors
+- [x] **TASK-602:** Implement HiveEnrichmentService (Multi-tier strategy)
+- [x] **TASK-603:** Integrate market.py with Hive (Community Pricing)
+- [x] **TASK-604:** Implement Asset Universe Sync (Hive -> Local CSV)
+- [x] **TASK-605:** Rigorous Pipeline Testing (40/40 tests passed)
+- [x] **TASK-606:** Implement ETF Holdings Query & Hive Contribution
+- [x] **TASK-607:** Implement Smart Manual Upload (XLSX support + Heuristics)
+- [x] **TASK-608:** Create HoldingsUpload UI & HealthView Integration
+- [ ] **TASK-609:** Implement Confidence Scoring Logic (Trust Metrics)
+- [ ] **TASK-610:** Vectorize Aggregator Math (Performance)
+- [ ] **TASK-611:** Add Pipeline Health Monitoring (Observability)
+- [ ] **TASK-612:** Implement Async I/O for Adapters
+- [ ] **TASK-615:** Implement Incremental Builds (Remove --clean)
+- [ ] **TASK-616:** Parallelize Spec Builds in `build-python.sh`
+- [ ] **TASK-617:** Implement Change Detection (Hash-based skip)
+
+### Backlog (Future)
+
+- [ ] **TASK-613:** Update HealthView with Trust Scores
+- [ ] **TASK-614:** Migrate flat files to Local SQLite (Local Hive)

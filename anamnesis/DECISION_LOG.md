@@ -214,13 +214,15 @@ This document tracks significant architectural decisions (ADRs) for the project.
 
 ---
 
-## [2024-12-19] Recharts (React) vs Plotly (Python)
+## [2025-12-20] Project Echo: Unified Sidecar & Autonomous Reporting
 
-- **Context:** Need to render high-performance, interactive charts (Sparklines, Portfolio History). Options: Render in Python (Plotly) and stream JSON, or render in React (Recharts).
-- **Decision:** Use **Recharts** (React) fed by raw JSON data from Python.
+- **Context:** Developer iteration is slowed by Tauri compilation ("Tauri Tax"). Privacy-first apps need telemetry to improve, but raw logs contain PII.
+- **Decision:** 
+  1. Implement **Unified Sidecar**: `prism_headless.py` supports a `--http` flag (FastAPI) for browser-based development with 100% logic parity.
+  2. Implement **Redacted Reporter**: A scrubbing layer in Python and TS that redacts PII and hashes ISINs before reporting crashes to GitHub via a Cloudflare Worker relay.
 - **Consequences:**
-  - (+) **Performance:** Rendering happens on GPU/Client, not server-side image generation.
-  - (+) **Interactivity:** Native tooltips and hover effects without roundtrip latency.
-  - (+) **Styling:** CSS-in-JS styling matches the rest of the UI perfectly.
-  - (-) **Python Role:** Python reduced to "Data API", losing some of its visualization power.
-  - (-) **Duplication:** Logic for coloring/formatting moves to Frontend.
+  - (+) **Velocity:** 10x faster UI iteration in standard browsers.
+  - (+) **Privacy:** Zero-knowledge telemetry; PII never leaves the machine.
+  - (+) **Trust:** Opt-out toggle and "Review & Send" flow build user confidence.
+  - (-) **Complexity:** Requires maintaining FastAPI dependencies in the Python engine.
+  - (-) **Security:** Localhost HTTP server is a potential (though mitigated) attack vector.

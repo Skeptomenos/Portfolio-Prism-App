@@ -1,50 +1,71 @@
-import { useState } from 'react';
-import { Search, TrendingUp } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, TrendingUp, Loader2, AlertCircle } from 'lucide-react';
 import GlassCard from '../GlassCard';
-
-// Mock holdings data
-const mockHoldings = [
-    {
-        stock: 'Apple Inc.',
-        ticker: 'AAPL',
-        totalValue: 8420,
-        sources: [
-            { etf: 'VUSA', weight: 0.045, value: 3200 },
-            { etf: 'EQQQ', weight: 0.12, value: 2800 },
-            { etf: 'VWRL', weight: 0.034, value: 2100 },
-            { etf: 'Direct', weight: 1.0, value: 320 },
-        ],
-    },
-    {
-        stock: 'Microsoft Corp.',
-        ticker: 'MSFT',
-        totalValue: 7150,
-        sources: [
-            { etf: 'VUSA', weight: 0.038, value: 2850 },
-            { etf: 'EQQQ', weight: 0.095, value: 2400 },
-            { etf: 'IUIT', weight: 0.15, value: 1900 },
-        ],
-    },
-    {
-        stock: 'NVIDIA Corp.',
-        ticker: 'NVDA',
-        totalValue: 6890,
-        sources: [
-            { etf: 'EQQQ', weight: 0.18, value: 4200 },
-            { etf: 'IUIT', weight: 0.22, value: 2690 },
-        ],
-    },
-];
+import { getTrueHoldings } from '../../lib/ipc';
 
 export default function HoldingsView() {
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedStock, setSelectedStock] = useState<typeof mockHoldings[0] | null>(null);
+    const [holdings, setHoldings] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [selectedStock, setSelectedStock] = useState<any | null>(null);
 
-    const filteredHoldings = mockHoldings.filter(
+    const loadData = async () => {
+        try {
+            setLoading(true);
+            const res = await getTrueHoldings();
+            setHoldings(res.holdings || []);
+            setError(null);
+        } catch (err: any) {
+            console.error('Failed to load true holdings', err);
+            setError(err.message || 'Failed to load holdings data');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        loadData();
+    }, []);
+
+    const filteredHoldings = holdings.filter(
         (h) =>
             h.stock.toLowerCase().includes(searchQuery.toLowerCase()) ||
             h.ticker.toLowerCase().includes(searchQuery.toLowerCase())
     );
+
+    if (loading) {
+        return (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '400px' }}>
+                <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div style={{ textAlign: 'center', padding: '48px' }}>
+                <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                <h3 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '8px' }}>Error Loading Data</h3>
+                <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>{error}</p>
+                <button 
+                    onClick={loadData}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg"
+                >
+                    Retry
+                </button>
+            </div>
+        );
+    }
+
+    if (holdings.length === 0) {
+        return (
+            <div style={{ textAlign: 'center', padding: '48px' }}>
+                <h3 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '8px' }}>No Holdings Data</h3>
+                <p style={{ color: 'var(--text-secondary)' }}>Run the deep analysis in the Health tab to generate your true holdings breakdown.</p>
+            </div>
+        );
+    }
 
     return (
         <div className="animate-fade-in">
@@ -139,7 +160,7 @@ export default function HoldingsView() {
                         </h4>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                            {selectedStock.sources.map((source) => (
+                            {selectedStock.sources.map((source: any) => (
                                 <div
                                     key={source.etf}
                                     style={{
@@ -177,7 +198,7 @@ export default function HoldingsView() {
                                 <TrendingUp size={16} style={{ display: 'inline', marginRight: '6px' }} />
                                 Exposure Flow
                             </div>
-                            {selectedStock.sources.map((source) => (
+                            {selectedStock.sources.map((source: any) => (
                                 <div key={source.etf} style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
                                     <span
                                         style={{

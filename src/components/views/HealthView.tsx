@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { AlertCircle, CheckCircle, RefreshCcw, Clock, AlertTriangle } from 'lucide-react';
+import { AlertCircle, CheckCircle, RefreshCcw, Clock, Upload, Shield } from 'lucide-react';
 import { getPipelineReport, runPipeline } from '../../lib/ipc';
-import { useAppStore } from '../../store/useAppStore';
+import { useAppStore, useAutoReportErrors, useSetAutoReportErrors } from '../../store/useAppStore';
+import HoldingsUpload from '../HoldingsUpload';
 
 interface HealthData {
     timestamp: string;
@@ -11,6 +12,13 @@ interface HealthData {
         etfs_processed: number;
         tier1_resolved: number;
         tier1_failed: number;
+    };
+    performance: {
+        execution_time_seconds: number;
+        hive_hit_rate: number;
+        api_fallback_rate: number;
+        total_assets_processed: number;
+        phase_durations: Record<string, number>;
     };
     etf_stats: {
         ticker: string;
@@ -32,7 +40,14 @@ const HealthView = () => {
     const [loading, setLoading] = useState(false);
     // Error state used in UI render
     const [error, setError] = useState<string | null>(null); 
+    const [uploadModal, setUploadModal] = useState<{ isOpen: boolean; isin: string; ticker: string }>({
+        isOpen: false,
+        isin: '',
+        ticker: ''
+    });
     const setLastPipelineRun = useAppStore(state => state.setLastPipelineRun);
+    const autoReportErrors = useAutoReportErrors();
+    const setAutoReportErrors = useSetAutoReportErrors();
 
     const loadHealth = async () => {
         try {
@@ -131,6 +146,58 @@ const HealthView = () => {
                 </div>
             )}
 
+            {/* Telemetry Settings */}
+            <div style={{
+                marginBottom: '32px',
+                padding: '24px',
+                background: 'rgba(255, 255, 255, 0.03)',
+                border: '1px solid rgba(255, 255, 255, 0.06)',
+                borderRadius: '16px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <div style={{
+                        padding: '12px',
+                        borderRadius: '12px',
+                        background: 'rgba(59, 130, 246, 0.1)',
+                        color: '#3b82f6'
+                    }}>
+                        <Shield size={24} />
+                    </div>
+                    <div>
+                        <h2 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '4px' }}>Automatic Error Reporting</h2>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
+                            Help improve Portfolio Prism by automatically reporting anonymized errors.
+                        </p>
+                    </div>
+                </div>
+                <div 
+                    onClick={() => setAutoReportErrors(!autoReportErrors)}
+                    style={{
+                        width: '50px',
+                        height: '26px',
+                        background: autoReportErrors ? '#3b82f6' : 'rgba(255, 255, 255, 0.1)',
+                        borderRadius: '13px',
+                        position: 'relative',
+                        cursor: 'pointer',
+                        transition: 'background 0.2s'
+                    }}
+                >
+                    <div style={{
+                        width: '20px',
+                        height: '20px',
+                        background: 'white',
+                        borderRadius: '50%',
+                        position: 'absolute',
+                        top: '3px',
+                        left: autoReportErrors ? '27px' : '3px',
+                        transition: 'left 0.2s'
+                    }} />
+                </div>
+            </div>
+
             {/* Status Cards */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px', marginBottom: '32px' }}>
                 <StatusCard 
@@ -140,16 +207,16 @@ const HealthView = () => {
                     color="blue"
                 />
                 <StatusCard 
-                    label="Positions Loaded" 
-                    value={(health?.metrics.direct_holdings || 0) + (health?.metrics.etf_positions || 0)} 
+                    label="Hive Hit Rate" 
+                    value={health?.performance ? `${health.performance.hive_hit_rate}%` : '0%'} 
                     icon={CheckCircle}
                     color="green"
                 />
                 <StatusCard 
-                    label="ETFs Analyzed" 
-                    value={`${health?.metrics.etfs_processed || 0} / ${health?.metrics.etf_positions || 0}`} 
-                    icon={health?.metrics.etfs_processed === health?.metrics.etf_positions ? CheckCircle : AlertTriangle}
-                    color={health?.metrics.etfs_processed === health?.metrics.etf_positions ? "green" : "orange"}
+                    label="Auto-Report" 
+                    value={autoReportErrors ? 'Active' : 'Review'} 
+                    icon={Shield}
+                    color={autoReportErrors ? "blue" : "orange"}
                 />
                 <StatusCard 
                     label="Active Errors" 
@@ -223,16 +290,39 @@ const HealthView = () => {
                                         <td style={{ padding: '16px' }}>{etf.holdings_count}</td>
                                         <td style={{ padding: '16px' }}>{etf.weight_sum.toFixed(1)}%</td>
                                         <td style={{ padding: '16px', textAlign: 'right' }}>
-                                            <span style={{
-                                                padding: '4px 12px',
-                                                borderRadius: '20px',
-                                                fontSize: '12px',
-                                                fontWeight: '500',
-                                                background: etf.status === 'complete' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-                                                color: etf.status === 'complete' ? '#10b981' : '#ef4444',
-                                            }}>
-                                                {etf.status === 'complete' ? 'Ready' : 'Missing Data'}
-                                            </span>
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '12px' }}>
+                                                {etf.status !== 'complete' && (
+                                                    <button
+                                                        onClick={() => setUploadModal({ isOpen: true, isin: etf.ticker, ticker: etf.ticker })}
+                                                        style={{
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '6px',
+                                                            padding: '4px 10px',
+                                                            background: 'rgba(59, 130, 246, 0.1)',
+                                                            border: '1px solid rgba(59, 130, 246, 0.2)',
+                                                            borderRadius: '8px',
+                                                            color: '#3b82f6',
+                                                            fontSize: '12px',
+                                                            fontWeight: '600',
+                                                            cursor: 'pointer'
+                                                        }}
+                                                    >
+                                                        <Upload size={14} />
+                                                        Upload
+                                                    </button>
+                                                )}
+                                                <span style={{
+                                                    padding: '4px 12px',
+                                                    borderRadius: '20px',
+                                                    fontSize: '12px',
+                                                    fontWeight: '500',
+                                                    background: etf.status === 'complete' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                                                    color: etf.status === 'complete' ? '#10b981' : '#ef4444',
+                                                }}>
+                                                    {etf.status === 'complete' ? 'Ready' : 'Missing Data'}
+                                                </span>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
@@ -241,6 +331,14 @@ const HealthView = () => {
                     </div>
                 </div>
             )}
+
+            <HoldingsUpload
+                isOpen={uploadModal.isOpen}
+                onClose={() => setUploadModal({ ...uploadModal, isOpen: false })}
+                etfIsin={uploadModal.isin}
+                etfTicker={uploadModal.ticker}
+                onSuccess={loadHealth}
+            />
         </div>
     );
 };

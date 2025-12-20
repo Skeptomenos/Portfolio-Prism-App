@@ -25,6 +25,9 @@ dependencies = [
     "supabase>=2.27.0",
     "tqdm>=4.67.1",
     "yfinance>=0.2.66",
+    "rich>=13.0.0",
+    "fastapi>=0.126.0",
+    "uvicorn>=0.38.0",
 ]
 
 [dependency-groups]

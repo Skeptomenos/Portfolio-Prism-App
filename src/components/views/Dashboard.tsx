@@ -4,30 +4,6 @@ import GlassCard from '../GlassCard';
 import MetricCard from '../MetricCard';
 import PortfolioChart from '../PortfolioChart';
 import { getDashboardData } from '../../lib/ipc';
-import type { DashboardData } from '../../types';
-
-// Fallback mock data - used when no real data is available
-const FALLBACK_DATA: DashboardData = {
-    totalValue: 0,
-    totalGain: 0,
-    gainPercentage: 0,
-    allocations: {
-        sector: {},
-        region: {},
-    },
-    topHoldings: [],
-    lastUpdated: null,
-    isEmpty: true,
-    positionCount: 0,
-    dayChange: 0,
-    dayChangePercent: 0,
-    history: [
-        { date: '2024-01-01', value: 1000 },
-        { date: '2024-01-02', value: 1050 },
-        { date: '2024-01-03', value: 1025 },
-        { date: '2024-01-04', value: 1080 },
-    ],
-};
 
 export default function Dashboard() {
     const { data, isLoading, isError, refetch } = useQuery({
@@ -38,9 +14,9 @@ export default function Dashboard() {
     });
 
     // Use real data or fallback
-    const dashboardData = data || FALLBACK_DATA;
-    const isProfit = dashboardData.totalGain >= 0;
-    const isEmpty = dashboardData.isEmpty || dashboardData.positionCount === 0;
+    const dashboardData = data;
+    const isProfit = dashboardData ? dashboardData.totalGain >= 0 : true;
+    const isEmpty = !dashboardData || dashboardData.isEmpty || dashboardData.positionCount === 0;
 
     // Loading state
     if (isLoading) {
@@ -116,7 +92,7 @@ export default function Dashboard() {
     }
 
     // Empty state - no positions synced yet
-    if (isEmpty) {
+    if (isEmpty || !dashboardData) {
         return (
             <div className="animate-fade-in">
                 <div style={{ marginBottom: '32px' }}>
@@ -168,11 +144,11 @@ export default function Dashboard() {
 
                 {/* Day Change - NEW */}
                 <MetricCard 
-                    icon={dashboardData.dayChange >= 0 ? <TrendingUp size={20} style={{ color: 'var(--accent-emerald)' }} /> : <TrendingDown size={20} style={{ color: 'var(--accent-red)' }} />}
+                    icon={(dashboardData.dayChange || 0) >= 0 ? <TrendingUp size={20} style={{ color: 'var(--accent-emerald)' }} /> : <TrendingDown size={20} style={{ color: 'var(--accent-red)' }} />}
                     label="Day Change"
-                    value={`${dashboardData.dayChange >= 0 ? '+' : ''}€${dashboardData.dayChange.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                    subtitle={`${dashboardData.dayChange >= 0 ? '+' : ''}${dashboardData.dayChangePercent.toFixed(2)}%`}
-                    trend={dashboardData.dayChange >= 0 ? 'up' : 'down'}
+                    value={`${(dashboardData.dayChange || 0) >= 0 ? '+' : ''}€${(dashboardData.dayChange || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                    subtitle={`${(dashboardData.dayChange || 0) >= 0 ? '+' : ''}${(dashboardData.dayChangePercent || 0).toFixed(2)}%`}
+                    trend={(dashboardData.dayChange || 0) >= 0 ? 'up' : 'down'}
                     sparklineData={[10, 12, 11, 14, 13, 15, 14]} // Mock data
                 />
 

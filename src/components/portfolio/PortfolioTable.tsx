@@ -392,10 +392,8 @@ export const PortfolioTable: React.FC<PortfolioTableProps> = ({
     }),
   ], [EditableCell, editingCell, editValue, handleCellClick, handleEditSave, handleKeyDown]);
 
-  // Column visibility state - ticker hidden because TR API doesn't provide it
-  // Can be enabled later when we add ticker enrichment
   const [columnVisibility] = useState({
-    ticker: false, // Hidden: TR API doesn't provide ticker symbols
+    ticker: true,
   });
 
   const table = useReactTable({

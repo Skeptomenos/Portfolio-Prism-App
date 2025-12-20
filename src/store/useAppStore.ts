@@ -47,6 +47,9 @@ interface AppState {
   
   // Pipeline
   lastPipelineRun: number | null;
+
+  // Telemetry
+  autoReportErrors: boolean;
 }
 
 interface AppActions {
@@ -58,6 +61,9 @@ interface AppActions {
   setSyncProgress: (progress: SyncProgress | null) => void;
   setLastSyncTime: (time: Date | null) => void;
   setLastPipelineRun: (timestamp: number | null) => void;
+  
+  // Telemetry
+  setAutoReportErrors: (enabled: boolean) => void;
   
   // Notifications
   addNotification: (notification: Omit<Notification, 'id'>) => void;
@@ -118,6 +124,9 @@ const initialState: AppState = {
   
   // Pipeline
   lastPipelineRun: null,
+
+  // Telemetry
+  autoReportErrors: true,
 };
 
 // =============================================================================
@@ -140,6 +149,9 @@ export const useAppStore = create<AppStore>()(
       setLastSyncTime: (time) => set({ lastSyncTime: time }, false, 'setLastSyncTime'),
 
       setLastPipelineRun: (timestamp) => set({ lastPipelineRun: timestamp }, false, 'setLastPipelineRun'),
+
+      // Telemetry
+      setAutoReportErrors: (enabled) => set({ autoReportErrors: enabled }, false, 'setAutoReportErrors'),
 
       // Notifications
       addNotification: (notification) => {
@@ -289,6 +301,6 @@ export const useToasts = () => useAppStore((state) => state.toasts);
 export const useAddToast = () => useAppStore((state) => state.addToast);
 export const useDismissToast = () => useAppStore((state) => state.dismissToast);
 
-// Editing state
-export const useHasUnsavedChanges = () => useAppStore((state) => state.hasUnsavedChanges);
-export const useSetHasUnsavedChanges = () => useAppStore((state) => state.setHasUnsavedChanges);
+// Telemetry
+export const useAutoReportErrors = () => useAppStore((state) => state.autoReportErrors);
+export const useSetAutoReportErrors = () => useAppStore((state) => state.setAutoReportErrors);

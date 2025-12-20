@@ -1,12 +1,14 @@
 import math
 import os
 from datetime import date
-from typing import Any, List, Optional, Tuple
+from typing import Any, List, Optional, Tuple, cast
 
 import pandas as pd
 from pydantic import ValidationError
 
 from portfolio_src.models import DirectPosition, ETFPosition
+from portfolio_src.core.utils import SchemaNormalizer
+from portfolio_src.data.hive_client import get_hive_client
 from portfolio_src.prism_utils.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -27,7 +29,9 @@ from portfolio_src.config import ASSET_UNIVERSE_PATH, WORKING_DIR
 
 # Paths
 UNIVERSE_PATH = ASSET_UNIVERSE_PATH
-HOLDINGS_PATH = WORKING_DIR / "calculated_holdings.csv"  # Calculated from PDF parser/TR Sync
+HOLDINGS_PATH = (
+    WORKING_DIR / "calculated_holdings.csv"
+)  # Calculated from PDF parser/TR Sync
 
 
 def _auto_add_to_universe(unmapped_df: pd.DataFrame, universe_df: pd.DataFrame) -> None:
@@ -93,6 +97,85 @@ def _auto_add_to_universe(unmapped_df: pd.DataFrame, universe_df: pd.DataFrame) 
         logger.info(f"Added {len(new_entries)} new entries to asset universe.")
 
 
+def sync_asset_universe_with_hive(force: bool = False) -> None:
+    """
+    Synchronize the local asset universe CSV with the Supabase Hive.
+
+    Args:
+        force: If True, ignore cache and force download
+    """
+    hive_client = get_hive_client()
+    if not hive_client.is_configured:
+        logger.debug("Hive not configured, skipping asset universe sync")
+        return
+
+    logger.info("Synchronizing asset universe with Hive...")
+    result = hive_client.sync_universe(force=force)
+
+    if not result.success:
+        logger.warning(f"Failed to sync asset universe with Hive: {result.error}")
+        return
+
+    # Load existing universe to merge
+    if os.path.exists(UNIVERSE_PATH):
+        try:
+            df_local = pd.read_csv(UNIVERSE_PATH)
+        except Exception as e:
+            logger.error(f"Failed to read local universe for sync: {e}")
+            df_local = pd.DataFrame()
+    else:
+        df_local = pd.DataFrame()
+
+    # Map Hive entries to CSV schema
+    hive_entries = []
+    today = date.today().isoformat()
+
+    for isin, asset in hive_client._universe_cache.items():
+        hive_entries.append(
+            {
+                "ISIN": asset.isin,
+                "TR_Ticker": "",  # Not in Hive yet
+                "Yahoo_Ticker": asset.ticker or "",
+                "Name": asset.name,
+                "Aliases": "",
+                "Provider": "",
+                "Asset_Class": asset.asset_class,
+                "Source": "hive",
+                "Added_Date": asset.last_updated or today,
+                "Last_Verified": asset.last_updated or today,
+            }
+        )
+
+    if not hive_entries:
+        return
+
+    df_hive = pd.DataFrame(hive_entries)
+
+    if df_local.empty:
+        df_final = df_hive
+    else:
+        # Merge: Hive data takes precedence for common ISINs
+        # We use ISIN as the key
+        df_local = df_local.set_index("ISIN")
+        df_hive = df_hive.set_index("ISIN")
+
+        df_local.update(df_hive)
+
+        # Add new ISINs from hive
+        new_isins = df_hive.index.difference(df_local.index)
+        if not new_isins.empty:
+            df_local = pd.concat([df_local, df_hive.loc[new_isins]])
+
+        df_final = df_local.reset_index()
+
+    # Save back to CSV
+    try:
+        df_final.to_csv(UNIVERSE_PATH, index=False)
+        logger.info(f"Asset universe synchronized: {len(df_final)} total entries")
+    except Exception as e:
+        logger.error(f"Failed to save synchronized asset universe: {e}")
+
+
 def load_portfolio_state():
     """
     Loads the portfolio state from the Relational CSVs (Universe + Holdings).
@@ -103,66 +186,102 @@ def load_portfolio_state():
     Returns:
         (direct_positions, etf_positions) - Tuple of DataFrames
     """
+    # Sync with Hive first (non-blocking/graceful)
+    try:
+        sync_asset_universe_with_hive()
+    except Exception as e:
+        logger.warning(f"Asset universe sync failed: {e}")
+
     # 1. Strategy: SQLite Database (Primary)
     try:
         from portfolio_src.data.database import get_positions
+
         db_positions = get_positions()
-        
+
         if db_positions:
-            logger.info(f"Loading {len(db_positions)} positions from SQLite Database...")
-            
+            logger.info(
+                f"Loading {len(db_positions)} positions from SQLite Database..."
+            )
+
             # Convert DB dicts to DataFrame with expected columns
             df = pd.DataFrame(db_positions)
-            
+
             # DB has columns: isin, quantity, cost_basis, current_price, name, symbol, asset_class...
             # Pipeline expects: isin, name, quantity, asset_type, ticker_src, provider, avg_cost, tr_price
-            
+
             # Rename for pipeline compatibility
-            df_clean = df.rename(columns={
-                "asset_class": "asset_type",
-                "cost_basis": "avg_cost", 
-                "current_price": "tr_price",
-                "tr_ticker": "ticker_src", # If available
-            })
-            
+            df_clean = df.rename(
+                columns={
+                    "asset_class": "asset_type",
+                    "cost_basis": "avg_cost",
+                    "current_price": "tr_price",
+                    "tr_ticker": "ticker_src",  # If available
+                }
+            )
+
             # Ensure required columns exist
-            required_cols = ["isin", "name", "quantity", "asset_type", "avg_cost", "tr_price"]
+            required_cols = [
+                "isin",
+                "name",
+                "quantity",
+                "asset_type",
+                "avg_cost",
+                "tr_price",
+            ]
             for col in required_cols:
                 if col not in df_clean.columns:
                     df_clean[col] = None
-                    
+
             # Fill missing
             df_clean["name"] = df_clean["name"].fillna("Unknown Asset")
             df_clean["asset_type"] = df_clean["asset_type"].fillna("Stock")
-            
+
             # Apply Heuristics: Map "Equity" to "Stock" or "ETF" based on name
             # The DB currently stores everything as "Equity" if not specified
             def refine_asset_type(row):
                 current_type = str(row["asset_type"])
                 name = str(row["name"]).lower()
-                
+
                 if current_type == "Equity":
-                    is_etf_name = any(k in name for k in ["etf", "ishares", "msci", "s&p", "nasdaq", "stoxx", "core", "amundi", "vanguard"])
+                    is_etf_name = any(
+                        k in name
+                        for k in [
+                            "etf",
+                            "ishares",
+                            "msci",
+                            "s&p",
+                            "nasdaq",
+                            "stoxx",
+                            "core",
+                            "amundi",
+                            "vanguard",
+                        ]
+                    )
                     return "ETF" if is_etf_name else "Stock"
                 return current_type
 
             df_clean["asset_type"] = df_clean.apply(refine_asset_type, axis=1)
-            
+
             # Split
             direct_positions = df_clean[df_clean["asset_type"] == "Stock"].copy()
             etf_positions = df_clean[df_clean["asset_type"] == "ETF"].copy()
-            
-            logger.info(f"Loaded {len(direct_positions)} Stocks and {len(etf_positions)} ETFs from database.")
-            
+
+            logger.info(
+                f"Loaded {len(direct_positions)} Stocks and {len(etf_positions)} ETFs from database."
+            )
+
             # Validate
-            direct_positions = _validate_positions(direct_positions, asset_type="Stock")
-            etf_positions = _validate_positions(etf_positions, asset_type="ETF")
-            
+            direct_positions = _validate_positions(
+                cast(pd.DataFrame, direct_positions), asset_type="Stock"
+            )
+            etf_positions = _validate_positions(
+                cast(pd.DataFrame, etf_positions), asset_type="ETF"
+            )
+
             return direct_positions, etf_positions
-            
+
     except Exception as e:
         logger.warning(f"Failed to load from DB: {e}. Falling back to CSV.")
-
 
     # 2. Strategy: Legacy CSV (Fallback)
     if os.path.exists(UNIVERSE_PATH):
@@ -182,14 +301,14 @@ def load_portfolio_state():
                 logger.warning(
                     f"{len(unmapped)} assets in Holdings not in Universe. Auto-adding..."
                 )
-                _auto_add_to_universe(unmapped, df_uni)
+                _auto_add_to_universe(cast(pd.DataFrame, unmapped), df_uni)
 
                 # Reload universe and re-merge
                 df_uni = pd.read_csv(UNIVERSE_PATH)
                 df = pd.merge(df_hold, df_uni, on="ISIN", how="left")
 
             return _process_csv_dataframe(df)
-            
+
         else:
             logger.warning(f"Calculated holdings file not found: {HOLDINGS_PATH}")
             return pd.DataFrame(), pd.DataFrame()
@@ -197,54 +316,58 @@ def load_portfolio_state():
     else:
         logger.warning("No portfolio state found (DB empty, CSV missing).")
         return pd.DataFrame(), pd.DataFrame()
-    
-    
+
+
 def _process_csv_dataframe(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Helper to process DataFrame from CSV source.
     Adapts legacy CSV schema to Pipeline schema.
     """
-    # Pipeline expects columns: isin, name, quantity, asset_type, ticker_src, provider
+    # Normalize schema using SchemaNormalizer
+    normalized_df = SchemaNormalizer.normalize_columns(df)
 
-    # Rename columns to match pipeline standard (lowercase)
-    # Universe has: ISIN, TR_Ticker, Yahoo_Ticker, Name, Provider, Asset_Class
-    # Holdings has: ISIN, Quantity
+    # Ensure required columns exist with proper mappings
+    column_mapping = {
+        "ISIN": "isin",
+        "Name": "name",
+        "Quantity": "quantity",
+        "Asset_Class": "asset_type",
+        "Yahoo_Ticker": "ticker_src",
+        "Provider": "provider",
+        "AvgCost": "avg_cost",
+        "CurrentPrice": "tr_price",
+        "NetValue": "tr_value",
+    }
 
-    df_clean = df.rename(
-        columns={
-            "ISIN": "isin",
-            "Name": "name",
-            "Quantity": "quantity",
-            "Asset_Class": "asset_type",
-            "Yahoo_Ticker": "ticker_src",  # Important for market.py
-            "Provider": "provider",
-            # Performance fields from pytr (if available)
-            "AvgCost": "avg_cost",
-            "CurrentPrice": "tr_price",
-            "NetValue": "tr_value",
-        }
-    )
+    # Apply any remaining manual mappings
+    for old_col, new_col in column_mapping.items():
+        if old_col in normalized_df.columns and new_col not in normalized_df.columns:
+            normalized_df = normalized_df.rename(columns={old_col: new_col})
 
     # Fill NAs
-    df_clean["name"] = df_clean["name"].fillna("Unknown Asset")
-    df_clean["asset_type"] = df_clean["asset_type"].fillna("Stock")
+    normalized_df["name"] = normalized_df["name"].fillna("Unknown Asset")
+    normalized_df["asset_type"] = normalized_df["asset_type"].fillna("Stock")
 
-    # Ensure performance columns exist (may be missing in old CSV format)
+    # Ensure performance columns exist
     for col in ["avg_cost", "tr_price", "tr_value"]:
-        if col not in df_clean.columns:
-            df_clean[col] = None
+        if col not in normalized_df.columns:
+            normalized_df[col] = None
 
     # Split
-    direct_positions = df_clean[df_clean["asset_type"] == "Stock"].copy()
-    etf_positions = df_clean[df_clean["asset_type"] == "ETF"].copy()
+    direct_positions = normalized_df[normalized_df["asset_type"] == "Stock"].copy()
+    etf_positions = normalized_df[normalized_df["asset_type"] == "ETF"].copy()
 
     logger.info(
         f"Loaded {len(direct_positions)} Stocks and {len(etf_positions)} ETFs from CSV source."
     )
 
     # Validate positions using Pydantic models
-    direct_positions = _validate_positions(direct_positions, asset_type="Stock")
-    etf_positions = _validate_positions(etf_positions, asset_type="ETF")
+    direct_positions = _validate_positions(
+        cast(pd.DataFrame, direct_positions), asset_type="Stock"
+    )
+    etf_positions = _validate_positions(
+        cast(pd.DataFrame, etf_positions), asset_type="ETF"
+    )
 
     return direct_positions, etf_positions
 
@@ -304,7 +427,7 @@ def _validate_positions(df: pd.DataFrame, asset_type: str) -> pd.DataFrame:
             logger.warning(f"  ... and {len(validation_errors) - 5} more")
 
     # Return only valid rows
-    validated_df = df.loc[valid_indices].copy()
+    validated_df = cast(pd.DataFrame, df.loc[valid_indices].copy())
     logger.debug(
         f"Validated {len(validated_df)}/{len(df)} {asset_type} positions successfully."
     )
@@ -331,9 +454,9 @@ def load_positions_as_models() -> Tuple[List[DirectPosition], List[ETFPosition]]
         try:
             direct_positions.append(
                 DirectPosition(
-                    isin=row["isin"],
-                    name=row["name"],
-                    quantity=row["quantity"],
+                    isin=cast(str, row["isin"]),
+                    name=cast(str, row["name"]),
+                    quantity=cast(float, row["quantity"]),
                     asset_type="Stock",
                     ticker_src=_to_optional_str(row.get("ticker_src")),
                     provider=_to_optional_str(row.get("provider")),
@@ -346,9 +469,9 @@ def load_positions_as_models() -> Tuple[List[DirectPosition], List[ETFPosition]]
         try:
             etf_positions.append(
                 ETFPosition(
-                    isin=row["isin"],
-                    name=row["name"],
-                    quantity=row["quantity"],
+                    isin=cast(str, row["isin"]),
+                    name=cast(str, row["name"]),
+                    quantity=cast(float, row["quantity"]),
                     asset_type="ETF",
                     ticker_src=_to_optional_str(row.get("ticker_src")),
                     provider=_to_optional_str(row.get("provider")),

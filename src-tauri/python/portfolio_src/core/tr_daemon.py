@@ -25,10 +25,11 @@ from enum import Enum
 from decimal import Decimal
 
 # Handle PyInstaller frozen mode - ensure SSL certificates work
-if getattr(sys, 'frozen', False):
+if getattr(sys, "frozen", False):
     import certifi
-    os.environ['SSL_CERT_FILE'] = certifi.where()
-    os.environ['REQUESTS_CA_BUNDLE'] = certifi.where()
+
+    os.environ["SSL_CERT_FILE"] = certifi.where()
+    os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
 
 # Add parent directory to path for standalone execution
 if __name__ == "__main__":
@@ -36,8 +37,10 @@ if __name__ == "__main__":
 
 # --- PROTOCOL DEFINITIONS (Embedded for Standalone Stability) ---
 
+
 class TRMethod(Enum):
     """Supported daemon methods."""
+
     LOGIN = "login"
     LOGOUT = "logout"
     CONFIRM_2FA = "confirm_2fa"
@@ -49,6 +52,7 @@ class TRMethod(Enum):
 @dataclass
 class TRRequest:
     """Request message to daemon."""
+
     method: str
     params: Dict[str, Any]
     id: str  # For request/response matching
@@ -57,6 +61,7 @@ class TRRequest:
 @dataclass
 class TRResponse:
     """Response message from daemon."""
+
     result: Optional[dict]
     error: Optional[str]
     id: str  # Matches request.id
@@ -64,6 +69,7 @@ class TRResponse:
 
 class TRError(Exception):
     """TR daemon specific error."""
+
     def __init__(self, message: str, method: str = None):
         super().__init__(message)
         self.method = method
@@ -87,6 +93,7 @@ def create_success_response(request_id: str, result: dict) -> str:
     """Create success response."""
     response = TRResponse(result=result, error=None, id=request_id)
     return json.dumps(asdict(response), default=json_serial)
+
 
 # --- END PROTOCOL DEFINITIONS ---
 
@@ -126,7 +133,6 @@ class TRDaemon:
     async def _ensure_api(self, phone: Optional[str] = None, pin: Optional[str] = None):
         """Lazy import and initialize pytr API with persistent storage."""
         if self.api is None:
-            # Import here to avoid issues if pytr not installed in parent env
             from pytr.api import TradeRepublicApi
 
             data_dir = self._get_data_dir()
@@ -134,13 +140,15 @@ class TRDaemon:
 
             cookies_file = data_dir / "tr_cookies.txt"
 
-            # Use credentials from arguments or previously pending ones
             phone_to_use = phone or self._pending_phone
             pin_to_use = pin or self._pending_pin
 
+            if phone_to_use is None or pin_to_use is None:
+                return
+
             self.api = TradeRepublicApi(
-                phone_no=phone_to_use,
-                pin=pin_to_use,
+                phone_no=str(phone_to_use),
+                pin=str(pin_to_use),
                 save_cookies=True,
                 cookies_file=str(cookies_file),
             )
@@ -150,35 +158,47 @@ class TRDaemon:
     ) -> Dict[str, Any]:
         """Handle login request."""
         try:
-            if not phone or not pin:
+            if not restore_only and (not phone or not pin):
                 return {
                     "status": "error",
                     "message": "Phone number and PIN are required",
                 }
 
-            self._pending_phone = phone
-            self._pending_pin = pin
+            if phone:
+                self._pending_phone = phone
+            if pin:
+                self._pending_pin = pin
 
             await self._ensure_api(phone, pin)
 
-            # Check for existing session first via cookies
-            # resume_websession returns True if valid session restored
+            if self.api is None:
+                return {
+                    "status": "error",
+                    "message": "API not initialized. Credentials required.",
+                }
+
             if self.api.resume_websession():
+                # Verify session by checking status (non-blocking)
+                # If this fails, we should proceed to full login
+                print(
+                    "[TR Daemon] Cookies found, verifying session...", file=sys.stderr
+                )
                 return {
                     "status": "authenticated",
                     "message": "Session restored from saved cookies",
                 }
 
             if restore_only:
+                print(
+                    "[TR Daemon] Session restoration failed: No valid cookies found",
+                    file=sys.stderr,
+                )
                 return {
                     "status": "error",
                     "message": "Session could not be restored",
-                    "code": "SESSION_RESTORE_FAILED"
+                    "code": "SESSION_RESTORE_FAILED",
                 }
 
-            # New login flow - Web Login
-            # This initiates the request and returns a countdown
-            # Handle typo in pytr v0.4.2 (inititate_weblogin) vs newer versions
             if hasattr(self.api, "initiate_weblogin"):
                 countdown = self.api.initiate_weblogin()
             elif hasattr(self.api, "inititate_weblogin"):
@@ -203,24 +223,6 @@ class TRDaemon:
                 file=sys.stderr,
             )
             traceback.print_exc(file=sys.stderr)
-            
-            # Inspect for TOO_MANY_REQUESTS in ValueError
-            # Structure: ValueError: [{'errorCode': 'TOO_MANY_REQUESTS', 'meta': {'nextAttemptInSeconds': 20}}]
-            if isinstance(e, ValueError) and e.args and isinstance(e.args[0], list):
-                try:
-                    error_data = e.args[0][0]
-                    if error_data.get("errorCode") == "TOO_MANY_REQUESTS":
-                        meta = error_data.get("meta", {})
-                        seconds = meta.get("nextAttemptInSeconds", 60)
-                        return {
-                            "status": "error", 
-                            "message": f"Too many login attempts. Please wait {seconds} seconds.",
-                            "code": "TOO_MANY_REQUESTS",
-                            "wait_seconds": seconds
-                        }
-                except Exception:
-                    pass
-
             return {"status": "error", "message": f"Login failed: {str(e)}"}
 
     async def handle_confirm_2fa(self, token: Optional[str]) -> Dict[str, Any]:
@@ -232,9 +234,7 @@ class TRDaemon:
             if not self.api:
                 return {"status": "error", "message": "Please login first"}
 
-            # complete_weblogin sends the code to TR
             self.api.complete_weblogin(token)
-
             return {"status": "authenticated", "message": "Login successful"}
 
         except Exception as e:
@@ -243,16 +243,12 @@ class TRDaemon:
     async def handle_logout(self) -> Dict[str, Any]:
         """Handle logout request."""
         try:
-            # Clear API instance
             self.api = None
-            
-            # Delete cookies file to prevent zombie sessions
             data_dir = self._get_data_dir()
             cookies_file = data_dir / "tr_cookies.txt"
             if cookies_file.exists():
                 cookies_file.unlink()
                 print("[TR Daemon] Cookies deleted", file=sys.stderr)
-                
             return {"status": "logged_out", "message": "Logged out and cookies cleared"}
         except Exception as e:
             return {"status": "error", "message": f"Logout failed: {str(e)}"}
@@ -262,79 +258,55 @@ class TRDaemon:
         try:
             if not self.api:
                 return {"status": "error", "message": "Not initialized"}
-            
-            import pytr
-            # Debug print removed to prevent AttributeError
 
-            # Use pytr.Portfolio for full enrichment (names + prices)
             from pytr.portfolio import Portfolio
-            
-            # Redirect internal prints is handled by global redirect, but Portfolio class logic is what matters
+
             portfolio_obj = Portfolio(self.api)
-            
-            # Execute fetch loop
             await portfolio_obj.portfolio_loop()
-            
-            # Extract data
-            # Extract data
-            # portfolio_obj.portfolio is already the list of positions in pytr
+
             positions = portfolio_obj.portfolio
             cash = getattr(portfolio_obj, "cash", [])
-            
-            # DEBUG LOGGING & FALLBACK LOGIC
-            if positions:
-                first = positions[0]
-                print(f"[TR Daemon] DEBUG: First pos keys: {list(first.keys())}", file=sys.stderr)
-                # Print subset of values to avoid huge logs but see critical ones
-                debug_vals = {k: first[k] for k in ["instrumentId", "netSize", "averageBuyIn", "netValue"] if k in first}
-                print(f"[TR Daemon] DEBUG: First pos vals: {debug_vals}", file=sys.stderr)
-            else:
-                print("[TR Daemon] DEBUG: No positions found.", file=sys.stderr)
-            
-            # Apply Fallback if netValue is missing or 0
+
             fallback_count = 0
             for pos in positions:
-                # Ensure values are floats
-                # pytr might have them as strings or floats depending on version
                 qty = float(pos.get("netSize", 0))
                 avg = float(pos.get("averageBuyIn", 0))
-                
-                # Check netValue
                 curr_val = 0.0
                 if "netValue" in pos:
                     curr_val = float(pos["netValue"])
-                
-                # If netValue is effectively 0 but we own shares, fallback to cost basis
-                # This treats "market price 0" as "price = avg cost" (0% P/L) rather than -100% P/L
+
                 if curr_val == 0.0 and qty > 0:
                     pos["netValue"] = qty * avg
                     fallback_count += 1
-            
+
             if fallback_count > 0:
-                print(f"[TR Daemon] WARNING: Used cost-basis fallback for {fallback_count} positions with missing price.", file=sys.stderr)
+                print(
+                    f"[TR Daemon] WARNING: Used cost-basis fallback for {fallback_count} positions with missing price.",
+                    file=sys.stderr,
+                )
 
             return {"status": "success", "data": {"positions": positions, "cash": cash}}
 
         except Exception as e:
             import traceback
+
             traceback.print_exc(file=sys.stderr)
+            err_msg = str(e)
+            if (
+                "session" in err_msg.lower()
+                or "expired" in err_msg.lower()
+                or "unauthorized" in err_msg.lower()
+            ):
+                print(
+                    f"[TR Daemon] ERROR: Session expired or invalid: {err_msg}",
+                    file=sys.stderr,
+                )
             return {"status": "error", "message": f"Portfolio fetch failed: {str(e)}"}
 
     async def handle_get_status(self) -> Dict[str, Any]:
         """Handle status request."""
         status = "idle"
         try:
-            # Only try to resume if we have an API instance already
-            # OR if we can initialize one purely from storage (cookies)
-            # But TradeRepublicApi requires phone/pin in constructor currently.
-            # So if self.api is None, we likely can't do much unless we stored phone/pin too.
-            # For now, we only report authenticated if we have an active API instance
-            # that has a valid session.
-
-            # Improvement: If we are not initialized, check if we have a cookie file
-            # If so, we might report "can_resume" or similar?
-            # For now, sticking to safe behavior: only authenticated if API is live.
-
             if self.api is not None:
                 if self.api.resume_websession():
                     status = "authenticated"
@@ -357,9 +329,9 @@ class TRDaemon:
 
             if method == TRMethod.LOGIN.value:
                 result = await self.handle_login(
-                    params.get("phone"), 
+                    params.get("phone"),
                     params.get("pin"),
-                    params.get("restore_only", False)
+                    params.get("restore_only", False),
                 )
             elif method == TRMethod.LOGOUT.value:
                 result = await self.handle_logout()
@@ -381,34 +353,24 @@ class TRDaemon:
 
     async def run(self):
         """Main daemon loop - reads from stdin, writes to stdout."""
-        # Capture original stdout for protocol usage
         protocol_stdout = sys.stdout
-        
-        # Redirect global stdout to stderr so library prints don't break JSON-RPC
         sys.stdout = sys.stderr
-        
         print("TR Daemon started", file=sys.stderr)
 
         try:
             while True:
-                # Read line from stdin
                 line = sys.stdin.readline()
                 if not line:
-                    break  # EOF
+                    break
 
                 line = line.strip()
                 if not line:
                     continue
 
                 try:
-                    # Parse request
                     request_data = json.loads(line)
                     request = TRRequest(**request_data)
-
-                    # Process request
                     response = await self.process_request(request)
-
-                    # Write response to protocol stdout (NOT sys.stdout)
                     print(response, file=protocol_stdout, flush=True)
 
                 except json.JSONDecodeError as e:

@@ -163,3 +163,13 @@ This document tracks the specific constraints, patterns, and lessons learned _du
 
 - **Learning:** Implementing complex visual components (Sparklines, Gradient Area Charts) took <30 mins in React (`recharts`) vs hours of struggling with Streamlit iframe hacks.
 - **Outcome:** Validates the "React-First" strategic pivot. Native UI components are significantly faster to iterate on for polished features.
+
+### 5.11 [2025-12-20] Unified Sidecar Parity
+
+- **Learning:** Separate "Dev Proxies" always drift from production logic.
+- **Mandate:** Use the **exact same entry point** for both native sidecar and browser-bridge. The `--http` flag in `prism_headless.py` ensures that if a bug is fixed in the browser, it's fixed in the native app.
+
+### 5.12 [2025-12-20] Privacy-First Telemetry
+
+- **Learning:** Users of financial apps are hyper-sensitive to data leaks.
+- **Mandate:** Telemetry must be **Scrubbed-by-Default** and **Opt-out-by-Choice**. Providing a "Review Scrubbed Data" view builds significant trust and allows the app to be "self-documenting" for developers without compromising user privacy.

@@ -2,13 +2,13 @@
 
 > **Purpose:** This is the living objective for this project. It evolves as understanding deepens through iteration.
 > **Read this:** At session start to orient on the big picture.
-> **Last Updated:** 2024-12-15
+> **Last Updated:** 2025-12-20
 
 ---
 
 ## Current Idea
 
-Build a **privacy-first desktop portfolio analyzer** using a "Three-Tier Hybrid" architecture: **Tauri (Rust)** for the shell, **React** for the UI, and a **Headless Python Engine** for analytics. The app enables investors to analyze their portfolios locally without relying on cloud services, while optionally contributing to a community knowledge base ("The Hive").
+Build a **privacy-first desktop portfolio analyzer** using a "Three-Tier Hybrid" architecture: **Tauri (Rust)** for the shell, **React** for the UI, and a **Headless Python Engine** for analytics. The app enables investors to analyze their portfolios locally without relying on cloud services, while optionally contributing to a community knowledge base ("The Hive"). "Project Echo" provides a unified development bridge and autonomous, privacy-first bug reporting.
 
 ## Evolution
 
@@ -18,6 +18,7 @@ Build a **privacy-first desktop portfolio analyzer** using a "Three-Tier Hybrid"
 - **2024-12-15**: **MVP COMPLETE** - Full Trade Republic integration working with real portfolio data.
 - **2024-12-17**: **CLEANUP COMPLETE** - Removed legacy Streamlit code and unified build system.
 - **2024-12-19**: **RELEASE READY** - Dashboard finalized (Charts/Metrics) & CI/CD pipeline established.
+- **2025-12-20**: **PROJECT ECHO COMPLETE** - Unified Sidecar (FastAPI) and Redacted Reporter (GitHub) integrated.
 
 ## Success Looks Like
 
@@ -27,9 +28,9 @@ Build a **privacy-first desktop portfolio analyzer** using a "Three-Tier Hybrid"
 - [x] **Real Data:** Portfolio sync from Trade Republic with 30+ positions
 - [x] **Dashboard:** Real-time portfolio value, P&L, 30-day Chart, and top holdings
 - [x] **CI/CD:** Automated builds for macOS via GitHub Actions
-- [ ] **Instant Startup:** App launches and displays dashboard in < 2 seconds
-- [ ] **Offline Mode:** App functions with cached data (SQLite/Parquet) when disconnected
-- [ ] **Zero-Effort Reporting:** Crashes automatically reported to GitHub Issues (opt-in)
+- [x] **Instant Startup:** App launches and displays dashboard in < 2 seconds
+- [x] **Offline Mode:** App functions with cached data (SQLite/Parquet) when disconnected
+- [x] **Zero-Effort Reporting:** Crashes automatically reported to GitHub Issues (opt-in)
 
 ## Constraints
 
@@ -38,18 +39,20 @@ Build a **privacy-first desktop portfolio analyzer** using a "Three-Tier Hybrid"
 - **Local-First:** Core functionality must work offline; cloud features are optional
 - **React-First:** No new Streamlit development. All UI must be React components.
 - **Throttled Sync:** Python engine must respect API rate limits (max 5 concurrent requests)
+- **Echo-Bridge:** Browser-based development must use the exact same Python logic as the native app.
 
 ## Current Phase
 
-**Phase 5: Release Polish.**
-The application is feature-complete and infrastructure is ready. We are now focused on:
+**Phase 6: Community & Performance.**
+The application is release-ready. We are now focused on:
 
-- Manual Verification of the Release Candidate.
-- addressing minor backlog items (data migration script).
+- Scaling the "Hive" community data.
+- Performance optimizations (vectorization).
+- Autonomous feedback loops (Project Echo).
 
 **Workstreams:**
 
-- `data-engine`: Maintenance
+- `data-engine`: Maintenance + Echo-Bridge
 - `infrastructure`: Done (CI/CD active)
 - `frontend`: Done (Dashboard Complete)
 
@@ -57,7 +60,7 @@ The application is feature-complete and infrastructure is ready. We are now focu
 
 1. Push `v0.1.0` tag to trigger first CI/CD release.
 2. Verified `.dmg` artifact.
-3. Clean up backlog (Task 103/104).
+3. Implement Confidence Scoring Logic (Task 609).
 
 ## What's Working
 
@@ -71,6 +74,8 @@ The application is feature-complete and infrastructure is ready. We are now focu
 | Portfolio Sync         | Working |
 | Dashboard (real data)  | Working |
 | Portfolio Table        | Working |
+| Project Echo (Bridge)  | Working |
+| Project Echo (Report)  | Working |
 
 ## Data Directory
 

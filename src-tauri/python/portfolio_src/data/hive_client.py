@@ -9,6 +9,8 @@ Syncs with Supabase backend for:
 
 import os
 import json
+import pandas as pd
+import math
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Optional, Dict, List, Any
@@ -18,25 +20,23 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Placeholder definitions for type checking when supabase is not installed
-# This is a common pattern to avoid mypy errors when dependencies are optional/conditional.
+# This is a common pattern to avoid errors when dependencies are optional.
 SUPABASE_AVAILABLE = False
 
 
-class Client:
-    pass
-
-
 def create_client(*args, **kwargs):
+    """Placeholder create_client function."""
     return None
 
 
 try:
-    from supabase import create_client as real_create_client, Client as RealClient
+    from supabase import create_client as real_create_client
 
-    Client = RealClient
-    create_client = real_create_client
+    # Override with real implementations at runtime
+    create_client = real_create_client  # type: ignore
     SUPABASE_AVAILABLE = True
 except ImportError:
+    # Keep placeholder implementations when supabase is not available
     pass
 
 
@@ -56,6 +56,42 @@ class AssetEntry:
     # Metadata for caching
     contributor_count: int = 1
     last_updated: Optional[str] = None
+    confidence_score: float = 0.0
+
+    def calculate_confidence(self) -> float:
+        """
+        Calculate a trust score (0.0 - 1.0) for this asset.
+
+        Weights:
+        - Contributor Count: 0.4 (Logarithmic scaling)
+        - Freshness: 0.3 (Linear decay over 180 days)
+        - Status: 0.3 (Verified > Active > Stub)
+        """
+        # 1. Contributor Score (0.4)
+        # Log scale: 1 contributor = 0.1, 10+ contributors = 0.4
+        contrib_score = min(
+            0.4, 0.1 + (math.log10(max(1, self.contributor_count)) * 0.3)
+        )
+
+        # 2. Freshness Score (0.3)
+        freshness_score = 0.0
+        if self.last_updated:
+            try:
+                updated_at = datetime.fromisoformat(
+                    self.last_updated.replace("Z", "+00:00")
+                )
+                days_old = (datetime.now(updated_at.tzinfo) - updated_at).days
+                # Linear decay from 0.3 (today) to 0.0 (180 days old)
+                freshness_score = max(0.0, 0.3 * (1 - (days_old / 180)))
+            except Exception:
+                pass
+
+        # 3. Status Score (0.3)
+        status_map = {"verified": 0.3, "active": 0.2, "stub": 0.1}
+        status_score = status_map.get(self.enrichment_status.lower(), 0.0)
+
+        self.confidence_score = round(contrib_score + freshness_score + status_score, 2)
+        return self.confidence_score
 
 
 @dataclass
@@ -94,7 +130,7 @@ class HiveClient:
         self.supabase_url = os.getenv("SUPABASE_URL", "")
         self.supabase_key = os.getenv("SUPABASE_ANON_KEY", "")
 
-        self._client: Optional[Client] = None
+        self._client: Optional[Any] = None
         self._universe_cache: Dict[str, AssetEntry] = {}
         self._cache_loaded_at: Optional[datetime] = None
 
@@ -108,7 +144,7 @@ class HiveClient:
         """Check if Supabase credentials are configured."""
         return SUPABASE_AVAILABLE and bool(self.supabase_url and self.supabase_key)
 
-    def _get_client(self) -> Optional[Client]:
+    def _get_client(self) -> Optional[Any]:
         """Get or create Supabase client."""
         if not self.is_configured:
             return None
@@ -171,7 +207,7 @@ class HiveClient:
 
     def sync_universe(self, force: bool = False) -> HiveResult:
         """
-        Download the latest master universe (assets + primary listings) from Supabase.
+        Download the latest master universe from Supabase.
 
         Args:
             force: If True, ignore cache and force download
@@ -186,14 +222,14 @@ class HiveClient:
                 data={"count": len(self._universe_cache), "source": "memory_cache"},
             )
 
-        # 2. Try to load from file cache (even if expired, for a fast start)
+        # 2. Try to load from file cache
         if not force and self._load_cache():
             return HiveResult(
                 success=True,
                 data={"count": len(self._universe_cache), "source": "file_cache"},
             )
 
-        # 3. Download from Supabase (Requires a Master VIEW or RPC for efficiency)
+        # 3. Download from Supabase
         client = self._get_client()
         if not client:
             return HiveResult(
@@ -202,12 +238,11 @@ class HiveClient:
             )
 
         try:
-            # Assuming a `master_view` or similar structure for MVP sync
-            # This joins assets and the primary listing/ticker
             response = client.from_("master_view").select("*").execute()
 
-            self._universe_cache = {
-                row["isin"]: AssetEntry(
+            self._universe_cache = {}
+            for row in response.data:
+                asset = AssetEntry(
                     isin=row.get("isin", ""),
                     name=row.get("name", ""),
                     asset_class=row.get("asset_class", "Unknown"),
@@ -217,9 +252,10 @@ class HiveClient:
                     currency=row.get("currency"),
                     enrichment_status=row.get("enrichment_status", "stub"),
                     last_updated=row.get("updated_at"),
+                    contributor_count=row.get("contributor_count", 1),
                 )
-                for row in response.data
-            }
+                asset.calculate_confidence()
+                self._universe_cache[asset.isin] = asset
             self._cache_loaded_at = datetime.now()
             self._save_cache()
 
@@ -242,16 +278,9 @@ class HiveClient:
     def lookup(self, isin: str) -> Optional[AssetEntry]:
         """
         Look up an ISIN in the universe.
-
-        Checks local cache first. Syncs if cache is empty/stale.
-
-        Args:
-            isin: ISIN to look up
-
-        Returns:
-            AssetEntry if found, None otherwise
+        Returns from cache if available, None otherwise.
         """
-        # Ensure cache is populated (will trigger sync if necessary)
+        # Ensure cache is populated
         if not self._universe_cache or not self._is_cache_valid():
             self.sync_universe()
 
@@ -260,6 +289,110 @@ class HiveClient:
             return self._universe_cache[isin]
 
         return None
+
+    def batch_lookup(self, isins: List[str]) -> Dict[str, AssetEntry]:
+        """
+        Batch lookup multiple ISINs from the universe.
+        Returns a dictionary mapping ISINs to AssetEntry objects.
+        """
+        # Check cache first
+        uncached_isins = [isin for isin in isins if isin not in self._universe_cache]
+
+        if not uncached_isins:
+            return {isin: self._universe_cache[isin] for isin in isins}
+
+        # Initialize result with cached entries
+        result = {
+            isin: self._universe_cache[isin]
+            for isin in isins
+            if isin in self._universe_cache
+        }
+
+        # Batch fetch from Supabase for uncached ISINs
+        try:
+            client = self._get_client()
+            if client is None:
+                # Return placeholder entries if client is not available
+                for isin in uncached_isins:
+                    result[isin] = AssetEntry(
+                        isin=isin,
+                        name="Unknown",
+                        asset_class="Unknown",
+                        base_currency="Unknown",
+                    )
+                return result
+
+            response = (
+                client.from_("assets").select("*").in_("isin", uncached_isins).execute()
+            )
+
+            # Process response and update cache
+            for row in response.data:
+                asset = AssetEntry(
+                    isin=row.get("isin", ""),
+                    name=row.get("name", ""),
+                    asset_class=row.get("asset_class", "Unknown"),
+                    base_currency=row.get("base_currency", "Unknown"),
+                    ticker=row.get("ticker"),
+                    exchange=row.get("exchange"),
+                    currency=row.get("currency"),
+                    enrichment_status=row.get("enrichment_status", "stub"),
+                    last_updated=row.get("updated_at"),
+                    contributor_count=row.get("contributor_count", 1),
+                )
+                asset.calculate_confidence()
+                self._universe_cache[asset.isin] = asset
+                result[asset.isin] = asset
+
+        except Exception as e:
+            print(f"Hive batch lookup failed: {e}")
+            # Return placeholder entries for failed lookups
+            for isin in uncached_isins:
+                if isin not in result:
+                    result[isin] = AssetEntry(
+                        isin=isin,
+                        name="Unknown",
+                        asset_class="Unknown",
+                        base_currency="Unknown",
+                    )
+
+        return result
+
+    def batch_contribute(self, assets_data: List[AssetEntry]) -> bool:
+        """
+        Contribute multiple asset entries to the Hive.
+        Uses RPC functions for atomic, safe upserts.
+        """
+        try:
+            client = self._get_client()
+            if client is None:
+                print("Cannot contribute assets: Supabase client not available")
+                return False
+
+            # Transform AssetEntry to dict for upsert
+            assets_dict = [
+                {
+                    "isin": asset.isin,
+                    "name": asset.name,
+                    "asset_class": asset.asset_class,
+                    "base_currency": asset.base_currency,
+                    "enrichment_status": asset.enrichment_status,
+                }
+                for asset in assets_data
+            ]
+
+            # Use RPC function for atomic batch upsert
+            response = client.rpc("batch_contribute_assets", {"assets": assets_dict})
+
+            if response.data and response.data[0].get("success"):
+                print(f"Successfully contributed {len(assets_data)} assets to Hive")
+                return True
+            else:
+                print(f"Failed to contribute assets: {response.data}")
+                return False
+        except Exception as e:
+            print(f"Hive batch contribution failed: {e}")
+            return False
 
     def contribute_asset(
         self,
@@ -273,15 +406,12 @@ class HiveClient:
     ) -> HiveResult:
         """
         Contribute a new asset record and its primary listing to the Hive.
-
-        This calls the PostgreSQL RPC function `contribute_asset` for safe, transactional upsert.
         """
         client = self._get_client()
         if not client:
             return HiveResult(success=False, error="Supabase client not configured")
 
         try:
-            # Call the RPC function defined in schema.sql
             response = client.rpc(
                 "contribute_asset",
                 {
@@ -296,7 +426,6 @@ class HiveClient:
             ).execute()
 
             if response.data and response.data[0].get("success"):
-                # Invalidate cache to force reload on next sync/lookup
                 self._cache_loaded_at = None
                 return HiveResult(success=True, data=response.data[0])
             else:
@@ -308,12 +437,11 @@ class HiveClient:
                 )
 
         except Exception as e:
-            # Policy/RLS errors will be caught here
             error_msg = str(e)
             if "policy" in error_msg.lower() or "permission" in error_msg.lower():
                 return HiveResult(
                     success=False,
-                    error="Permission denied (RLS/Policy violation). This operation requires proper authentication.",
+                    error="Permission denied (RLS/Policy violation).",
                 )
             return HiveResult(success=False, error=f"RPC call failed: {error_msg}")
 
@@ -325,8 +453,7 @@ class HiveClient:
         currency: str,
     ) -> HiveResult:
         """
-        Contribute a new secondary listing (ticker/exchange) to the Hive.
-        Assumes the core asset already exists.
+        Contribute a new secondary listing to the Hive.
         """
         client = self._get_client()
         if not client:
@@ -349,7 +476,7 @@ class HiveClient:
                 return HiveResult(
                     success=False,
                     error=response.data[0].get(
-                        "error_message", "Listing contribution failed at RPC level"
+                        "error_message", "Listing contribution failed"
                     ),
                 )
         except Exception as e:
@@ -362,7 +489,7 @@ class HiveClient:
         provider_id: str,
     ) -> HiveResult:
         """
-        Contribute a non-ticker alias (e.g., name variant) to the provider_mappings table.
+        Contribute a non-ticker alias to the provider_mappings table.
         """
         client = self._get_client()
         if not client:
@@ -384,11 +511,106 @@ class HiveClient:
                 return HiveResult(
                     success=False,
                     error=response.data[0].get(
-                        "error_message", "Mapping contribution failed at RPC level"
+                        "error_message", "Mapping contribution failed"
                     ),
                 )
         except Exception as e:
             return HiveResult(success=False, error=f"RPC call failed: {str(e)}")
+
+    def get_etf_holdings(self, etf_isin: str) -> Optional[pd.DataFrame]:
+        """
+        Fetch ETF holdings from the Hive.
+        Returns a DataFrame with columns [isin, name, weight, sector, geography].
+        """
+        client = self._get_client()
+        if not client:
+            return None
+
+        try:
+            # Query the etf_holdings table
+            response = (
+                client.from_("etf_holdings")
+                .select("*")
+                .eq("etf_isin", etf_isin)
+                .execute()
+            )
+
+            if not response.data:
+                return None
+
+            # Convert to DataFrame and normalize columns
+            df = pd.DataFrame(response.data)
+
+            # Map Hive columns to standard internal names
+            column_map = {
+                "holding_isin": "isin",
+                "holding_name": "name",
+                "weight_percentage": "weight",
+            }
+            df = df.rename(columns=column_map)
+
+            # Ensure required columns exist
+            for col in ["isin", "name", "weight"]:
+                if col not in df.columns:
+                    df[col] = "Unknown" if col != "weight" else 0.0
+
+            return df
+
+        except Exception as e:
+            print(f"Hive holdings lookup failed for {etf_isin}: {e}")
+            return None
+
+    def contribute_etf_holdings(self, etf_isin: str, holdings_df: pd.DataFrame) -> bool:
+        """
+        Contribute ETF holdings to the Hive.
+        Uses RPC for atomic batch upsert.
+        """
+        client = self._get_client()
+        if not client:
+            return False
+
+        try:
+            # Transform DataFrame to list of dicts for RPC
+            # We need to match the Supabase schema
+            holdings_list = []
+            for _, row in holdings_df.iterrows():
+                holdings_list.append(
+                    {
+                        "etf_isin": etf_isin,
+                        "holding_isin": str(row.get("isin", row.get("ISIN", ""))),
+                        "holding_name": str(
+                            row.get("name", row.get("Name", "Unknown"))
+                        ),
+                        "weight_percentage": float(
+                            row.get("weight", row.get("Weight", 0.0)) or 0.0
+                        ),
+                        "sector": str(row.get("sector", "Unknown")),
+                        "geography": str(row.get("geography", "Unknown")),
+                    }
+                )
+
+            if not holdings_list:
+                return False
+
+            # Use RPC function for atomic batch upsert
+            # This function should handle clearing old holdings and inserting new ones
+            response = client.rpc(
+                "batch_contribute_holdings",
+                {"p_etf_isin": etf_isin, "p_holdings": holdings_list},
+            ).execute()
+
+            if response.data and response.data[0].get("success"):
+                print(
+                    f"Successfully contributed {len(holdings_list)} holdings for {etf_isin} to Hive"
+                )
+                return True
+            else:
+                print(f"Failed to contribute holdings: {response.data}")
+                return False
+
+        except Exception as e:
+            print(f"Hive holdings contribution failed for {etf_isin}: {e}")
+            return False
 
     def get_stats(self) -> Dict[str, Any]:
         """Get statistics about the cached universe."""

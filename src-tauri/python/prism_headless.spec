@@ -74,6 +74,17 @@ a = Analysis(
         'tkinter',
         'PyQt5',
         'PyQt6',
+        # HTTP Server (Echo-Bridge) - Deprecated in favor of Stdin/Stdout IPC
+        'fastapi',
+        'uvicorn',
+        'starlette',
+        'pydantic_core',
+        # Heavy data science libs not used in headless
+        'scipy',
+        'sqlalchemy',
+        'boto3',
+        'botocore',
+        'docutils',
         # Dev tools
         'pytest',
         'pyinstaller',

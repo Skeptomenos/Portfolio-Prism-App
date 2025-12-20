@@ -5,7 +5,7 @@ Aggregator Service - Groups and sums exposures across all positions.
 UI-agnostic, reusable with React.
 """
 
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, cast, Any, Optional
 import pandas as pd
 
 from portfolio_src.core.errors import PipelineError, ErrorPhase, ErrorType
@@ -14,7 +14,8 @@ from portfolio_src.core.utils import (
     get_isin_column,
     get_name_column,
     get_value_column,
-    get_weight_column
+    get_weight_column,
+    SchemaNormalizer,
 )
 from portfolio_src.prism_utils.logging_config import get_logger
 
@@ -31,7 +32,7 @@ class Aggregator:
         holdings_map: Dict[str, pd.DataFrame],
     ) -> Tuple[pd.DataFrame, List[PipelineError]]:
         """
-        Aggregate all positions into exposure report.
+        Aggregate all positions into exposure report using vectorized operations.
 
         Args:
             direct_positions: DataFrame of direct stock holdings
@@ -44,174 +45,266 @@ class Aggregator:
             - errors: List of PipelineError for any issues encountered
         """
         errors = []
-        
+
         # BASIC VALIDATION
         if not isinstance(direct_positions, pd.DataFrame):
-            errors.append(PipelineError(
-                phase=ErrorPhase.AGGREGATION,
-                error_type=ErrorType.VALIDATION_FAILED,
-                item="direct_positions",
-                message="Input direct_positions must be a DataFrame"
-            ))
+            errors.append(
+                PipelineError(
+                    phase=ErrorPhase.AGGREGATION,
+                    error_type=ErrorType.VALIDATION_FAILED,
+                    item="direct_positions",
+                    message="Input direct_positions must be a DataFrame",
+                )
+            )
             return pd.DataFrame(), errors
 
         if not isinstance(etf_positions, pd.DataFrame):
-            errors.append(PipelineError(
-                phase=ErrorPhase.AGGREGATION,
-                error_type=ErrorType.VALIDATION_FAILED,
-                item="etf_positions",
-                message="Input etf_positions must be a DataFrame"
-            ))
+            errors.append(
+                PipelineError(
+                    phase=ErrorPhase.AGGREGATION,
+                    error_type=ErrorType.VALIDATION_FAILED,
+                    item="etf_positions",
+                    message="Input etf_positions must be a DataFrame",
+                )
+            )
             return pd.DataFrame(), errors
 
         if not isinstance(holdings_map, dict):
-            errors.append(PipelineError(
-                phase=ErrorPhase.AGGREGATION,
-                error_type=ErrorType.VALIDATION_FAILED,
-                item="holdings_map",
-                message="Input holdings_map must be a Dictionary"
-            ))
+            errors.append(
+                PipelineError(
+                    phase=ErrorPhase.AGGREGATION,
+                    error_type=ErrorType.VALIDATION_FAILED,
+                    item="holdings_map",
+                    message="Input holdings_map must be a Dictionary",
+                )
+            )
             return pd.DataFrame(), errors
 
         try:
             all_exposures = []
-            
+
+            # Normalize inputs
+            norm_direct = SchemaNormalizer.normalize_columns(direct_positions)
+            norm_etf = SchemaNormalizer.normalize_columns(etf_positions)
+
             # Get total portfolio value for percentage calculation
-            total_value = calculate_portfolio_total_value(direct_positions, etf_positions)
-            
-            # Process direct positions
-            if not direct_positions.empty:
-                direct_exp = self._process_direct_positions(direct_positions)
+            total_value = calculate_portfolio_total_value(norm_direct, norm_etf)
+
+            # Process direct positions (Vectorized)
+            if not norm_direct.empty:
+                direct_exp = self._process_direct_positions(norm_direct)
                 all_exposures.append(direct_exp)
-            
-            # Process ETF positions
-            if not etf_positions.empty:
-                etf_exp = self._process_etf_positions(etf_positions, holdings_map)
+
+            # Process ETF positions (Vectorized per ETF)
+            if not norm_etf.empty:
+                etf_exp = self._process_etf_positions(norm_etf, holdings_map)
                 all_exposures.append(etf_exp)
-            
+
             if not all_exposures:
-                return pd.DataFrame(columns=[
-                    "isin", "name", "sector", "geography", 
-                    "total_exposure", "portfolio_percentage"
-                ]), errors
-            
+                cols: Any = [
+                    "isin",
+                    "name",
+                    "sector",
+                    "geography",
+                    "total_exposure",
+                    "portfolio_percentage",
+                ]
+                return pd.DataFrame(columns=cols), errors
+
             # Combine all exposures
             combined = pd.concat(all_exposures, ignore_index=True)
-            
+
             # Group by underlying ISIN
-            aggregated = combined.groupby("isin", as_index=False).agg({
-                "name": "first",
-                "sector": "first",
-                "geography": "first",
-                "total_exposure": "sum",
-            })
-            
+            aggregated: Any = combined.groupby("isin", as_index=False).agg(
+                {
+                    "name": "first",
+                    "sector": "first",
+                    "geography": "first",
+                    "total_exposure": "sum",
+                }
+            )
+
             # Calculate percentages
             aggregated["portfolio_percentage"] = (
-                aggregated["total_exposure"] / total_value * 100
-            ) if total_value > 0 else 0
-            
+                (aggregated["total_exposure"] / total_value * 100)
+                if total_value > 0
+                else 0.0
+            )
+
             # Sort by exposure
             aggregated = aggregated.sort_values("total_exposure", ascending=False)
-            
-            logger.info(f"Aggregation complete: {len(aggregated)} unique exposures")
-            return aggregated, errors
-            
+
+            logger.info(
+                f"Aggregation complete: {len(aggregated)} unique underlying assets identified"
+            )
+            return cast(pd.DataFrame, aggregated), errors
+
         except Exception as e:
             logger.error(f"Aggregation failed: {e}", exc_info=True)
-            errors.append(PipelineError(
-                phase=ErrorPhase.AGGREGATION,
-                error_type=ErrorType.VALIDATION_FAILED,
-                item="aggregation",
-                message=f"Aggregation failed: {str(e)}",
-                fix_hint="Check holdings data format and column names"
-            ))
-            return pd.DataFrame(columns=[
-                "isin", "name", "sector", "geography", 
-                "total_exposure", "portfolio_percentage"
-            ]), errors
+            errors.append(
+                PipelineError(
+                    phase=ErrorPhase.AGGREGATION,
+                    error_type=ErrorType.VALIDATION_FAILED,
+                    item="aggregation",
+                    message=f"Aggregation failed: {str(e)}",
+                    fix_hint="Check holdings data format and column names",
+                )
+            )
+            cols: Any = [
+                "isin",
+                "name",
+                "sector",
+                "geography",
+                "total_exposure",
+                "portfolio_percentage",
+            ]
+            return pd.DataFrame(columns=cols), errors
 
-    def _process_direct_positions(
-        self, direct_positions: pd.DataFrame
-    ) -> pd.DataFrame:
-        """Process direct stock holdings into exposure format."""
+    def _process_direct_positions(self, direct_positions: pd.DataFrame) -> pd.DataFrame:
+        """Process direct stock holdings into exposure format using vectorized operations."""
+        if direct_positions.empty:
+            return pd.DataFrame()
+
         isin_col = get_isin_column(direct_positions)
         name_col = get_name_column(direct_positions)
         value_col = get_value_column(direct_positions)
-        
-        exposures = []
-        for _, pos in direct_positions.iterrows():
-            exposures.append({
-                "isin": pos.get(isin_col, ""),
-                "name": pos.get(name_col, pos.get("TR_Name", "Unknown")),
-                "sector": pos.get("sector", "Unknown"),
-                "geography": pos.get("geography", "Unknown"),
-                "total_exposure": pos.get(value_col, 0),
-            })
-        
-        return pd.DataFrame(exposures)
+
+        # Create a clean exposure DataFrame
+        df = pd.DataFrame()
+        df["isin"] = direct_positions[isin_col].astype(str) if isin_col else "Unknown"
+
+        # Handle Name (fallback to TR_Name)
+        if name_col:
+            df["name"] = direct_positions[name_col].astype(str)
+        elif "TR_Name" in direct_positions.columns:
+            df["name"] = direct_positions["TR_Name"].astype(str)
+        else:
+            df["name"] = "Unknown"
+
+        # Metadata
+        df["sector"] = (
+            direct_positions["sector"].astype(str)
+            if "sector" in direct_positions.columns
+            else "Unknown"
+        )
+        df["geography"] = (
+            direct_positions["geography"].astype(str)
+            if "geography" in direct_positions.columns
+            else "Unknown"
+        )
+
+        # Exposure (Value)
+        if value_col:
+            vals = direct_positions[value_col]
+            if isinstance(vals, pd.DataFrame):
+                vals = vals.iloc[:, 0]
+            # Use getattr to bypass static analysis for fillna
+            numeric_vals = pd.to_numeric(cast(Any, vals), errors="coerce")
+            df["total_exposure"] = getattr(numeric_vals, "fillna")(0.0)
+        else:
+            df["total_exposure"] = 0.0
+
+        return df
 
     def _process_etf_positions(
         self,
         etf_positions: pd.DataFrame,
         holdings_map: Dict[str, pd.DataFrame],
     ) -> pd.DataFrame:
-        """Process ETF positions by decomposing into underlying holdings."""
+        """Process ETF positions by decomposing into underlying holdings using vectorization."""
+        if etf_positions.empty:
+            return pd.DataFrame()
+
         isin_col = get_isin_column(etf_positions)
         value_col = get_value_column(etf_positions)
-        
-        exposures = []
-        
+
+        all_etf_exposures = []
+
         for _, etf in etf_positions.iterrows():
-            etf_isin = etf.get(isin_col, "")
-            etf_value = etf.get(value_col, 0)
-            
-            if etf_isin in holdings_map:
+            etf_isin = str(etf.get(isin_col, "")) if isin_col else ""
+
+            val = etf.get(value_col, 0.0) if value_col else 0.0
+            if isinstance(val, pd.Series):
+                val = val.iloc[0]
+            etf_value = float(val or 0.0)
+
+            if etf_isin and etf_isin in holdings_map:
                 holdings = holdings_map[etf_isin]
-                etf_exposures = self._calculate_holdings_exposure(holdings, etf_value)
-                exposures.extend(etf_exposures)
+                # Vectorized calculation for this specific ETF
+                norm_holdings = SchemaNormalizer.normalize_columns(holdings)
+                weight_col = get_weight_column(norm_holdings)
+
+                # Create exposure DF for this ETF
+                df = pd.DataFrame()
+                h_isin_col = get_isin_column(norm_holdings)
+                h_name_col = get_name_column(norm_holdings)
+
+                # Ensure we get a Series, not a DataFrame (in case of duplicate columns)
+                def get_series(df_in, col_name):
+                    if col_name not in df_in.columns:
+                        return None
+                    series = df_in[col_name]
+                    if isinstance(series, pd.DataFrame):
+                        return series.iloc[:, 0]
+                    return series
+
+                isin_series = (
+                    get_series(norm_holdings, h_isin_col) if h_isin_col else None
+                )
+                name_series = (
+                    get_series(norm_holdings, h_name_col) if h_name_col else None
+                )
+
+                df["isin"] = (
+                    isin_series.astype(str) if isin_series is not None else "Unknown"
+                )
+                df["name"] = (
+                    name_series.astype(str) if name_series is not None else "Unknown"
+                )
+                df["sector"] = (
+                    norm_holdings["sector"].astype(str)
+                    if "sector" in norm_holdings.columns
+                    else "Unknown"
+                )
+                df["geography"] = (
+                    norm_holdings["geography"].astype(str)
+                    if "geography" in norm_holdings.columns
+                    else "Unknown"
+                )
+
+                # Calculate exposure: etf_value * (weight / 100)
+                if weight_col:
+                    # Use getattr to bypass static analysis for fillna
+                    numeric_weights = pd.to_numeric(
+                        cast(Any, norm_holdings[weight_col]), errors="coerce"
+                    )
+                    weights = getattr(numeric_weights, "fillna")(0.0)
+                    df["total_exposure"] = etf_value * (cast(Any, weights) / 100.0)
+                else:
+                    # Equal weight fallback
+                    count = len(norm_holdings)
+                    df["total_exposure"] = etf_value / count if count > 0 else 0.0
+
+                all_etf_exposures.append(df)
             else:
                 # No holdings data, treat entire ETF as single exposure
-                exposures.append({
-                    "isin": etf_isin,
-                    "name": etf.get("Name", etf.get("TR_Name", "Unknown ETF")),
-                    "sector": "ETF",
-                    "geography": "Global",
-                    "total_exposure": etf_value,
-                })
-        
-        return pd.DataFrame(exposures)
+                all_etf_exposures.append(
+                    pd.DataFrame(
+                        [
+                            {
+                                "isin": etf_isin or "Unknown",
+                                "name": str(
+                                    etf.get("name", etf.get("TR_Name", "Unknown ETF"))
+                                ),
+                                "sector": "ETF",
+                                "geography": "Global",
+                                "total_exposure": etf_value,
+                            }
+                        ]
+                    )
+                )
 
-    def _calculate_holdings_exposure(
-        self, holdings: pd.DataFrame, etf_value: float
-    ) -> List[Dict]:
-        """Calculate exposure for underlying holdings of a single ETF."""
-        etf_value = etf_value or 0.0  # Handle None or invalid values
-        exposures = []
-        
-        # Determine weight column or use equal weight
-        weight_col = get_weight_column(holdings)
-        
-        current_holdings = holdings.copy()
-        if weight_col is None:
-            # No weight column, distribute equally
-            equal_weight = 100.0 / len(holdings) if len(holdings) > 0 else 0
-            current_holdings["weight"] = equal_weight
-            weight_col = "weight"
-            
-        h_isin_col = get_isin_column(current_holdings)
-        h_name_col = get_name_column(current_holdings)
-        
-        for _, holding in current_holdings.iterrows():
-            weight = holding.get(weight_col, 0) / 100  # Convert to decimal
-            exposure = etf_value * weight
-            
-            exposures.append({
-                "isin": holding.get(h_isin_col, ""),
-                "name": holding.get(h_name_col, "Unknown"),
-                "sector": holding.get("sector", "Unknown"),
-                "geography": holding.get("geography", "Unknown"),
-                "total_exposure": exposure,
-            })
-            
-        return exposures
+        if not all_etf_exposures:
+            return pd.DataFrame()
+
+        return pd.concat(all_etf_exposures, ignore_index=True)

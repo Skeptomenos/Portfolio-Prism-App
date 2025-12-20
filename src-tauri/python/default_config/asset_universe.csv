@@ -1,6 +1,6 @@
 ISIN,TR_Ticker,Yahoo_Ticker,Name,Aliases,Provider,Asset_Class,Source,Added_Date,Last_Verified
 AU0000066006,VUL,VM3.F,Vulcan Energy,,,Stock,manual,2025-01-01,
-CA22587M1068,CL,6MH.F,Cresco Labs,,,Stock,manual,2025-01-01,
+CA22587M1068,CL,UNTRADEABLE,Cresco Labs,,,Stock,manual,2025-01-01,
 CA87320L1031,TAAT,2TP.F,TAAT Global,,,Stock,manual,2025-01-01,
 DE0005493092,BVB,BVB.DE,BVB,,,Stock,manual,2025-01-01,
 DE0007500001,TKA,TKA.DE,Thyssenkrupp,,,Stock,manual,2025-01-01,
