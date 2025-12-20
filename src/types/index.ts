@@ -33,18 +33,23 @@ export interface EngineHealth {
 // Portfolio Data (from SQLite/Parquet via IPC)
 // =============================================================================
 
+export interface AllocationData {
+  sector: Record<string, number>;
+  region: Record<string, number>;
+}
+
 export interface DashboardData {
   totalValue: number;
   totalGain: number;
   gainPercentage: number;
-  allocations: {
-    sector: Record<string, number>;
-    region: Record<string, number>;
-  };
+  dayChange: number;          // New field
+  dayChangePercent: number;   // New field
+  history: { date: string; value: number }[]; // New field for chart
+  allocations: AllocationData;
   topHoldings: Holding[];
   lastUpdated: string | null;
-  isEmpty?: boolean;
-  positionCount?: number;
+  isEmpty: boolean;
+  positionCount: number;
 }
 
 export interface Holding {

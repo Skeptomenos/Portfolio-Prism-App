@@ -121,6 +121,25 @@ The React MVP is **complete and functional**. Users can:
 
 ---
 
+## Phase 4.5: Hive Activation - COMPLETE
+
+**Goal:** Enable community-sourced asset data normalization via Supabase.
+
+| Task                    | Status | Notes                                                           |
+| ----------------------- | ------ | --------------------------------------------------------------- |
+| Finalize Hive Schema    | Done   | `infrastructure/supabase/schema.sql` (Assets/Listings/Holdings) |
+| Implement Hive Client   | Done   | `hive_client.py` with RPC integration                           |
+| Create Migration Script | Done   | `scripts/seed_hive.py` for CSV -> Supabase sync                 |
+| Deploy Schema & Seed    | Done   | Validated tables and RPC functions                              |
+
+**Deliverables:**
+
+- Normalized SQL schema with RPCs for safe contribution
+- Python client for syncing asset universe
+- Seeding mechanism for initial data population
+
+---
+
 ## Phase 5: Polish & Release - IN PROGRESS
 
 **Goal:** A crash-proof, signed application with modern build infrastructure.

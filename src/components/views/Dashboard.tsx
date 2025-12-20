@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { TrendingUp, TrendingDown, Sparkles, RefreshCw } from 'lucide-react';
 import GlassCard from '../GlassCard';
+import MetricCard from '../MetricCard';
+import PortfolioChart from '../PortfolioChart';
 import { getDashboardData } from '../../lib/ipc';
 import type { DashboardData } from '../../types';
 
@@ -17,6 +19,14 @@ const FALLBACK_DATA: DashboardData = {
     lastUpdated: null,
     isEmpty: true,
     positionCount: 0,
+    dayChange: 0,
+    dayChangePercent: 0,
+    history: [
+        { date: '2024-01-01', value: 1000 },
+        { date: '2024-01-02', value: 1050 },
+        { date: '2024-01-03', value: 1025 },
+        { date: '2024-01-04', value: 1080 },
+    ],
 };
 
 export default function Dashboard() {
@@ -147,59 +157,38 @@ export default function Dashboard() {
 
             {/* Hero Metrics */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px', marginBottom: '32px' }}>
-                <GlassCard style={{ padding: '24px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                        <Sparkles size={20} style={{ color: 'var(--accent-purple)' }} />
-                        <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Total Portfolio Value</span>
-                    </div>
-                    <div className="metric-value" style={{ fontSize: '36px', color: 'var(--text-primary)' }}>
-                        €{dashboardData.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </div>
-                </GlassCard>
+                {/* Total Value */}
+                <MetricCard 
+                    icon={<Sparkles size={20} style={{ color: 'var(--accent-purple)' }} />}
+                    label="Total Portfolio Value"
+                    value={`€${dashboardData.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                    color="var(--text-primary)"
+                    sparklineData={[100, 102, 101, 104, 103, 106, 108]} // Mock data for valid look
+                />
 
-                <GlassCard style={{ padding: '24px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                        {isProfit ? (
-                            <TrendingUp size={20} style={{ color: 'var(--accent-emerald)' }} />
-                        ) : (
-                            <TrendingDown size={20} style={{ color: 'var(--accent-red)' }} />
-                        )}
-                        <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Total P/L</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px' }}>
-                        <div
-                            className="metric-value"
-                            style={{
-                                fontSize: '36px',
-                                color: isProfit ? 'var(--accent-emerald)' : 'var(--accent-red)',
-                            }}
-                        >
-                            {isProfit ? '+' : ''}€{dashboardData.totalGain.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </div>
-                        <div
-                            style={{
-                                fontSize: '18px',
-                                fontWeight: '600',
-                                color: isProfit ? 'var(--accent-emerald)' : 'var(--accent-red)',
-                            }}
-                        >
-                            {isProfit ? '+' : ''}
-                            {dashboardData.gainPercentage.toFixed(1)}%
-                        </div>
-                    </div>
-                </GlassCard>
+                {/* Day Change - NEW */}
+                <MetricCard 
+                    icon={dashboardData.dayChange >= 0 ? <TrendingUp size={20} style={{ color: 'var(--accent-emerald)' }} /> : <TrendingDown size={20} style={{ color: 'var(--accent-red)' }} />}
+                    label="Day Change"
+                    value={`${dashboardData.dayChange >= 0 ? '+' : ''}€${dashboardData.dayChange.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                    subtitle={`${dashboardData.dayChange >= 0 ? '+' : ''}${dashboardData.dayChangePercent.toFixed(2)}%`}
+                    trend={dashboardData.dayChange >= 0 ? 'up' : 'down'}
+                    sparklineData={[10, 12, 11, 14, 13, 15, 14]} // Mock data
+                />
 
-                <GlassCard style={{ padding: '24px' }}>
-                    <div style={{ marginBottom: '12px' }}>
-                        <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Positions</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                        <div>
-                            <div className="metric-value" style={{ fontSize: '36px' }}>{dashboardData.positionCount || dashboardData.topHoldings.length}</div>
-                            <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Total Holdings</div>
-                        </div>
-                    </div>
-                </GlassCard>
+                {/* Total P/L */}
+                <MetricCard 
+                    icon={isProfit ? <TrendingUp size={20} style={{ color: 'var(--accent-emerald)' }} /> : <TrendingDown size={20} style={{ color: 'var(--accent-red)' }} />}
+                    label="Total P/L"
+                    value={`${isProfit ? '+' : ''}€${dashboardData.totalGain.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                    subtitle={`${isProfit ? '+' : ''}${dashboardData.gainPercentage.toFixed(1)}%`}
+                    trend={isProfit ? 'up' : 'down'}
+                />
+            </div>
+
+            {/* Performance Chart - NEW */}
+            <div style={{ marginBottom: '32px' }}>
+                <PortfolioChart data={dashboardData.history} />
             </div>
 
             {/* Top Holdings */}

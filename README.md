@@ -14,7 +14,7 @@ A privacy-first desktop portfolio analyzer that runs entirely on your machine. B
 
 ## Screenshots
 
-*Coming soon*
+_Coming soon_
 
 ---
 
@@ -22,12 +22,12 @@ A privacy-first desktop portfolio analyzer that runs entirely on your machine. B
 
 ### Prerequisites
 
-| Requirement | Version | Purpose |
-|-------------|---------|---------|
-| Node.js | 18+ | Frontend build |
-| Rust | Latest stable | Tauri shell |
-| Python | 3.9+ | Analytics engine |
-| PyInstaller | 6.0+ | Bundle Python |
+| Requirement | Version       | Purpose          |
+| ----------- | ------------- | ---------------- |
+| Node.js     | 18+           | Frontend build   |
+| Rust        | Latest stable | Tauri shell      |
+| Python      | 3.9+          | Analytics engine |
+| PyInstaller | 6.0+          | Bundle Python    |
 
 ### Installation
 
@@ -130,11 +130,11 @@ The bundle will be in `src-tauri/target/release/bundle/`.
 ├─────────────────────────────────────────────────────────┤
 │                                                         │
 │  ┌─────────────────┐         ┌─────────────────────┐   │
-│  │  Loading Screen │         │   Python Sidecar    │   │
-│  │   (TypeScript)  │         │    (Streamlit)      │   │
-│  │                 │  HTTP   │                     │   │
-│  │  Shows spinner  │◄───────►│  Portfolio Analysis │   │
-│  │  until ready    │localhost│  8 Dashboard Tabs   │   │
+│  │   React UI      │         │   Python Sidecar    │   │
+│  │ (Vite + TSX)    │         │    (Headless)       │   │
+│  │                 │  IPC    │                     │   │
+│  │   Dashboard     │◄───────►│  Analytics Engine   │   │
+│  │  Components     │         │   & Data Manager    │   │
 │  └─────────────────┘         └─────────────────────┘   │
 │                                       │                 │
 └───────────────────────────────────────│─────────────────┘
@@ -152,13 +152,13 @@ The bundle will be in `src-tauri/target/release/bundle/`.
 
 ### Key Design Decisions
 
-| Decision | Rationale |
-|----------|-----------|
-| **Tauri over Electron** | 10MB vs 300MB+, uses system WebKit |
-| **Python Sidecar** | Preserves existing analytics engine, zero rewrite |
-| **Streamlit UI** | Rapid iteration for v1, React planned for v2 |
-| **Cloudflare Proxy** | API keys never embedded in client |
-| **Local-First** | Core functionality works offline |
+| Decision                | Rationale                                               |
+| ----------------------- | ------------------------------------------------------- |
+| **Tauri over Electron** | 10MB vs 300MB+, uses system WebKit                      |
+| **Python Sidecar**      | Preserves analytics engine power, zero rewrite of logic |
+| **React UI**            | Native-feeling performance and rich interactivity       |
+| **Cloudflare Proxy**    | API keys never embedded in client                       |
+| **Local-First**         | Core functionality works offline                        |
 
 ---
 
@@ -166,88 +166,24 @@ The bundle will be in `src-tauri/target/release/bundle/`.
 
 ### Environment Variables
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `PRISM_DATA_DIR` | No | Data directory (default: `~/Library/Application Support/PortfolioPrism/`) |
-| `PROXY_URL` | No | Cloudflare Worker URL (default: built-in) |
-| `SUPABASE_URL` | No | Supabase project URL (for Hive sync) |
-| `SUPABASE_ANON_KEY` | No | Supabase anonymous key |
-
-### Cloudflare Worker Setup
-
-The API proxy protects your Finnhub API key:
-
-```bash
-cd infrastructure/cloudflare
-
-# Install Wrangler CLI
-npm install -g wrangler
-
-# Login to Cloudflare
-wrangler login
-
-# Set secrets
-wrangler secret put FINNHUB_API_KEY
-wrangler secret put GITHUB_TOKEN    # For feedback issues
-wrangler secret put GITHUB_REPO     # e.g., "user/portfolio-prism"
-
-# Deploy
-wrangler deploy
-```
-
----
-
-## Development
-
-### Rebuilding the Python Binary
-
-After modifying Python code:
-
-```bash
-cd src-tauri/python
-source venv-build/bin/activate
-pyinstaller prism.spec
-cp dist/prism ../binaries/prism-aarch64-apple-darwin
-```
-
-### Adding Python Dependencies
-
-1. Add to `requirements-build.txt`
-2. Add to `prism.spec` hidden imports (if needed)
-3. Rebuild binary
-
-### Platform-Specific Binaries
-
-The binary name must match your platform:
-
-| Platform | Binary Name |
-|----------|-------------|
-| macOS ARM | `prism-aarch64-apple-darwin` |
-| macOS Intel | `prism-x86_64-apple-darwin` |
-| Windows | `prism-x86_64-pc-windows-msvc.exe` |
-| Linux | `prism-x86_64-unknown-linux-gnu` |
+| Variable            | Required | Description                                                               |
+| ------------------- | -------- | ------------------------------------------------------------------------- |
+| `PRISM_DATA_DIR`    | No       | Data directory (default: `~/Library/Application Support/PortfolioPrism/`) |
+| `PROXY_URL`         | No       | Cloudflare Worker URL (default: built-in)                                 |
+| `SUPABASE_URL`      | No       | Supabase project URL (for Hive sync)                                      |
+| `SUPABASE_ANON_KEY` | No       | Supabase anonymous key                                                    |
 
 ---
 
 ## Current Status
 
-| Phase | Status | Description |
-|-------|--------|-------------|
-| Phase 1 | Complete | Tauri ↔ Python IPC |
-| Phase 2 | Complete | PyInstaller bundling |
-| Phase 3 | Complete | Dashboard transplant |
-| Phase 4 | **85%** | Auth & Hive integration |
-| Phase 5 | Pending | Polish, auto-updates |
-
-### Known Issues
-
-See `docs/phase4_issues.md` for current blockers:
-
-- ✅ TR Login 2FA working (daemon architecture)
-- ⏳ Daemon binary for frozen mode (plan: `docs/PLAN_TR_DAEMON_BINARY.md`)
-- ⏳ Portfolio display UI after login
-- ⏳ Cloudflare Worker not deployed
-- ⏳ Supabase project not configured
+| Phase   | Status            | Description                              |
+| ------- | ----------------- | ---------------------------------------- |
+| Phase 1 | Complete          | Tauri ↔ Python IPC                       |
+| Phase 2 | Complete          | Headless Engine & PyInstaller            |
+| Phase 3 | Complete          | React Shell & State                      |
+| Phase 4 | Complete          | Feature Parity (Dashboard, Charts, Auth) |
+| Phase 5 | **Release Ready** | CI/CD, Polish, PII Scrubbing             |
 
 ---
 
@@ -268,16 +204,15 @@ This project uses the **Anamnesis** framework for AI-assisted development:
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|------------|
-| Shell | Tauri v2 (Rust) |
-| Frontend | TypeScript + Vite |
-| UI | Streamlit (Python) |
-| Analytics | pandas, numpy, plotly |
-| Auth | pytr, keyring |
-| Database | SQLite (local), Supabase (cloud) |
-| API Proxy | Cloudflare Workers |
-| Build | PyInstaller, Cargo |
+| Layer     | Technology                                  |
+| --------- | ------------------------------------------- |
+| Shell     | Tauri v2 (Rust)                             |
+| Frontend  | TypeScript, React, Vite, Tailwind, Recharts |
+| Engine    | Python 3.12 (Headless)                      |
+| Analytics | pandas, numpy, yfinance                     |
+| Auth      | pytr, keyring                               |
+| Database  | SQLite (local), Supabase (cloud)            |
+| Build     | uv, PyInstaller, npm                        |
 
 ---
 

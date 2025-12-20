@@ -1,32 +1,29 @@
 # Handover
 
-> **Last Updated:** 2025-12-17
-> **Last Task:** Task 507 - Prism Binary Startup Hang Fix (CRIMSON → RESOLVED)
+> **Last Updated:** 2024-12-19
+> **Global Status:** **Phase 5 (Release Ready)** > **Last Task:** Task 502 - GitHub Actions CI/CD (Complete)
 
 ---
 
 ## Where We Are
 
-- **CRIMSON Resolved:** `prism-headless` binary was hanging on startup due to corrupted spec file. Fixed and verified working.
-- **Root Cause:** `prism_headless.spec` was overwritten with `tr_daemon.spec` content (wrong entry point, missing datas).
-- **Binaries Working:** Both `prism-headless` (90MB) and `tr-daemon` (27MB) start and respond to IPC commands.
+- **Release V0.1.0 Ready:** The application is fully functional, visual, and deployable.
+- **Dashboard Complete:** Metrics, Sparklines, and History Charts are live.
+- **CI/CD Pipeline:** `.github/workflows/release.yml` is ready to build the release artifact.
 
-## What Was Fixed
+## What Was Fixed/Added
 
-1. `prism_headless.spec` - Complete rewrite with correct entry point, datas, hidden_imports
-2. `logging_config.py` - Changed stdout → stderr (was polluting IPC)
-3. `prism_headless.py` - Removed duplicate stub functions
-4. `tr_daemon.spec` - Fixed ARM64 settings (strip=False, upx=False)
-5. `build-python.sh` - Added verification step
+1. **Visuals:** Implemented React-based charts (`recharts`) replacing Streamlit/Plotly.
+2. **Backend:** `HistoryManager` now calculates T-30 portfolio values.
+3. **Infrastructure:** CI/CD pipeline using `uv` + `npm` + `release-action`.
 
 ## Immediate Next Steps
 
-1. **Full Integration Test:** Run `npm run tauri dev` to verify React ↔ Rust ↔ Python pipeline
-2. **Continue Task 507 Parent:** Resume auth/sync features that were blocked by this bug
-3. **Consider:** Add spec file checksums to build script to detect future corruption
+1. **RELEASE:** `git tag v0.1.0 && git push origin v0.1.0`
+2. **VERIFY:** Download `.dmg` from GitHub and perform install test.
+3. **PLAN:** Begin "Backlog Cleanups" (Data Migration Task 103).
 
 ## Critical Context
 
-- **Spec File Safety:** Always diff `.spec` files before building. The `.spec.full` backup saved this session.
-- **ARM64 Rules:** `collect_submodules()` mandatory for pandas/numpy/pyarrow. No strip, no UPX.
-- **IPC Purity:** stdout is sacred - ALL logging must go to stderr.
+- **Release Tag:** The CI pipeline ONLY triggers on `v*` tags.
+- **Data Integrity:** `active_state.md` was missing this session, but State Files (`mission.md`, `tasks.md`) are now fully synced.

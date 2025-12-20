@@ -210,13 +210,17 @@ This document tracks significant architectural decisions (ADRs) for the project.
 
 ---
 
-## [2025-12-17] Mandatory collect_submodules() for Heavy C-Extensions on ARM64
-
-- **Context:** `prism-headless` binary was hanging silently on macOS ARM64 before Python code executed. Root cause was missing `collect_submodules()` for pandas/numpy/pyarrow, causing dyld bootloader deadlock.
-- **Decision:** Mandate `collect_submodules()` for ALL heavy C-extension packages in PyInstaller specs. Mandate `strip=False, upx=False` for all ARM64 binaries.
-- **Consequences:**
-  - (+) Binaries start reliably on ARM64
-  - (+) All submodules bundled automatically (no silent breakage on library updates)
-  - (-) Larger binary size (~90MB for prism-headless)
-  - (-) Build time increases due to more modules analyzed
 - **Affected Packages:** pandas, numpy, pyarrow, pydantic, keyring, pytr
+
+---
+
+## [2024-12-19] Recharts (React) vs Plotly (Python)
+
+- **Context:** Need to render high-performance, interactive charts (Sparklines, Portfolio History). Options: Render in Python (Plotly) and stream JSON, or render in React (Recharts).
+- **Decision:** Use **Recharts** (React) fed by raw JSON data from Python.
+- **Consequences:**
+  - (+) **Performance:** Rendering happens on GPU/Client, not server-side image generation.
+  - (+) **Interactivity:** Native tooltips and hover effects without roundtrip latency.
+  - (+) **Styling:** CSS-in-JS styling matches the rest of the UI perfectly.
+  - (-) **Python Role:** Python reduced to "Data API", losing some of its visualization power.
+  - (-) **Duplication:** Logic for coloring/formatting moves to Frontend.

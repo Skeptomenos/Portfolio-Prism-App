@@ -16,6 +16,19 @@ CREATE TABLE IF NOT EXISTS assets (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- =============================================================================
+-- HISTORICAL_PRICES: Daily close prices for sparklines & day change
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS historical_prices (
+    isin TEXT NOT NULL,
+    date_str TEXT NOT NULL,  -- YYYY-MM-DD
+    close_price REAL NOT NULL,
+    currency TEXT NOT NULL,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (isin, date_str),
+    FOREIGN KEY (isin) REFERENCES assets(isin)
+);
+
 -- Index for symbol lookups
 CREATE INDEX IF NOT EXISTS idx_assets_symbol ON assets(symbol);
 

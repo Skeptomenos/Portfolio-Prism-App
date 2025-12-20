@@ -160,7 +160,18 @@ dev-debug.log
 .taskmaster
 .vscode
 opencode.json
-.github
+# .github (Allowed for Actions)
+
+# --------------------------------------------
+# Runtime Data & Temporary Outputs
+# --------------------------------------------
+src-tauri/data/
+src-tauri/python/outputs/
+src-tauri/python/*.spec.full
+src-tauri/python/*.spec.original
+src-tauri/python/*.py.original
+src-tauri/python/*.original
+
 # --------------------------------------------
 # Python Sidecar Binaries (rebuild with scripts/build-python.sh)
 # --------------------------------------------

@@ -1,0 +1,33 @@
+[project]
+name = "portfolio-prism"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "beautifulsoup4>=4.14.3",
+    "cryptography>=46.0.3",
+    "deep-translator>=1.11.4",
+    "keyring>=25.7.0",
+    "lxml>=6.0.2",
+    "matplotlib>=3.7.0",
+    "numpy>=1.24.0",
+    "openpyxl>=3.1.5",
+    "pandas>=2.0.0",
+    "pandera>=0.27.0",
+    "pdfplumber>=0.11.8",
+    "pyarrow>=14.0.0",
+    "pydantic>=2.12.5",
+    "pyinstaller>=6.0",
+    "python-dotenv>=1.2.1",
+    "pytr>=0.4.2",
+    "requests>=2.32.5",
+    "supabase>=2.27.0",
+    "tqdm>=4.67.1",
+    "yfinance>=0.2.66",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+]

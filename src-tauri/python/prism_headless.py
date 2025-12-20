@@ -47,14 +47,11 @@ except Exception:
     pass
 
 import logging
+from portfolio_src.prism_utils.logging_config import get_logger, configure_root_logger
 
-# Configure logging to write to stderr (so stdout is clean for IPC)
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    stream=sys.stderr,
-)
-logger = logging.getLogger("PrismHeadless")
+# Configure logging with PII scrubbing
+configure_root_logger()
+logger = get_logger("PrismHeadless")
 
 # Version
 VERSION = "0.1.0"
@@ -648,7 +645,25 @@ def handle_get_dashboard_data(cmd_id: int, payload: dict) -> dict:
             region_alloc = allocs.get("region", {})
     except Exception as e:
         # Fallback to empty if analytics fail
-        pass
+        logger.warning(f"Analytics allocation error: {e}")
+
+    # Calculate Day Change & History
+    day_change = 0.0
+    day_change_pct = 0.0
+    history = []
+    
+    try:
+        from portfolio_src.data.history_manager import HistoryManager
+        
+        history_mgr = HistoryManager()
+        # Pass the raw database positions (dicts) to the manager
+        day_change, day_change_pct = history_mgr.calculate_day_change(positions)
+        
+        # Calculate 30-day history for chart
+        history = history_mgr.get_portfolio_history(positions, days=30)
+        
+    except Exception as e:
+        logger.error(f"History calculation failed: {e}")
 
     return {
         "id": cmd_id,
@@ -657,6 +672,9 @@ def handle_get_dashboard_data(cmd_id: int, payload: dict) -> dict:
             "totalValue": round(total_value, 2),
             "totalGain": round(total_gain, 2),
             "gainPercentage": round(gain_percentage, 1),
+            "dayChange": day_change,
+            "dayChangePercent": day_change_pct,
+            "history": history,  # New field
             "allocations": {
                 "sector": sector_alloc,
                 "region": region_alloc,
