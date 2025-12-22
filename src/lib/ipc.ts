@@ -11,6 +11,26 @@ import type {
   TauriCommands
 } from '../types';
 
+const pendingRequests = new Map<string, Promise<unknown>>();
+
+async function deduplicatedCall<T>(
+  key: string,
+  fn: () => Promise<T>
+): Promise<T> {
+  if (pendingRequests.has(key)) {
+    return pendingRequests.get(key) as Promise<T>;
+  }
+
+  const promise = fn();
+  pendingRequests.set(key, promise);
+
+  try {
+    return await promise;
+  } finally {
+    pendingRequests.delete(key);
+  }
+}
+
 async function callCommand<K extends keyof TauriCommands>(
   command: K,
   payload: TauriCommands[K]['args']
@@ -20,12 +40,13 @@ async function callCommand<K extends keyof TauriCommands>(
   }
 
   try {
-    const response = await fetch('http://localhost:5000/command', {
+    const response = await fetch('http://127.0.0.1:5001/command', {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
         'X-Echo-Bridge-Token': 'dev-echo-bridge-secret'
       },
+
       body: JSON.stringify({
         id: Math.floor(Math.random() * 1000000),
         command,
@@ -39,13 +60,18 @@ async function callCommand<K extends keyof TauriCommands>(
 
     const result = await response.json();
     if (result.status === 'error') {
-      throw new Error(result.error.message || 'Unknown error');
+      const errorMsg = result.error.message || 'Unknown backend error';
+      console.error(`[IPC] Backend error (${result.error.code}):`, errorMsg);
+      throw new Error(`Backend Error: ${errorMsg}`);
     }
 
     return result.data;
   } catch (error) {
-    console.error('[IPC] Echo-Bridge call failed:', error);
-    throw new Error('Backend unreachable. Ensure prism_headless.py --http is running.');
+    if (error instanceof Error && error.message.startsWith('Backend Error:')) {
+      throw error;
+    }
+    console.error('[IPC] Echo-Bridge connection failed:', error);
+    throw new Error('Echo-Bridge unreachable. Check if the Python engine is running on port 5001.');
   }
 }
 
@@ -54,7 +80,9 @@ async function callCommand<K extends keyof TauriCommands>(
  */
 export async function getEngineHealth(): Promise<EngineHealth> {
   try {
-    return await callCommand('get_engine_health', {});
+    return await deduplicatedCall('get_engine_health', () => 
+      callCommand('get_engine_health', {})
+    );
   } catch (error) {
     console.error('[IPC] get_health failed:', error);
     throw error;
@@ -66,7 +94,10 @@ export async function getEngineHealth(): Promise<EngineHealth> {
  */
 export async function getDashboardData(portfolioId: number): Promise<DashboardData> {
   try {
-    return await callCommand('get_dashboard_data', { portfolioId });
+    const key = `get_dashboard_data:${portfolioId}`;
+    return await deduplicatedCall(key, () => 
+      callCommand('get_dashboard_data', { portfolioId })
+    );
   } catch (error) {
     console.error('[IPC] get_dashboard_data failed:', error);
     throw error;
@@ -91,7 +122,10 @@ export async function getHoldings(portfolioId: number): Promise<Holding[]> {
  */
 export async function getPositions(portfolioId: number): Promise<PositionsResponse> {
   try {
-    return await callCommand('get_positions', { portfolioId });
+    const key = `get_positions:${portfolioId}`;
+    return await deduplicatedCall(key, () => 
+      callCommand('get_positions', { portfolioId })
+    );
   } catch (error) {
     console.error('[IPC] get_positions failed:', error);
     throw error;
@@ -106,7 +140,10 @@ export async function syncPortfolio(
   force: boolean = false
 ): Promise<PortfolioSyncResult> {
   try {
-    return await callCommand('sync_portfolio', { portfolioId, force });
+    const key = `sync_portfolio:${portfolioId}:${force}`;
+    return await deduplicatedCall(key, () => 
+      callCommand('sync_portfolio', { portfolioId, force })
+    );
   } catch (error) {
     console.error('[IPC] sync_portfolio failed:', error);
     throw error;
@@ -130,7 +167,9 @@ export async function runPipeline(): Promise<{ success: boolean; errors: string[
  */
 export async function trGetAuthStatus(): Promise<AuthStatus> {
   try {
-    return await callCommand('tr_get_auth_status', {});
+    return await deduplicatedCall('tr_get_auth_status', () => 
+      callCommand('tr_get_auth_status', {})
+    );
   } catch (error) {
     console.error('[IPC] tr_get_auth_status failed:', error);
     throw error;
@@ -142,7 +181,9 @@ export async function trGetAuthStatus(): Promise<AuthStatus> {
  */
 export async function trCheckSavedSession(): Promise<SessionCheck> {
   try {
-    return await callCommand('tr_check_saved_session', {});
+    return await deduplicatedCall('tr_check_saved_session', () => 
+      callCommand('tr_check_saved_session', {})
+    );
   } catch (error) {
     console.error('[IPC] tr_check_saved_session failed:', error);
     throw error;
@@ -225,7 +266,9 @@ export async function uploadHoldings(filePath: string, etfIsin: string): Promise
  */
 export async function getTrueHoldings(): Promise<any> {
   try {
-    return await callCommand('get_true_holdings', {});
+    return await deduplicatedCall('get_true_holdings', () => 
+      callCommand('get_true_holdings', {})
+    );
   } catch (error) {
     console.error('[IPC] get_true_holdings failed:', error);
     throw error;
@@ -237,7 +280,9 @@ export async function getTrueHoldings(): Promise<any> {
  */
 export async function getOverlapAnalysis(): Promise<any> {
   try {
-    return await callCommand('get_overlap_analysis', {});
+    return await deduplicatedCall('get_overlap_analysis', () => 
+      callCommand('get_overlap_analysis', {})
+    );
   } catch (error) {
     console.error('[IPC] get_overlap_analysis failed:', error);
     throw error;
@@ -249,7 +294,9 @@ export async function getOverlapAnalysis(): Promise<any> {
  */
 export async function getPipelineReport(): Promise<any> {
   try {
-    return await callCommand('get_pipeline_report', {});
+    return await deduplicatedCall('get_pipeline_report', () => 
+      callCommand('get_pipeline_report', {})
+    );
   } catch (error) {
     console.error('[IPC] get_pipeline_report failed:', error);
     throw error;

@@ -67,7 +67,7 @@ The MVP is **functional**. Users can authenticate with Trade Republic, sync thei
 
 ## Backlog Items
 
-See `anamnesis/specs/tasks.md` for detailed task tracking.
+See `keystone/specs/tasks.md` for detailed task tracking.
 
 | Task | Status | Notes | Dependency |
 |------|--------|-------|------------|

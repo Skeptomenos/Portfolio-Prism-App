@@ -44,9 +44,10 @@ def get_schema_path() -> Path:
     """Get path to the schema.sql file."""
     import sys
 
-    if hasattr(sys, "_MEIPASS"):
+    meipass = getattr(sys, "_MEIPASS", None)
+    if meipass:
         # PyInstaller frozen mode - schema is in bundled data
-        return Path(sys._MEIPASS) / "portfolio_src" / "data" / "schema.sql"
+        return Path(meipass) / "portfolio_src" / "data" / "schema.sql"
     else:
         # Development mode
         return Path(__file__).parent / "schema.sql"
@@ -74,8 +75,8 @@ def init_db(db_path: Optional[str] = None) -> sqlite3.Connection:
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
 
-    # Enable foreign keys
     conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode = WAL")
 
     # Read and execute schema
     schema_path = get_schema_path()
@@ -105,18 +106,12 @@ def init_db(db_path: Optional[str] = None) -> sqlite3.Connection:
 
 
 def get_connection() -> sqlite3.Connection:
-    """
-    Get the cached database connection, initializing if needed.
-
-    Returns:
-        SQLite connection object
-    """
-    global _connection
-
-    if _connection is None:
-        _connection = init_db()
-
-    return _connection
+    db_path = str(get_db_path())
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode = WAL")
+    return conn
 
 
 def close_connection() -> None:
@@ -251,21 +246,52 @@ def update_sync_state(source: str, status: str, message: str = "") -> None:
     conn.commit()
 
 
-def count_positions(portfolio_id: int = 1) -> int:
-    """
-    Count positions in a portfolio.
+def log_system_event(
+    session_id: str,
+    level: str,
+    source: str,
+    message: str,
+    context: Optional[dict] = None,
+) -> None:
+    """Log a system event to the database."""
+    import json
 
-    Args:
-        portfolio_id: Portfolio ID (default: 1)
-
-    Returns:
-        Number of positions
-    """
     conn = get_connection()
-    cursor = conn.execute(
-        "SELECT COUNT(*) FROM positions WHERE portfolio_id = ?", (portfolio_id,)
+    conn.execute(
+        """
+        INSERT INTO system_logs (session_id, level, source, message, context)
+        VALUES (?, ?, ?, ?, ?)
+    """,
+        (session_id, level, source, message, json.dumps(context) if context else None),
     )
-    return cursor.fetchone()[0]
+    conn.commit()
+
+
+def get_unprocessed_logs(session_id: Optional[str] = None) -> list[dict]:
+    """Get unprocessed logs, optionally filtered by session."""
+    conn = get_connection()
+    if session_id:
+        cursor = conn.execute(
+            "SELECT * FROM system_logs WHERE session_id = ? AND processed = 0 ORDER BY timestamp ASC",
+            (session_id,),
+        )
+    else:
+        cursor = conn.execute(
+            "SELECT * FROM system_logs WHERE processed = 0 ORDER BY timestamp ASC"
+        )
+    return [dict(row) for row in cursor.fetchall()]
+
+
+def mark_logs_processed(log_ids: list[int]) -> None:
+    """Mark logs as processed."""
+    if not log_ids:
+        return
+    conn = get_connection()
+    placeholders = ",".join(["?"] * len(log_ids))
+    conn.execute(
+        f"UPDATE system_logs SET processed = 1 WHERE id IN ({placeholders})", log_ids
+    )
+    conn.commit()
 
 
 # =============================================================================

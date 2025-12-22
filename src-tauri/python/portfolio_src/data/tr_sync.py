@@ -45,49 +45,62 @@ class TRDataFetcher:
             response = self.bridge.fetch_portfolio()
 
             if response.get("status") != "success":
-                raise RuntimeError(f"Daemon error: {response.get('message')}")
+                msg = response.get("message") or "Unknown daemon error"
+                logger.error(f"Trade Republic fetch failed: {msg}")
+                raise RuntimeError(msg)
 
             data = response.get("data", {})
             raw_positions = data.get("positions", [])
 
-            # Use raw_positions directly if it's the list, otherwise check structure
-            # tr_daemon returns {"positions": [...], "cash": ...} in data
-            # So raw_positions is the list.
+            if not raw_positions:
+                cash = data.get("cash", [])
+                if cash:
+                    logger.info("Portfolio is empty but cash found.")
+                    return []
+                else:
+                    logger.warning(
+                        "No positions or cash found in Trade Republic portfolio"
+                    )
+                    return []
 
             positions = []
             for pos in raw_positions:
-                # IMPORTANT: netSize and averageBuyIn are STRINGS, not floats!
-                quantity = float(pos.get("netSize", "0"))
-                avg_cost = float(pos.get("averageBuyIn", "0"))
-                net_value = float(pos.get("netValue", 0))
+                try:
+                    # IMPORTANT: netSize and averageBuyIn are STRINGS, not floats!
+                    quantity = float(pos.get("netSize", "0"))
+                    avg_cost = float(pos.get("averageBuyIn", "0"))
+                    net_value = float(pos.get("netValue", 0))
 
-                # Calculate current price (no "price" key in pytr output)
-                current_price = net_value / quantity if quantity > 0 else 0
+                    # Calculate current price (no "price" key in pytr output)
+                    current_price = net_value / quantity if quantity > 0 else 0
 
-                positions.append(
-                    {
-                        "isin": pos["instrumentId"],
-                        "name": pos.get("name", "Unknown"),
-                        "quantity": quantity,
-                        "avg_cost": avg_cost,
-                        "current_price": current_price,
-                        "net_value": net_value,
-                    }
-                )
+                    positions.append(
+                        {
+                            "isin": pos["instrumentId"],
+                            "name": pos.get("name", "Unknown"),
+                            "quantity": quantity,
+                            "avg_cost": avg_cost,
+                            "current_price": current_price,
+                            "net_value": net_value,
+                        }
+                    )
+                except (KeyError, ValueError) as e:
+                    logger.warning(f"Skipping malformed position: {e}")
+                    continue
 
-            logger.info(f"Fetched {len(positions)} positions from Trade Republic")
+            logger.info(
+                f"Successfully fetched {len(positions)} positions from Trade Republic"
+            )
             return positions
 
         except Exception as e:
             err_msg = str(e)
-            if (
-                "session" in err_msg.lower()
-                or "expired" in err_msg.lower()
-                or "unauthorized" in err_msg.lower()
+            if any(
+                x in err_msg.lower() for x in ["session", "expired", "unauthorized"]
             ):
-                logger.error(f"Trade Republic session expired: {err_msg}")
+                logger.error(f"Trade Republic session invalid: {err_msg}")
             else:
-                logger.error(f"Failed to fetch portfolio: {e}")
+                logger.error(f"Sync error: {err_msg}")
             raise
 
     def save_to_csv(self, positions: List[Dict], output_path: Path) -> int:

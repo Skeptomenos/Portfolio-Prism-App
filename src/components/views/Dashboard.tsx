@@ -119,6 +119,8 @@ export default function Dashboard() {
         );
     }
 
+    const sparklineData = dashboardData.history.map(h => h.value);
+
     return (
         <div className="animate-fade-in">
             {/* Header */}
@@ -139,7 +141,7 @@ export default function Dashboard() {
                     label="Total Portfolio Value"
                     value={`€${dashboardData.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                     color="var(--text-primary)"
-                    sparklineData={[100, 102, 101, 104, 103, 106, 108]} // Mock data for valid look
+                    sparklineData={sparklineData}
                 />
 
                 {/* Day Change - NEW */}
@@ -149,7 +151,7 @@ export default function Dashboard() {
                     value={`${(dashboardData.dayChange || 0) >= 0 ? '+' : ''}€${(dashboardData.dayChange || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                     subtitle={`${(dashboardData.dayChange || 0) >= 0 ? '+' : ''}${(dashboardData.dayChangePercent || 0).toFixed(2)}%`}
                     trend={(dashboardData.dayChange || 0) >= 0 ? 'up' : 'down'}
-                    sparklineData={[10, 12, 11, 14, 13, 15, 14]} // Mock data
+                    sparklineData={sparklineData.slice(-7)}
                 />
 
                 {/* Total P/L */}

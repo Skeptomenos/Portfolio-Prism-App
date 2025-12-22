@@ -185,19 +185,33 @@ export const LoginForm: React.FC<LoginFormProps> = ({
     setError(null);
 
     try {
-      const response = await trLogin(cleanPhone, pin, remember);
+      const loginPromise = trLogin(cleanPhone, pin, remember);
+      const timeoutPromise = new Promise<never>((_, reject) => 
+        setTimeout(() => reject(new Error('Login request timed out. Trade Republic might be slow.')), 45000)
+      );
+
+      const response = await Promise.race([loginPromise, timeoutPromise]) as AuthResponse;
+      
       setAuthState(response.authState);
       
       if (response.authState === 'waiting_2fa') {
         onLoginSuccess?.(response, { phone: cleanPhone, pin, remember });
       } else if (response.authState === 'error') {
-        setError(response.message || 'Login failed');
-        setAuthError(response.message || 'Login failed');
-        onLoginError?.(response.message || 'Login failed');
+        const msg = response.message || 'Login failed';
+        setError(msg);
+        setAuthError(msg);
+        onLoginError?.(msg);
       }
     } catch (err) {
+
       const message = err instanceof Error ? err.message : 'Login failed';
-      setError(message);
+      
+      if (message.includes('rate limit') || message.includes('TOO_MANY_REQUESTS')) {
+        setError('Trade Republic rate limit reached. Please wait 2-5 minutes before trying again.');
+      } else {
+        setError(message);
+      }
+      
       setAuthError(message);
       setAuthState('idle');
       onLoginError?.(message);

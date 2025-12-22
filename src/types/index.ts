@@ -1,7 +1,7 @@
 /**
  * Shared TypeScript types for Portfolio Prism frontend
  * 
- * These types mirror the IPC API spec (anamnesis/specs/ipc_api.md)
+ * These types mirror the IPC API spec (keystone/specs/ipc_api.md)
  * and provide type safety across the React application.
  */
 
@@ -27,6 +27,7 @@ export interface EngineHealth {
   version: string;
   memoryUsageMb: number;
   uptime?: number;
+  sessionId?: string;
 }
 
 // =============================================================================

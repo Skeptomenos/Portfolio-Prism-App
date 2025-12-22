@@ -50,6 +50,7 @@ interface AppState {
 
   // Telemetry
   autoReportErrors: boolean;
+  sessionId: string | null;
 }
 
 interface AppActions {
@@ -64,6 +65,7 @@ interface AppActions {
   
   // Telemetry
   setAutoReportErrors: (enabled: boolean) => void;
+  setSessionId: (id: string) => void;
   
   // Notifications
   addNotification: (notification: Omit<Notification, 'id'>) => void;
@@ -127,6 +129,7 @@ const initialState: AppState = {
 
   // Telemetry
   autoReportErrors: true,
+  sessionId: null,
 };
 
 // =============================================================================
@@ -152,6 +155,7 @@ export const useAppStore = create<AppStore>()(
 
       // Telemetry
       setAutoReportErrors: (enabled) => set({ autoReportErrors: enabled }, false, 'setAutoReportErrors'),
+      setSessionId: (id) => set({ sessionId: id }, false, 'setSessionId'),
 
       // Notifications
       addNotification: (notification) => {
@@ -304,3 +308,5 @@ export const useDismissToast = () => useAppStore((state) => state.dismissToast);
 // Telemetry
 export const useAutoReportErrors = () => useAppStore((state) => state.autoReportErrors);
 export const useSetAutoReportErrors = () => useAppStore((state) => state.setAutoReportErrors);
+export const useSessionId = () => useAppStore((state) => state.sessionId);
+export const useSetSessionId = () => useAppStore((state) => state.setSessionId);

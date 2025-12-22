@@ -5,50 +5,58 @@ import XRayView from './components/views/XRayView';
 import HealthView from './components/views/HealthView';
 import OverlapView from './components/views/OverlapView';
 import HoldingsView from './components/views/HoldingsView';
+import DataView from './components/views/DataView';
 import TradeRepublicView from './components/views/TradeRepublicView';
 import { ToastContainer } from './components/ui/Toast';
-import { useCurrentView, useAppStore } from './store/useAppStore';
+import { useCurrentView, useAppStore, useSetSessionId } from './store/useAppStore';
 import { useTauriEvents } from './hooks/useTauriEvents';
-import { getEnvironment, trCheckSavedSession, trGetAuthStatus } from './lib/ipc';
+import { getEnvironment, trCheckSavedSession, trGetAuthStatus, getEngineHealth } from './lib/ipc';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 // Re-export ViewType from types for backward compatibility
 export type { ViewType } from './types';
 
 function App() {
     const currentView = useCurrentView();
-    const { setCurrentView, setAuthState: setAuth, setSavedPhone } = useAppStore();
+    const setCurrentView = useAppStore(state => state.setCurrentView);
+    const setAuth = useAppStore(state => state.setAuthState);
+    const setSavedPhone = useAppStore(state => state.setSavedPhone);
+    const setSessionId = useSetSessionId();
     
     // Initialize Tauri event listeners
     useTauriEvents();
     
-    // Check authentication on mount and auto-navigate if not authenticated
     useEffect(() => {
-        const checkAuth = async () => {
+        const initApp = async () => {
             try {
+                const health = await getEngineHealth();
+                if (health.sessionId) {
+                    setSessionId(health.sessionId);
+                }
+
                 const session = await trCheckSavedSession();
                 
                 if (session.hasSession) {
-                    // Check if session is still valid
                     const status = await trGetAuthStatus();
                     if (status.authState === 'authenticated') {
                         setAuth('authenticated');
                         setSavedPhone(session.phoneNumber || null);
-                        return; // Don't navigate, stay on current view
+                        return;
                     }
                 }
                 
-                // Not authenticated - navigate to Trade Republic page
                 setAuth('idle');
                 setCurrentView('trade-republic');
             } catch (error) {
-                console.error('[App] Auth check failed:', error);
+                console.error('[App] Initialization failed:', error);
                 setAuth('idle');
                 setCurrentView('trade-republic');
             }
         };
 
-        checkAuth();
-    }, [setAuth, setCurrentView, setSavedPhone]);
+        initApp();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
     
     // Log environment on first render
     console.log(`[App] Running in ${getEnvironment()} environment`);
@@ -64,7 +72,7 @@ function App() {
             case 'overlap':
                 return <OverlapView />;
             case 'data':
-                return <Dashboard />; // Data view not implemented yet
+                return <DataView />;
             case 'health':
                 return <HealthView />;
             case 'holdings':
@@ -75,15 +83,17 @@ function App() {
     };
 
     return (
-        <div style={{ display: 'flex', height: '100vh', width: '100vw' }}>
-            <Sidebar />
-            <main style={{ flex: 1, overflow: 'auto', padding: '32px' }}>
-                {renderView()}
-            </main>
-            
-            {/* Toast Notifications */}
-            <ToastContainer />
-        </div>
+        <ErrorBoundary>
+            <div style={{ display: 'flex', height: '100vh', width: '100vw' }}>
+                <Sidebar />
+                <main style={{ flex: 1, overflow: 'auto', padding: '32px' }}>
+                    {renderView()}
+                </main>
+                
+                {/* Toast Notifications */}
+                <ToastContainer />
+            </div>
+        </ErrorBoundary>
     );
 }
 

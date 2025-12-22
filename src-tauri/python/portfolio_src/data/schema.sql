@@ -1,6 +1,6 @@
 -- Portfolio Prism SQLite Schema
 -- Version: 1.0.0
--- See: anamnesis/specs/data_schema.md
+-- See: keystone/specs/data_schema.md
 
 -- =============================================================================
 -- ASSETS: Master securities universe
@@ -9,10 +9,11 @@ CREATE TABLE IF NOT EXISTS assets (
     isin TEXT PRIMARY KEY,
     symbol TEXT,
     name TEXT NOT NULL,
-    asset_class TEXT NOT NULL CHECK (asset_class IN ('Equity', 'ETF', 'Cash', 'Crypto', 'Bond', 'Fund')),
+    asset_class TEXT NOT NULL CHECK (asset_class IN ('Stock', 'ETF', 'Cash', 'Crypto', 'Derivative', 'Bond', 'Fund')),
     sector TEXT,
     region TEXT,
     country TEXT,
+    confidence REAL,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -90,6 +91,20 @@ CREATE TABLE IF NOT EXISTS sync_state (
     status TEXT CHECK (status IN ('success', 'error', 'pending')),
     message TEXT
 );
+
+CREATE TABLE IF NOT EXISTS system_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    level TEXT NOT NULL CHECK (level IN ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL')),
+    source TEXT NOT NULL CHECK (source IN ('python', 'frontend')),
+    message TEXT NOT NULL,
+    context TEXT,
+    processed INTEGER DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_logs_session ON system_logs(session_id, level);
+CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON system_logs(timestamp);
 
 -- =============================================================================
 -- DEFAULT DATA

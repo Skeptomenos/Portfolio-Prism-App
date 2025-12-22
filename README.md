@@ -108,8 +108,8 @@ The bundle will be in `src-tauri/target/release/bundle/`.
 │   ├── phase4_issues.md         # Current blockers
 │   └── ...
 │
-├── anamnesis/                   # AI developer framework
-│   ├── .context/                # Project state
+├── keystone/                   # AI developer framework
+│   ├── project/                 # Project state
 │   ├── specs/                   # Specifications
 │   └── standards/               # Code standards
 │
@@ -193,12 +193,12 @@ This is currently a private project. Contribution guidelines will be added if/wh
 
 ### For AI Developers
 
-This project uses the **Anamnesis** framework for AI-assisted development:
+This project uses the **Keystone** framework for AI-assisted development:
 
 1. Read `AGENTS.md` at session start
-2. Check `anamnesis/.context/mission.md` for current state
-3. Follow protocols in `anamnesis/directives/`
-4. Adhere to standards in `anamnesis/standards/`
+2. Check `keystone/project/mission.md` for current state
+3. Follow protocols in `keystone/directives/` (Smart Merged)
+4. Adhere to standards in `keystone/standards/`
 
 ---
 

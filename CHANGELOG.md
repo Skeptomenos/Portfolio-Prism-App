@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Framework Migration:** Migrated from Anamnesis to **Keystone v4.4** framework.
+- **Directory Restructuring:** Renamed `anamnesis/` to `keystone/` and moved project state to `keystone/project/`.
+- **Protocol Upgrade:** Implemented **OODA Loop** for debugging and **First Principles** for thinking.
+
 ### Added
 
 - **GitHub Actions CI/CD:** Automated build pipeline for macOS DMG release (`.github/workflows/release.yml`).

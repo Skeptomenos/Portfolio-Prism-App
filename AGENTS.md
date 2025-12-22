@@ -27,7 +27,7 @@ Privacy-first, high-performance desktop portfolio analyzer using the Tauri + Pyt
 │   └── src/lib.rs           # Sidecar spawning
 ├── infrastructure/          # Cloudflare Worker
 ├── docs/                    # Architecture & design docs
-├── anamnesis/               # AI developer framework
+├── keystone/               # AI developer framework
 ├── legacy/react-prototype/  # React UI for v2 (preserved)
 └── POC/                     # Original Python engine (gitignored)
 ```
@@ -38,20 +38,18 @@ Privacy-first, high-performance desktop portfolio analyzer using the Tauri + Pyt
 
 ### Golden Rules
 
-1. **State:** Read `anamnesis/.context/mission.md` at session start
-2. **Specs:** Complex tasks (>1hr) require `anamnesis/specs/`. No code without spec.
-3. **Consensus:** Present plan, WAIT for approval before coding
-4. **Epilogue:** MANDATORY after feature/design completion.
-5. **NO IMPLEMENTATION WITHOUT APPROVAL:** ⚠️ CRITICAL ⚠️
-   - Planning, reading, and research: ALWAYS allowed
-   - Writing, editing, or deleting files: REQUIRES explicit user approval
-   - You MUST present your plan and ask "Ready to proceed?" or similar
-   - WAIT for user to say "go", "proceed", "do it", "yes", or clear equivalent
-   - Do NOT interpret your own confidence or plan completeness as approval
+1. **Wizard:** Use `INITIATOR.md` for setup and updates.
+2. **Smart Merging:** Directives (`THINKING.md`, `EXECUTION.md`) are single files that merge framework logic with your custom rules. Read the whole file; custom rules are usually at the bottom.
+3. **State:** Read `keystone/project/mission.md` + `keystone/project/active_state.md` at session start.
+4. **Specs:** Complex tasks (>1hr) require `keystone/specs/`. No code without spec.
+5. **Consensus:** Present plan, WAIT for approval before coding.
+6. **Epilogue:** MANDATORY after feature/design completion.
+7. **NO IMPLEMENTATION WITHOUT APPROVAL:** ⚠️ CRITICAL ⚠️
+   - Planning, reading, and research: ALWAYS allowed.
+   - Writing, editing, or deleting files: REQUIRES explicit user approval.
+   - You MUST present your plan and ask "Ready to proceed?" or similar.
+   - WAIT for user to say "go", "proceed", "do it", "yes", or clear equivalent.
    - **HANDSHAKE RULE:** You CANNOT plan and implement in the same response.
-     If you just finished planning → STOP. Do not continue to implementation.
-
-> **Models prone to eager execution:** This means YOU. Plan. Present. Ask. Wait.
 
 > **ESCAPE HATCH:** Simple questions or read-only tasks → skip protocol, act immediately.
 
@@ -59,26 +57,22 @@ Privacy-first, high-performance desktop portfolio analyzer using the Tauri + Pyt
 
 | Task | File |
 |------|------|
-| Session start | `anamnesis/.context/mission.md` |
-| New feature, refactor | `anamnesis/directives/THINKING.md` |
-| Implementation | `anamnesis/directives/EXECUTION.md` |
-| Code review | `anamnesis/standards/INDEX.md` |
-| Python code | `anamnesis/standards/global.md` + `python.md` |
-| Rust/Tauri code | `anamnesis/standards/global.md` + `rust.md` |
-| Project constraints | `anamnesis/PROJECT_LEARNINGS.md` |
+| Session start | `keystone/project/mission.md` + `keystone/project/active_state.md` |
+| New feature, refactor | `keystone/directives/THINKING.md` |
+| Complex bug | `keystone/directives/THINKING.md` (T1-RCA) |
+| Implementation | `keystone/directives/EXECUTION.md` |
+| Code review | `keystone/standards/INDEX.md` |
+| Project constraints | `keystone/PROJECT_LEARNINGS.md` |
 
 ---
 
 ## Task Management
 
-> **Task Awareness:** AI must check dependencies and status before selecting tasks.
-
 ### Task Selection Rules
 
-1. **Dependency Check:** Never start a task if its dependencies aren't `Done` or `Archive`
-2. **Status Flow:** Backlog → Open → In Progress → Done → Archive
-3. **Blocked Handling:** Mark tasks as `Blocked` if dependencies are unmet
-4. **Board Sync:** Regenerate `board.md` at session start, end, and on user command
+1. **Dependency Check:** Never start a task if its dependencies aren't `Done` or `Archive`.
+2. **Status Flow:** Backlog → Open → In Progress → Done → Archive.
+3. **Board Sync:** Regenerate `board.md` at session start, end, and on user command.
 
 ### User Commands
 
@@ -93,24 +87,16 @@ Privacy-first, high-performance desktop portfolio analyzer using the Tauri + Pyt
 
 | Task | File |
 |------|------|
-| Task selection | `anamnesis/specs/tasks.md` (check dependencies) |
-| Progress overview | `anamnesis/.context/board.md` |
-| Workstream context | `anamnesis/.context/workstreams/[name].md` |
+| Task selection | `keystone/project/tasks.md` (check dependencies) |
+| Progress overview | `keystone/project/board.md` |
+| Workstream context | `keystone/project/workstreams/[name].md` |
 
 ---
 
 ## Commands
 
 ```bash
-# Development
-npm run tauri dev
-
-# Build
-npm run tauri build
-
-# Rebuild Python binary
-cd src-tauri/python && source venv-build/bin/activate && pyinstaller prism.spec
-cp dist/prism ../binaries/prism-aarch64-apple-darwin
+# Development: npm run tauri dev    Build: npm run tauri build
 ```
 
 ## Constraints
@@ -120,17 +106,6 @@ cp dist/prism ../binaries/prism-aarch64-apple-darwin
 - Local-first, cloud-optional philosophy
 - Data stored in `~/Library/Application Support/PortfolioPrism/` (macOS)
 
-## Current State (Phase 4 In Progress)
-
-- ✅ Phase 1-3: Tauri shell + Python sidecar + POC dashboard transplanted
-- ⏳ Phase 4: Auth & Hive (~70%) — see `docs/phase4_issues.md`
-- ⏳ Phase 5: Polish (pending)
-
 ## State Files
 
-| File | Purpose |
-|------|---------|
-| `anamnesis/.context/mission.md` | Living objective |
-| `anamnesis/.context/backlog.md` | Deferred ideas |
-| `anamnesis/.context/board.md` | Kanban board (progress overview) |
-| `anamnesis/specs/tasks.md` | Execution plan |
+`keystone/project/active_state.md` (current) | `keystone/project/handover.md` (previous) | `keystone/project/tasks.md` (plan) | `keystone/project/board.md` (progress)

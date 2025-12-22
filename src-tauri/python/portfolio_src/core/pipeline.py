@@ -14,7 +14,7 @@ Contains NO business logic — that lives in the services.
 import json
 import os
 import time
-from typing import Callable, Optional, List, Dict, Any
+from typing import Callable, Optional, List, Dict, Any, Tuple, cast
 from pathlib import Path
 import pandas as pd
 
@@ -284,11 +284,19 @@ class Pipeline:
             except Exception as e:
                 logger.error(f"Failed to write final reports: {e}")
 
-    def _load_portfolio(self):
-        """Load portfolio state."""
-        from portfolio_src.data.state_manager import load_portfolio_state
+    def _load_portfolio(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        from portfolio_src.data.database import get_positions
 
-        return load_portfolio_state()
+        positions = get_positions(portfolio_id=1)
+        if not positions:
+            return pd.DataFrame(), pd.DataFrame()
+
+        df = pd.DataFrame(positions)
+
+        direct = cast(pd.DataFrame, df[df["asset_class"].str.upper() != "ETF"].copy())
+        etfs = cast(pd.DataFrame, df[df["asset_class"].str.upper() == "ETF"].copy())
+
+        return direct, etfs
 
     def _harvest(self) -> int:
         """Auto-harvest new securities. Non-fatal."""

@@ -13,7 +13,6 @@ import { LoginForm, TwoFactorModal, SessionRestorePrompt } from '../auth';
 import { PortfolioTable } from '../portfolio/PortfolioTable';
 import { 
   trCheckSavedSession, 
-  trGetAuthStatus, 
   trLogout, 
   syncPortfolio, 
   getPositions 
@@ -224,29 +223,19 @@ export const TradeRepublicView: React.FC = () => {
     }
   }, [positionsData]);
 
-  // Check session on mount
   useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const session = await trCheckSavedSession();
-        setSessionData(session);
-        
-        if (session.hasSession) {
-          // Check if session is still valid
-          const status = await trGetAuthStatus();
-          if (status.authState === 'authenticated') {
-            setAuthState('authenticated');
-          }
+    const loadSessionData = async () => {
+      if (authState === 'idle') {
+        try {
+          const session = await trCheckSavedSession();
+          setSessionData(session);
+        } catch (error) {
+          console.error('[TradeRepublicView] Failed to load session data:', error);
         }
-      } catch (error) {
-        console.error('[TradeRepublicView] Session check failed:', error);
       }
     };
-
-    if (authState !== 'authenticated') {
-      checkSession();
-    }
-  }, [authState, setAuthState]);
+    loadSessionData();
+  }, [authState]);
 
   // Handle login success
   const handleLoginSuccess = useCallback((response: AuthResponse, credentials?: { phone: string; pin: string; remember: boolean }) => {
@@ -342,18 +331,6 @@ export const TradeRepublicView: React.FC = () => {
 
     setIsSyncing(true);
     try {
-      // Check auth status first
-      const status = await trGetAuthStatus();
-      if (status.authState !== 'authenticated') {
-        addToast({
-          type: 'error',
-          title: 'Session expired',
-          message: 'Please login again to sync your portfolio',
-        });
-        setAuthState('idle');
-        return;
-      }
-
       const result = await syncPortfolio(activePortfolioId, false);
       addToast({
         type: 'success',

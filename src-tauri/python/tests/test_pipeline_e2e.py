@@ -165,8 +165,8 @@ class TestHarvesting:
 
         shutil.copy(mock_portfolio_src, mock_portfolio_dest)
 
-        # Create empty asset universe
         (config_dir / "asset_universe.csv").write_text("ISIN,Name,Asset_Class\n")
+        (config_dir / "adapter_registry.json").write_text("{}")
 
         # Mock external dependencies
         with (
@@ -197,10 +197,28 @@ class TestHarvesting:
             patch("portfolio_src.data.hive_client.get_hive_client") as mock_get_hive,
             patch("portfolio_src.data.enrichment.requests.Session.get") as mock_get,
             patch("portfolio_src.data.market.yf.download") as mock_yf_dl,
+            patch("portfolio_src.data.database.get_positions") as mock_get_pos,
         ):
-            # Setup mocks
+            mock_get_pos.return_value = [
+                {
+                    "isin": "US0378331005",
+                    "name": "Apple Inc.",
+                    "quantity": 10,
+                    "cost_basis": 150.0,
+                    "current_price": 170.0,
+                    "asset_class": "Stock",
+                },
+                {
+                    "isin": "IE00B4L5Y983",
+                    "name": "World ETF",
+                    "quantity": 5,
+                    "cost_basis": 70.0,
+                    "current_price": 80.0,
+                    "asset_class": "ETF",
+                },
+            ]
             hive_client = mock_get_hive.return_value
-            hive_client.is_configured = False  # Avoid real network calls
+            hive_client.is_configured = False
             hive_client.batch_lookup.return_value = {}
 
             mock_yf_dl.return_value = pd.DataFrame()

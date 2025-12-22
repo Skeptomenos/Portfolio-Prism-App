@@ -117,9 +117,6 @@ class SchemaNormalizer:
         df: pd.DataFrame, provider: Optional[str] = None
     ) -> pd.DataFrame:
         """Normalize DataFrame columns to standard lowercase names."""
-        if df.empty:
-            return df
-
         normalized_df = df.copy()
 
         # Apply provider-specific mappings first
@@ -161,6 +158,12 @@ class SchemaNormalizer:
                 column_mapping[col] = "quantity"
             elif "price" in col_lower:
                 column_mapping[col] = "price"
+            elif (
+                "asset_class" in col_lower
+                or "asset type" in col_lower
+                or "asset_type" in col_lower
+            ):
+                column_mapping[col] = "asset_class"
 
         if column_mapping:
             normalized_df = normalized_df.rename(columns=column_mapping)

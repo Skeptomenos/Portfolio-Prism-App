@@ -1,14 +1,14 @@
 """
 Trade Republic Authentication Module
 
-Handles:
-- 2FA login flow via TR daemon subprocess
-- Session persistence via daemon (keychain storage)
-- Token refresh and expiry handling via daemon
+⚠️ FRAGILE: Bridges async FastAPI with sync TRBridge.
+Read keystone/specs/trade_republic_integration.md before refactoring.
 """
 
 import asyncio
 import os
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 from pathlib import Path
 from typing import Optional
 from enum import Enum
@@ -17,6 +17,7 @@ import sys
 from dataclasses import dataclass
 
 from portfolio_src.core.tr_bridge import TRBridge
+from portfolio_src.config import DATA_DIR
 
 
 class AuthState(Enum):
@@ -59,6 +60,9 @@ class TRAuthManager:
         self._state = AuthState.IDLE
         self._phone_number: Optional[str] = None
         self.data_dir = data_dir  # Store for compatibility with Pipeline
+        self._executor = ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix="auth_manager"
+        )
 
     @property
     def state(self) -> AuthState:
@@ -117,7 +121,10 @@ class TRAuthManager:
         self._phone_number = phone_number
 
         try:
-            result = self.bridge.login(phone_number, pin)
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(
+                self._executor, self.bridge.login, phone_number, pin
+            )
 
             if result.get("status") == "authenticated":
                 # Session was restored immediately (e.g. from cookies)
@@ -171,7 +178,10 @@ class TRAuthManager:
         self._state = AuthState.VERIFYING
 
         try:
-            result = self.bridge.confirm_2fa(code)
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(
+                self._executor, self.bridge.confirm_2fa, code
+            )
 
             if result.get("status") == "authenticated":
                 self._state = AuthState.AUTHENTICATED
@@ -202,16 +212,11 @@ class TRAuthManager:
     ) -> AuthResult:
         """
         Try to restore a previous session using stored credentials.
-
-        Args:
-            phone_number: app_id/phone (optional, unused but kept for signature)
-
-        Returns:
-            AuthResult with state AUTHENTICATED if session restored
+        ⚠️ MUST check bridge.get_status() first to avoid redundant API calls.
         """
         try:
-            # 1. Check if daemon is already authenticated
-            status = self.bridge.get_status()
+            loop = asyncio.get_event_loop()
+            status = await loop.run_in_executor(self._executor, self.bridge.get_status)
             if status.get("status") == "authenticated":
                 self._state = AuthState.AUTHENTICATED
                 return AuthResult(
@@ -221,7 +226,6 @@ class TRAuthManager:
                     session_token="active",
                 )
 
-            # 2. Retrieve detailed credentials
             phone, pin = self.get_stored_credentials()
             if not phone or not pin:
                 return AuthResult(
@@ -230,10 +234,10 @@ class TRAuthManager:
                     message="No saved credentials found.",
                 )
 
-            # 3. Attempt login with stored credentials
-            # This calls the daemon, which checks cookies first, then tries login
-            # Use restore_only=True to prevent initiating new web login (avoids rate limits)
-            result = self.bridge.login(phone, pin, restore_only=True)
+            result = await loop.run_in_executor(
+                self._executor,
+                partial(self.bridge.login, phone, pin, restore_only=True),
+            )
 
             if result.get("status") == "authenticated":
                 self._state = AuthState.AUTHENTICATED
@@ -313,12 +317,7 @@ class TRAuthManager:
         """Save credentials to a local JSON file (Dev Mode/Fallback)."""
         try:
             if not self.data_dir:
-                from pathlib import Path
-
-                # Default if not set
-                self.data_dir = Path(
-                    os.getenv("PRISM_DATA_DIR", "~/.prism/data")
-                ).expanduser()
+                self.data_dir = DATA_DIR
 
             config_dir = self.data_dir / "config"
             config_dir.mkdir(parents=True, exist_ok=True)
@@ -340,11 +339,7 @@ class TRAuthManager:
         """Load credentials from local JSON file."""
         try:
             if not self.data_dir:
-                from pathlib import Path
-
-                self.data_dir = Path(
-                    os.getenv("PRISM_DATA_DIR", "~/.prism/data")
-                ).expanduser()
+                self.data_dir = DATA_DIR
 
             cred_file = self.data_dir / "config" / ".credentials.json"
             if not cred_file.exists():
@@ -358,14 +353,3 @@ class TRAuthManager:
             return phone, pin
         except Exception:
             return None, None
-
-
-def run_async(coro):
-    """Helper to run async code from sync context."""
-    try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
-    return loop.run_until_complete(coro)

@@ -241,6 +241,7 @@ class HiveClient:
             response = client.from_("master_view").select("*").execute()
 
             self._universe_cache = {}
+            rows = []
             for row in response.data:
                 asset = AssetEntry(
                     isin=row.get("isin", ""),
@@ -256,8 +257,26 @@ class HiveClient:
                 )
                 asset.calculate_confidence()
                 self._universe_cache[asset.isin] = asset
+
+                rows.append(
+                    {
+                        "isin": asset.isin,
+                        "ticker": asset.ticker,
+                        "name": asset.name,
+                        "asset_type": asset.asset_class,
+                        "confidence": asset.confidence_score,
+                        "last_updated": asset.last_updated,
+                    }
+                )
+
             self._cache_loaded_at = datetime.now()
             self._save_cache()
+
+            # Sync to local SQLite via Ingestion Layer
+            if rows:
+                from portfolio_src.data.ingestion import DataIngestion
+
+                DataIngestion.ingest_metadata(pd.DataFrame(rows))
 
             return HiveResult(
                 success=True,

@@ -8,6 +8,7 @@ import sys
 import os
 import subprocess
 import time
+import hashlib
 from pathlib import Path
 from typing import List, Optional, Any
 
@@ -32,11 +33,11 @@ except ImportError:
 
 console = Console()
 
-# Configuration
 PROJECT_ROOT = Path(__file__).parent.parent.absolute()
 PYTHON_DIR = PROJECT_ROOT / "src-tauri" / "python"
 BINARIES_DIR = PROJECT_ROOT / "src-tauri" / "binaries"
-SUFFIX = "-aarch64-apple-darwin"  # Hardcoded for now
+HASH_FILE = PYTHON_DIR / ".last_build_hash"
+SUFFIX = "-aarch64-apple-darwin"
 
 
 def run_command(
@@ -45,7 +46,6 @@ def run_command(
     env: Optional[dict] = None,
     capture: bool = True,
 ):
-    """Run a command and return success status."""
     try:
         if capture:
             result = subprocess.run(
@@ -115,8 +115,44 @@ def run_command_live(
         return False, str(e)
 
 
-def build_python():
+def calculate_source_hash() -> str:
+    relevant_files = []
+    patterns = ["*.py", "*.spec", "*.sql", "pyproject.toml", "uv.lock"]
+
+    for pattern in patterns:
+        relevant_files.extend(list(PYTHON_DIR.glob(f"**/{pattern}")))
+
+    relevant_files.sort()
+
+    hasher = hashlib.sha256()
+    for file_path in relevant_files:
+        if any(
+            part.startswith(".") for part in file_path.relative_to(PYTHON_DIR).parts
+        ):
+            continue
+
+        try:
+            with open(file_path, "rb") as f:
+                hasher.update(str(file_path.relative_to(PYTHON_DIR)).encode())
+                while chunk := f.read(8192):
+                    hasher.update(chunk)
+        except Exception:
+            continue
+
+    return hasher.hexdigest()
+
+
+def build_python(force: bool = False):
     console.print(Panel.fit("[bold blue]Phase 1: Building Python Sidecar[/bold blue]"))
+
+    current_hash = calculate_source_hash()
+    if not force and HASH_FILE.exists():
+        with open(HASH_FILE, "r") as f:
+            last_hash = f.read().strip()
+        if current_hash == last_hash:
+            console.print("[green]✓ Python source unchanged. Skipping build.[/green]")
+            console.print("[dim]  (Use --force to override)[/dim]\n")
+            return True
 
     pyinstaller_milestones = {
         "checking Analysis": 10,
@@ -149,35 +185,59 @@ def build_python():
             return False
         progress.update(task_sync, description="[green]✓ Dependencies synced")
 
-        task_clean = progress.add_task("[cyan]Cleaning previous builds...", total=100)
-        run_command(["rm", "-rf", "dist/", "build/"], cwd=PYTHON_DIR)
-        progress.update(
-            task_clean, completed=100, description="[green]✓ Previous builds cleaned"
-        )
+        if force:
+            task_clean = progress.add_task(
+                "[cyan]Cleaning previous builds...", total=100
+            )
+            run_command(["rm", "-rf", "dist/", "build/"], cwd=PYTHON_DIR)
+            progress.update(
+                task_clean,
+                completed=100,
+                description="[green]✓ Previous builds cleaned",
+            )
+            pyinstaller_clean = []
+        else:
+            pyinstaller_clean = []
 
         specs = list(PYTHON_DIR.glob("*.spec"))
         num_specs = len(specs)
         task_overall = progress.add_task("[cyan]Overall Build Progress...", total=100)
 
+        processes = []
         for i, spec in enumerate(specs):
             desc = f"  [cyan]↳ Building {spec.name}"
-            offset = (i / num_specs) * 100
-            scale = 1.0 / num_specs
+            log_file = PYTHON_DIR / f"build_{spec.name}.log"
 
-            success, err = run_command_live(
-                ["uv", "run", "pyinstaller", str(spec), "--noconfirm", "--clean"],
-                progress,
-                task_overall,
-                desc,
+            proc = subprocess.Popen(
+                ["uv", "run", "pyinstaller", str(spec), "--noconfirm"]
+                + pyinstaller_clean,
                 cwd=PYTHON_DIR,
-                milestones=pyinstaller_milestones,
-                progress_offset=offset,
-                progress_scale=scale,
+                stdout=open(log_file, "w"),
+                stderr=subprocess.STDOUT,
+                text=True,
             )
+            processes.append((proc, spec, log_file))
 
-            if not success:
-                console.print(f"[red]Build failed for {spec.name}:[/red]\n{err}")
-                return False
+        completed_count = 0
+        while len(processes) > 0:
+            for p in processes[:]:
+                proc, spec, log_file = p
+                ret = proc.poll()
+                if ret is not None:
+                    processes.remove(p)
+                    completed_count += 1
+                    if ret != 0:
+                        console.print(
+                            f"[red]Build failed for {spec.name}. Check {log_file.name}[/red]"
+                        )
+                        return False
+                    else:
+                        log_file.unlink()
+
+                    progress.update(
+                        task_overall, completed=(completed_count / num_specs) * 100
+                    )
+            time.sleep(0.5)
 
         progress.update(task_overall, description="[green]✓ All binaries built")
 
@@ -194,26 +254,62 @@ def build_python():
             task_copy, completed=100, description="[green]✓ Binaries deployed"
         )
 
+        task_verify = progress.add_task("[cyan]Verifying binaries...", total=100)
+        verification_failed = False
+
+        for target in BINARIES_DIR.glob(f"*{SUFFIX}"):
+            if os.access(target, os.X_OK):
+                try:
+                    env = {**os.environ, "PRISM_DATA_DIR": "/tmp/prism-test"}
+                    result = subprocess.run(
+                        [str(target)],
+                        input="",
+                        capture_output=True,
+                        text=True,
+                        env=env,
+                        timeout=5,
+                    )
+                    if '"status": "ready"' not in result.stdout:
+                        console.print(
+                            f"[yellow]⚠ WARNING: {target.name} may have startup issues[/yellow]"
+                        )
+                        verification_failed = True
+                except subprocess.TimeoutExpired:
+                    console.print(
+                        f"[yellow]⚠ WARNING: {target.name} timed out during startup[/yellow]"
+                    )
+                    verification_failed = True
+                except Exception as e:
+                    console.print(f"[red]Error verifying {target.name}: {e}[/red]")
+                    verification_failed = True
+
+        if verification_failed:
+            console.print("[red]Verification failed for some binaries.[/red]")
+            return False
+
+        progress.update(
+            task_verify, completed=100, description="[green]✓ Binaries verified"
+        )
+
+    with open(HASH_FILE, "w") as f:
+        f.write(current_hash)
+
     console.print("[bold green]✓ Python build complete![/bold green]\n")
     return True
 
 
 def start_dev():
-    """Start the Tauri development server with clean output."""
     console.print(
         Panel.fit("[bold magenta]Phase 2: Starting Tauri Dev Server[/bold magenta]")
     )
 
-    # Environment variables to help with logging
     env = {
         **os.environ,
-        "RUST_LOG": "info,tauri_app_lib=info",  # Ensure our lib logs at info
+        "RUST_LOG": "info,tauri_app_lib=info",
         "FORCE_COLOR": "1",
     }
 
     try:
-        # We use a simple subprocess run for dev to keep interactivity and colors
-        # but we add a small delay to let the user read the header
         time.sleep(1)
         subprocess.run(
             ["npm", "run", "tauri", "dev"], cwd=PROJECT_ROOT, env=env, check=True
@@ -224,25 +320,67 @@ def start_dev():
         console.print("\n[red]Tauri dev server exited with error.[/red]")
 
 
-def main():
-    if len(sys.argv) < 2:
+def check_prerequisites():
+    console.print(
+        Panel.fit("[bold blue]System Check: Verifying Prerequisites[/bold blue]")
+    )
+
+    table = Table(show_header=True, header_style="bold cyan", box=None)
+    table.add_column("Tool", style="dim", width=15)
+    table.add_column("Status", width=10)
+    table.add_column("Version", style="dim")
+
+    tools = {
+        "Python": ["python3", "--version"],
+        "UV": ["uv", "--version"],
+        "Node.js": ["node", "--version"],
+        "NPM": ["npm", "--version"],
+        "Rust/Cargo": ["cargo", "--version"],
+    }
+
+    all_ok = True
+    for tool, cmd in tools.items():
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            version = result.stdout.strip().split("\n")[0]
+            table.add_row(tool, "[green]OK[/green]", version)
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            table.add_row(tool, "[red]MISSING[/red]", "Not found")
+            all_ok = False
+
+    console.print(table)
+    if not all_ok:
         console.print(
-            "[bold red]Usage:[/bold red] python scripts/prism.py [build|dev|all]"
+            "[bold red]Error: Some prerequisites are missing. Please install them and try again.[/bold red]"
         )
         sys.exit(1)
+    console.print("")
 
-    command = sys.argv[1].lower()
 
-    if command == "build":
-        build_python()
-    elif command == "dev":
+def main():
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Portfolio Prism Orchestrator")
+    parser.add_argument(
+        "command", choices=["build", "dev", "all"], help="Command to run"
+    )
+    parser.add_argument("-f", "--force", action="store_true", help="Force rebuild")
+    parser.add_argument(
+        "--skip-check", action="store_true", help="Skip prerequisite check"
+    )
+
+    args = parser.parse_args()
+
+    if not args.skip_check:
+        check_prerequisites()
+
+    if args.command == "build":
+        build_python(force=args.force)
+    elif args.command == "dev":
         start_dev()
-    elif command == "all":
-        if build_python():
+    elif args.command == "all":
+        if build_python(force=args.force):
             start_dev()
-    else:
-        console.print(f"[bold red]Unknown command:[/bold red] {command}")
-        sys.exit(1)
 
 
 if __name__ == "__main__":

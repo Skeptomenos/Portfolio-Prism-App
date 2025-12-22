@@ -1,20 +1,4 @@
 #!/usr/bin/env python3
-"""
-Prism Headless Entry Point
-
-Standalone Python engine for IPC communication with Tauri shell.
-Reads JSON commands from stdin, writes JSON responses to stdout.
-
-Usage:
-    # Interactive testing
-    echo '{"id":1,"command":"get_health"}' | python prism_headless.py
-
-    # As Tauri sidecar (spawned by Rust)
-    PRISM_DATA_DIR=/path/to/data ./prism-headless
-
-See: anamnesis/specs/ipc_api.md
-"""
-
 import sys
 import os
 import json
@@ -22,10 +6,11 @@ import threading
 import time
 import asyncio
 import argparse
+import uuid
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Dict, List, Optional, cast
 
-# FastAPI imports for Echo-Bridge
 try:
     from fastapi import FastAPI, Request
     from fastapi.middleware.cors import CORSMiddleware
@@ -35,7 +20,6 @@ try:
 except ImportError:
     HAS_HTTP = False
 
-# Handle PyInstaller frozen mode - ensure SSL certificates work
 if getattr(sys, "frozen", False):
     try:
         import certifi
@@ -45,7 +29,6 @@ if getattr(sys, "frozen", False):
     except ImportError:
         pass
 
-# Ensure stdout is line-buffered for IPC
 try:
     reconfig = getattr(sys.stdout, "reconfigure", None)
     if reconfig:
@@ -56,54 +39,31 @@ except Exception:
 import logging
 from portfolio_src.prism_utils.logging_config import get_logger, configure_root_logger
 
-# Configure logging with PII scrubbing
 configure_root_logger()
 logger = get_logger("PrismHeadless")
 
-# Version
 VERSION = "0.1.0"
-
+SESSION_ID = "unknown"
 _start_time = time.time()
 
 
 def resource_path(relative_path: str) -> str:
-    """
-    Get absolute path to a resource.
-    Works for both dev mode and PyInstaller frozen mode.
-    """
     base_path = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(base_path, relative_path)
 
 
-def setup_python_path():
-    """Confirms CWD is correct for imports."""
-    # We no longer modify sys.path here.
-    # The application relies on being run from the correct directory (src-tauri/python)
-    # or having PYTHONPATH set correctly.
-    pass
-
-
 def dead_mans_switch(shutdown_event):
-    """
-    Monitor for shutdown signal.
-
-    In headless mode, we detect parent death by stdin EOF in the main loop.
-    This thread provides a backup mechanism via the shutdown event.
-    """
     try:
         shutdown_event.wait()
     except Exception:
         pass
     finally:
-        # Shutdown requested, exit cleanly
         os._exit(0)
 
 
 def handle_get_health(cmd_id: int, payload: dict) -> dict:
-    """Handle get_health command."""
     from portfolio_src.data.database import get_db_path
 
-    # Try to get memory usage, fall back if psutil not available
     memory_mb = 0.0
     try:
         import psutil
@@ -111,7 +71,6 @@ def handle_get_health(cmd_id: int, payload: dict) -> dict:
         process = psutil.Process(os.getpid())
         memory_mb = process.memory_info().rss / (1024 * 1024)
     except ImportError:
-        # psutil not available, use resource module as fallback
         try:
             import resource
 
@@ -120,14 +79,13 @@ def handle_get_health(cmd_id: int, payload: dict) -> dict:
             )
         except Exception:
             pass
-
     uptime = time.time() - _start_time
-
     return {
         "id": cmd_id,
         "status": "success",
         "data": {
             "version": VERSION,
+            "sessionId": SESSION_ID,
             "memoryUsageMb": round(memory_mb, 1),
             "uptimeSeconds": round(uptime, 1),
             "dbPath": str(get_db_path()),
@@ -135,17 +93,12 @@ def handle_get_health(cmd_id: int, payload: dict) -> dict:
     }
 
 
-# =============================================================================
-# TRADE REPUBLIC AUTH HANDLERS
-# =============================================================================
-
-# Global singleton for auth state management
 _auth_manager = None
 _bridge = None
+_bridge_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="bridge")
 
 
 def get_auth_manager():
-    """Get singleton TRAuthManager instance."""
     global _auth_manager
     if _auth_manager is None:
         from portfolio_src.core.tr_auth import TRAuthManager
@@ -155,7 +108,6 @@ def get_auth_manager():
 
 
 def get_bridge():
-    """Get singleton TRBridge instance."""
     global _bridge
     if _bridge is None:
         from portfolio_src.core.tr_bridge import TRBridge
@@ -165,7 +117,6 @@ def get_bridge():
 
 
 def error_response(cmd_id: int, code: str, message: str) -> dict:
-    """Create standardized error response."""
     return {
         "id": cmd_id,
         "status": "error",
@@ -174,7 +125,6 @@ def error_response(cmd_id: int, code: str, message: str) -> dict:
 
 
 def emit_progress(progress: int, message: str):
-    """Emit progress event to stdout."""
     print(
         json.dumps(
             {
@@ -186,23 +136,21 @@ def emit_progress(progress: int, message: str):
     sys.stdout.flush()
 
 
-def handle_tr_get_auth_status(cmd_id: int, payload: dict) -> dict:
-    """Handle tr_get_auth_status command."""
+async def handle_tr_get_auth_status(cmd_id: int, payload: dict) -> dict:
     try:
+        loop = asyncio.get_event_loop()
         bridge = get_bridge()
-        status = bridge.get_status()
-
+        status = await loop.run_in_executor(_bridge_executor, bridge.get_status)
         auth_state_map = {
             "authenticated": "authenticated",
             "idle": "idle",
             "waiting_2fa": "waiting_2fa",
         }
         auth_state = auth_state_map.get(status.get("status", "idle"), "idle")
-
-        # Check for stored credentials
         auth_manager = get_auth_manager()
-        has_credentials = auth_manager.has_credentials()
-
+        has_credentials = await loop.run_in_executor(
+            _bridge_executor, auth_manager.has_credentials
+        )
         return {
             "id": cmd_id,
             "status": "success",
@@ -216,26 +164,23 @@ def handle_tr_get_auth_status(cmd_id: int, payload: dict) -> dict:
         return error_response(cmd_id, "TR_AUTH_ERROR", str(e))
 
 
-def handle_tr_check_saved_session(cmd_id: int, payload: dict) -> dict:
-    """Handle tr_check_saved_session command."""
+async def handle_tr_check_saved_session(cmd_id: int, payload: dict) -> dict:
     try:
-        # Check if cookie file exists
+        loop = asyncio.get_event_loop()
         data_dir = os.environ.get(
             "PRISM_DATA_DIR",
             os.path.expanduser("~/Library/Application Support/PortfolioPrism"),
         )
         cookies_file = os.path.join(data_dir, "tr_cookies.txt")
-
         has_session = os.path.exists(cookies_file)
-
         if has_session:
-            # Get stored phone for masking
             auth_manager = get_auth_manager()
-            phone = auth_manager.get_stored_phone()
+            phone = await loop.run_in_executor(
+                _bridge_executor, auth_manager.get_stored_phone
+            )
             masked_phone = None
             if phone and len(phone) > 4:
                 masked_phone = phone[:3] + "***" + phone[-4:]
-
             return {
                 "id": cmd_id,
                 "status": "success",
@@ -259,40 +204,24 @@ def handle_tr_check_saved_session(cmd_id: int, payload: dict) -> dict:
         return error_response(cmd_id, "TR_SESSION_CHECK_ERROR", str(e))
 
 
-def handle_tr_login(cmd_id: int, payload: dict) -> dict:
-    """Handle tr_login command."""
+async def handle_tr_login(cmd_id: int, payload: dict) -> dict:
     phone = payload.get("phone", "")
     pin = payload.get("pin", "")
     remember = payload.get("remember", True)
-
     if not phone or not pin:
         return error_response(
             cmd_id, "TR_INVALID_CREDENTIALS", "Phone number and PIN are required"
         )
-
     try:
         auth_manager = get_auth_manager()
-
-        # Save credentials if remember is True
         if remember:
             auth_manager.save_credentials(phone, pin)
-
-        # Run async request_2fa
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            result = loop.run_until_complete(auth_manager.request_2fa(phone, pin))
-        finally:
-            loop.close()
-
+        result = await auth_manager.request_2fa(phone, pin)
         if result.state.value == "authenticated":
             return {
                 "id": cmd_id,
                 "status": "success",
-                "data": {
-                    "authState": "authenticated",
-                    "message": result.message,
-                },
+                "data": {"authState": "authenticated", "message": result.message},
             }
         elif result.state.value == "waiting_for_2fa":
             return {
@@ -306,51 +235,36 @@ def handle_tr_login(cmd_id: int, payload: dict) -> dict:
             }
         else:
             return error_response(cmd_id, "TR_LOGIN_FAILED", result.message)
-
     except Exception as e:
+        logger.error(f"Login error: {e}", exc_info=True)
         return error_response(cmd_id, "TR_LOGIN_ERROR", str(e))
 
 
-def handle_tr_submit_2fa(cmd_id: int, payload: dict) -> dict:
-    """Handle tr_submit_2fa command."""
+async def handle_tr_submit_2fa(cmd_id: int, payload: dict) -> dict:
     code = payload.get("code", "")
-
     if not code:
         return error_response(cmd_id, "TR_2FA_INVALID", "2FA code is required")
-
     try:
         auth_manager = get_auth_manager()
-
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            result = loop.run_until_complete(auth_manager.verify_2fa(code))
-        finally:
-            loop.close()
-
+        result = await auth_manager.verify_2fa(code)
         if result.success:
             return {
                 "id": cmd_id,
                 "status": "success",
-                "data": {
-                    "authState": "authenticated",
-                    "message": result.message,
-                },
+                "data": {"authState": "authenticated", "message": result.message},
             }
         else:
             return error_response(cmd_id, "TR_2FA_INVALID", result.message)
-
     except Exception as e:
+        logger.error(f"2FA error: {e}", exc_info=True)
         return error_response(cmd_id, "TR_2FA_ERROR", str(e))
 
 
-def handle_tr_logout(cmd_id: int, payload: dict) -> dict:
-    """Handle tr_logout command."""
+async def handle_tr_logout(cmd_id: int, payload: dict) -> dict:
     try:
+        loop = asyncio.get_event_loop()
         auth_manager = get_auth_manager()
-        auth_manager.logout()
-
-        # Also delete cookies file
+        await loop.run_in_executor(_bridge_executor, auth_manager.logout)
         data_dir = os.environ.get(
             "PRISM_DATA_DIR",
             os.path.expanduser("~/Library/Application Support/PortfolioPrism"),
@@ -358,108 +272,72 @@ def handle_tr_logout(cmd_id: int, payload: dict) -> dict:
         cookies_file = os.path.join(data_dir, "tr_cookies.txt")
         if os.path.exists(cookies_file):
             os.remove(cookies_file)
-
         return {
             "id": cmd_id,
             "status": "success",
-            "data": {
-                "authState": "idle",
-                "message": "Logged out and session cleared",
-            },
+            "data": {"authState": "idle", "message": "Logged out and session cleared"},
         }
     except Exception as e:
         return error_response(cmd_id, "TR_LOGOUT_ERROR", str(e))
 
 
-def handle_sync_portfolio(cmd_id: int, payload: dict) -> dict:
-    """Handle sync_portfolio command with real TR data."""
+async def handle_sync_portfolio(cmd_id: int, payload: dict) -> dict:
     from portfolio_src.data.tr_sync import TRDataFetcher
     from portfolio_src.data.database import sync_positions_from_tr, update_sync_state
 
+    loop = asyncio.get_event_loop()
     portfolio_id = payload.get("portfolioId", 1)
-    # force = payload.get("force", False)
-
-    # Emit progress
     emit_progress(0, "Starting sync...")
-
     try:
         bridge = get_bridge()
-
-        # Check auth status
-        status = bridge.get_status()
-
-        # Auto-restore if not authenticated
+        status = await loop.run_in_executor(_bridge_executor, bridge.get_status)
         if status.get("status") != "authenticated":
             emit_progress(2, "Restoring session...")
             auth_manager = get_auth_manager()
-
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                restore_result = loop.run_until_complete(
-                    auth_manager.try_restore_session()
-                )
-                if restore_result.success:
-                    emit_progress(5, "Session restored.")
-                    status = bridge.get_status()  # Refresh status
-                else:
-                    logger.warning(
-                        f"Session restoration failed: {restore_result.message}"
-                    )
-            except Exception as e:
-                logger.error(f"Auto-restore failed: {e}")
-            finally:
-                loop.close()
-
+            restore_result = await auth_manager.try_restore_session()
+            if restore_result.success:
+                emit_progress(5, "Session restored.")
+                status = await loop.run_in_executor(_bridge_executor, bridge.get_status)
+            else:
+                logger.warning(f"Session restoration failed: {restore_result.message}")
         if status.get("status") != "authenticated":
-            logger.error("Authentication required: No active session found.")
             return error_response(
                 cmd_id,
                 "TR_AUTH_REQUIRED",
                 "Please authenticate with Trade Republic first",
             )
-
         emit_progress(10, "Connecting to Trade Republic...")
-
         start_time = time.time()
-
-        # Fetch portfolio via daemon
         fetcher = TRDataFetcher(bridge)
         emit_progress(30, "Fetching portfolio...")
-
-        raw_positions = fetcher.fetch_portfolio_sync()
-
+        raw_positions = await loop.run_in_executor(
+            _bridge_executor, fetcher.fetch_portfolio_sync
+        )
         emit_progress(50, f"Processing {len(raw_positions)} positions...")
-
-        # Transform to database format
         tr_positions = []
         for pos in raw_positions:
             tr_positions.append(
                 {
                     "isin": pos["isin"],
                     "name": pos["name"],
-                    "symbol": "",  # Not available from TR
+                    "symbol": "",
                     "quantity": pos["quantity"],
                     "cost_basis": pos["avg_cost"],
                     "current_price": pos["current_price"],
-                    "asset_class": "Equity",  # Default - could be enriched later
+                    "asset_class": "Equity",
                 }
             )
-
         emit_progress(70, "Writing to database...")
-
-        # Sync to SQLite
         sync_result = sync_positions_from_tr(portfolio_id, tr_positions)
-
         update_sync_state(
             "trade_republic",
             "success",
             f"Synced {sync_result['synced_positions']} positions",
         )
-
         duration_ms = int((time.time() - start_time) * 1000)
+        emit_progress(100, "Sync complete! Running Deep Analysis...")
 
-        emit_progress(100, "Sync complete! Run Deep Analysis to update X-Ray.")
+        await handle_run_pipeline(cmd_id, payload)
 
         return {
             "id": cmd_id,
@@ -472,40 +350,31 @@ def handle_sync_portfolio(cmd_id: int, payload: dict) -> dict:
                 "durationMs": duration_ms,
             },
         }
-
     except Exception as e:
         update_sync_state("trade_republic", "error", str(e))
         return error_response(cmd_id, "TR_SYNC_FAILED", str(e))
 
 
-def handle_run_pipeline(cmd_id: int, payload: dict) -> dict:
-    """Handle run_pipeline command to trigger analytics independently."""
+async def handle_run_pipeline(cmd_id: int, payload: dict) -> dict:
     from portfolio_src.core.pipeline import Pipeline
 
     emit_progress(0, "Starting analytics pipeline...")
-
     start_time = time.time()
-
     try:
-        # Wrapper to map pipeline progress (0.0-1.0) to overall progress (0-100)
+
         def pipeline_progress(msg, pct):
-            # UX: Artificial delay
-            time.sleep(0.3)
+            time.sleep(0.1)
             emit_progress(int(pct * 100), f"Analytics: {msg}")
-            logger.info(f"Pipeline Progress: {msg} ({pct * 100}%)")
 
         pipeline = Pipeline()
-        result = pipeline.run(progress_callback=pipeline_progress)
-
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, pipeline.run, pipeline_progress)
         duration_ms = int((time.time() - start_time) * 1000)
-
         if not result.success:
-            logger.error(f"Pipeline failed: {result.errors}")
             emit_progress(100, "Analytics completed with warnings.")
-
             return {
                 "id": cmd_id,
-                "status": "success",  # Return success so UI can show warnings
+                "status": "success",
                 "data": {
                     "success": False,
                     "errors": [str(e) for e in result.errors],
@@ -514,66 +383,22 @@ def handle_run_pipeline(cmd_id: int, payload: dict) -> dict:
             }
         else:
             emit_progress(100, "Analytics complete!")
-
             return {
                 "id": cmd_id,
                 "status": "success",
                 "data": {"success": True, "errors": [], "durationMs": duration_ms},
             }
-
     except Exception as e:
         logger.error(f"Failed to run pipeline: {e}", exc_info=True)
         return error_response(cmd_id, "PIPELINE_ERROR", str(e))
 
 
-# =============================================================================
-# HELPER FUNCTIONS
-# =============================================================================
-
-
-def _get_allocations_from_report() -> Optional[dict]:
-    """
-    Read the TRUE_EXPOSURE_REPORT csv and aggregate by Sector/Geography.
-    Returns: {"sector": {name: pct}, "region": {name: pct}}
-    """
-    try:
-        from portfolio_src.config import TRUE_EXPOSURE_REPORT
-        import pandas as pd
-
-        if not os.path.exists(TRUE_EXPOSURE_REPORT):
-            return None
-
-        df = pd.read_csv(TRUE_EXPOSURE_REPORT)
-        if df.empty:
-            return None
-
-        # Helper to aggregate and convert to dict
-        def agg_to_dict(group_col):
-            # Sum percentage by group
-            grp = df.groupby(group_col)["portfolio_percentage"].sum()
-            # Convert to dict, round to 2 decimals
-            return {str(k): round(float(v), 2) for k, v in grp.items() if v > 0}
-
-        return {"sector": agg_to_dict("sector"), "region": agg_to_dict("geography")}
-    except Exception:
-        return None
-
-
-# =============================================================================
-# ORIGINAL HANDLERS (unchanged)
-# =============================================================================
-
-
 def handle_get_dashboard_data(cmd_id: int, payload: dict) -> dict:
-    """Handle get_dashboard_data command."""
     from portfolio_src.data.database import get_positions
 
     portfolio_id = payload.get("portfolioId", 1)
     positions = get_positions(portfolio_id)
-    position_count = len(positions)
-
-    if position_count == 0:
-        # Empty state
+    if not positions:
         return {
             "id": cmd_id,
             "status": "success",
@@ -588,88 +413,78 @@ def handle_get_dashboard_data(cmd_id: int, payload: dict) -> dict:
                 "positionCount": 0,
             },
         }
-
-    # Calculate totals from positions
     total_value = 0.0
     total_cost = 0.0
     holdings = []
-
     for pos in positions:
         quantity = float(pos.get("quantity", 0))
         current_price = float(pos.get("current_price") or pos.get("cost_basis") or 0)
         cost_basis = float(pos.get("cost_basis") or current_price)
-
         value = quantity * current_price
         cost = quantity * cost_basis
         pnl = value - cost
         pnl_pct = (pnl / cost * 100) if cost > 0 else 0
-
         total_value += value
         total_cost += cost
-
         holdings.append(
             {
                 "isin": pos.get("isin", ""),
                 "name": pos.get("name") or pos.get("isin", "Unknown"),
                 "ticker": pos.get("symbol"),
                 "value": round(value, 2),
-                "weight": 0.0,  # Calculated after we have total
+                "weight": 0.0,
                 "pnl": round(pnl, 2),
                 "pnlPercentage": round(pnl_pct, 1),
                 "quantity": quantity,
                 "assetClass": pos.get("asset_class"),
             }
         )
-
-    # Calculate weights
     for h in holdings:
         h["weight"] = round(h["value"] / total_value, 4) if total_value > 0 else 0.0
-
-    # Sort by value descending, take top 10
     holdings.sort(key=lambda x: x["value"], reverse=True)
     top_holdings = holdings[:10]
-
-    # Calculate total gain
     total_gain = total_value - total_cost
     gain_percentage = (total_gain / total_cost * 100) if total_cost > 0 else 0.0
-
-    # Build allocations (simplified - use asset_class for now)
     asset_class_alloc = {}
     for h in holdings:
         ac = str(h.get("assetClass") or "Unknown")
         asset_class_alloc[ac] = asset_class_alloc.get(ac, 0.0) + h["weight"]
-
-    # Load Real Analytics Allocations
     sector_alloc = {}
     region_alloc = {}
-
     try:
-        allocs = _get_allocations_from_report()
-        if allocs:
-            sector_alloc = allocs.get("sector", {})
-            region_alloc = allocs.get("region", {})
-    except Exception as e:
-        # Fallback to empty if analytics fail
-        logger.warning(f"Analytics allocation error: {e}")
+        from portfolio_src.config import TRUE_EXPOSURE_REPORT
+        import pandas as pd
 
-    # Calculate Day Change & History
+        if os.path.exists(TRUE_EXPOSURE_REPORT):
+            df = pd.read_csv(TRUE_EXPOSURE_REPORT)
+            if not df.empty:
+                sector_alloc = {
+                    str(k): round(float(v), 2)
+                    for k, v in df.groupby("sector")["portfolio_percentage"]
+                    .sum()
+                    .items()
+                    if v > 0
+                }
+                region_alloc = {
+                    str(k): round(float(v), 2)
+                    for k, v in df.groupby("geography")["portfolio_percentage"]
+                    .sum()
+                    .items()
+                    if v > 0
+                }
+    except Exception:
+        pass
     day_change = 0.0
     day_change_pct = 0.0
     history = []
-
     try:
         from portfolio_src.data.history_manager import HistoryManager
 
         history_mgr = HistoryManager()
-        # Pass the raw database positions (dicts) to the manager
         day_change, day_change_pct = history_mgr.calculate_day_change(positions)
-
-        # Calculate 30-day history for chart
         history = history_mgr.get_portfolio_history(positions, days=30)
-
-    except Exception as e:
-        logger.error(f"History calculation failed: {e}")
-
+    except Exception:
+        pass
     return {
         "id": cmd_id,
         "status": "success",
@@ -686,21 +501,19 @@ def handle_get_dashboard_data(cmd_id: int, payload: dict) -> dict:
                 "assetClass": asset_class_alloc,
             },
             "topHoldings": top_holdings,
-            "lastUpdated": None,  # TODO: Get from sync_state
+            "lastUpdated": None,
             "isEmpty": False,
-            "positionCount": position_count,
+            "positionCount": len(positions),
         },
     }
 
 
 def handle_get_positions(cmd_id: int, payload: dict) -> dict:
-    """Handle get_positions command - returns full position data for the table."""
     from portfolio_src.data.database import get_positions, get_sync_state
     from datetime import datetime
 
     portfolio_id = payload.get("portfolioId", 1)
     positions_raw = get_positions(portfolio_id)
-
     if not positions_raw:
         return {
             "id": cmd_id,
@@ -714,26 +527,19 @@ def handle_get_positions(cmd_id: int, payload: dict) -> dict:
                 "lastSyncTime": None,
             },
         }
-
-    # Calculate totals
     total_value = 0.0
     total_cost = 0.0
     positions = []
-
     for pos in positions_raw:
         quantity = float(pos.get("quantity", 0))
         current_price = float(pos.get("current_price") or pos.get("cost_basis") or 0)
         avg_buy_price = float(pos.get("cost_basis") or current_price)
-
         current_value = quantity * current_price
         total_cost_pos = quantity * avg_buy_price
         pnl_eur = current_value - total_cost_pos
         pnl_percent = (pnl_eur / total_cost_pos * 100) if total_cost_pos > 0 else 0
-
         total_value += current_value
         total_cost += total_cost_pos
-
-        # Determine instrument type
         asset_class = pos.get("asset_class", "other")
         instrument_type = "stock"
         if asset_class:
@@ -744,13 +550,8 @@ def handle_get_positions(cmd_id: int, payload: dict) -> dict:
                 instrument_type = "crypto"
             elif "bond" in ac_lower:
                 instrument_type = "bond"
-            elif (
-                "derivative" in ac_lower
-                or "option" in ac_lower
-                or "warrant" in ac_lower
-            ):
+            elif any(x in ac_lower for x in ["derivative", "option", "warrant"]):
                 instrument_type = "derivative"
-
         positions.append(
             {
                 "isin": pos.get("isin", ""),
@@ -764,30 +565,18 @@ def handle_get_positions(cmd_id: int, payload: dict) -> dict:
                 "totalCost": round(total_cost_pos, 2),
                 "pnlEur": round(pnl_eur, 2),
                 "pnlPercent": round(pnl_percent, 2),
-                "weight": 0.0,  # Calculated after we have total
+                "weight": 0.0,
                 "currency": pos.get("currency") or "EUR",
                 "notes": pos.get("notes") or "",
                 "lastUpdated": pos.get("updated_at") or datetime.now().isoformat(),
             }
         )
-
-    # Calculate weights
     for p in positions:
         p["weight"] = (
             round(p["currentValue"] / total_value * 100, 2) if total_value > 0 else 0.0
         )
-
-    # Sort by value descending
     positions.sort(key=lambda x: x["currentValue"], reverse=True)
-
-    # Get last sync time
     sync_state = get_sync_state("trade_republic")
-    last_sync_time = sync_state.get("last_sync") if sync_state else None
-
-    # Calculate total P&L
-    total_pnl = total_value - total_cost
-    total_pnl_percent = (total_pnl / total_cost * 100) if total_cost > 0 else 0.0
-
     return {
         "id": cmd_id,
         "status": "success",
@@ -795,54 +584,45 @@ def handle_get_positions(cmd_id: int, payload: dict) -> dict:
             "positions": positions,
             "totalValue": round(total_value, 2),
             "totalCost": round(total_cost, 2),
-            "totalPnl": round(total_pnl, 2),
-            "totalPnlPercent": round(total_pnl_percent, 2),
-            "lastSyncTime": last_sync_time,
+            "totalPnl": round(total_value - total_cost, 2),
+            "totalPnlPercent": round(
+                ((total_value - total_cost) / total_cost * 100)
+                if total_cost > 0
+                else 0.0,
+                2,
+            ),
+            "lastSyncTime": sync_state.get("last_sync") if sync_state else None,
         },
     }
 
 
 def handle_upload_holdings(cmd_id: int, payload: dict) -> dict:
-    """Handle upload_holdings command."""
     from portfolio_src.core.data_cleaner import DataCleaner
     from portfolio_src.data.holdings_cache import get_holdings_cache
     from portfolio_src.data.hive_client import get_hive_client
 
     file_path = payload.get("filePath")
     etf_isin = payload.get("etfIsin")
-
     if not file_path or not etf_isin:
         return error_response(
             cmd_id, "INVALID_PARAMS", "filePath and etfIsin are required"
         )
-
     try:
-        # 1. Smart Load & Clean
         df_raw = DataCleaner.smart_load(file_path)
         df_clean = DataCleaner.cleanup(df_raw)
-
         if df_clean.empty:
             return error_response(
                 cmd_id, "CLEANUP_FAILED", "No valid holdings found in file"
             )
-
-        # 2. Validate Weight Sum
         total_weight = float(df_clean["weight"].sum())
-        if not (99.0 <= total_weight <= 101.0):
-            logger.warning(f"Holdings weight sum for {etf_isin} is {total_weight}%")
-
-        # 3. Save to Local Cache
         cache = get_holdings_cache()
         cache._save_to_local_cache(etf_isin, df_clean, source="manual_upload")
-
-        # 4. Contribute to Hive
         hive_client = get_hive_client()
-        contribution_success = False
-        if hive_client.is_configured:
-            contribution_success = hive_client.contribute_etf_holdings(
-                etf_isin, df_clean
-            )
-
+        contribution_success = (
+            hive_client.contribute_etf_holdings(etf_isin, df_clean)
+            if hive_client.is_configured
+            else False
+        )
         return {
             "id": cmd_id,
             "status": "success",
@@ -854,45 +634,34 @@ def handle_upload_holdings(cmd_id: int, payload: dict) -> dict:
             },
         }
     except Exception as e:
-        logger.error(f"Manual upload failed for {etf_isin}: {e}", exc_info=True)
+        logger.error(f"Manual upload failed: {e}", exc_info=True)
         return error_response(cmd_id, "UPLOAD_FAILED", str(e))
 
 
 def handle_get_true_holdings(cmd_id: int, payload: dict) -> dict:
-    """Handle get_true_holdings command - returns decomposed holdings from CSV."""
     from portfolio_src.config import HOLDINGS_BREAKDOWN_PATH
     import pandas as pd
 
     if not os.path.exists(HOLDINGS_BREAKDOWN_PATH):
         return {"id": cmd_id, "status": "success", "data": {"holdings": []}}
-
     try:
         df = pd.read_csv(HOLDINGS_BREAKDOWN_PATH)
         if df.empty:
             return {"id": cmd_id, "status": "success", "data": {"holdings": []}}
-
-        # Group by child_isin to get total value across all ETFs
-        # We use child_name as well to keep it in the result
         grouped = df.groupby(["child_isin", "child_name"], as_index=False).agg(
             {"value_eur": "sum", "sector": "first", "geography": "first"}
         )
-
         holdings = []
         for _, row in grouped.iterrows():
             child_isin = str(row["child_isin"])
-
-            # Get sources for this specific child
-            sources_df = df[df["child_isin"] == child_isin]
-            sources = []
-            for _, s_row in sources_df.iterrows():
-                sources.append(
-                    {
-                        "etf": str(s_row["parent_isin"]),
-                        "value": round(float(s_row["value_eur"]), 2),
-                        "weight": round(float(s_row["weight_percent"]) / 100.0, 4),
-                    }
-                )
-
+            sources = [
+                {
+                    "etf": str(s_row["parent_isin"]),
+                    "value": round(float(s_row["value_eur"]), 2),
+                    "weight": round(float(s_row["weight_percent"]) / 100.0, 4),
+                }
+                for _, s_row in df[df["child_isin"] == child_isin].iterrows()
+            ]
             holdings.append(
                 {
                     "stock": str(row["child_name"]),
@@ -903,10 +672,7 @@ def handle_get_true_holdings(cmd_id: int, payload: dict) -> dict:
                     "sources": sources,
                 }
             )
-
-        # Sort by total value descending
         holdings.sort(key=lambda x: x["totalValue"], reverse=True)
-
         return {"id": cmd_id, "status": "success", "data": {"holdings": holdings}}
     except Exception as e:
         logger.error(f"Failed to get true holdings: {e}", exc_info=True)
@@ -914,7 +680,6 @@ def handle_get_true_holdings(cmd_id: int, payload: dict) -> dict:
 
 
 def handle_get_overlap_analysis(cmd_id: int, payload: dict) -> dict:
-    """Handle get_overlap_analysis command."""
     import numpy as np
     from portfolio_src.config import HOLDINGS_BREAKDOWN_PATH
     import pandas as pd
@@ -925,7 +690,6 @@ def handle_get_overlap_analysis(cmd_id: int, payload: dict) -> dict:
             "status": "success",
             "data": {"etfs": [], "matrix": [], "sharedHoldings": []},
         }
-
     try:
         df = pd.read_csv(HOLDINGS_BREAKDOWN_PATH)
         if df.empty:
@@ -934,8 +698,6 @@ def handle_get_overlap_analysis(cmd_id: int, payload: dict) -> dict:
                 "status": "success",
                 "data": {"etfs": [], "matrix": [], "sharedHoldings": []},
             }
-
-        # 1. Get list of unique ETFs
         etfs = sorted(df["parent_isin"].unique().tolist())
         if not etfs:
             return {
@@ -943,37 +705,26 @@ def handle_get_overlap_analysis(cmd_id: int, payload: dict) -> dict:
                 "status": "success",
                 "data": {"etfs": [], "matrix": [], "sharedHoldings": []},
             }
-
-        # 2. Calculate Overlap Matrix
         n = len(etfs)
         matrix = np.zeros((n, n))
-
-        # Pivot to get weights of each child in each parent
         pivot_df = df.pivot(
             index="child_isin", columns="parent_isin", values="weight_percent"
         ).fillna(0)
-
         for i in range(n):
             for j in range(n):
                 if i == j:
                     matrix[i][j] = 100.0
                 else:
-                    # Sum of minimum weights
-                    overlap = np.minimum(pivot_df[etfs[i]], pivot_df[etfs[j]]).sum()
-                    matrix[i][j] = round(float(overlap), 1)
-
-        # 3. Get Most Shared Holdings
-        # Group by child_isin and count parents
+                    matrix[i][j] = round(
+                        float(np.minimum(pivot_df[etfs[i]], pivot_df[etfs[j]]).sum()), 1
+                    )
         shared_grouped = df.groupby(["child_isin", "child_name"], as_index=False).agg(
             {"value_eur": "sum"}
         )
-
-        # Add parent list separately to avoid aggregation issues with lists in some pandas versions
         shared_holdings = []
         for _, row in shared_grouped.iterrows():
             child_isin = str(row["child_isin"])
             parents = df[df["child_isin"] == child_isin]["parent_isin"].tolist()
-
             if len(parents) > 1:
                 shared_holdings.append(
                     {
@@ -982,18 +733,14 @@ def handle_get_overlap_analysis(cmd_id: int, payload: dict) -> dict:
                         "totalValue": round(float(row["value_eur"]), 2),
                     }
                 )
-
-        # Sort by total value descending
         shared_holdings.sort(key=lambda x: x["totalValue"], reverse=True)
-        shared_holdings = shared_holdings[:10]
-
         return {
             "id": cmd_id,
             "status": "success",
             "data": {
                 "etfs": etfs,
                 "matrix": matrix.tolist(),
-                "sharedHoldings": shared_holdings,
+                "sharedHoldings": shared_holdings[:10],
             },
         }
     except Exception as e:
@@ -1002,12 +749,10 @@ def handle_get_overlap_analysis(cmd_id: int, payload: dict) -> dict:
 
 
 def handle_get_pipeline_report(cmd_id: int, payload: dict) -> dict:
-    """Handle get_pipeline_report command."""
     from portfolio_src.config import PIPELINE_HEALTH_PATH
 
     if not os.path.exists(PIPELINE_HEALTH_PATH):
         return {"id": cmd_id, "status": "success", "data": None}
-
     try:
         with open(PIPELINE_HEALTH_PATH, "r") as f:
             data = json.load(f)
@@ -1016,15 +761,13 @@ def handle_get_pipeline_report(cmd_id: int, payload: dict) -> dict:
         return error_response(cmd_id, "REPORT_ERROR", str(e))
 
 
-def dispatch(cmd: dict) -> dict:
-    """Route command to appropriate handler."""
+async def dispatch(cmd: dict) -> dict:
     command = cmd.get("command", "")
     cmd_id = cmd.get("id", 0)
     payload = cmd.get("payload", {})
-
     handlers = {
         "get_health": handle_get_health,
-        "get_engine_health": handle_get_health,  # Alias for Tauri parity
+        "get_engine_health": handle_get_health,
         "get_dashboard_data": handle_get_dashboard_data,
         "get_positions": handle_get_positions,
         "tr_get_auth_status": handle_tr_get_auth_status,
@@ -1039,11 +782,13 @@ def dispatch(cmd: dict) -> dict:
         "get_overlap_analysis": handle_get_overlap_analysis,
         "get_pipeline_report": handle_get_pipeline_report,
     }
-
     handler = handlers.get(command)
     if handler:
         try:
-            return handler(cmd_id, payload)
+            if asyncio.iscoroutinefunction(handler):
+                return await handler(cmd_id, payload)
+            else:
+                return handler(cmd_id, payload)
         except Exception as e:
             return {
                 "id": cmd_id,
@@ -1062,14 +807,8 @@ def dispatch(cmd: dict) -> dict:
 
 
 def install_default_config() -> None:
-    """
-    Ensure default configuration files exist in the user data directory.
-    Copies from bundled resources if missing.
-    """
     import shutil
 
-    # We must import config after environment setup or inside the function
-    # but since PRISM_DATA_DIR is set in environment by Rust, config.py should resolve correctly.
     try:
         from portfolio_src.config import CONFIG_DIR
     except ImportError:
@@ -1077,34 +816,23 @@ def install_default_config() -> None:
             "Could not import portfolio_src.config. Skipping default config install."
         )
         return
-
     logger.info(f"Checking configuration in: {CONFIG_DIR}")
-
-    # Ensure config dir exists
     try:
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     except Exception as e:
         logger.error(f"Failed to create config dir: {e}")
         return
-
-    # List of files to install: filename -> target path (defaulting to CONFIG_DIR if not specific)
     files_to_install = [
         "adapter_registry.json",
         "asset_universe.csv",
         "ishares_config.json",
         "ticker_map.json",
     ]
-
     for filename in files_to_install:
         target_path = CONFIG_DIR / filename
-
-        # If file already exists, skip (don't overwrite user changes)
         if target_path.exists():
             continue
-
-        # Look in bundled config
         bundled_path = Path(resource_path(os.path.join("default_config", filename)))
-
         if bundled_path.exists():
             try:
                 shutil.copy2(bundled_path, target_path)
@@ -1112,153 +840,138 @@ def install_default_config() -> None:
             except Exception as e:
                 logger.error(f"Failed to install {filename}: {e}")
         else:
-            # Only warn if it's the critical registry, others might be optional
             log_level = logging.WARNING if "registry" in filename else logging.INFO
             logger.log(log_level, f"Default config not found in bundle: {bundled_path}")
 
 
-# =============================================================================
-# HTTP SERVER (Echo-Bridge)
-# =============================================================================
+def run_echo_bridge(host: str, port: int):
+    if not HAS_HTTP:
+        print("Error: fastapi and uvicorn are required for HTTP mode.")
+        return
+    from fastapi import FastAPI, Request
+    from fastapi.middleware.cors import CORSMiddleware
+    import uvicorn
 
-if HAS_HTTP:
     app = FastAPI(title="Prism Echo-Bridge")
-
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[
-            "http://localhost:5173",
-            "http://127.0.0.1:5173",
-            "http://localhost:5000",
-        ],
+        allow_origins=["*"],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
-
-    ECHO_TOKEN = os.environ.get("PRISM_ECHO_TOKEN", "dev-echo-bridge-secret")
+    echo_token = os.environ.get("PRISM_ECHO_TOKEN", "dev-echo-bridge-secret")
 
     @app.post("/command")
     async def http_command(request: Request):
         token = request.headers.get("X-Echo-Bridge-Token")
-        if token != ECHO_TOKEN:
+        if token != echo_token:
+            logger.warning("Echo-Bridge: Unauthorized request")
             return {
                 "id": 0,
                 "status": "error",
-                "error": {
-                    "code": "UNAUTHORIZED",
-                    "message": "Invalid Echo-Bridge token",
-                },
+                "error": {"code": "UNAUTHORIZED", "message": "Invalid token"},
             }
-
         try:
             cmd = await request.json()
-            return dispatch(cmd)
+            command = cmd.get("command")
+            if command not in [
+                "get_health",
+                "get_engine_health",
+                "tr_get_auth_status",
+                "tr_check_saved_session",
+            ]:
+                logger.info(f"Echo-Bridge: {command}")
+            return await dispatch(cmd)
         except Exception as e:
+            logger.error(f"Echo-Bridge Error: {e}", exc_info=True)
             return {
                 "id": 0,
                 "status": "error",
-                "error": {"code": "HTTP_ERROR", "message": "Internal server error"},
+                "error": {"code": "HTTP_ERROR", "message": str(e)},
             }
+
+    @app.get("/")
+    async def http_root():
+        return {"status": "online", "mode": "Echo-Bridge", "version": VERSION}
 
     @app.get("/health")
     async def http_health():
-        """Health check for Echo-Bridge."""
-        return {"status": "ok", "version": VERSION}
+        return {"status": "ok", "version": VERSION, "sessionId": SESSION_ID}
+
+    logger.info(f"Starting Echo-Bridge on http://{host}:{port}")
+    uvicorn.run(app, host=host, port=port, log_level="info")
 
 
 def main():
-    """Main entry point."""
     parser = argparse.ArgumentParser(description="Prism Headless Engine")
     parser.add_argument(
         "--http", action="store_true", help="Start HTTP server (Echo-Bridge)"
     )
-    parser.add_argument("--port", type=int, default=5000, help="HTTP server port")
-    parser.add_argument(
-        "--host", type=str, default="127.0.0.1", help="HTTP server host"
-    )
+    parser.add_argument("--port", type=int, default=5001, help="HTTP server port")
+    parser.add_argument("--host", type=str, default="0.0.0.0", help="HTTP server host")
     args = parser.parse_args()
-
-    # Setup Python path for imports
-    setup_python_path()
-
-    # Create shutdown event for clean termination
     shutdown_event = threading.Event()
-
-    # Start dead man's switch in background thread
     threading.Thread(
         target=dead_mans_switch, args=(shutdown_event,), daemon=True
     ).start()
-
-    # Setup data directory
     data_dir = os.environ.get("PRISM_DATA_DIR")
     if data_dir:
         os.makedirs(data_dir, exist_ok=True)
-
-    # Install default config if missing
+    global SESSION_ID
+    SESSION_ID = str(uuid.uuid4())
+    configure_root_logger(session_id=SESSION_ID)
+    logger = get_logger("PrismHeadless")
+    logger.info(f"Session started: {SESSION_ID}")
     install_default_config()
-
-    # Initialize database
     from portfolio_src.data.database import init_db
 
     init_db()
-
     if args.http:
-        if not HAS_HTTP:
-            print("Error: fastapi and uvicorn are required for HTTP mode.")
-            sys.exit(1)
-
-        logger.info(f"Starting Echo-Bridge on http://{args.host}:{args.port}")
-        uvicorn.run(app, host=args.host, port=args.port, log_level="info")
+        run_echo_bridge(args.host, args.port)
         return
-
-    # Print ready signal (Rust looks for this)
     ready_signal = {"status": "ready", "version": VERSION, "pid": os.getpid()}
     print(json.dumps(ready_signal))
     sys.stdout.flush()
-
-    # Main command loop
     while True:
         try:
             line = sys.stdin.readline()
             if not line:
-                # stdin closed, exit
                 break
-
             line = line.strip()
             if not line:
                 continue
-
-            # Parse command
             try:
                 cmd = json.loads(line)
             except json.JSONDecodeError as e:
-                error_resp = {
-                    "id": 0,
-                    "status": "error",
-                    "error": {
-                        "code": "INVALID_JSON",
-                        "message": f"Failed to parse JSON: {e}",
-                    },
-                }
-                print(json.dumps(error_resp))
+                print(
+                    json.dumps(
+                        {
+                            "id": 0,
+                            "status": "error",
+                            "error": {
+                                "code": "INVALID_JSON",
+                                "message": f"Failed to parse JSON: {e}",
+                            },
+                        }
+                    )
+                )
                 continue
-
-            # Dispatch and respond
-            response = dispatch(cmd)
+            response = asyncio.run(dispatch(cmd))
             print(json.dumps(response))
             sys.stdout.flush()
-
         except KeyboardInterrupt:
             break
         except Exception as e:
-            # Catch-all for unexpected errors
-            error_resp = {
-                "id": 0,
-                "status": "error",
-                "error": {"code": "INTERNAL_ERROR", "message": str(e)},
-            }
-            print(json.dumps(error_resp))
+            print(
+                json.dumps(
+                    {
+                        "id": 0,
+                        "status": "error",
+                        "error": {"code": "INTERNAL_ERROR", "message": str(e)},
+                    }
+                )
+            )
             sys.stdout.flush()
 
 

@@ -1,12 +1,13 @@
 """
 TR Bridge - Communication layer for TR daemon
 
-Manages the tr_daemon.py subprocess and provides a clean API for Streamlit/Tauri.
-Handles subprocess lifecycle, command sending, response parsing, and error recovery.
+⚠️ FRAGILE: Manages subprocess I/O. Blocking calls MUST be wrapped in executors.
+Read keystone/specs/trade_republic_integration.md before refactoring.
 """
 
 import json
 import os
+import select
 import subprocess
 import sys
 import threading
@@ -31,6 +32,7 @@ class TRBridge:
         self._daemon_process: Optional[subprocess.Popen] = None
         self._daemon_thread: Optional[threading.Thread] = None
         self._is_running = False
+        self._command_lock = threading.Lock()
 
     @classmethod
     def get_instance(cls) -> "TRBridge":
@@ -71,6 +73,23 @@ class TRBridge:
                 bufsize=1,  # Line buffered
                 env=os.environ.copy(),  # Inherit environment
             )
+
+            assert self._daemon_process.stdout is not None
+            ready_line = self._daemon_process.stdout.readline()
+            if not ready_line:
+                raise RuntimeError("Daemon failed to start - no ready signal")
+
+            try:
+                ready_data = json.loads(ready_line.strip())
+                if ready_data.get("status") != "ready":
+                    raise RuntimeError(f"Daemon not ready: {ready_data}")
+                print(
+                    f"[TR Bridge] Daemon ready (PID: {ready_data.get('pid')})",
+                    file=sys.stderr,
+                )
+            except json.JSONDecodeError:
+                raise RuntimeError(f"Invalid ready signal: {ready_line}")
+
             self._is_running = True
 
             # Start stderr monitoring thread
@@ -79,16 +98,13 @@ class TRBridge:
             )
             self._daemon_thread.start()
 
-            # Give daemon time to start
-            time.sleep(0.5)
-
         except Exception as e:
             self._is_running = False
             raise RuntimeError(f"Failed to start TR daemon: {e}")
 
     def _get_daemon_command(self) -> list:
         """Get command to spawn daemon, handling frozen vs dev mode."""
-        if getattr(sys, 'frozen', False):
+        if getattr(sys, "frozen", False):
             # Frozen mode (PyInstaller bundle): use sidecar binary
             return [self._get_sidecar_path("tr-daemon")]
         else:
@@ -98,7 +114,7 @@ class TRBridge:
 
     def _get_sidecar_path(self, name: str) -> str:
         """Get path to sidecar binary with platform suffix.
-        
+
         Tauri copies sidecars to target/debug/ without suffix in dev mode,
         but uses the suffix in production builds. Try both.
         """
@@ -108,7 +124,9 @@ class TRBridge:
         machine = platform.machine()
 
         if system == "Darwin":
-            suffix = "aarch64-apple-darwin" if machine == "arm64" else "x86_64-apple-darwin"
+            suffix = (
+                "aarch64-apple-darwin" if machine == "arm64" else "x86_64-apple-darwin"
+            )
         elif system == "Windows":
             suffix = "x86_64-pc-windows-msvc.exe"
         else:
@@ -116,26 +134,41 @@ class TRBridge:
 
         # Sidecar binaries are next to the main executable
         base_dir = Path(sys.executable).parent
-        
+
         # Try with platform suffix first (production build)
         sidecar_path = base_dir / f"{name}-{suffix}"
         print(f"[TR Bridge] DEBUG: sys.executable: {sys.executable}", file=sys.stderr)
         print(f"[TR Bridge] DEBUG: Base dir: {base_dir}", file=sys.stderr)
-        print(f"[TR Bridge] DEBUG: Looking for sidecar at {sidecar_path}", file=sys.stderr)
-        
+        print(
+            f"[TR Bridge] DEBUG: Looking for sidecar at {sidecar_path}", file=sys.stderr
+        )
+
         if sidecar_path.exists():
-            print(f"[TR Bridge] DEBUG: Found sidecar at {sidecar_path}", file=sys.stderr)
+            print(
+                f"[TR Bridge] DEBUG: Found sidecar at {sidecar_path}", file=sys.stderr
+            )
             return str(sidecar_path)
-        
+
         # Try without suffix (Tauri dev mode)
         sidecar_path_no_suffix = base_dir / name
-        print(f"[TR Bridge] DEBUG: Looking for sidecar at {sidecar_path_no_suffix}", file=sys.stderr)
+        print(
+            f"[TR Bridge] DEBUG: Looking for sidecar at {sidecar_path_no_suffix}",
+            file=sys.stderr,
+        )
         if sidecar_path_no_suffix.exists():
-            print(f"[TR Bridge] DEBUG: Found sidecar at {sidecar_path_no_suffix}", file=sys.stderr)
+            print(
+                f"[TR Bridge] DEBUG: Found sidecar at {sidecar_path_no_suffix}",
+                file=sys.stderr,
+            )
             return str(sidecar_path_no_suffix)
 
-        print(f"[TR Bridge] ERROR: Sidecar binary not found. Base dir: {base_dir}, Contents: {list(base_dir.iterdir())}", file=sys.stderr)
-        raise RuntimeError(f"Sidecar binary not found: tried {sidecar_path} and {sidecar_path_no_suffix}")
+        print(
+            f"[TR Bridge] ERROR: Sidecar binary not found. Base dir: {base_dir}, Contents: {list(base_dir.iterdir())}",
+            file=sys.stderr,
+        )
+        raise RuntimeError(
+            f"Sidecar binary not found: tried {sidecar_path} and {sidecar_path_no_suffix}"
+        )
 
     def _monitor_stderr(self) -> None:
         """Monitor daemon stderr for logging."""
@@ -151,53 +184,77 @@ class TRBridge:
         except Exception:
             pass  # Ignore monitoring errors
 
-    def _send_command(self, method: str, **params) -> Dict[str, Any]:
-        """Send command to daemon and get response."""
-        self._ensure_daemon_running()
-
-        if not self._daemon_process:
+    def _read_response_with_timeout(self, timeout: float = 30.0) -> str:
+        if not self._daemon_process or not self._daemon_process.stdout:
             raise RuntimeError("Daemon process not available")
 
-        # Create request
-        request_id = f"{method}_{int(time.time() * 1000)}"
-        request = TRRequest(method=method, params=params, id=request_id)
+        if sys.platform != "win32":
+            ready, _, _ = select.select([self._daemon_process.stdout], [], [], timeout)
+            if not ready:
+                raise RuntimeError(f"Daemon response timeout after {timeout}s")
 
-        # Serialize and send
-        request_json = json.dumps(
-            {"method": request.method, "params": request.params, "id": request.id}
-        )
+        response_line = self._daemon_process.stdout.readline()
+        if not response_line:
+            raise RuntimeError("No response from daemon (EOF)")
 
-        try:
-            # Send request
-            assert self._daemon_process.stdin is not None
-            self._daemon_process.stdin.write(request_json + "\n")
-            self._daemon_process.stdin.flush()
+        return response_line
 
-            # Read response
-            assert self._daemon_process.stdout is not None
-            response_line = self._daemon_process.stdout.readline()
-            if not response_line:
-                raise RuntimeError("No response from daemon")
+    def _send_command(self, method: str, **params) -> Dict[str, Any]:
+        """
+        Send command to daemon and get response.
+        ⚠️ MUST be called via run_in_executor when used in async context.
+        ⚠️ DO NOT remove the _command_lock; it prevents stream corruption.
+        """
+        with self._command_lock:
+            self._ensure_daemon_running()
 
-            # Parse response
-            response_data = json.loads(response_line.strip())
-            response = TRResponse(
-                result=response_data.get("result"),
-                error=response_data.get("error"),
-                id=response_data.get("id"),
+            if not self._daemon_process:
+                raise RuntimeError("Daemon process not available")
+
+            # Create request
+            request_id = f"{method}_{int(time.time() * 1000)}"
+            request = TRRequest(method=method, params=params, id=request_id)
+
+            # Serialize and send
+            request_json = json.dumps(
+                {"method": request.method, "params": request.params, "id": request.id}
             )
 
-            if response.error:
-                raise RuntimeError(f"Daemon error: {response.error}")
+            try:
+                # Send request
+                assert self._daemon_process.stdin is not None
+                self._daemon_process.stdin.write(request_json + "\n")
+                self._daemon_process.stdin.flush()
 
-            return response.result or {}
+                try:
+                    response_line = self._read_response_with_timeout(timeout=90.0)
+                except RuntimeError as e:
+                    print(
+                        f"[TR Bridge] Protocol desync risk: {e}. Resetting daemon.",
+                        file=sys.stderr,
+                    )
+                    self.shutdown()
+                    raise
 
-        except json.JSONDecodeError as e:
-            raise RuntimeError(f"Invalid daemon response: {e}")
-        except Exception as e:
-            # If daemon died, mark as not running
-            self._is_running = False
-            raise RuntimeError(f"Daemon communication failed: {e}")
+                # Parse response
+                response_data = json.loads(response_line.strip())
+                response = TRResponse(
+                    result=response_data.get("result"),
+                    error=response_data.get("error"),
+                    id=response_data.get("id"),
+                )
+
+                if response.error:
+                    raise RuntimeError(f"Daemon error: {response.error}")
+
+                return response.result or {}
+
+            except json.JSONDecodeError as e:
+                raise RuntimeError(f"Invalid daemon response: {e}")
+            except Exception as e:
+                # If daemon died, mark as not running
+                self._is_running = False
+                raise RuntimeError(f"Daemon communication failed: {e}")
 
     def login(self, phone: str, pin: str, **kwargs) -> Dict[str, Any]:
         """Initiate login process."""

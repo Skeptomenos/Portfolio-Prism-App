@@ -4,7 +4,7 @@ IPC Data Contracts
 Pydantic models defining the interface between Rust (Shell) and Python (Engine).
 These models ensure type safety and validation for all IPC communication.
 
-See: anamnesis/specs/ipc_api.md
+See: keystone/specs/ipc_api.md
 """
 
 from datetime import datetime

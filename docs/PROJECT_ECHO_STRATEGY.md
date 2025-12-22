@@ -23,44 +23,43 @@ To ensure 100% logic parity and bypass the Tauri `invoke` requirement:
     *   `isBrowser()` -> Use `fetch("http://localhost:5000/command")`
 *   **Benefit**: Zero "logic drift" between browser and desktop; 10x faster UI iteration.
 
-### 2. Echo-Reporter (The Redacted Reporter)
-A telemetry system designed for privacy-first financial apps:
-*   **PII Scrubber**: Integrates `verify_pii_scrubbing.py` logic.
-    *   ISINs are hashed (e.g., `US0378331005` -> `[ASSET_HASH_82a1]`).
-    *   Quantities and Market Values are removed.
-    *   Error messages and stack traces are preserved.
+### 2. Echo-Sentinel (The Black Box Recorder)
+A deep telemetry system that monitors every heartbeat of the system:
+*   **SQLite Persistence**: All logs (INFO, WARN, ERROR) from both Python and React are written to a `system_logs` table in the local SQLite database.
+*   **Session Tracking**: Each app launch generates a unique `session_id`.
+*   **Deferred Audit**: 5 seconds after startup, a background service (Sentinel) audits the logs from the *previous* session.
+*   **Trigger Logic**: If the Sentinel finds `ERROR` or `WARNING` entries in the previous session:
+    *   It bundles the error with the preceding 10 `INFO` lines for context.
+    *   It applies the `Scrubber` to anonymize PII and financial values.
+    *   It generates a Markdown report for GitHub.
 *   **Reporting Flow**:
-    *   **Default (Auto-Send)**: Errors are automatically scrubbed and sent to the relay.
-    *   **Opt-Out (Review Mode)**: Users can toggle "Auto-Report" off in Health/Settings. If off, the app displays the scrubbed JSON for manual review before the user clicks "Send".
+    *   **Default (Auto-Send)**: Reports are sent silently to the relay.
+    *   **Opt-Out (Review Mode)**: Users can toggle "Auto-Report" off. If off, the app displays the scrubbed Markdown for manual review before sending.
 *   **Relay (Cloudflare Worker)**:
-    *   **Deduplication Algorithm**:
-        1.  Extract `stack_trace` and `error_type`.
-        2.  Generate a SHA-256 hash of the normalized stack trace (removing line numbers/paths if possible, or just the whole string).
-        3.  Search GitHub Issues using `label:echo-report` and the hash in the body.
-        4.  If a match exists: Increment a "Frequency" counter in the issue body and add a comment with the latest timestamp.
-        5.  If no match: Create a new issue with the hash embedded in a hidden HTML comment `<!-- hash: <SHA> -->`.
+    *   **Deduplication Algorithm**: SHA-256 hashing of stack traces to prevent duplicate GitHub issues.
     *   **GitHub Integration**: Uses a GitHub App token to create/update issues with the label `echo-report`.
 
 ---
 
 ## 🚀 Implementation Roadmap
 
-### Phase 1: The Echo-Bridge (High Priority)
+### Phase 1: The Echo-Bridge (High Priority) ✅
 1.  Add `fastapi` and `uvicorn` support to `prism_headless.py`.
 2.  Implement `--http` CLI flag to switch from stdin loop to HTTP server.
 3.  Update `src/lib/ipc.ts` to support the `fetch` fallback.
 4.  Add `npm run dev:browser` to `package.json`.
 
-### Phase 2: The Redacted Reporter (Medium Priority)
-1.  Create `portfolio_src/core/reporter.py`.
-2.  Implement the `Scrubber` class to anonymize `PipelineError` objects.
-3.  Update the Cloudflare Worker (`infrastructure/cloudflare/worker.js`) with deduplication logic.
-4.  Implement the "Auto-Report" toggle in `useAppStore` and UI.
-5.  Add the "Review & Send" modal to the global Error Boundary.
+### Phase 2: The Echo-Sentinel (Medium Priority)
+1.  **Schema**: Add `system_logs` table to `schema.sql`.
+2.  **Backend Logger**: Implement a SQLite logging handler in Python.
+3.  **Frontend Logger**: Create a `LogService` in React that writes to SQLite via IPC.
+4.  **Sentinel Hook**: Implement `useEchoSentinel` for startup audit and reporting.
+5.  **Scrubber**: Refine the `Scrubber` class to anonymize `PipelineError` and log objects.
 
-### Phase 3: UI Integration (Low Priority)
-1.  Add a "Dev Mode" toggle in Settings.
-2.  Display "Echo Status" (Connection to local proxy) in the System Status component.
+### Phase 3: UI Integration (Low Priority) ✅
+1.  Add "Echo Status" (Connection to local proxy) in the System Status component.
+2.  Add "Auto-Report" toggle in Health/Settings.
+3.  Implement the "Review & Send" modal in the global Error Boundary.
 
 ---
 

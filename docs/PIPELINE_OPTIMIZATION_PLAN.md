@@ -132,6 +132,21 @@ To balance performance, offline resilience, and community power, the pipeline us
 
 ---
 
+### Phase 6: Developer Experience (Project Echo) PENDING
+**Objective**: Enable frictionless browser testing and automated reporting.
+
+#### 6.1 Echo-Bridge
+**Target:** Unified FastAPI sidecar for browser-to-engine communication.
+- 100% logic parity with native app.
+- Faster UI iteration.
+
+#### 6.2 Echo-Reporter
+**Target:** Automated, PII-scrubbed GitHub issue reporting.
+- Anonymized error logs.
+- Automatic issue deduplication.
+
+---
+
 ## 🔧 Implementation Tasks
 
 ### ✅ **Completed Tasks**
