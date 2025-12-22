@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { AlertCircle, CheckCircle, RefreshCcw, Clock, Upload, Shield } from 'lucide-react';
-import { getPipelineReport, runPipeline } from '../../lib/ipc';
-import { useAppStore, useAutoReportErrors, useSetAutoReportErrors } from '../../store/useAppStore';
+import { AlertCircle, CheckCircle, RefreshCcw, Clock, Upload, Shield, Eye, Send, Trash2, ExternalLink } from 'lucide-react';
+import { getPipelineReport, runPipeline, getRecentReports, getPendingReviews } from '../../lib/ipc';
+import { useAppStore, useTelemetryMode, useSetTelemetryMode } from '../../store/useAppStore';
 import HoldingsUpload from '../HoldingsUpload';
 
 interface HealthData {
@@ -38,27 +38,32 @@ interface HealthData {
 const HealthView = () => {
     const [health, setHealth] = useState<HealthData | null>(null);
     const [loading, setLoading] = useState(false);
-    // Error state used in UI render
     const [error, setError] = useState<string | null>(null); 
+    const [recentReports, setRecentReports] = useState<any[]>([]);
+    const [pendingReviews, setPendingReviews] = useState<any[]>([]);
     const [uploadModal, setUploadModal] = useState<{ isOpen: boolean; isin: string; ticker: string }>({
         isOpen: false,
         isin: '',
         ticker: ''
     });
     const setLastPipelineRun = useAppStore(state => state.setLastPipelineRun);
-    const autoReportErrors = useAutoReportErrors();
-    const setAutoReportErrors = useSetAutoReportErrors();
+    const telemetryMode = useTelemetryMode();
+    const setTelemetryMode = useSetTelemetryMode();
 
     const loadHealth = async () => {
         try {
             setLoading(true);
-            // Use backend command instead of direct FS
-            const content = await getPipelineReport();
+            const [content, reports, pending] = await Promise.all([
+                getPipelineReport(),
+                getRecentReports(),
+                getPendingReviews()
+            ]);
             setHealth(content);
+            setRecentReports(reports);
+            setPendingReviews(pending);
             setError(null);
         } catch (err) {
             console.error('Failed to load health report:', err);
-            // Don't show error if file just doesn't exist yet (fresh install)
             setHealth(null);
         } finally {
             setLoading(false);
@@ -74,11 +79,9 @@ const HealthView = () => {
             setLoading(true);
             const result = await runPipeline();
             setLastPipelineRun(Date.now());
-            if (result.success) {
-                await loadHealth(); // Reload report
-            } else {
+            await loadHealth();
+            if (!result.success) {
                 setError("Pipeline failed to run completely.");
-                await loadHealth(); // Try to load report anyway to see partial errors
             }
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Pipeline execution failed');
@@ -93,7 +96,7 @@ const HealthView = () => {
     };
 
     return (
-        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', paddingBottom: '64px' }}>
             {/* Header */}
             <div style={{ 
                 display: 'flex', 
@@ -102,9 +105,9 @@ const HealthView = () => {
                 marginBottom: '32px'
             }}>
                 <div>
-                    <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '8px' }}>Pipeline Health</h1>
+                    <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '8px' }}>System Health</h1>
                     <p style={{ color: 'var(--text-secondary)' }}>
-                        Status of the analytics engine and data processing.
+                        Status of the analytics engine, data processing, and telemetry.
                     </p>
                 </div>
                 <button
@@ -128,6 +131,7 @@ const HealthView = () => {
                     {loading ? 'Running...' : 'Run Diagnostics'}
                 </button>
             </div>
+
             {/* Error Banner */}
             {error && (
                 <div style={{
@@ -153,49 +157,128 @@ const HealthView = () => {
                 background: 'rgba(255, 255, 255, 0.03)',
                 border: '1px solid rgba(255, 255, 255, 0.06)',
                 borderRadius: '16px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
             }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    <div style={{
-                        padding: '12px',
-                        borderRadius: '12px',
-                        background: 'rgba(59, 130, 246, 0.1)',
-                        color: '#3b82f6'
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                        <div style={{
+                            padding: '12px',
+                            borderRadius: '12px',
+                            background: 'rgba(59, 130, 246, 0.1)',
+                            color: '#3b82f6'
+                        }}>
+                            <Shield size={24} />
+                        </div>
+                        <div>
+                            <h2 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '4px' }}>Automatic Error Reporting</h2>
+                            <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
+                                Help improve Portfolio Prism by reporting anonymized errors.
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div style={{ 
+                        display: 'flex', 
+                        background: 'rgba(255, 255, 255, 0.05)', 
+                        padding: '4px', 
+                        borderRadius: '10px',
+                        border: '1px solid rgba(255, 255, 255, 0.1)'
                     }}>
-                        <Shield size={24} />
-                    </div>
-                    <div>
-                        <h2 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '4px' }}>Automatic Error Reporting</h2>
-                        <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
-                            Help improve Portfolio Prism by automatically reporting anonymized errors.
-                        </p>
+                        {(['auto', 'review', 'off'] as const).map((mode) => (
+                            <button
+                                key={mode}
+                                onClick={() => setTelemetryMode(mode)}
+                                style={{
+                                    padding: '6px 16px',
+                                    borderRadius: '8px',
+                                    fontSize: '13px',
+                                    fontWeight: '500',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    background: telemetryMode === mode ? '#3b82f6' : 'transparent',
+                                    color: telemetryMode === mode ? 'white' : 'var(--text-secondary)',
+                                    transition: 'all 0.2s'
+                                }}
+                            >
+                                {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                            </button>
+                        ))}
                     </div>
                 </div>
-                <div 
-                    onClick={() => setAutoReportErrors(!autoReportErrors)}
-                    style={{
-                        width: '50px',
-                        height: '26px',
-                        background: autoReportErrors ? '#3b82f6' : 'rgba(255, 255, 255, 0.1)',
-                        borderRadius: '13px',
-                        position: 'relative',
-                        cursor: 'pointer',
-                        transition: 'background 0.2s'
-                    }}
-                >
-                    <div style={{
-                        width: '20px',
-                        height: '20px',
-                        background: 'white',
-                        borderRadius: '50%',
-                        position: 'absolute',
-                        top: '3px',
-                        left: autoReportErrors ? '27px' : '3px',
-                        transition: 'left 0.2s'
-                    }} />
-                </div>
+
+                {pendingReviews.length > 0 && telemetryMode === 'review' && (
+                    <div style={{ 
+                        marginTop: '24px', 
+                        padding: '16px', 
+                        background: 'rgba(245, 158, 11, 0.05)', 
+                        border: '1px solid rgba(245, 158, 11, 0.2)', 
+                        borderRadius: '12px' 
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                            <h3 style={{ fontSize: '14px', fontWeight: '600', color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <Clock size={16} />
+                                {pendingReviews.length} Reports Waiting for Review
+                            </h3>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                                <button style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '12px', background: '#3b82f6', color: 'white', border: 'none', cursor: 'pointer' }}>
+                                    Send All
+                                </button>
+                                <button style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '12px', background: 'rgba(255, 255, 255, 0.1)', color: 'white', border: 'none', cursor: 'pointer' }}>
+                                    Dismiss All
+                                </button>
+                            </div>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {pendingReviews.slice(0, 3).map((log, i) => (
+                                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', fontSize: '13px' }}>
+                                    <span style={{ color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                        [{log.category}] {log.message}
+                                    </span>
+                                    <div style={{ display: 'flex', gap: '12px', flexShrink: 0, marginLeft: '12px' }}>
+                                        <Eye size={14} style={{ cursor: 'pointer', color: 'var(--text-secondary)' }} />
+                                        <Send size={14} style={{ cursor: 'pointer', color: '#3b82f6' }} />
+                                        <Trash2 size={14} style={{ cursor: 'pointer', color: '#ef4444' }} />
+                                    </div>
+                                </div>
+                            ))}
+                            {pendingReviews.length > 3 && (
+                                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', textAlign: 'center' }}>
+                                    + {pendingReviews.length - 3} more
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {recentReports.length > 0 && (
+                    <div style={{ marginTop: '24px' }}>
+                        <h3 style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+                            Recent Reports (Last 7 Days)
+                        </h3>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+                            {recentReports.slice(0, 4).map((report, i) => (
+                                <div key={i} style={{ 
+                                    padding: '12px', 
+                                    background: 'rgba(255, 255, 255, 0.02)', 
+                                    border: '1px solid rgba(255, 255, 255, 0.05)', 
+                                    borderRadius: '10px',
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center'
+                                }}>
+                                    <div>
+                                        <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)' }}>
+                                            {report.category.replace('_', ' ').toUpperCase()}
+                                        </div>
+                                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                                            {new Date(report.reported_at).toLocaleDateString()} • {report.component}
+                                        </div>
+                                    </div>
+                                    <ExternalLink size={14} style={{ color: '#3b82f6', cursor: 'pointer' }} />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Status Cards */}
@@ -213,10 +296,10 @@ const HealthView = () => {
                     color="green"
                 />
                 <StatusCard 
-                    label="Auto-Report" 
-                    value={autoReportErrors ? 'Active' : 'Review'} 
+                    label="Telemetry" 
+                    value={telemetryMode.toUpperCase()} 
                     icon={Shield}
-                    color={autoReportErrors ? "blue" : "orange"}
+                    color={telemetryMode === 'off' ? "red" : telemetryMode === 'review' ? "orange" : "blue"}
                 />
                 <StatusCard 
                     label="Active Errors" 

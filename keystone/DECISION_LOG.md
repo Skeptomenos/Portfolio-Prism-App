@@ -214,15 +214,48 @@ This document tracks significant architectural decisions (ADRs) for the project.
 
 ---
 
-## [2025-12-20] Project Echo: Unified Sidecar & Autonomous Reporting
+## [2025-12-22] Tailwind v3 Alignment
 
-- **Context:** Developer iteration is slowed by Tauri compilation ("Tauri Tax"). Privacy-first apps need telemetry to improve, but raw logs contain PII.
-- **Decision:** 
-  1. Implement **Unified Sidecar**: `prism_headless.py` supports a `--http` flag (FastAPI) for browser-based development with 100% logic parity.
-  2. Implement **Redacted Reporter**: A scrubbing layer in Python and TS that redacts PII and hashes ISINs before reporting crashes to GitHub via a Cloudflare Worker relay.
+- **Context:** Accidental installation of Tailwind v4 caused build failures due to configuration mismatch.
+- **Decision:** Downgrade to Tailwind v3.4.17 to match existing PostCSS configuration and ensure build stability.
 - **Consequences:**
-  - (+) **Velocity:** 10x faster UI iteration in standard browsers.
-  - (+) **Privacy:** Zero-knowledge telemetry; PII never leaves the machine.
-  - (+) **Trust:** Opt-out toggle and "Review & Send" flow build user confidence.
-  - (-) **Complexity:** Requires maintaining FastAPI dependencies in the Python engine.
-  - (-) **Security:** Localhost HTTP server is a potential (though mitigated) attack vector.
+  - (+) Restored build stability immediately.
+  - (+) Matches standard ecosystem as of late 2025.
+  - (-) Deferred v4 migration until a dedicated architectural window is opened.
+
+---
+
+## [2025-12-22] Global Feedback Modal Architecture
+
+- **Context:** Feedback dialog was trapped inside the Sidebar's stacking context, causing layout clipping.
+- **Decision:** Lift feedback state to global store and move component to the root `App.tsx`.
+- **Consequences:**
+  - (+) Dialog now overlays the entire screen correctly.
+  - (+) Enabled context injection (automatic view detection in reports).
+  - (+) Decoupled trigger from presentation.
+
+---
+
+## [2025-12-22] Echo-Sentinel: Passive Error Reporting
+
+- **Context:** Need zero-effort crash reporting without compromising user privacy. Manual bug reports are incomplete.
+- **Decision:** Implement "Echo-Sentinel" - a passive observability system that captures errors locally, batches on next startup, and reports deduplicated issues to GitHub via Cloudflare Worker.
+- **Consequences:**
+  - (+) Errors captured automatically with rich metadata (component, category, stack trace).
+  - (+) Deduplication via stable `error_hash` prevents duplicate GitHub issues.
+  - (+) Privacy-first: PII scrubbed, user controls telemetry mode (auto/review/off).
+  - (+) Non-blocking: Sentinel runs async on startup with 5s delay.
+  - (-) Requires Cloudflare Worker secrets (`GITHUB_TOKEN`, `GITHUB_REPO`) for live reporting.
+  - (-) Adds ~200 lines of Python code across sentinel.py, telemetry.py, logging_config.py.
+
+---
+
+## [2025-12-22] Error Hash in Hidden HTML Comment
+
+- **Context:** Need to deduplicate GitHub issues across users without exposing internal hashes in visible issue content.
+- **Decision:** Embed `error_hash` in an HTML comment at the end of issue body: `<!-- error_hash: abc123 -->`.
+- **Consequences:**
+  - (+) Invisible to users viewing the issue.
+  - (+) Searchable by GitHub's API for deduplication.
+  - (+) Stable across issue edits (comment preserved).
+  - (-) Relies on GitHub's search indexing HTML comments (tested, works).

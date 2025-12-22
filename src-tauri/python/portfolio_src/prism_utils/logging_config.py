@@ -1,7 +1,9 @@
 import logging
 import sys
 import re
-from typing import Optional
+import hashlib
+import json
+from typing import Optional, Dict, Any
 from rich.logging import RichHandler
 from rich.console import Console
 
@@ -42,6 +44,19 @@ class SQLiteLogHandler(logging.Handler):
 
             msg = self.format(record)
             context = getattr(record, "context", {})
+
+            # Extract component and category if provided in extra
+            component = getattr(record, "component", None)
+            category = getattr(record, "category", None)
+
+            # Auto-categorize if not provided
+            if not component or not category:
+                component, category = self._categorize(record)
+
+            error_hash = None
+            if record.levelno >= logging.ERROR:
+                error_hash = self._calculate_hash(record, msg)
+
             if record.exc_info:
                 import traceback
 
@@ -53,9 +68,54 @@ class SQLiteLogHandler(logging.Handler):
                 source="python",
                 message=msg,
                 context=context,
+                component=component,
+                category=category,
+                error_hash=error_hash,
             )
         except Exception:
             pass
+
+    def _categorize(self, record: logging.LogRecord) -> tuple[str, str]:
+        """Auto-categorize log record based on name and content."""
+        name = record.name
+        msg = str(record.msg).lower()
+
+        component = "pipeline"
+        category = "general"
+
+        if "tr_bridge" in name or "tr_auth" in name:
+            component = "integrations"
+            category = "api_error"
+        elif "database" in name or "schema" in name:
+            component = "data"
+            category = "data_corruption"
+        elif "scraper" in name or "adapter" in name:
+            component = "integrations"
+            category = "scraper_failed"
+        elif "resolver" in name:
+            component = "pipeline"
+            category = "isin_resolution"
+
+        if record.exc_info:
+            category = "crash"
+
+        return component, category
+
+    def _calculate_hash(self, record: logging.LogRecord, formatted_msg: str) -> str:
+        """Calculate a stable hash for deduplication."""
+        # Use the first 3 lines of stack trace if available
+        if record.exc_info:
+            import traceback
+
+            tb = "".join(traceback.format_exception(*record.exc_info))
+            # Clean memory addresses like 0x12345678
+            tb = re.sub(r"0x[0-9a-fA-F]+", "0xADDR", tb)
+            # Take first few frames to be stable across minor code changes
+            seed = f"{record.levelname}:{tb[:500]}"
+        else:
+            seed = f"{record.levelname}:{formatted_msg}"
+
+        return hashlib.md5(seed.encode()).hexdigest()
 
 
 def configure_root_logger(level: int = logging.INFO, session_id: Optional[str] = None):

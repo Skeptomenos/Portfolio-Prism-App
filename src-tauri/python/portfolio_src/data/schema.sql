@@ -98,9 +98,13 @@ CREATE TABLE IF NOT EXISTS system_logs (
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
     level TEXT NOT NULL CHECK (level IN ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL')),
     source TEXT NOT NULL CHECK (source IN ('python', 'frontend')),
+    component TEXT,
+    category TEXT,
     message TEXT NOT NULL,
     context TEXT,
-    processed INTEGER DEFAULT 0
+    error_hash TEXT,
+    processed INTEGER DEFAULT 0,
+    reported_at DATETIME
 );
 
 CREATE INDEX IF NOT EXISTS idx_logs_session ON system_logs(session_id, level);

@@ -181,18 +181,27 @@ This document tracks the specific constraints, patterns, and lessons learned _du
 - **Mandate:** Scripts that run as subprocesses MUST add their parent directory to `sys.path` BEFORE any local package imports. See path setup block in `tr_daemon.py`.
 - **Test:** Run `pytest tests/test_tr_daemon_subprocess.py` after any TR-related changes.
 
-### 5.14 [2025-12-21] Subprocess Communication Patterns (Project Echo Post-Mortem)
+### 5.15 [2025-12-22] Stacking Context Traps
 
-Six critical patterns emerged from debugging the Trade Republic integration:
+- **Learning:** Components with `backdrop-filter` or specific `overflow` rules in a fixed-width sidebar create a new stacking context. Child modals/popups will be clipped to the sidebar width regardless of `fixed` positioning.
+- **Mandate:** Global UI elements (Modals, Dialogs, Toasts) MUST be mounted at the application root (`App.tsx`) and managed via global state to ensure they can overlay the entire viewport.
 
-1. **Path Isolation:** Scripts run as subprocesses must set up `sys.path` before local imports. The child process doesn't inherit the parent's path modifications.
+### 5.16 [2025-12-22] Context-Aware Feedback
 
-2. **Ready Signal Pattern:** Use explicit JSON ready signal instead of `time.sleep()` after spawn. The subprocess emits `{"status": "ready", ...}` and the parent waits for it.
+- **Learning:** Manual bug reports are 5x more useful when they include automated metadata about the user's current view.
+- **Mandate:** Every manual feedback submission must automatically inject `currentView` and `version` into the payload metadata.
 
-3. **Stdout Discipline:** Redirect stdout to stderr at subprocess startup, use a dedicated channel for protocol messages. Any `print()` corrupts the JSON-RPC stream.
+### 5.17 [2025-12-22] Stable Error Hashing
 
-4. **Cached Status:** Status/health endpoints should return cached state, not make live API calls. Update the cache as a side effect of actual operations (login, fetch, logout).
+- **Learning:** Memory addresses in stack traces (e.g., `0x12345678`) change between runs, breaking hash stability.
+- **Mandate:** Normalize memory addresses to `0xADDR` before hashing. Use first 500 chars of traceback to be stable across minor code changes.
 
-5. **Async Boundary:** Use `run_in_executor()` when calling blocking subprocess code from async handlers. Mixing sync subprocess calls with async FastAPI causes event loop starvation.
+### 5.18 [2025-12-22] Store Property Renames Break Components
 
-6. **Test the Deployment Path:** Unit tests with mocks aren't enough. Integration tests must exercise actual subprocess spawning, IPC communication, and process lifecycle. See `tests/test_tr_daemon_subprocess.py`.
+- **Learning:** Renaming store properties (e.g., `autoReportErrors` → `telemetryMode`) silently breaks class components that access store via `getState()`.
+- **Mandate:** After renaming store properties, grep for old property names across ALL `.tsx` files. TypeScript only catches errors in files that are type-checked.
+
+### 5.19 [2025-12-22] Async Startup Tasks Need Delay
+
+- **Learning:** Running heavy async tasks immediately on startup can race with database initialization.
+- **Mandate:** Sentinel and similar startup auditors should `await asyncio.sleep(5)` before querying database to let app stabilize.

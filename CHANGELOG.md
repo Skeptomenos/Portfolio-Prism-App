@@ -15,6 +15,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Echo-Sentinel:** Zero-effort crash reporting system with privacy-first design.
+  - Auto-captures Python (`sys.excepthook`) and React (`ErrorBoundary`) errors to SQLite.
+  - Auto-categorizes errors by component (integrations, data, pipeline) and category (api_error, crash, etc.).
+  - Calculates stable `error_hash` for deduplication across users/sessions.
+  - Sentinel audits previous session on startup, batches errors, and reports to GitHub.
+  - Cloudflare Worker `/report` endpoint with server-side deduplication (searches existing issues by hash).
+  - Telemetry settings UI in Health dashboard (Auto/Review/Off modes).
+  - Architecture documented in `keystone/architecture/ECHO_SENTINEL_ARCHITECTURE.md`.
+- **Global Feedback Modal:** Refactored feedback dialog to a root-level modal with automatic view context injection.
+- **Tailwind v3 Stability:** Aligned dependencies with stable v3.4.17 to resolve build failures.
 - **GitHub Actions CI/CD:** Automated build pipeline for macOS DMG release (`.github/workflows/release.yml`).
 - **Portfolio Chart:** 30-day value history chart with gradient area fill (`PortfolioChart.tsx`).
 - **Sparklines:** Mini-charts for "Day Change" and "Total Value" cards.

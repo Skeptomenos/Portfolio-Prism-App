@@ -36,9 +36,9 @@ export class ErrorBoundary extends Component<Props, State> {
     this.setState({ error, errorInfo });
     console.error('Uncaught error:', error, errorInfo);
 
-    // Auto-report if enabled
-    const { autoReportErrors } = useAppStore.getState();
-    if (autoReportErrors) {
+    // Auto-report if telemetry mode is 'auto'
+    const { telemetryMode } = useAppStore.getState();
+    if (telemetryMode === 'auto') {
       this.handleReport();
     }
   }
@@ -149,12 +149,12 @@ export class ErrorBoundary extends Component<Props, State> {
                 ) : (
                   <>
                     <AlertTriangle className="mr-2 h-4 w-4" />
-                    {useAppStore.getState().autoReportErrors ? 'Report Issue' : 'Confirm & Send Report'}
+                    {useAppStore.getState().telemetryMode === 'auto' ? 'Report Issue' : 'Confirm & Send Report'}
                   </>
                 )}
               </button>
 
-              {!isReported && !useAppStore.getState().autoReportErrors && (
+              {!isReported && useAppStore.getState().telemetryMode !== 'auto' && (
                 <button 
                   onClick={this.toggleReview}
                   className="flex w-full items-center justify-center rounded-md border border-gray-700 bg-transparent px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800 transition-colors"

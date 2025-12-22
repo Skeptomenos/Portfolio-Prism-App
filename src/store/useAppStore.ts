@@ -49,8 +49,11 @@ interface AppState {
   lastPipelineRun: number | null;
 
   // Telemetry
-  autoReportErrors: boolean;
+  telemetryMode: 'auto' | 'review' | 'off';
   sessionId: string | null;
+  
+  // Feedback Dialog
+  isFeedbackOpen: boolean;
 }
 
 interface AppActions {
@@ -64,8 +67,12 @@ interface AppActions {
   setLastPipelineRun: (timestamp: number | null) => void;
   
   // Telemetry
-  setAutoReportErrors: (enabled: boolean) => void;
+  setTelemetryMode: (mode: 'auto' | 'review' | 'off') => void;
   setSessionId: (id: string) => void;
+  
+  // Feedback Actions
+  openFeedback: () => void;
+  closeFeedback: () => void;
   
   // Notifications
   addNotification: (notification: Omit<Notification, 'id'>) => void;
@@ -128,8 +135,11 @@ const initialState: AppState = {
   lastPipelineRun: null,
 
   // Telemetry
-  autoReportErrors: true,
+  telemetryMode: 'auto',
   sessionId: null,
+  
+  // Feedback Dialog
+  isFeedbackOpen: false,
 };
 
 // =============================================================================
@@ -154,8 +164,12 @@ export const useAppStore = create<AppStore>()(
       setLastPipelineRun: (timestamp) => set({ lastPipelineRun: timestamp }, false, 'setLastPipelineRun'),
 
       // Telemetry
-      setAutoReportErrors: (enabled) => set({ autoReportErrors: enabled }, false, 'setAutoReportErrors'),
+      setTelemetryMode: (mode) => set({ telemetryMode: mode }, false, 'setTelemetryMode'),
       setSessionId: (id) => set({ sessionId: id }, false, 'setSessionId'),
+
+      // Feedback Actions
+      openFeedback: () => set({ isFeedbackOpen: true }, false, 'openFeedback'),
+      closeFeedback: () => set({ isFeedbackOpen: false }, false, 'closeFeedback'),
 
       // Notifications
       addNotification: (notification) => {
@@ -306,7 +320,12 @@ export const useAddToast = () => useAppStore((state) => state.addToast);
 export const useDismissToast = () => useAppStore((state) => state.dismissToast);
 
 // Telemetry
-export const useAutoReportErrors = () => useAppStore((state) => state.autoReportErrors);
-export const useSetAutoReportErrors = () => useAppStore((state) => state.setAutoReportErrors);
+export const useTelemetryMode = () => useAppStore((state) => state.telemetryMode);
+export const useSetTelemetryMode = () => useAppStore((state) => state.setTelemetryMode);
 export const useSessionId = () => useAppStore((state) => state.sessionId);
 export const useSetSessionId = () => useAppStore((state) => state.setSessionId);
+
+// Feedback selectors and actions
+export const useIsFeedbackOpen = () => useAppStore((state) => state.isFeedbackOpen);
+export const useOpenFeedback = () => useAppStore((state) => state.openFeedback);
+export const useCloseFeedback = () => useAppStore((state) => state.closeFeedback);

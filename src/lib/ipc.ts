@@ -61,7 +61,16 @@ async function callCommand<K extends keyof TauriCommands>(
     const result = await response.json();
     if (result.status === 'error') {
       const errorMsg = result.error.message || 'Unknown backend error';
-      console.error(`[IPC] Backend error (${result.error.code}):`, errorMsg);
+      const errorCode = result.error.code || 'UNKNOWN';
+      console.error(`[IPC] Backend error (${errorCode}):`, errorMsg);
+      
+      // Log to system logs for auto-reporting
+      logEvent('ERROR', `Backend Error: ${errorMsg}`, { 
+        command, 
+        code: errorCode,
+        payload 
+      }, 'pipeline', 'api_error');
+
       throw new Error(`Backend Error: ${errorMsg}`);
     }
 
@@ -286,6 +295,48 @@ export async function getOverlapAnalysis(): Promise<any> {
   } catch (error) {
     console.error('[IPC] get_overlap_analysis failed:', error);
     throw error;
+  }
+}
+
+/**
+ * Log an event to the backend database
+ */
+export async function logEvent(
+  level: 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR' | 'CRITICAL',
+  message: string,
+  context: Record<string, any> = {},
+  component: string = 'ui',
+  category: string = 'general'
+): Promise<void> {
+  try {
+    await callCommand('log_event', { level, message, context, component, category });
+  } catch (error) {
+    // Silent fail to avoid infinite loops if logging itself fails
+    console.error('[IPC] Failed to log event:', error);
+  }
+}
+
+/**
+ * Get recent reported issues
+ */
+export async function getRecentReports(): Promise<any[]> {
+  try {
+    return await callCommand('get_recent_reports', {});
+  } catch (error) {
+    console.error('[IPC] get_recent_reports failed:', error);
+    return [];
+  }
+}
+
+/**
+ * Get pending reviews
+ */
+export async function getPendingReviews(): Promise<any[]> {
+  try {
+    return await callCommand('get_pending_reviews', {});
+  } catch (error) {
+    console.error('[IPC] get_pending_reviews failed:', error);
+    return [];
   }
 }
 

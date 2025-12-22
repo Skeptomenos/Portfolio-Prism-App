@@ -263,6 +263,24 @@ export interface TauriCommands {
     args: { filePath: string; etfIsin: string };
     returns: any;
   };
+  log_event: {
+    args: {
+      level: string;
+      message: string;
+      context: Record<string, any>;
+      component: string;
+      category: string;
+    };
+    returns: boolean;
+  };
+  get_recent_reports: {
+    args: Record<string, never>;
+    returns: any[];
+  };
+  get_pending_reviews: {
+    args: Record<string, never>;
+    returns: any[];
+  };
 }
 
 /**

@@ -92,6 +92,33 @@ def init_db(db_path: Optional[str] = None) -> sqlite3.Connection:
         with open(schema_path, "r") as f:
             schema_sql = f.read()
         conn.executescript(schema_sql)
+
+        # Migration: Add new columns to system_logs if they don't exist
+        try:
+            cursor = conn.execute("PRAGMA table_info(system_logs)")
+            columns = [row["name"] for row in cursor.fetchall()]
+
+            new_cols = [
+                ("component", "TEXT"),
+                ("category", "TEXT"),
+                ("error_hash", "TEXT"),
+                ("reported_at", "DATETIME"),
+            ]
+
+            for col_name, col_type in new_cols:
+                if col_name not in columns:
+                    print(
+                        f"[DB] Migrating: Adding {col_name} to system_logs",
+                        file=_sys.stderr,
+                    )
+                    conn.execute(
+                        f"ALTER TABLE system_logs ADD COLUMN {col_name} {col_type}"
+                    )
+
+            conn.commit()
+        except Exception as e:
+            print(f"[DB] Migration error: {e}", file=_sys.stderr)
+
         conn.commit()
         print(f"[DB] Schema applied successfully", file=_sys.stderr)
     else:
@@ -252,6 +279,9 @@ def log_system_event(
     source: str,
     message: str,
     context: Optional[dict] = None,
+    component: Optional[str] = None,
+    category: Optional[str] = None,
+    error_hash: Optional[str] = None,
 ) -> None:
     """Log a system event to the database."""
     import json
@@ -259,10 +289,19 @@ def log_system_event(
     conn = get_connection()
     conn.execute(
         """
-        INSERT INTO system_logs (session_id, level, source, message, context)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO system_logs (session_id, level, source, message, context, component, category, error_hash)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     """,
-        (session_id, level, source, message, json.dumps(context) if context else None),
+        (
+            session_id,
+            level,
+            source,
+            message,
+            json.dumps(context) if context else None,
+            component,
+            category,
+            error_hash,
+        ),
     )
     conn.commit()
 

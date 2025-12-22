@@ -86,9 +86,58 @@ async function proxyFinnhub(endpoint, params, env) {
 }
 
 /**
- * Create GitHub issue for feedback
+ * Search for existing GitHub issues by error hash
  */
-async function createGitHubIssue(type, message, metadata, env) {
+async function findExistingIssue(errorHash, env) {
+    if (!errorHash) return null;
+
+    const query = `repo:${env.GITHUB_REPO} is:issue is:open "${errorHash}"`;
+    const url = `https://api.github.com/search/issues?q=${encodeURIComponent(query)}`;
+
+    const response = await fetch(url, {
+        headers: {
+            'Authorization': `token ${env.GITHUB_TOKEN}`,
+            'Accept': 'application/vnd.github.v3+json',
+            'User-Agent': 'PortfolioPrism-Worker',
+        },
+    });
+
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    return data.total_count > 0 ? data.items[0] : null;
+}
+
+/**
+ * Add a comment to an existing issue
+ */
+async function addIssueComment(issueNumber, message, env) {
+    const url = `https://api.github.com/repos/${env.GITHUB_REPO}/issues/${issueNumber}/comments`;
+
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Authorization': `token ${env.GITHUB_TOKEN}`,
+            'Accept': 'application/vnd.github.v3+json',
+            'User-Agent': 'PortfolioPrism-Worker',
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            body: `## Additional Occurrence\n\n${message}\n\n*Auto-updated by Portfolio Prism Sentinel*`,
+        }),
+    });
+
+    return response.ok;
+}
+
+/**
+ * Create GitHub issue for feedback or auto-report
+ */
+async function createGitHubIssue(type, title, message, labels, env, errorHash = null) {
+    const body = errorHash 
+        ? `${message}\n\n<!-- error_hash: ${errorHash} -->`
+        : message;
+
     const response = await fetch(
         `https://api.github.com/repos/${env.GITHUB_REPO}/issues`,
         {
@@ -100,19 +149,34 @@ async function createGitHubIssue(type, message, metadata, env) {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                title: `[${type.toUpperCase()}] User Feedback`,
-                body: `## Feedback\n\n${message}\n\n## Metadata\n\n\`\`\`json\n${JSON.stringify(metadata, null, 2)}\n\`\`\``,
-                labels: [type, 'user-feedback'],
+                title: title || `[${type.toUpperCase()}] User Feedback`,
+                body: body,
+                labels: labels || [type, 'user-feedback'],
             }),
         }
     );
 
     if (!response.ok) {
-        throw new Error(`GitHub API error: ${response.status}`);
+        const err = await response.text();
+        throw new Error(`GitHub API error: ${response.status} - ${err}`);
     }
 
     const issue = await response.json();
     return { issue_url: issue.html_url };
+}
+
+async function handleReport(body, env) {
+    const { type, title, message, labels, error_hash } = body;
+
+    const existingIssue = await findExistingIssue(error_hash, env);
+
+    if (existingIssue) {
+        await addIssueComment(existingIssue.number, message, env);
+        return { issue_url: existingIssue.html_url, status: 'updated' };
+    } else {
+        const result = await createGitHubIssue(type, title, message, labels, env, error_hash);
+        return { ...result, status: 'created' };
+    }
 }
 
 /**
@@ -159,7 +223,17 @@ export default {
                     break;
 
                 case '/feedback':
-                    data = await createGitHubIssue(body.type, body.message, body.metadata || {}, env);
+                    data = await createGitHubIssue(
+                        body.type, 
+                        null, 
+                        `## Feedback\n\n${body.message}\n\n## Metadata\n\n\`\`\`json\n${JSON.stringify(body.metadata || {}, null, 2)}\n\`\`\``,
+                        [body.type, 'user-feedback'],
+                        env
+                    );
+                    break;
+
+                case '/report':
+                    data = await handleReport(body, env);
                     break;
 
                 case '/health':

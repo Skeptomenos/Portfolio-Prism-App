@@ -151,6 +151,7 @@ class Telemetry:
         body: str,
         isin: Optional[str] = None,
         labels: Optional[list] = None,
+        error_hash: Optional[str] = None,
     ) -> Optional[str]:
         """
         Report an error to GitHub Issues.
@@ -161,6 +162,7 @@ class Telemetry:
             body: Issue body (markdown)
             isin: Related ISIN (for rate limiting)
             labels: GitHub labels to apply
+            error_hash: Stable hash for deduplication
 
         Returns:
             Issue URL if created, None if rate-limited or failed
@@ -181,7 +183,7 @@ class Telemetry:
             f"| Docker Mode | {os.getenv('DOCKER_MODE', 'false')} |\n"
         )
 
-        if not self.github_token:
+        if not self.github_token and not (PROXY_URL and PROXY_API_KEY):
             # Cache for later
             self._state.setdefault("pending_reports", []).append(
                 {
@@ -190,6 +192,7 @@ class Telemetry:
                     "body": full_body,
                     "isin": isin,
                     "labels": labels or [],
+                    "error_hash": error_hash,
                     "created_at": datetime.now().isoformat(),
                 }
             )
@@ -198,7 +201,7 @@ class Telemetry:
             return None
 
         try:
-            issue = self._create_issue(title, full_body, labels or [])
+            issue = self._create_issue(title, full_body, labels or [], error_hash)
             self._mark_reported(error_type, isin)
             logger.info(f"Reported issue: {issue['html_url']}")
             return issue["html_url"]
@@ -211,17 +214,20 @@ class Telemetry:
         title: str,
         body: str,
         labels: list,
+        error_hash: Optional[str] = None,
     ) -> dict:
         """Create a GitHub issue (via proxy if configured)."""
         data = {
+            "type": "auto-report",
             "title": title,
-            "body": body,
+            "message": body,
             "labels": labels,
+            "error_hash": error_hash,
         }
 
         if PROXY_URL and PROXY_API_KEY:
             # Distributed mode: route through proxy
-            url = f"{PROXY_URL}/api/github/issues"
+            url = f"{PROXY_URL}/report"
             req = Request(url, method="POST")
             req.add_header("X-API-Key", PROXY_API_KEY)
             req.add_header("Content-Type", "application/json")
@@ -229,11 +235,26 @@ class Telemetry:
         else:
             # Local dev mode: direct GitHub API call
             url = f"{self._api_base}/issues"
+            # Direct call doesn't support dedup easily without more logic,
+            # but we prioritize proxy mode for production.
             req = Request(url, method="POST")
             req.add_header("Authorization", f"Bearer {self.github_token}")
             req.add_header("Accept", "application/vnd.github.v3+json")
             req.add_header("Content-Type", "application/json")
             req.add_header("User-Agent", "Portfolio-Prism")
+
+            # Format for direct GitHub API
+            direct_data = {
+                "title": title,
+                "body": f"{body}\n\n<!-- error_hash: {error_hash} -->"
+                if error_hash
+                else body,
+                "labels": labels,
+            }
+            req.data = json.dumps(direct_data).encode()
+
+            with urlopen(req, timeout=30) as response:
+                return json.loads(response.read().decode())
 
         req.data = json.dumps(data).encode()
 

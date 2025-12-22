@@ -39,6 +39,19 @@ except Exception:
 import logging
 from portfolio_src.prism_utils.logging_config import get_logger, configure_root_logger
 
+
+def global_exception_handler(exctype, value, tb):
+    logger = get_logger("PrismHeadless")
+    logger.critical(
+        "Unhandled exception",
+        exc_info=(exctype, value, tb),
+        extra={"component": "pipeline", "category": "crash"},
+    )
+    sys.__excepthook__(exctype, value, tb)
+
+
+sys.excepthook = global_exception_handler
+
 configure_root_logger()
 logger = get_logger("PrismHeadless")
 
@@ -761,6 +774,52 @@ def handle_get_pipeline_report(cmd_id: int, payload: dict) -> dict:
         return error_response(cmd_id, "REPORT_ERROR", str(e))
 
 
+async def handle_log_event(cmd_id: int, payload: dict) -> dict:
+    from portfolio_src.data.database import log_system_event
+
+    level = payload.get("level", "INFO")
+    message = payload.get("message", "")
+    context = payload.get("context", {})
+    component = payload.get("component", "ui")
+    category = payload.get("category", "general")
+
+    log_system_event(
+        session_id=SESSION_ID,
+        level=level,
+        source="frontend",
+        message=message,
+        context=context,
+        component=component,
+        category=category,
+    )
+
+    return {"id": cmd_id, "status": "success", "data": True}
+
+
+async def handle_get_recent_reports(cmd_id: int, payload: dict) -> dict:
+    from portfolio_src.data.database import get_connection
+
+    conn = get_connection()
+    cursor = conn.execute(
+        "SELECT * FROM system_logs WHERE processed = 1 AND level IN ('ERROR', 'CRITICAL') ORDER BY reported_at DESC LIMIT 20"
+    )
+    reports = [dict(row) for row in cursor.fetchall()]
+
+    return {"id": cmd_id, "status": "success", "data": reports}
+
+
+async def handle_get_pending_reviews(cmd_id: int, payload: dict) -> dict:
+    from portfolio_src.data.database import get_connection
+
+    conn = get_connection()
+    cursor = conn.execute(
+        "SELECT * FROM system_logs WHERE processed = 0 AND level IN ('ERROR', 'CRITICAL') ORDER BY timestamp DESC"
+    )
+    pending = [dict(row) for row in cursor.fetchall()]
+
+    return {"id": cmd_id, "status": "success", "data": pending}
+
+
 async def dispatch(cmd: dict) -> dict:
     command = cmd.get("command", "")
     cmd_id = cmd.get("id", 0)
@@ -781,6 +840,9 @@ async def dispatch(cmd: dict) -> dict:
         "get_true_holdings": handle_get_true_holdings,
         "get_overlap_analysis": handle_get_overlap_analysis,
         "get_pipeline_report": handle_get_pipeline_report,
+        "log_event": handle_log_event,
+        "get_recent_reports": handle_get_recent_reports,
+        "get_pending_reviews": handle_get_pending_reviews,
     }
     handler = handlers.get(command)
     if handler:
@@ -862,6 +924,12 @@ def run_echo_bridge(host: str, port: int):
     )
     echo_token = os.environ.get("PRISM_ECHO_TOKEN", "dev-echo-bridge-secret")
 
+    @app.on_event("startup")
+    async def startup_event():
+        from portfolio_src.prism_utils.sentinel import audit_previous_session
+
+        asyncio.create_task(audit_previous_session())
+
     @app.post("/command")
     async def http_command(request: Request):
         token = request.headers.get("X-Echo-Bridge-Token")
@@ -903,6 +971,62 @@ def run_echo_bridge(host: str, port: int):
     uvicorn.run(app, host=host, port=port, log_level="info")
 
 
+async def run_stdin_loop():
+    """Run the stdin/stdout command loop."""
+    from portfolio_src.prism_utils.sentinel import audit_previous_session
+
+    asyncio.create_task(audit_previous_session())
+
+    ready_signal = {"status": "ready", "version": VERSION, "pid": os.getpid()}
+    print(json.dumps(ready_signal))
+    sys.stdout.flush()
+
+    loop = asyncio.get_event_loop()
+    executor = ThreadPoolExecutor(max_workers=1)
+
+    while True:
+        try:
+            line = await loop.run_in_executor(executor, sys.stdin.readline)
+            if not line:
+                break
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                cmd = json.loads(line)
+            except json.JSONDecodeError as e:
+                print(
+                    json.dumps(
+                        {
+                            "id": 0,
+                            "status": "error",
+                            "error": {
+                                "code": "INVALID_JSON",
+                                "message": f"Failed to parse JSON: {e}",
+                            },
+                        }
+                    )
+                )
+                continue
+
+            response = await dispatch(cmd)
+            print(json.dumps(response))
+            sys.stdout.flush()
+        except KeyboardInterrupt:
+            break
+        except Exception as e:
+            print(
+                json.dumps(
+                    {
+                        "id": 0,
+                        "status": "error",
+                        "error": {"code": "INTERNAL_ERROR", "message": str(e)},
+                    }
+                )
+            )
+            sys.stdout.flush()
+
+
 def main():
     parser = argparse.ArgumentParser(description="Prism Headless Engine")
     parser.add_argument(
@@ -930,49 +1054,8 @@ def main():
     if args.http:
         run_echo_bridge(args.host, args.port)
         return
-    ready_signal = {"status": "ready", "version": VERSION, "pid": os.getpid()}
-    print(json.dumps(ready_signal))
-    sys.stdout.flush()
-    while True:
-        try:
-            line = sys.stdin.readline()
-            if not line:
-                break
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                cmd = json.loads(line)
-            except json.JSONDecodeError as e:
-                print(
-                    json.dumps(
-                        {
-                            "id": 0,
-                            "status": "error",
-                            "error": {
-                                "code": "INVALID_JSON",
-                                "message": f"Failed to parse JSON: {e}",
-                            },
-                        }
-                    )
-                )
-                continue
-            response = asyncio.run(dispatch(cmd))
-            print(json.dumps(response))
-            sys.stdout.flush()
-        except KeyboardInterrupt:
-            break
-        except Exception as e:
-            print(
-                json.dumps(
-                    {
-                        "id": 0,
-                        "status": "error",
-                        "error": {"code": "INTERNAL_ERROR", "message": str(e)},
-                    }
-                )
-            )
-            sys.stdout.flush()
+
+    asyncio.run(run_stdin_loop())
 
 
 if __name__ == "__main__":
