@@ -111,11 +111,23 @@ CREATE INDEX IF NOT EXISTS idx_logs_session ON system_logs(session_id, level);
 CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON system_logs(timestamp);
 
 -- =============================================================================
+-- SETTINGS: User preferences
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =============================================================================
 -- DEFAULT DATA
 -- =============================================================================
 
 -- Insert default portfolio (id=1)
 INSERT OR IGNORE INTO portfolios (id, name, currency) VALUES (1, 'Main Portfolio', 'EUR');
+
+-- Insert default settings
+INSERT OR IGNORE INTO settings (key, value) VALUES ('hive_contribution_enabled', 'false');
 
 -- Insert initial sync state
 INSERT OR IGNORE INTO sync_state (source, status, message) VALUES 

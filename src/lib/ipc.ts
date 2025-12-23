@@ -353,3 +353,27 @@ export async function getPipelineReport(): Promise<any> {
     throw error;
   }
 }
+
+/**
+ * Set Hive contribution preference
+ */
+export async function setHiveContribution(enabled: boolean): Promise<void> {
+  try {
+    await callCommand('set_hive_contribution', { enabled });
+  } catch (error) {
+    console.error('[IPC] set_hive_contribution failed:', error);
+  }
+}
+
+/**
+ * Get Hive contribution preference
+ */
+export async function getHiveContribution(): Promise<boolean> {
+  try {
+    const result = await callCommand('get_hive_contribution', {});
+    return result?.enabled ?? false;
+  } catch (error) {
+    console.error('[IPC] get_hive_contribution failed:', error);
+    return false;
+  }
+}

@@ -1,8 +1,8 @@
-# Workstream: data-engine
+in# Workstream: data-engine
 
 > **Feature Plan:** `docs/MVP_IMPLEMENTATION_PLAN.md`
 > **Owner:** root-session
-> **Status:** Active
+> **Status:** Done
 > **Last Heartbeat:** 2025-12-21
 
 ---
@@ -18,16 +18,20 @@ Python Backend, SQLite Migration, Data Contracts, and IPC.
 
 ## 📋 Tasks (Source of Truth)
 
-- [ ] **TASK-701:** Implement Echo-Bridge (Unified FastAPI Sidecar).
-    - **Status:** Open
+- [x] **TASK-701:** Implement Echo-Bridge (Unified FastAPI Sidecar).
+    - **Status:** Done
     - **Workstream:** data-engine
 
-- [ ] **TASK-702:** Implement Redacted Reporter (PII Scrubbing + GitHub Relay).
-    - **Status:** Open
+- [x] **TASK-702:** Implement Redacted Reporter (PII Scrubbing + GitHub Relay).
+    - **Status:** Done
+    - **Workstream:** data-engine
+
+- [x] **TASK-703:** Integrate Echo UI (Status Badge + Opt-out Toggle).
+    - **Status:** Done
     - **Workstream:** data-engine
 
 - [ ] **TASK-612:** Implement Async I/O for Adapters.
-    - **Status:** Open
+    - **Status:** Deferred (moved to backlog - high risk for MVP phase)
     - **Workstream:** data-engine
 
 - [x] **TASK-609:** Implement Confidence Scoring Logic (Trust Metrics).
@@ -77,7 +81,7 @@ Python Backend, SQLite Migration, Data Contracts, and IPC.
 ---
 
 ## 🧠 Active State (Session Log)
-> **Current Focus:** Performance Optimization & SQLite Migration
+> **Current Focus:** Workstream complete. TASK-612 deferred to backlog.
 
 ### Iteration Log
 - **2025-12-20:** Implemented vectorized math in Aggregator for 10x performance boost.

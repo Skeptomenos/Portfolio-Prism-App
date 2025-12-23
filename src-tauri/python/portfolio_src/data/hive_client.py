@@ -377,11 +377,23 @@ class HiveClient:
 
         return result
 
+    def _is_contribution_allowed(self) -> bool:
+        try:
+            from portfolio_src.headless.handlers.settings import (
+                is_hive_contribution_enabled,
+            )
+
+            return is_hive_contribution_enabled()
+        except ImportError:
+            return False
+
     def batch_contribute(self, assets_data: List[AssetEntry]) -> bool:
         """
         Contribute multiple asset entries to the Hive.
         Uses RPC functions for atomic, safe upserts.
         """
+        if not self._is_contribution_allowed():
+            return False
         try:
             client = self._get_client()
             if client is None:
@@ -426,6 +438,8 @@ class HiveClient:
         """
         Contribute a new asset record and its primary listing to the Hive.
         """
+        if not self._is_contribution_allowed():
+            return HiveResult(success=False, error="Hive contribution disabled by user")
         client = self._get_client()
         if not client:
             return HiveResult(success=False, error="Supabase client not configured")
@@ -474,6 +488,8 @@ class HiveClient:
         """
         Contribute a new secondary listing to the Hive.
         """
+        if not self._is_contribution_allowed():
+            return HiveResult(success=False, error="Hive contribution disabled by user")
         client = self._get_client()
         if not client:
             return HiveResult(success=False, error="Supabase client not configured")
@@ -510,6 +526,8 @@ class HiveClient:
         """
         Contribute a non-ticker alias to the provider_mappings table.
         """
+        if not self._is_contribution_allowed():
+            return HiveResult(success=False, error="Hive contribution disabled by user")
         client = self._get_client()
         if not client:
             return HiveResult(success=False, error="Supabase client not configured")
@@ -584,6 +602,8 @@ class HiveClient:
         Contribute ETF holdings to the Hive.
         Uses RPC for atomic batch upsert.
         """
+        if not self._is_contribution_allowed():
+            return False
         client = self._get_client()
         if not client:
             return False

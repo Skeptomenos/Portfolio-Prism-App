@@ -1,7 +1,5 @@
-import { useState } from 'react';
 import { LayoutDashboard, Layers, GitCompare, Database, Settings, Activity, Link, MessageSquare } from 'lucide-react';
 import { useAppStore, useCurrentView, useAuthState } from '../store/useAppStore';
-import { FeedbackDialog } from './feedback/FeedbackDialog';
 import SystemStatus from './SystemStatus';
 import type { ViewType } from '../types';
 
@@ -19,7 +17,7 @@ export default function Sidebar() {
     const currentView = useCurrentView();
     const setCurrentView = useAppStore((state) => state.setCurrentView);
     const authState = useAuthState();
-    const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+    const openFeedback = useAppStore((state) => state.openFeedback);
 
     return (
         <div
@@ -112,7 +110,7 @@ export default function Sidebar() {
 
             {/* Feedback Button */}
             <button
-                onClick={() => setIsFeedbackOpen(true)}
+                onClick={openFeedback}
                 style={{
                     width: '100%',
                     display: 'flex',
@@ -143,11 +141,6 @@ export default function Sidebar() {
 
             {/* Status Footer */}
             <SystemStatus />
-            
-            <FeedbackDialog 
-                isOpen={isFeedbackOpen} 
-                onClose={() => setIsFeedbackOpen(false)} 
-            />
         </div>
     );
 }

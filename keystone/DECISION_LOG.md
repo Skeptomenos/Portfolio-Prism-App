@@ -259,3 +259,16 @@ This document tracks significant architectural decisions (ADRs) for the project.
   - (+) Searchable by GitHub's API for deduplication.
   - (+) Stable across issue edits (comment preserved).
   - (-) Relies on GitHub's search indexing HTML comments (tested, works).
+
+---
+
+## [2025-12-23] Database Connection as Context Manager
+
+- **Context:** Query helper functions (`get_portfolio`, `get_positions`, etc.) were leaking SQLite connections in the long-running Python sidecar.
+- **Decision:** Convert `get_connection()` to a `@contextmanager` that auto-closes, requiring all callers to use `with get_connection() as conn:`.
+- **Consequences:**
+  - (+) Connections automatically closed after each operation.
+  - (+) No resource leaks in long-running sidecar process.
+  - (+) Consistent pattern across all database operations.
+  - (-) Breaking API change - all existing callers must be updated.
+  - (-) Requires grep of entire codebase to find all call sites.

@@ -37,6 +37,7 @@ jobs:
         run: npm run tauri build
         env:
           NO_STRIP: true
+          VITE_API_PROXY_URL: ${{ secrets.VITE_API_PROXY_URL }}
 
       - name: Create Release
         uses: softprops/action-gh-release@v1

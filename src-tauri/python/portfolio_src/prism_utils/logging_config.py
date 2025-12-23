@@ -1,3 +1,4 @@
+import io
 import logging
 import sys
 import re
@@ -118,6 +119,65 @@ class SQLiteLogHandler(logging.Handler):
         return hashlib.md5(seed.encode()).hexdigest()
 
 
+class PrismFormatter(logging.Formatter):
+    PREFIX = "  \033[90mPRISM\033[0m ↳ "
+
+    COLORS = {
+        "DEBUG": "\033[90mDEBUG\033[0m",
+        "INFO": "\033[34mINFO \033[0m",
+        "WARNING": "\033[33mWARN \033[0m",
+        "ERROR": "\033[31mERROR\033[0m",
+        "CRITICAL": "\033[31mFATAL\033[0m",
+    }
+
+    def format(self, record: logging.LogRecord) -> str:
+        level_name = record.levelname
+        color_level = self.COLORS.get(level_name, level_name)
+
+        log_fmt = f"{self.PREFIX}{color_level} {record.name}: {record.getMessage()}"
+
+        if record.exc_info:
+            if not record.exc_text:
+                record.exc_text = self.formatException(record.exc_info)
+            if record.exc_text:
+                log_fmt += f"\n{record.exc_text}"
+
+        return log_fmt
+
+
+class StreamToLogger:
+    def __init__(self, logger, level):
+        self.logger = logger
+        self.level = level
+        self.linebuf = ""
+
+    def write(self, buf):
+        for line in buf.rstrip().splitlines():
+            self.logger.log(self.level, line.rstrip())
+
+    def flush(self):
+        pass
+
+    def isatty(self):
+        return False
+
+    def fileno(self):
+        raise io.UnsupportedOperation("StreamToLogger has no file descriptor")
+
+    def readable(self):
+        return False
+
+    def writable(self):
+        return True
+
+    def seekable(self):
+        return False
+
+    @property
+    def closed(self):
+        return False
+
+
 def configure_root_logger(level: int = logging.INFO, session_id: Optional[str] = None):
     root = logging.getLogger()
     root.setLevel(level)
@@ -129,28 +189,27 @@ def configure_root_logger(level: int = logging.INFO, session_id: Optional[str] =
     logging.getLogger("fsspec").setLevel(logging.WARNING)
     logging.getLogger("asyncio").setLevel(logging.WARNING)
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+    logging.getLogger("uvicorn.error").setLevel(logging.WARNING)
     logging.getLogger("portfolio_src.data.history_manager").setLevel(logging.WARNING)
 
     for h in root.handlers[:]:
         root.removeHandler(h)
 
-    rich_handler = RichHandler(
-        console=_console,
-        show_time=True,
-        show_path=False,
-        markup=True,
-        rich_tracebacks=True,
-    )
-    rich_handler.addFilter(PIIFilter())
-    formatter = logging.Formatter("%(name)s: %(message)s")
-    rich_handler.setFormatter(formatter)
-    root.addHandler(rich_handler)
+    handler = logging.StreamHandler(sys.stderr)
+    handler.addFilter(PIIFilter())
+    handler.setFormatter(PrismFormatter())
+    root.addHandler(handler)
 
     if session_id:
         sqlite_handler = SQLiteLogHandler(session_id)
         sqlite_handler.addFilter(PIIFilter())
-        sqlite_handler.setFormatter(formatter)
+        sqlite_handler.setFormatter(logging.Formatter("%(name)s: %(message)s"))
         root.addHandler(sqlite_handler)
+
+    for logger_name in ["uvicorn", "uvicorn.error", "uvicorn.access"]:
+        uv_logger = logging.getLogger(logger_name)
+        uv_logger.handlers = []
+        uv_logger.propagate = True
 
 
 def get_logger(name: str) -> logging.Logger:

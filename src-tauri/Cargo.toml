@@ -26,4 +26,5 @@ chrono = { version = "0.4", features = ["serde"] }
 tokio = { version = "1", features = ["sync", "time"] }
 log = "0.4"
 env_logger = "0.10"
+fs2 = "0.4"
 

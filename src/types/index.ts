@@ -281,6 +281,14 @@ export interface TauriCommands {
     args: Record<string, never>;
     returns: any[];
   };
+  set_hive_contribution: {
+    args: { enabled: boolean };
+    returns: void;
+  };
+  get_hive_contribution: {
+    args: Record<string, never>;
+    returns: { enabled: boolean };
+  };
 }
 
 /**

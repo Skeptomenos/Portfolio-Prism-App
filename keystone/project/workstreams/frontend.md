@@ -1,9 +1,11 @@
 # Workstream: frontend
 
 > **Feature Plan:** `docs/MVP_IMPLEMENTATION_PLAN.md`
+> **UI Improvement Plan:** `keystone/plans/FEEDBACK_UI_IMPROVEMENTS.md`
+> **Migration Plan:** `keystone/plans/TAILWIND_MIGRATION_ISSUE.md`
 > **Owner:** root-session
 > **Status:** Active
-> **Last Heartbeat:** 2025-12-21
+> **Last Heartbeat:** 2025-12-22
 
 ---
 
@@ -18,49 +20,52 @@ React UI, State Management, and User Experience.
 
 ## 📋 Tasks (Source of Truth)
 
-- [ ] **TASK-703:** Integrate Echo UI (Status Badge + Opt-out Toggle).
-    - **Status:** Open
-    - **Workstream:** frontend
+*No open tasks.*
 
+---
+
+## 🗄️ Archive (Completed)
+
+### Feedback UI Improvements (FEEDBACK-704)
+- [x] **FEEDBACK-704.1:** Add `isFeedbackOpen`, `openFeedback`, `closeFeedback` to `useAppStore.ts`.
+- [x] **FEEDBACK-704.2:** Remove local state and `<FeedbackDialog />` from `Sidebar.tsx`. Update button to call `openFeedback()`.
+- [x] **FEEDBACK-704.3:** Add `<FeedbackDialog />` to `App.tsx` connected to the global store.
+- [x] **FEEDBACK-704.4:** Update `FeedbackDialog.tsx` to inject `currentView` into the feedback payload.
+- [x] **FEEDBACK-704.5:** Verify layout and network request payload.
+
+### Tailwind Migration (TMF)
+- [x] **TMF-001:** Uninstall Tailwind v4 packages.
+- [x] **TMF-002:** Install Tailwind v3 packages.
+- [x] **TMF-003:** Verify Configuration Files.
+- [x] **TMF-004:** Verify CSS Entry Point.
+- [x] **TMF-005:** Verify Build.
+
+### Legacy Tasks
+- [x] **TASK-703:** Integrate Echo UI (Status Badge + Opt-out Toggle).
 - [x] **TASK-303:** System Status Component.
-    - **Status:** Done
-    - **Workstream:** frontend
-
 - [x] **TASK-401:** Dashboard Metric Cards.
-    - **Status:** Done
-    - **Workstream:** frontend
-
 - [x] **TASK-403:** Holdings Data Table.
-    - **Status:** Done
-    - **Workstream:** frontend
-
 - [x] **TASK-608:** HoldingsUpload Smart upload component.
-    - **Status:** Done
-    - **Workstream:** frontend
-
 - [x] **TASK-613:** Update HealthView with Trust Scores and Hive hit rate.
-    - **Status:** Done
-    - **Workstream:** frontend
-
 - [x] **TASK-301:** Initialize Zustand Store.
-    - **Status:** Done
-    - **Workstream:** frontend
-
 - [x] **TASK-302:** IPC Bridge.
-    - **Status:** Done
-    - **Workstream:** frontend
 
 ---
 
 ## 🧠 Active State (Session Log)
-> **Current Focus:** Feature Parity and Polish
+> **Current Focus:** Completed Feedback UI Improvements (FEEDBACK-704).
 
 ### Iteration Log
+- **2025-12-22:** Completed FEEDBACK-704. Refactored feedback dialog to global level and added context injection.
+- **2025-12-22:** Integrated Tailwind Migration tasks (TMF) and Feedback UI Improvements plan.
 - **2025-12-20:** Enabled Ticker column in Portfolio Table by default.
 - **2024-12-12:** Frontend is the *only* UI. No hybrid views.
 
 ### Artifacts Produced
-- [ ] `src/components/`
+- [x] `src/components/feedback/FeedbackDialog.tsx` (Refactored)
+- [x] `src/store/useAppStore.ts` (Updated with global state)
+- [x] `src/App.tsx` (Mounted global dialog)
+- [x] `src/components/Sidebar.tsx` (Connected to global state)
 
 ### Parked Items / Ideas
 - [ ] None
@@ -68,5 +73,5 @@ React UI, State Management, and User Experience.
 ---
 
 ## 💾 Context for Resume (Handover)
-- **Next Action:** Integrate Echo UI.
-- **State:** React UI is stable and feature-complete for MVP.
+- **Next Action:** Archive workstream or start next feature.
+- **State:** React UI is stable. Feedback dialog is now a global modal with context awareness.

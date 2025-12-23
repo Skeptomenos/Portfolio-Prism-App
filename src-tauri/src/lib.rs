@@ -5,25 +5,51 @@
 //! - IPC commands from React frontend
 //! - Python sidecar process management
 //! - Event emission to frontend
+//! - Single instance enforcement via lock file
 
 mod commands;
 mod python_engine;
 
 use commands::{
-    get_dashboard_data, get_engine_health, get_overlap_analysis, get_pipeline_report, get_positions,
-    get_true_holdings, run_pipeline, sync_portfolio, tr_check_saved_session, tr_get_auth_status,
-    tr_login, tr_logout, tr_submit_2fa, upload_holdings,
+    get_dashboard_data, get_engine_health, get_hive_contribution, get_overlap_analysis,
+    get_pipeline_report, get_positions, get_true_holdings, run_pipeline, set_hive_contribution,
+    sync_portfolio, tr_check_saved_session, tr_get_auth_status, tr_login, tr_logout, tr_submit_2fa,
+    upload_holdings,
 };
 use python_engine::{PythonEngine, StdoutMessage};
+use std::fs::{File, OpenOptions};
 use std::sync::Arc;
 use tauri::{Emitter, Manager};
 use tauri_plugin_shell::process::CommandEvent;
 use tauri_plugin_shell::ShellExt;
+use fs2::FileExt;
 
 // Legacy greet command (can be removed later)
 #[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
+}
+
+/// Holds the lock file handle to prevent multiple instances.
+/// Must be kept alive for the duration of the application.
+static LOCK_FILE: std::sync::OnceLock<File> = std::sync::OnceLock::new();
+
+fn acquire_instance_lock(data_dir: &std::path::Path) -> Result<File, String> {
+    std::fs::create_dir_all(data_dir).map_err(|e| format!("Failed to create data dir: {}", e))?;
+    
+    let lock_path = data_dir.join(".instance.lock");
+    let file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(&lock_path)
+        .map_err(|e| format!("Failed to open lock file: {}", e))?;
+    
+    file.try_lock_exclusive()
+        .map_err(|_| "Another instance of Portfolio Prism is already running.".to_string())?;
+    
+    Ok(file)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -32,16 +58,33 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
-            // Create Python engine manager
-            let engine = Arc::new(PythonEngine::new());
-
-            // Spawn the sidecar
-            // Note: "prism" matches the externalBin name in tauri.conf.json
-            // We use prism-headless for the React UI (Phase 5 architecture)
             let data_dir = app
                 .path()
                 .app_data_dir()
                 .expect("failed to get app data dir");
+            
+            match acquire_instance_lock(&data_dir) {
+                Ok(lock_file) => {
+                    let _ = LOCK_FILE.set(lock_file);
+                }
+                Err(msg) => {
+                    eprintln!("Instance lock failed: {}", msg);
+                    #[cfg(target_os = "macos")]
+                    {
+                        use std::process::Command;
+                        let _ = Command::new("osascript")
+                            .args(["-e", &format!(
+                                "display dialog \"{}\" buttons {{\"OK\"}} default button \"OK\" with icon stop with title \"Portfolio Prism\"",
+                                msg
+                            )])
+                            .output();
+                    }
+                    std::process::exit(1);
+                }
+            }
+
+            let engine = Arc::new(PythonEngine::new());
+
             let data_dir_str = data_dir.to_string_lossy().to_string();
 
             let (mut rx, child) = app
@@ -85,37 +128,26 @@ pub fn run() {
                             continue;
                         }
 
-                        // Filter out repetitive noise
+                        if trimmed.contains("PRISM") && trimmed.contains("↳") {
+                            println!("{}", trimmed);
+                            continue;
+                        }
+
                         if trimmed.contains("possibly delisted") || trimmed.contains("No historical data found") {
                             continue;
                         }
                         
-                        if trimmed.contains("DEBUG") || trimmed.contains("DEBUG:") {
+                        if trimmed.starts_with("DEBUG") || trimmed.contains("] DEBUG") || trimmed.contains("DEBUG:") {
                             continue;
                         }
 
-                        if trimmed.contains("[TR Daemon]") && !trimmed.contains("ERROR") && !trimmed.contains("WARNING") {
-                            continue;
-                        }
-
-                        if trimmed.contains("[TR Bridge]") && !trimmed.contains("ERROR") {
-                            continue;
-                        }
-
-                        // Beautiful Log Formatting
-                        let (level_prefix, msg) = if trimmed.starts_with("[INFO]") {
-                            ("\x1b[34mINFO \x1b[0m", &trimmed[6..])
-                        } else if trimmed.starts_with("[WARNING]") {
-                            ("\x1b[33mWARN \x1b[0m", &trimmed[9..])
-                        } else if trimmed.starts_with("[ERROR]") {
-                            ("\x1b[31mERROR\x1b[0m", &trimmed[7..])
-                        } else if trimmed.contains("Traceback") || trimmed.contains("Error:") {
-                            ("\x1b[31mFATAL\x1b[0m", trimmed)
+                        let level_prefix = if trimmed.contains("Traceback") || trimmed.contains("Error:") {
+                            "\x1b[31mFATAL\x1b[0m"
                         } else {
-                            ("\x1b[90mLOG  \x1b[0m", trimmed)
+                            "\x1b[90mLOG  \x1b[0m"
                         };
 
-                        println!("  \x1b[90mPRISM\x1b[0m ↳ {} {}", level_prefix, msg.trim());
+                        println!("  \x1b[90mPRISM\x1b[0m ↳ {} {}", level_prefix, trimmed);
                     }
                 }
             });
@@ -140,7 +172,9 @@ pub fn run() {
             get_pipeline_report,
             get_true_holdings,
             get_overlap_analysis,
-            upload_holdings
+            upload_holdings,
+            set_hive_contribution,
+            get_hive_contribution
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -205,3 +205,18 @@ This document tracks the specific constraints, patterns, and lessons learned _du
 
 - **Learning:** Running heavy async tasks immediately on startup can race with database initialization.
 - **Mandate:** Sentinel and similar startup auditors should `await asyncio.sleep(5)` before querying database to let app stabilize.
+
+### 5.20 [2025-12-23] Context Manager API Changes Require Full Grep
+
+- **Learning:** Converting `get_connection()` from a regular function to a `@contextmanager` breaks all callers that don't use `with`. The function returns a generator, not a connection, causing `AttributeError` at runtime.
+- **Mandate:** When changing a function's return type or making it a context manager, grep the entire codebase for all call sites. Type checkers may not catch all usages (especially in dynamically typed Python).
+
+### 5.21 [2025-12-23] SQLite Connection Leaks in Long-Running Processes
+
+- **Learning:** In a long-running sidecar process, functions that call `get_connection()` without closing accumulate open connections over time.
+- **Mandate:** ALL database query functions MUST use `with get_connection() as conn:` pattern. Never call `get_connection()` without a context manager.
+
+### 5.22 [2025-12-23] Iterative Code Review Catches Cascading Bugs
+
+- **Learning:** First code review found connection leak. Fix introduced new bug (settings.py not updated). Second review caught it.
+- **Mandate:** After fixing bugs from code review, run review again to catch cascading issues from the fix itself.

@@ -52,6 +52,9 @@ interface AppState {
   telemetryMode: 'auto' | 'review' | 'off';
   sessionId: string | null;
   
+  // Hive Community Contribution
+  hiveContributionEnabled: boolean;
+  
   // Feedback Dialog
   isFeedbackOpen: boolean;
 }
@@ -69,6 +72,9 @@ interface AppActions {
   // Telemetry
   setTelemetryMode: (mode: 'auto' | 'review' | 'off') => void;
   setSessionId: (id: string) => void;
+  
+  // Hive
+  setHiveContributionEnabled: (enabled: boolean) => void;
   
   // Feedback Actions
   openFeedback: () => void;
@@ -138,6 +144,9 @@ const initialState: AppState = {
   telemetryMode: 'auto',
   sessionId: null,
   
+  // Hive Community Contribution
+  hiveContributionEnabled: false,
+  
   // Feedback Dialog
   isFeedbackOpen: false,
 };
@@ -166,6 +175,9 @@ export const useAppStore = create<AppStore>()(
       // Telemetry
       setTelemetryMode: (mode) => set({ telemetryMode: mode }, false, 'setTelemetryMode'),
       setSessionId: (id) => set({ sessionId: id }, false, 'setSessionId'),
+
+      // Hive
+      setHiveContributionEnabled: (enabled) => set({ hiveContributionEnabled: enabled }, false, 'setHiveContributionEnabled'),
 
       // Feedback Actions
       openFeedback: () => set({ isFeedbackOpen: true }, false, 'openFeedback'),
@@ -324,6 +336,10 @@ export const useTelemetryMode = () => useAppStore((state) => state.telemetryMode
 export const useSetTelemetryMode = () => useAppStore((state) => state.setTelemetryMode);
 export const useSessionId = () => useAppStore((state) => state.sessionId);
 export const useSetSessionId = () => useAppStore((state) => state.setSessionId);
+
+// Hive
+export const useHiveContributionEnabled = () => useAppStore((state) => state.hiveContributionEnabled);
+export const useSetHiveContributionEnabled = () => useAppStore((state) => state.setHiveContributionEnabled);
 
 // Feedback selectors and actions
 export const useIsFeedbackOpen = () => useAppStore((state) => state.isFeedbackOpen);

@@ -754,6 +754,66 @@ pub async fn upload_holdings(
     }
 }
 
+/// Set Hive contribution preference
+#[tauri::command]
+pub async fn set_hive_contribution(
+    enabled: bool,
+    engine: State<'_, Arc<PythonEngine>>,
+) -> Result<(), String> {
+    if !engine.is_connected().await {
+        return Err("Python engine not connected".to_string());
+    }
+
+    match engine
+        .send_command("set_hive_contribution", json!({ "enabled": enabled }))
+        .await
+    {
+        Ok(response) => {
+            if response.status == "success" {
+                Ok(())
+            } else {
+                Err(response
+                    .error
+                    .map(|e| e.message)
+                    .unwrap_or_else(|| "Failed to set hive contribution".to_string()))
+            }
+        }
+        Err(e) => Err(format!("Failed to set hive contribution: {}", e)),
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HiveContributionStatus {
+    pub enabled: bool,
+}
+
+/// Get Hive contribution preference
+#[tauri::command]
+pub async fn get_hive_contribution(
+    engine: State<'_, Arc<PythonEngine>>,
+) -> Result<HiveContributionStatus, String> {
+    if !engine.is_connected().await {
+        return Ok(HiveContributionStatus { enabled: false });
+    }
+
+    match engine
+        .send_command("get_hive_contribution", json!({}))
+        .await
+    {
+        Ok(response) => {
+            if response.status == "success" {
+                if let Some(data) = response.data {
+                    let enabled = data["enabled"].as_bool().unwrap_or(false);
+                    return Ok(HiveContributionStatus { enabled });
+                }
+            }
+            Ok(HiveContributionStatus { enabled: false })
+        }
+        Err(_) => Ok(HiveContributionStatus { enabled: false }),
+    }
+}
+
 /// Get the latest pipeline health report from disk
 #[tauri::command]
 pub async fn get_pipeline_report(app_handle: AppHandle) -> Result<serde_json::Value, String> {

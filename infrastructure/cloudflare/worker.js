@@ -130,6 +130,53 @@ async function addIssueComment(issueNumber, message, env) {
     return response.ok;
 }
 
+function formatFeedbackTitle(type, message) {
+    const typeLabels = {
+        'functional': 'BUG',
+        'feature': 'FEATURE',
+        'ui_ux': 'UI/UX',
+        'critical': 'CRITICAL'
+    };
+    const label = typeLabels[type] || type.toUpperCase();
+    const truncated = message.length > 50 ? message.substring(0, 47) + '...' : message;
+    return `[${label}] ${truncated}`;
+}
+
+function mapFeedbackLabels(type) {
+    const labelMap = {
+        'functional': ['bug', 'user-feedback'],
+        'feature': ['enhancement', 'user-feedback'],
+        'ui_ux': ['ui/ux', 'user-feedback'],
+        'critical': ['bug', 'critical', 'user-feedback']
+    };
+    return labelMap[type] || [type, 'user-feedback'];
+}
+
+function formatFeedbackBody(message, metadata) {
+    const view = metadata.view || 'unknown';
+    const version = metadata.version || 'dev';
+    const platform = metadata.platform || 'unknown';
+    const environment = metadata.environment || 'unknown';
+    const timestamp = metadata.timestamp || new Date().toISOString();
+
+    let body = `## Description\n\n${message}\n\n`;
+    body += `## Context\n\n`;
+    body += `| Field | Value |\n`;
+    body += `|-------|-------|\n`;
+    body += `| View | ${view} |\n`;
+    body += `| Version | ${version} |\n`;
+    body += `| Platform | ${platform} |\n`;
+    body += `| Environment | ${environment} |\n`;
+    body += `| Timestamp | ${timestamp} |\n`;
+
+    if (metadata.lastSync) {
+        body += `| Last Sync | ${metadata.lastSync} |\n`;
+    }
+
+    body += `\n---\n*Submitted via Portfolio Prism Feedback*`;
+    return body;
+}
+
 /**
  * Create GitHub issue for feedback or auto-report
  */
@@ -223,11 +270,14 @@ export default {
                     break;
 
                 case '/feedback':
+                    const feedbackTitle = formatFeedbackTitle(body.type, body.message);
+                    const feedbackBody = formatFeedbackBody(body.message, body.metadata || {});
+                    const feedbackLabels = mapFeedbackLabels(body.type);
                     data = await createGitHubIssue(
                         body.type, 
-                        null, 
-                        `## Feedback\n\n${body.message}\n\n## Metadata\n\n\`\`\`json\n${JSON.stringify(body.metadata || {}, null, 2)}\n\`\`\``,
-                        [body.type, 'user-feedback'],
+                        feedbackTitle, 
+                        feedbackBody,
+                        feedbackLabels,
                         env
                     );
                     break;

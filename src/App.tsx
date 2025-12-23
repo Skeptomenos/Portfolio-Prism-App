@@ -8,6 +8,7 @@ import HoldingsView from './components/views/HoldingsView';
 import DataView from './components/views/DataView';
 import TradeRepublicView from './components/views/TradeRepublicView';
 import { ToastContainer } from './components/ui/Toast';
+import { FeedbackDialog } from './components/feedback/FeedbackDialog';
 import { useCurrentView, useAppStore, useSetSessionId } from './store/useAppStore';
 import { useTauriEvents } from './hooks/useTauriEvents';
 import { getEnvironment, trCheckSavedSession, trGetAuthStatus, getEngineHealth } from './lib/ipc';
@@ -22,6 +23,8 @@ function App() {
     const setAuth = useAppStore(state => state.setAuthState);
     const setSavedPhone = useAppStore(state => state.setSavedPhone);
     const setSessionId = useSetSessionId();
+    const isFeedbackOpen = useAppStore((state) => state.isFeedbackOpen);
+    const closeFeedback = useAppStore((state) => state.closeFeedback);
     
     // Initialize Tauri event listeners
     useTauriEvents();
@@ -92,6 +95,12 @@ function App() {
                 
                 {/* Toast Notifications */}
                 <ToastContainer />
+                
+                {/* Global Feedback Dialog */}
+                <FeedbackDialog 
+                    isOpen={isFeedbackOpen} 
+                    onClose={closeFeedback} 
+                />
             </div>
         </ErrorBoundary>
     );

@@ -7,6 +7,7 @@ Uses PRISM_DATA_DIR environment variable to locate the database file.
 
 import os
 import sqlite3
+import logging
 from pathlib import Path
 from typing import Optional
 from contextlib import contextmanager
@@ -16,6 +17,8 @@ DB_FILENAME = "prism.db"
 
 # Module-level connection cache
 _connection: Optional[sqlite3.Connection] = None
+
+logger = logging.getLogger(__name__)
 
 
 def get_db_path() -> Path:
@@ -81,12 +84,9 @@ def init_db(db_path: Optional[str] = None) -> sqlite3.Connection:
     # Read and execute schema
     schema_path = get_schema_path()
 
-    # Debug logging (stderr to avoid polluting IPC stdout)
-    import sys as _sys
-
-    print(f"[DB] Database path: {db_path}", file=_sys.stderr)
-    print(f"[DB] Schema path: {schema_path}", file=_sys.stderr)
-    print(f"[DB] Schema exists: {schema_path.exists()}", file=_sys.stderr)
+    logger.info(f"[DB] Database path: {db_path}")
+    logger.info(f"[DB] Schema path: {schema_path}")
+    logger.info(f"[DB] Schema exists: {schema_path.exists()}")
 
     if schema_path.exists():
         with open(schema_path, "r") as f:
@@ -94,7 +94,9 @@ def init_db(db_path: Optional[str] = None) -> sqlite3.Connection:
         conn.executescript(schema_sql)
 
         # Migration: Add new columns to system_logs if they don't exist
+        # Wrapped in IMMEDIATE transaction to prevent race conditions
         try:
+            conn.execute("BEGIN IMMEDIATE")
             cursor = conn.execute("PRAGMA table_info(system_logs)")
             columns = [row["name"] for row in cursor.fetchall()]
 
@@ -107,22 +109,19 @@ def init_db(db_path: Optional[str] = None) -> sqlite3.Connection:
 
             for col_name, col_type in new_cols:
                 if col_name not in columns:
-                    print(
-                        f"[DB] Migrating: Adding {col_name} to system_logs",
-                        file=_sys.stderr,
-                    )
+                    logger.info(f"[DB] Migrating: Adding {col_name} to system_logs")
                     conn.execute(
                         f"ALTER TABLE system_logs ADD COLUMN {col_name} {col_type}"
                     )
 
             conn.commit()
         except Exception as e:
-            print(f"[DB] Migration error: {e}", file=_sys.stderr)
+            conn.rollback()
+            logger.error(f"[DB] Migration error: {e}")
 
-        conn.commit()
-        print(f"[DB] Schema applied successfully", file=_sys.stderr)
+        logger.info(f"[DB] Schema applied successfully")
     else:
-        print(f"[DB] ERROR: Schema file not found!", file=_sys.stderr)
+        logger.error(f"[DB] ERROR: Schema file not found!")
         raise FileNotFoundError(f"Schema file not found: {schema_path}")
 
     # Cache connection if not in-memory
@@ -132,13 +131,24 @@ def init_db(db_path: Optional[str] = None) -> sqlite3.Connection:
     return conn
 
 
-def get_connection() -> sqlite3.Connection:
+@contextmanager
+def get_connection():
+    """
+    Context manager for database connections.
+
+    Always use with 'with' statement to ensure connections are closed:
+        with get_connection() as conn:
+            cursor = conn.execute(...)
+    """
     db_path = str(get_db_path())
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("PRAGMA journal_mode = WAL")
-    return conn
+    try:
+        yield conn
+    finally:
+        conn.close()
 
 
 def close_connection() -> None:
@@ -156,18 +166,19 @@ def transaction():
     Context manager for database transactions.
 
     Automatically commits on success, rolls back on exception.
+    Always closes the connection when done.
 
     Usage:
         with transaction() as conn:
             conn.execute("INSERT INTO ...")
     """
-    conn = get_connection()
-    try:
-        yield conn
-        conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
+    with get_connection() as conn:
+        try:
+            yield conn
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
 
 
 # =============================================================================
@@ -176,101 +187,65 @@ def transaction():
 
 
 def get_portfolio(portfolio_id: int = 1) -> Optional[dict]:
-    """
-    Get portfolio by ID.
-
-    Args:
-        portfolio_id: Portfolio ID (default: 1)
-
-    Returns:
-        Portfolio dict or None if not found
-    """
-    conn = get_connection()
-    cursor = conn.execute(
-        "SELECT id, name, currency, created_at FROM portfolios WHERE id = ?",
-        (portfolio_id,),
-    )
-    row = cursor.fetchone()
-    return dict(row) if row else None
+    with get_connection() as conn:
+        cursor = conn.execute(
+            "SELECT id, name, currency, created_at FROM portfolios WHERE id = ?",
+            (portfolio_id,),
+        )
+        row = cursor.fetchone()
+        return dict(row) if row else None
 
 
 def get_positions(portfolio_id: int = 1) -> list[dict]:
-    """
-    Get all positions for a portfolio with asset details.
-
-    Args:
-        portfolio_id: Portfolio ID (default: 1)
-
-    Returns:
-        List of position dicts with joined asset info
-    """
-    conn = get_connection()
-    cursor = conn.execute(
-        """
-        SELECT 
-            p.portfolio_id,
-            p.isin,
-            p.quantity,
-            p.cost_basis,
-            p.current_price,
-            p.updated_at,
-            a.name,
-            a.symbol,
-            a.asset_class,
-            a.sector,
-            a.region
-        FROM positions p
-        LEFT JOIN assets a ON p.isin = a.isin
-        WHERE p.portfolio_id = ?
-        ORDER BY (p.quantity * COALESCE(p.current_price, p.cost_basis, 0)) DESC
-    """,
-        (portfolio_id,),
-    )
-
-    return [dict(row) for row in cursor.fetchall()]
+    with get_connection() as conn:
+        cursor = conn.execute(
+            """
+            SELECT 
+                p.portfolio_id,
+                p.isin,
+                p.quantity,
+                p.cost_basis,
+                p.current_price,
+                p.updated_at,
+                a.name,
+                a.symbol,
+                a.asset_class,
+                a.sector,
+                a.region
+            FROM positions p
+            LEFT JOIN assets a ON p.isin = a.isin
+            WHERE p.portfolio_id = ?
+            ORDER BY (p.quantity * COALESCE(p.current_price, p.cost_basis, 0)) DESC
+        """,
+            (portfolio_id,),
+        )
+        return [dict(row) for row in cursor.fetchall()]
 
 
 def get_sync_state(source: str) -> Optional[dict]:
-    """
-    Get sync state for a data source.
-
-    Args:
-        source: Source identifier (e.g., 'trade_republic', 'manual')
-
-    Returns:
-        Sync state dict or None
-    """
-    conn = get_connection()
-    cursor = conn.execute(
-        "SELECT source, last_sync, status, message FROM sync_state WHERE source = ?",
-        (source,),
-    )
-    row = cursor.fetchone()
-    return dict(row) if row else None
+    with get_connection() as conn:
+        cursor = conn.execute(
+            "SELECT source, last_sync, status, message FROM sync_state WHERE source = ?",
+            (source,),
+        )
+        row = cursor.fetchone()
+        return dict(row) if row else None
 
 
 def update_sync_state(source: str, status: str, message: str = "") -> None:
-    """
-    Update sync state for a data source.
-
-    Args:
-        source: Source identifier
-        status: 'success', 'error', or 'pending'
-        message: Optional status message
-    """
-    conn = get_connection()
-    conn.execute(
-        """
-        INSERT INTO sync_state (source, last_sync, status, message)
-        VALUES (?, CURRENT_TIMESTAMP, ?, ?)
-        ON CONFLICT(source) DO UPDATE SET
-            last_sync = CURRENT_TIMESTAMP,
-            status = excluded.status,
-            message = excluded.message
-    """,
-        (source, status, message),
-    )
-    conn.commit()
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO sync_state (source, last_sync, status, message)
+            VALUES (?, CURRENT_TIMESTAMP, ?, ?)
+            ON CONFLICT(source) DO UPDATE SET
+                last_sync = CURRENT_TIMESTAMP,
+                status = excluded.status,
+                message = excluded.message
+        """,
+            (source, status, message),
+        )
+        conn.commit()
 
 
 def log_system_event(
@@ -283,54 +258,52 @@ def log_system_event(
     category: Optional[str] = None,
     error_hash: Optional[str] = None,
 ) -> None:
-    """Log a system event to the database."""
     import json
 
-    conn = get_connection()
-    conn.execute(
-        """
-        INSERT INTO system_logs (session_id, level, source, message, context, component, category, error_hash)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    """,
-        (
-            session_id,
-            level,
-            source,
-            message,
-            json.dumps(context) if context else None,
-            component,
-            category,
-            error_hash,
-        ),
-    )
-    conn.commit()
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO system_logs (session_id, level, source, message, context, component, category, error_hash)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+            (
+                session_id,
+                level,
+                source,
+                message,
+                json.dumps(context) if context else None,
+                component,
+                category,
+                error_hash,
+            ),
+        )
+        conn.commit()
 
 
 def get_unprocessed_logs(session_id: Optional[str] = None) -> list[dict]:
-    """Get unprocessed logs, optionally filtered by session."""
-    conn = get_connection()
-    if session_id:
-        cursor = conn.execute(
-            "SELECT * FROM system_logs WHERE session_id = ? AND processed = 0 ORDER BY timestamp ASC",
-            (session_id,),
-        )
-    else:
-        cursor = conn.execute(
-            "SELECT * FROM system_logs WHERE processed = 0 ORDER BY timestamp ASC"
-        )
-    return [dict(row) for row in cursor.fetchall()]
+    with get_connection() as conn:
+        if session_id:
+            cursor = conn.execute(
+                "SELECT * FROM system_logs WHERE session_id = ? AND processed = 0 ORDER BY timestamp ASC",
+                (session_id,),
+            )
+        else:
+            cursor = conn.execute(
+                "SELECT * FROM system_logs WHERE processed = 0 ORDER BY timestamp ASC"
+            )
+        return [dict(row) for row in cursor.fetchall()]
 
 
 def mark_logs_processed(log_ids: list[int]) -> None:
-    """Mark logs as processed."""
     if not log_ids:
         return
-    conn = get_connection()
-    placeholders = ",".join(["?"] * len(log_ids))
-    conn.execute(
-        f"UPDATE system_logs SET processed = 1 WHERE id IN ({placeholders})", log_ids
-    )
-    conn.commit()
+    with get_connection() as conn:
+        placeholders = ",".join(["?"] * len(log_ids))
+        conn.execute(
+            f"UPDATE system_logs SET processed = 1 WHERE id IN ({placeholders})",
+            log_ids,
+        )
+        conn.commit()
 
 
 # =============================================================================
@@ -346,33 +319,22 @@ def upsert_asset(
     sector: Optional[str] = None,
     region: Optional[str] = None,
 ) -> None:
-    """
-    Insert or update asset in universe.
-
-    Args:
-        isin: ISIN identifier
-        name: Asset name
-        symbol: Trading symbol
-        asset_class: Asset class (stock, etf, bond, etc.)
-        sector: Sector classification
-        region: Geographic region
-    """
-    conn = get_connection()
-    conn.execute(
-        """
-        INSERT INTO assets (isin, name, symbol, asset_class, sector, region)
-        VALUES (?, ?, ?, ?, ?, ?)
-        ON CONFLICT(isin) DO UPDATE SET
-            name = excluded.name,
-            symbol = excluded.symbol,
-            asset_class = excluded.asset_class,
-            sector = excluded.sector,
-            region = excluded.region,
-            updated_at = CURRENT_TIMESTAMP
-    """,
-        (isin, name, symbol, asset_class, sector, region),
-    )
-    conn.commit()
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO assets (isin, name, symbol, asset_class, sector, region)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(isin) DO UPDATE SET
+                name = excluded.name,
+                symbol = excluded.symbol,
+                asset_class = excluded.asset_class,
+                sector = excluded.sector,
+                region = excluded.region,
+                updated_at = CURRENT_TIMESTAMP
+        """,
+            (isin, name, symbol, asset_class, sector, region),
+        )
+        conn.commit()
 
 
 def upsert_position(
@@ -382,30 +344,20 @@ def upsert_position(
     cost_basis: float,
     current_price: Optional[float] = None,
 ) -> None:
-    """
-    Insert or update position.
-
-    Args:
-        portfolio_id: Portfolio ID
-        isin: ISIN identifier
-        quantity: Number of shares/units
-        cost_basis: Average cost per share
-        current_price: Current market price (optional)
-    """
-    conn = get_connection()
-    conn.execute(
-        """
-        INSERT INTO positions (portfolio_id, isin, quantity, cost_basis, current_price)
-        VALUES (?, ?, ?, ?, ?)
-        ON CONFLICT(portfolio_id, isin) DO UPDATE SET
-            quantity = excluded.quantity,
-            cost_basis = excluded.cost_basis,
-            current_price = excluded.current_price,
-            updated_at = CURRENT_TIMESTAMP
-    """,
-        (portfolio_id, isin, quantity, cost_basis, current_price),
-    )
-    conn.commit()
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO positions (portfolio_id, isin, quantity, cost_basis, current_price)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(portfolio_id, isin) DO UPDATE SET
+                quantity = excluded.quantity,
+                cost_basis = excluded.cost_basis,
+                current_price = excluded.current_price,
+                updated_at = CURRENT_TIMESTAMP
+        """,
+            (portfolio_id, isin, quantity, cost_basis, current_price),
+        )
+        conn.commit()
 
 
 def sync_positions_from_tr(portfolio_id: int, tr_positions: list[dict]) -> dict:

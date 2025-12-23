@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* Portfolio Prism - Glassmorphic Design System */
 
 :root {

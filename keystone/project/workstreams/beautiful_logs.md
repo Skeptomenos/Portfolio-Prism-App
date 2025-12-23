@@ -2,7 +2,7 @@
 
 > **Feature Plan:** `keystone/plans/BEAUTIFUL_LOGS_FEATURE.md`
 > **Owner:** Sisyphus
-> **Status:** Active
+> **Status:** Done
 > **Last Heartbeat:** 2025-12-22
 
 ---
@@ -43,8 +43,28 @@ Transform the developer experience (DX) by overhauling the terminal output for b
     - **Status:** Done
     - **Workstream:** beautiful-logs
 
-- [ ] **TASK-LOG-007:** Enhance GitHub Feedback Issues with rich metadata and structured formatting.
-    - **Status:** Open
+- [x] **TASK-LOG-008:** Codify Logging Standards in `keystone/standards/python.md`.
+    - **Status:** Done
+    - **Workstream:** beautiful-logs
+    - **Scope:** Add "The Law" for logging (logger setup, exc_info, context).
+
+- [x] **TASK-LOG-009:** Implement `PrismFormatter` (The Face).
+    - **Status:** Done
+    - **Workstream:** beautiful-logs
+    - **Scope:** Create native Python formatter with `PRISM ↳` prefix and ANSI colors.
+
+- [x] **TASK-LOG-010:** Global Interception (Uvicorn & Stdout).
+    - **Status:** Done
+    - **Workstream:** beautiful-logs
+    - **Scope:** Route Uvicorn logs and raw `sys.stdout/stderr` through the `PrismFormatter`.
+
+- [x] **TASK-LOG-011:** Rust Handshake Refinement.
+    - **Status:** Done
+    - **Workstream:** beautiful-logs
+    - **Scope:** Simplify Rust bridge to pass through `PRISM ↳` prefixed lines raw.
+
+- [x] **TASK-LOG-007:** Enhance GitHub Feedback Issues with rich metadata and structured formatting.
+    - **Status:** Done
     - **Workstream:** beautiful-logs
     - **Scope:**
       - Better title: Use first ~50 chars of message (e.g., `[BUG] Login fails after 2FA timeout...`)
@@ -109,7 +129,7 @@ Transform the developer experience (DX) by overhauling the terminal output for b
 ---
 
 ## 🧠 Active State (Session Log)
-> **Current Focus:** GitHub Feedback Issue Enhancement (TASK-LOG-007)
+> **Current Focus:** Workstream complete. All tasks done.
 
 ### Iteration Log
 - **2025-12-22:** E2E tested Echo-Sentinel (all 4 phases). Fixed `ErrorBoundary.tsx` to use `telemetryMode` instead of deprecated `autoReportErrors`. Created architecture doc `keystone/architecture/ECHO_SENTINEL_ARCHITECTURE.md`.

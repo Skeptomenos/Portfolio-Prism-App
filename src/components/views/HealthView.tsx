@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AlertCircle, CheckCircle, RefreshCcw, Clock, Upload, Shield, Eye, Send, Trash2, ExternalLink } from 'lucide-react';
-import { getPipelineReport, runPipeline, getRecentReports, getPendingReviews } from '../../lib/ipc';
-import { useAppStore, useTelemetryMode, useSetTelemetryMode } from '../../store/useAppStore';
+import { getPipelineReport, runPipeline, getRecentReports, getPendingReviews, setHiveContribution, getHiveContribution } from '../../lib/ipc';
+import { useAppStore, useTelemetryMode, useSetTelemetryMode, useHiveContributionEnabled, useSetHiveContributionEnabled } from '../../store/useAppStore';
 import HoldingsUpload from '../HoldingsUpload';
 
 interface HealthData {
@@ -49,6 +49,8 @@ const HealthView = () => {
     const setLastPipelineRun = useAppStore(state => state.setLastPipelineRun);
     const telemetryMode = useTelemetryMode();
     const setTelemetryMode = useSetTelemetryMode();
+    const hiveContributionEnabled = useHiveContributionEnabled();
+    const setHiveContributionEnabled = useSetHiveContributionEnabled();
 
     const loadHealth = async () => {
         try {
@@ -72,6 +74,7 @@ const HealthView = () => {
 
     useEffect(() => {
         loadHealth();
+        getHiveContribution().then(setHiveContributionEnabled);
     }, []);
 
     const handleRunAnalysis = async () => {
@@ -279,6 +282,38 @@ const HealthView = () => {
                         </div>
                     </div>
                 )}
+            </div>
+
+            {/* Hive Community Contribution */}
+            <div className="mb-8 p-6 bg-white/[0.03] border border-white/[0.06] rounded-2xl">
+                <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-4">
+                        <div className={`p-3 rounded-xl ${hiveContributionEnabled ? 'bg-emerald-500/10 text-emerald-500' : 'bg-white/5 text-gray-400'}`}>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                                <path d="M2 17l10 5 10-5"/>
+                                <path d="M2 12l10 5 10-5"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-semibold mb-1">Hive Community Contribution</h2>
+                            <p className="text-gray-400 text-sm max-w-md">
+                                Share anonymized ETF holdings and ticker mappings to help other users. No personal data is ever shared.
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <button
+                        onClick={() => {
+                            const newValue = !hiveContributionEnabled;
+                            setHiveContributionEnabled(newValue);
+                            setHiveContribution(newValue);
+                        }}
+                        className={`relative w-[52px] h-7 rounded-full border-none cursor-pointer transition-colors duration-200 ${hiveContributionEnabled ? 'bg-emerald-500' : 'bg-white/10'}`}
+                    >
+                        <div className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow-md transition-[left] duration-200 ${hiveContributionEnabled ? 'left-[26px]' : 'left-0.5'}`} />
+                    </button>
+                </div>
             </div>
 
             {/* Status Cards */}

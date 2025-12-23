@@ -1,3 +1,5 @@
+// 'critical' is used for automatic system error reports (ErrorBoundary, global handlers)
+// 'functional', 'ui_ux', 'feature' are used for user-submitted feedback via FeedbackDialog
 export type FeedbackType = 'critical' | 'functional' | 'ui_ux' | 'feature';
 
 export interface FeedbackMetadata {
@@ -6,6 +8,12 @@ export interface FeedbackMetadata {
   error?: string;
   componentStack?: string;
   userAgent?: string;
+  view?: string;
+  platform?: string;
+  environment?: 'tauri' | 'browser';
+  positionCount?: number;
+  trConnected?: boolean;
+  lastSync?: string;
   [key: string]: unknown;
 }
 
@@ -19,43 +27,50 @@ export interface FeedbackResponse {
   issue_url: string;
 }
 
-/**
- * Sends feedback or crash reports to the Cloudflare Worker proxy,
- * which creates a GitHub Issue.
- */
 export async function sendFeedback(payload: FeedbackPayload): Promise<FeedbackResponse> {
   const proxyUrl = import.meta.env.VITE_API_PROXY_URL;
+  
+  console.log('[Feedback] Sending feedback...', { 
+    type: payload.type, 
+    proxyUrl: proxyUrl ? `${proxyUrl.substring(0, 30)}...` : 'NOT SET'
+  });
 
   if (!proxyUrl) {
-    console.warn('VITE_API_PROXY_URL not set. Feedback will not be sent.');
-    // Mock response for dev without configured proxy
+    console.warn('[Feedback] VITE_API_PROXY_URL not configured - using mock response');
     return { issue_url: 'https://github.com/mock-issue-url' };
   }
 
-  try {
-    const response = await fetch(`${proxyUrl}/feedback`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        ...payload,
-        metadata: {
-          ...payload.metadata,
-          userAgent: navigator.userAgent,
-          timestamp: new Date().toISOString(),
-          version: import.meta.env.VITE_APP_VERSION || 'dev',
-        },
-      }),
-    });
+  const platform = navigator.platform || 'unknown';
+  const isMac = platform.toLowerCase().includes('mac');
+  const isWindows = platform.toLowerCase().includes('win');
+  const platformName = isMac ? 'macOS' : isWindows ? 'Windows' : 'Linux';
 
-    if (!response.ok) {
-      throw new Error(`Feedback submission failed: ${response.statusText}`);
-    }
+  const requestBody = JSON.stringify({
+    ...payload,
+    metadata: {
+      ...payload.metadata,
+      userAgent: navigator.userAgent,
+      timestamp: new Date().toISOString(),
+      version: import.meta.env.VITE_APP_VERSION || 'dev',
+      platform: platformName,
+    },
+  });
 
-    return await response.json();
-  } catch (error) {
-    console.error('Failed to send feedback:', error);
-    throw error;
+  const response = await fetch(`${proxyUrl}/feedback`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: requestBody,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => response.statusText);
+    console.error('[Feedback] Server error:', response.status, errorText);
+    throw new Error(`Server error (${response.status}): ${errorText}`);
   }
+
+  const result = await response.json();
+  console.log('[Feedback] Success! Issue created:', result.issue_url);
+  return result;
 }

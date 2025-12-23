@@ -10,31 +10,18 @@
 - [ ] iOS companion app using Tauri v2 mobile support
 - [ ] Support additional brokers (Interactive Brokers, Degiro, Scalable Capital)
 - [ ] Historical portfolio tracking (snapshots over time)
-- [ ] Tax lot tracking and optimization hints (consult legal first)
-- [ ] Dark mode / theme customization
-- [ ] Export reports as PDF
 
 ## Deferred
 
-- [ ] **React Frontend v2** — Replace Streamlit with React/TypeScript UI for better UX. Existing React components in `src/` (Dashboard, XRay, Overlap, Holdings views). Deferred to post-MVP. — added: 2024-12-06
-
 - [ ] **Windows/Linux support** — deferred because: macOS-only for MVP, cross-platform testing requires additional resources — added: 2024-12
-
-- [ ] **Real-time price streaming** — deferred because: free APIs don't support it, daily close is sufficient for analysis — added: 2024-12
 
 - [ ] **Multi-broker aggregation** — deferred because: Trade Republic only for MVP, expanding broker support post-validation — added: 2024-12
 
 - [ ] **Manual portfolio entry** — deferred because: focus on automated import first, manual entry is fallback — added: 2024-12
 
-- [ ] **Hive Opt-in UI** — Add preference setting for contribution consent. Currently silent for alpha testers. Required before public release. — added: 2024-12-06
-
 ## Technical Debt
 
-- [ ] **Dead Man's Switch** — Python sidecar should monitor stdin for EOF and self-terminate when Tauri dies. Not yet implemented in `prism_boot.py`. Priority: High before release. — added: 2024-12-06
-
-- [ ] **CSP Configuration** — `tauri.conf.json` has `"csp": null` which is insecure. Lock down before public release. — added: 2024-12-06
-
-- [ ] **Lock File Implementation** — Prevent multiple app instances (`~/.portfolio-prism.lock`). — added: 2024-12-06
+- [ ] **TASK-612: Async I/O for Adapters** — deferred because: High risk refactoring during release-prep phase. Converting `requests` to `httpx` async requires changes to cache decorator, adapter registry, and decomposer. Marginal performance gain (parallel ETF fetches) doesn't justify risk to MVP stability. **Priority:** Get MVP running with smooth UX and automatic issue reporting for rapid iteration. Revisit post-MVP when we have more users and can measure actual bottlenecks. — added: 2024-12
 
 ## Someday/Maybe
 
