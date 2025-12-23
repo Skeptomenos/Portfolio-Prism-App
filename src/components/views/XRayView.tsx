@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import GlassCard from '../GlassCard';
+import PipelineProgressCard from '../common/PipelineProgressCard';
 import { useDashboardData } from '../../hooks/usePortfolioData';
 import { useActivePortfolioId } from '../../store/useAppStore';
 import { runPipeline } from '../../lib/ipc';
@@ -96,42 +97,45 @@ export default function XRayView() {
     if (!hasData) {
         return (
             <div className="animate-fade-in" style={{ textAlign: 'center', padding: '48px', color: 'var(--text-secondary)' }}>
-                <h3>No Analytics Data Available</h3>
-                <p style={{ marginBottom: '20px' }}>Sync your portfolio or run analysis manually to generate X-Ray analytics.</p>
-                
-                {error && (
-                    <div style={{ 
-                        margin: '0 auto 20px auto', 
-                        padding: '12px', 
-                        background: 'rgba(239, 68, 68, 0.1)', 
-                        border: '1px solid rgba(239, 68, 68, 0.2)', 
-                        borderRadius: '8px',
-                        color: '#fca5a5',
-                        maxWidth: '400px',
-                        fontSize: '14px'
-                    }}>
-                        ⚠️ {error}
+                {isAnalyzing ? (
+                    <div style={{ maxWidth: '500px', margin: '0 auto' }}>
+                        <PipelineProgressCard />
                     </div>
-                )}
+                ) : (
+                    <>
+                        <h3>No Analytics Data Available</h3>
+                        <p style={{ marginBottom: '20px' }}>Sync your portfolio or run analysis manually to generate X-Ray analytics.</p>
+                        
+                        {error && (
+                            <div style={{ 
+                                margin: '0 auto 20px auto', 
+                                padding: '12px', 
+                                background: 'rgba(239, 68, 68, 0.1)', 
+                                border: '1px solid rgba(239, 68, 68, 0.2)', 
+                                borderRadius: '8px',
+                                color: '#fca5a5',
+                                maxWidth: '400px',
+                                fontSize: '14px'
+                            }}>
+                                ⚠️ {error}
+                            </div>
+                        )}
 
-                <button
-                    onClick={handleRunAnalysis}
-                    disabled={isAnalyzing}
-                    className="btn btn-primary"
-                    style={{
-                        padding: '10px 20px',
-                        background: 'var(--accent-primary)',
-                        color: 'white',
-                        minWidth: '180px'
-                    }}
-                >
-                    {isAnalyzing ? (
-                       <>
-                         <span className="animate-spin" style={{ marginRight: '8px', display: 'inline-block', border: '2px solid currentColor', borderTopColor: 'transparent', borderRadius: '50%', width: '12px', height: '12px' }}></span>
-                         Running...
-                       </>
-                    ) : 'Run Deep Analysis'}
-                </button>
+                        <button
+                            onClick={handleRunAnalysis}
+                            disabled={isAnalyzing}
+                            className="btn btn-primary"
+                            style={{
+                                padding: '10px 20px',
+                                background: 'var(--accent-primary)',
+                                color: 'white',
+                                minWidth: '180px'
+                            }}
+                        >
+                            Run Deep Analysis
+                        </button>
+                    </>
+                )}
             </div>
         );
     }
@@ -158,11 +162,17 @@ export default function XRayView() {
                     {isAnalyzing ? (
                        <>
                          <span className="animate-spin" style={{ marginRight: '8px', display: 'inline-block', border: '2px solid currentColor', borderTopColor: 'transparent', borderRadius: '50%', width: '12px', height: '12px' }}></span>
-                         Running...
+                         Analyzing...
                        </>
                     ) : 'Run Deep Analysis'}
                 </button>
             </div>
+
+            {isAnalyzing && (
+                <div style={{ marginBottom: '24px' }}>
+                    <PipelineProgressCard />
+                </div>
+            )}
 
             {error && (
                 <div style={{ 

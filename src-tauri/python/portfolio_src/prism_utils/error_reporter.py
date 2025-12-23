@@ -2,23 +2,24 @@
 import json
 import requests
 from typing import List, Optional
-from portfolio_src.config import PROXY_URL, PROXY_API_KEY
+from portfolio_src.config import WORKER_URL
 
 
 def get_app_version() -> str:
     """Get app version from package metadata."""
     try:
         from importlib.metadata import version
+
         return version("portfolio-prism")
     except Exception:
         return "1.0.0"  # Fallback
+
 
 APP_VERSION = get_app_version()
 
 
 def report_to_github(
-    errors: List[dict],
-    pipeline_version: Optional[str] = None
+    errors: List[dict], pipeline_version: Optional[str] = None
 ) -> bool:
     """
     Report anonymized errors to GitHub via Cloudflare proxy.
@@ -30,7 +31,7 @@ def report_to_github(
     Returns:
         True if report was submitted successfully
     """
-    if not PROXY_URL or not PROXY_API_KEY:
+    if not WORKER_URL:
         return False
 
     if not errors:
@@ -47,9 +48,8 @@ def report_to_github(
         }
 
         response = requests.post(
-            f"{PROXY_URL}/github/issues",
+            f"{WORKER_URL}/github/issues",
             json=payload,
-            headers={"X-API-Key": PROXY_API_KEY},
             timeout=10,
         )
         return response.status_code == 201
@@ -73,21 +73,23 @@ def _format_issue_body(errors: List[dict], version: str) -> str:
     ]
 
     for e in errors[:20]:  # Limit to 20
-        phase = e.get('phase', 'UNKNOWN')
-        error_type = e.get('error_type', 'UNKNOWN')
-        item = e.get('item', 'N/A')
-        message = e.get('message', '')[:50]
-        fix_hint = e.get('fix_hint', '')[:30] if e.get('fix_hint') else ''
-        
+        phase = e.get("phase", "UNKNOWN")
+        error_type = e.get("error_type", "UNKNOWN")
+        item = e.get("item", "N/A")
+        message = e.get("message", "")[:50]
+        fix_hint = e.get("fix_hint", "")[:30] if e.get("fix_hint") else ""
+
         lines.append(f"| {phase} | {error_type} | `{item}` | {message} | {fix_hint} |")
 
     if len(errors) > 20:
         lines.append(f"\n*...and {len(errors) - 20} more errors*")
 
-    lines.extend([
-        "",
-        "---",
-        "*This issue was automatically created by Portfolio Prism error reporting.*",
-    ])
+    lines.extend(
+        [
+            "",
+            "---",
+            "*This issue was automatically created by Portfolio Prism error reporting.*",
+        ]
+    )
 
     return "\n".join(lines)

@@ -161,6 +161,39 @@ class Enricher:
         )
         return enriched_map, errors
 
+    def enrich_positions(
+        self, positions: pd.DataFrame
+    ) -> Tuple[pd.DataFrame, List[PipelineError]]:
+        """
+        Enrich direct stock positions with sector/geography metadata.
+
+        Args:
+            positions: DataFrame of direct stock positions
+
+        Returns:
+            Tuple of (enriched_positions, errors)
+        """
+        errors: List[PipelineError] = []
+
+        if positions.empty:
+            return positions, errors
+
+        try:
+            enriched = self._enrich_holdings(positions)
+            logger.info(f"Enriched {len(enriched)} direct positions")
+            return enriched, errors
+        except Exception as e:
+            errors.append(
+                PipelineError(
+                    phase=ErrorPhase.ENRICHMENT,
+                    error_type=ErrorType.API_FAILURE,
+                    item="direct_positions",
+                    message=str(e),
+                    fix_hint="Check API connectivity",
+                )
+            )
+            return positions, errors
+
     def _enrich_holdings(self, holdings: pd.DataFrame) -> pd.DataFrame:
         """
         Add sector, geography, asset_class columns if missing.

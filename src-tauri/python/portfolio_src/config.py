@@ -51,11 +51,12 @@ ENRICHMENT_CACHE_PATH = WORKING_DIR / "enrichment_cache.json"
 PIPELINE_ERRORS_PATH = OUTPUTS_DIR / "pipeline_errors.json"
 PIPELINE_HEALTH_PATH = OUTPUTS_DIR / "pipeline_health.json"
 
-# API Proxy Configuration
-PROXY_URL = os.getenv(
-    "PROXY_URL", "https://portfolio-prism-proxy.bold-unit-582c.workers.dev"
+# Cloudflare Worker URL (single source of truth for all external API calls)
+# Supports both WORKER_URL (preferred) and PROXY_URL (legacy) env vars
+WORKER_URL = os.getenv(
+    "WORKER_URL",
+    os.getenv("PROXY_URL", "https://portfolio-prism-proxy.bold-unit-582c.workers.dev"),
 )
-PROXY_API_KEY = os.getenv("PROXY_API_KEY", "")
 
 # Ensure directories exist
 for directory in [

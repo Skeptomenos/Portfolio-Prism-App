@@ -28,15 +28,15 @@ export interface FeedbackResponse {
 }
 
 export async function sendFeedback(payload: FeedbackPayload): Promise<FeedbackResponse> {
-  const proxyUrl = import.meta.env.VITE_API_PROXY_URL;
+  const workerUrl = import.meta.env.VITE_WORKER_URL;
   
   console.log('[Feedback] Sending feedback...', { 
     type: payload.type, 
-    proxyUrl: proxyUrl ? `${proxyUrl.substring(0, 30)}...` : 'NOT SET'
+    workerUrl: workerUrl ? `${workerUrl.substring(0, 30)}...` : 'NOT SET'
   });
 
-  if (!proxyUrl) {
-    console.warn('[Feedback] VITE_API_PROXY_URL not configured - using mock response');
+  if (!workerUrl) {
+    console.warn('[Feedback] VITE_WORKER_URL not configured - using mock response');
     return { issue_url: 'https://github.com/mock-issue-url' };
   }
 
@@ -56,7 +56,7 @@ export async function sendFeedback(payload: FeedbackPayload): Promise<FeedbackRe
     },
   });
 
-  const response = await fetch(`${proxyUrl}/feedback`, {
+  const response = await fetch(`${workerUrl}/feedback`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

@@ -90,6 +90,59 @@ We replace "handshake agreements" with strict **Schema Definitions** (using Pyda
 2.  **Idempotency:** Running the pipeline twice on the same input yields the exact same output.
 3.  **Fail-Partial:** If one asset fails enrichment, the pipeline logs the error and proceeds with the rest ("Best Effort" analysis).
 4.  **Observability:** Each stage reports specific metrics (Time taken, Row counts, Error rates) to the central telemetry system.
+5.  **Progress Visibility:** Pipeline emits granular progress events so users see the "magic" happening.
+
+---
+
+## Real-Time Progress Communication
+
+> **Decision (2025-12-23):** Use **Server-Sent Events (SSE)** for streaming pipeline progress to the frontend.
+
+### Why "Make the Magic Visible"?
+
+Users clicking "Run Deep Analysis" should see what's happening:
+- "Found 30 holdings..."
+- "Skipping 19 stocks, investigating 11 ETFs..."
+- "Fetching holdings for VWCE (1/11)..."
+- "Enriching with sector data..."
+- "Calculating true exposure..."
+
+This builds trust and makes the app feel responsive, even during longer operations.
+
+### Progress Event Schema
+
+Each pipeline phase emits structured progress:
+
+```python
+emit_progress(
+    progress=45,           # 0-100 percentage
+    message="Fetching ETF holdings (3/11)...",
+    phase="decomposition", # Current pipeline phase
+    details={              # Optional granular info
+        "etf_name": "Vanguard FTSE All-World",
+        "holdings_found": 3420
+    }
+)
+```
+
+### Pipeline Phases & Progress Mapping
+
+| Phase | Progress Range | Example Messages |
+|-------|----------------|------------------|
+| **Initialization** | 0-5% | "Initializing services..." |
+| **Data Loading** | 5-15% | "Found 30 holdings (19 stocks, 11 ETFs)" |
+| **Decomposition** | 15-50% | "Fetching ETF holdings (3/11)..." |
+| **Enrichment** | 50-70% | "Enriching with sector/geo data..." |
+| **Aggregation** | 70-85% | "Calculating true exposure..." |
+| **Reporting** | 85-95% | "Writing reports..." |
+| **Complete** | 100% | "Analysis complete!" |
+
+### Transport
+
+- **Tauri Mode:** Progress emitted via stdout, captured by Rust shell, forwarded as Tauri events
+- **Browser Mode (Echo-Bridge):** Progress streamed via SSE endpoint (`GET /events`)
+
+See `keystone/specs/ipc_api.md` for SSE implementation details.
 
 ---
 

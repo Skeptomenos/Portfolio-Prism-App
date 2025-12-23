@@ -12,8 +12,7 @@ from portfolio_src.prism_utils.validation import is_valid_isin
 # Use absolute import to ensure we get the correct config
 from portfolio_src.config import (
     ASSET_UNIVERSE_PATH,
-    PROXY_URL,
-    PROXY_API_KEY,
+    WORKER_URL,
     OUTPUTS_DIR,
 )
 import pandas as pd
@@ -318,13 +317,11 @@ def enrich_securities_bulk(
             )
 
         # Primary: Finnhub (via proxy if configured, otherwise direct)
-        if PROXY_URL and PROXY_API_KEY:
-            # Distributed mode: route through proxy
+        if WORKER_URL:
             try:
                 response = session.get(
-                    f"{PROXY_URL}/api/finnhub/profile",
+                    f"{WORKER_URL}/api/finnhub/profile",
                     params={"symbol": identifier},
-                    headers={"X-API-Key": PROXY_API_KEY},
                 )
                 if response.status_code == 200:
                     profile_data = response.json()

@@ -12,6 +12,8 @@ from pathlib import Path
 from typing import Optional
 from contextlib import contextmanager
 
+from portfolio_src.models import AssetClass, normalize_asset_class
+
 # Database filename
 DB_FILENAME = "prism.db"
 
@@ -413,7 +415,7 @@ def sync_positions_from_tr(portfolio_id: int, tr_positions: list[dict]) -> dict:
             if current_price is not None:
                 current_price = float(current_price)
 
-            asset_class = pos.get("asset_class", "Equity")
+            asset_class = normalize_asset_class(pos.get("asset_class")).value
             sector = pos.get("sector")
             region = pos.get("region")
 

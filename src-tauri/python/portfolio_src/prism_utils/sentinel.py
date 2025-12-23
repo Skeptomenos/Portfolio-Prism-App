@@ -51,6 +51,8 @@ async def audit_previous_session():
             batches[key].append(log)
 
         telemetry = get_telemetry()
+        successfully_reported_ids: List[int] = []
+        failed_batches: List[str] = []
 
         for key, batch in batches.items():
             component, category = key.split(":")
@@ -95,11 +97,28 @@ async def audit_previous_session():
 
             if issue_url:
                 logger.info(f"Echo-Sentinel: Reported batch {key} -> {issue_url}")
+                successfully_reported_ids.extend([l["id"] for l in batch])
             else:
-                logger.info(f"Echo-Sentinel: Batch {key} rate-limited or failed.")
+                failed_batches.append(key)
+                logger.warning(
+                    f"Echo-Sentinel: Batch {key} not reported. "
+                    "Check WORKER_URL configuration or rate limits."
+                )
 
-        mark_logs_processed([l["id"] for l in logs])
-        logger.info("Echo-Sentinel: Audit complete. All logs marked as processed.")
+        non_error_ids = [
+            l["id"] for l in logs if l["level"] not in ("ERROR", "CRITICAL")
+        ]
+        mark_logs_processed(non_error_ids + successfully_reported_ids)
+
+        if failed_batches:
+            logger.warning(
+                f"Echo-Sentinel: {len(failed_batches)} batches failed to report. "
+                "Will retry on next startup."
+            )
+        else:
+            logger.info(
+                "Echo-Sentinel: Audit complete. All errors reported successfully."
+            )
 
     except Exception as e:
         logger.error(f"Echo-Sentinel: Audit failed: {e}", exc_info=True)

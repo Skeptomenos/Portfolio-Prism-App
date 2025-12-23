@@ -24,7 +24,7 @@ from urllib.request import urlopen, Request
 from urllib.error import HTTPError, URLError
 
 from portfolio_src.prism_utils.logging_config import get_logger
-from portfolio_src.config import PROXY_URL, PROXY_API_KEY
+from portfolio_src.config import WORKER_URL
 
 logger = get_logger(__name__)
 
@@ -36,12 +36,12 @@ GITHUB_REPO = "Portfolio-Prism"
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 TELEMETRY_STATE_FILE = PROJECT_ROOT / "data" / "working" / ".telemetry_state.json"
 
-# Rate limits
+# Rate limits (per day) - higher limits during development
 RATE_LIMITS = {
     "adapter_not_found": {"per_isin": True, "max_per_day": None},
-    "scraper_failed": {"per_isin": True, "max_per_day": 1},
+    "scraper_failed": {"per_isin": True, "max_per_day": 10},
     "isin_not_resolved": {"per_isin": True, "max_per_day": None},
-    "unexpected_error": {"per_isin": False, "max_per_day": 5},
+    "unexpected_error": {"per_isin": False, "max_per_day": 50},
     "missing_asset": {"per_isin": True, "max_per_day": None},
 }
 
@@ -183,8 +183,11 @@ class Telemetry:
             f"| Docker Mode | {os.getenv('DOCKER_MODE', 'false')} |\n"
         )
 
-        if not self.github_token and not (PROXY_URL and PROXY_API_KEY):
-            # Cache for later
+        if not self.github_token and not WORKER_URL:
+            logger.warning(
+                "Telemetry: No credentials configured. "
+                "Set GITHUB_ISSUES_TOKEN or WORKER_URL to enable error reporting."
+            )
             self._state.setdefault("pending_reports", []).append(
                 {
                     "error_type": error_type,
@@ -201,10 +204,11 @@ class Telemetry:
             return None
 
         try:
-            issue = self._create_issue(title, full_body, labels or [], error_hash)
+            result = self._create_issue(title, full_body, labels or [], error_hash)
             self._mark_reported(error_type, isin)
-            logger.info(f"Reported issue: {issue['html_url']}")
-            return issue["html_url"]
+            issue_url = result.get("issue_url") or result.get("html_url")
+            logger.info(f"Reported issue: {issue_url}")
+            return issue_url
         except Exception as e:
             logger.warning(f"Failed to report issue: {e}")
             return None
@@ -225,11 +229,9 @@ class Telemetry:
             "error_hash": error_hash,
         }
 
-        if PROXY_URL and PROXY_API_KEY:
-            # Distributed mode: route through proxy
-            url = f"{PROXY_URL}/report"
+        if WORKER_URL:
+            url = f"{WORKER_URL}/report"
             req = Request(url, method="POST")
-            req.add_header("X-API-Key", PROXY_API_KEY)
             req.add_header("Content-Type", "application/json")
             req.add_header("User-Agent", "Portfolio-Prism")
         else:

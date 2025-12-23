@@ -140,7 +140,7 @@ def setup_session(http_mode: bool = False) -> str:
         from portfolio_src.prism_utils.logging_config import StreamToLogger
 
         sys.stdout = StreamToLogger(get_logger("STDOUT"), logging.INFO)
-        sys.stderr = StreamToLogger(get_logger("STDERR"), logging.ERROR)
+        sys.stderr = StreamToLogger(get_logger("STDERR"), logging.WARNING)
 
     logger.info(f"Session started: {_session_id}")
     return _session_id

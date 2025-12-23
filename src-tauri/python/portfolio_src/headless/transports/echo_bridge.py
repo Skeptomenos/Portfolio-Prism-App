@@ -7,9 +7,14 @@ This is strategic infrastructure for rapid iteration:
 - Frontend developers can test without building the full Tauri app
 - Enables hot-reload workflows
 - Provides a REST-like interface for debugging
+
+SSE Support:
+- GET /events - Server-Sent Events endpoint for real-time progress updates
+- Broadcasts pipeline progress to all connected clients
 """
 
 import asyncio
+import json
 import os
 import sys
 from contextlib import asynccontextmanager
@@ -23,6 +28,87 @@ logger = get_logger(__name__)
 
 # Engine version
 VERSION = "0.1.0"
+
+# =============================================================================
+# SSE Progress Broadcasting Infrastructure
+# =============================================================================
+
+# Connected SSE clients - each client gets a queue for receiving events
+_progress_clients: set[asyncio.Queue] = set()
+_clients_lock = asyncio.Lock()
+
+
+async def add_sse_client(queue: asyncio.Queue) -> None:
+    """Register a new SSE client.
+
+    Args:
+        queue: The asyncio.Queue for this client's events.
+    """
+    async with _clients_lock:
+        _progress_clients.add(queue)
+        logger.debug(f"SSE client connected. Total clients: {len(_progress_clients)}")
+
+
+async def remove_sse_client(queue: asyncio.Queue) -> None:
+    """Unregister an SSE client.
+
+    Args:
+        queue: The asyncio.Queue to remove.
+    """
+    async with _clients_lock:
+        _progress_clients.discard(queue)
+        logger.debug(
+            f"SSE client disconnected. Total clients: {len(_progress_clients)}"
+        )
+
+
+def broadcast_progress(progress: int, message: str, phase: str = "pipeline") -> None:
+    """Broadcast progress to all connected SSE clients.
+
+    This is called from emit_progress() in sync.py to push updates to browser clients.
+    Thread-safe: can be called from executor threads.
+
+    Args:
+        progress: Progress percentage (0-100).
+        message: Human-readable progress message.
+        phase: Pipeline phase identifier (e.g., 'loading', 'decomposition', 'enrichment').
+    """
+    event_data = {
+        "type": "progress",
+        "progress": progress,
+        "message": message,
+        "phase": phase,
+    }
+
+    try:
+        loop = asyncio.get_running_loop()
+        loop.call_soon_threadsafe(_broadcast_sync, event_data)
+    except RuntimeError:
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                loop.call_soon_threadsafe(_broadcast_sync, event_data)
+        except RuntimeError:
+            pass
+
+
+def _broadcast_sync(event_data: dict) -> None:
+    """Synchronous broadcast helper - puts event in all client queues.
+
+    Called via call_soon_threadsafe from broadcast_progress.
+    """
+    clients = _progress_clients.copy()
+    if not clients:
+        return
+
+    for queue in clients:
+        try:
+            queue.put_nowait(event_data)
+        except asyncio.QueueFull:
+            logger.warning("SSE client queue full, dropping event")
+        except Exception as e:
+            logger.warning(f"Failed to queue SSE event: {e}")
+
 
 # Check if HTTP dependencies are available
 try:
@@ -152,6 +238,61 @@ def run_echo_bridge(host: str = "0.0.0.0", port: int = 5001) -> None:
             "version": VERSION,
             "sessionId": get_session_id(),
         }
+
+    @app.get("/events")
+    async def sse_events(request: Request):
+        """Server-Sent Events endpoint for real-time progress updates.
+
+        Clients connect here to receive pipeline progress events.
+        Events are sent in SSE format: "data: {json}\n\n"
+
+        Event types:
+        - connected: Initial connection confirmation
+        - progress: Pipeline progress update with progress%, message, phase
+        - heartbeat: Keep-alive ping (every 30s)
+
+        Returns:
+            StreamingResponse with text/event-stream content type.
+        """
+        from starlette.responses import StreamingResponse
+
+        # Create a queue for this client
+        client_queue: asyncio.Queue = asyncio.Queue(maxsize=100)
+
+        async def event_generator():
+            """Generate SSE events for this client."""
+            await add_sse_client(client_queue)
+            try:
+                # Send initial connection event
+                yield f"data: {json.dumps({'type': 'connected', 'sessionId': get_session_id()})}\n\n"
+
+                heartbeat_interval = 30  # seconds
+
+                while True:
+                    try:
+                        # Wait for event with timeout for heartbeat
+                        event = await asyncio.wait_for(
+                            client_queue.get(), timeout=heartbeat_interval
+                        )
+                        yield f"data: {json.dumps(event)}\n\n"
+                    except asyncio.TimeoutError:
+                        # Send heartbeat to keep connection alive
+                        yield f"data: {json.dumps({'type': 'heartbeat'})}\n\n"
+                    except asyncio.CancelledError:
+                        # Client disconnected
+                        break
+            finally:
+                await remove_sse_client(client_queue)
+
+        return StreamingResponse(
+            event_generator(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",  # Disable nginx buffering
+            },
+        )
 
     logger.info(f"Starting Echo-Bridge on http://{host}:{port}")
     uvicorn.run(app, host=host, port=port, log_config=None)

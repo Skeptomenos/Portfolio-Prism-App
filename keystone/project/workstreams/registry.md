@@ -12,6 +12,7 @@
 | `tailwind-migration-fix` | `keystone/project/workstreams/tailwind-migration-fix.md` | `PP-UI-main` | `Done` | 2025-12-22 |
 | `beautiful-logs` | `keystone/project/workstreams/beautiful_logs.md` | `AutoFeedback` | `Active` | 2025-12-22 |
 | `prism-refactor` | `keystone/project/workstreams/prism_refactor.md` | `None` | `Backlog` | 2025-12-22 |
+| `pipeline-progress-ux` | `keystone/project/workstreams/pipeline-progress-ux.md` | `Pipeline Optimization` | `Active` | 2025-12-23 |
 
 ---
 

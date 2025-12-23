@@ -102,6 +102,60 @@ Heartbeat check.
 
 **Transport:** Tauri Events (`window.emit`). React subscribes via `listen()`.
 
+### 2.0 Browser Mode: Server-Sent Events (SSE)
+
+> **Decision (2025-12-23):** For browser-based development and testing (Echo-Bridge mode), we use **Server-Sent Events (SSE)** instead of WebSocket for real-time progress updates.
+
+**Why SSE over WebSocket?**
+
+| Aspect | SSE | WebSocket |
+|--------|-----|-----------|
+| **Direction** | Server → Client (one-way) | Bidirectional |
+| **Complexity** | Simple HTTP streaming | Separate protocol |
+| **Our Need** | Progress updates only | Would be overkill |
+| **Upgrade Path** | Easy migration to WS later | N/A |
+
+**SSE is like a radio broadcast** — the server announces progress, the client listens. WebSocket is like a phone call — both sides talk. For pipeline progress, we only need the server to talk.
+
+**Implementation:**
+
+```
+┌─────────────────┐         SSE Stream          ┌─────────────┐
+│  Echo-Bridge    │ ──── /events endpoint ────► │   Browser   │
+│  (Python/HTTP)  │                             │   (React)   │
+└─────────────────┘                             └─────────────┘
+        │                                              │
+        │  emit_progress(50, "Enriching...")           │
+        │  ─────────────────────────────────────────►  │
+        │  data: {"progress":50,"message":"..."}       │
+        │                                              │
+```
+
+**Endpoint:** `GET /events`
+- Returns `text/event-stream` content type
+- Streams JSON progress events
+- Auto-reconnects on disconnect (browser handles this)
+
+**Event Format:**
+```
+data: {"progress": 50, "message": "Enriching ETF holdings...", "phase": "enrichment"}
+
+data: {"progress": 75, "message": "Calculating exposures...", "phase": "aggregation"}
+
+data: {"progress": 100, "message": "Complete!", "phase": "done"}
+```
+
+**Frontend Usage:**
+```typescript
+const eventSource = new EventSource('http://127.0.0.1:5001/events');
+eventSource.onmessage = (e) => {
+  const { progress, message, phase } = JSON.parse(e.data);
+  setProgress({ progress, message, phase });
+};
+```
+
+**Future Upgrade Path:** If we later need bidirectional communication (e.g., "Cancel pipeline mid-run"), we can upgrade to WebSocket with minimal frontend changes.
+
 ### 2.1 `portfolio-updated`
 Emitted when the Python engine successfully completes a sync or calculation.
 

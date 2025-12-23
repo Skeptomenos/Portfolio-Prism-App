@@ -55,7 +55,9 @@ class ProxyClient:
             proxy_url: Base URL of the Cloudflare Worker. Defaults to env var or production URL.
             timeout: Request timeout in seconds
         """
-        self.proxy_url = proxy_url or os.getenv("PROXY_URL", self.DEFAULT_PROXY_URL)
+        self.proxy_url = proxy_url or os.getenv(
+            "WORKER_URL", os.getenv("PROXY_URL", self.DEFAULT_PROXY_URL)
+        )
         self.timeout = timeout
         self._session = requests.Session()
 

@@ -133,21 +133,23 @@ class Pipeline:
         self._aggregator = Aggregator()
 
     def run(
-        self, progress_callback: Optional[Callable[[str, float], None]] = None
+        self, progress_callback: Optional[Callable[[str, float, str], None]] = None
     ) -> PipelineResult:
         """
         Run the full analytics pipeline.
 
         Args:
-            progress_callback: Function to call with (status_text, progress_0_to_1)
+            progress_callback: Function to call with (status_text, progress_0_to_1, phase)
+                             Phase is one of: 'loading', 'decomposition', 'enrichment',
+                             'aggregation', 'reporting', 'complete'
 
         Returns:
             PipelineResult with success status, metrics, and errors
         """
         # Default progress callback if none provided
         if progress_callback is None:
-            progress_callback = lambda msg, pct: logger.info(
-                f"[{pct * 100:.0f}%] {msg}"
+            progress_callback = lambda msg, pct, phase: logger.info(
+                f"[{pct * 100:.0f}%] [{phase}] {msg}"
             )
 
         errors = []
@@ -163,7 +165,7 @@ class Pipeline:
         try:
             # Initialize services
             start = time.time()
-            progress_callback("Initializing services...", 0.05)
+            progress_callback("Initializing services...", 0.05, "loading")
             self._init_services()
             monitor.record_phase("initialization", time.time() - start)
 
@@ -172,8 +174,18 @@ class Pipeline:
 
             # Phase 1: Load data
             start = time.time()
-            progress_callback("Loading portfolio...", 0.1)
+            progress_callback("Loading portfolio...", 0.1, "loading")
             direct_positions, etf_positions = self._load_portfolio()
+
+            stock_count = len(direct_positions)
+            etf_count = len(etf_positions)
+            total_holdings = stock_count + etf_count
+            if total_holdings > 0:
+                progress_callback(
+                    f"Found {total_holdings} holdings ({stock_count} stocks, {etf_count} ETFs)",
+                    0.15,
+                    "loading",
+                )
             monitor.record_phase("data_loading", time.time() - start)
 
             if direct_positions.empty and etf_positions.empty:
@@ -197,42 +209,75 @@ class Pipeline:
 
             # Phase 2: Decompose ETFs (via service)
             start = time.time()
-            progress_callback("Decomposing ETFs...", 0.3)
+            if etf_count > 0:
+                progress_callback(
+                    f"Decomposing {etf_count} ETFs...", 0.25, "decomposition"
+                )
+            else:
+                progress_callback("No ETFs to decompose", 0.25, "decomposition")
             holdings_map, decompose_errors = self._decomposer.decompose(etf_positions)
+
+            total_underlying = sum(len(h) for h in holdings_map.values())
+            if total_underlying > 0:
+                progress_callback(
+                    f"Extracted {total_underlying} underlying holdings from {len(holdings_map)} ETFs",
+                    0.4,
+                    "decomposition",
+                )
             errors.extend(decompose_errors)
             monitor.record_phase("etf_decomposition", time.time() - start)
 
             # Phase 3: Enrich (via service)
             start = time.time()
-            progress_callback("Enriching holdings...", 0.5)
+            progress_callback(
+                f"Enriching {total_underlying} holdings...", 0.5, "enrichment"
+            )
             enriched_holdings, enrich_errors = self._enricher.enrich(holdings_map)
             errors.extend(enrich_errors)
+
+            progress_callback(
+                f"Enriching {len(direct_positions)} direct positions...",
+                0.55,
+                "enrichment",
+            )
+            direct_positions, direct_enrich_errors = self._enricher.enrich_positions(
+                direct_positions
+            )
+            errors.extend(direct_enrich_errors)
+
+            progress_callback(
+                "Fetching sector and geography data...", 0.6, "enrichment"
+            )
             monitor.record_phase("enrichment", time.time() - start)
 
-            # Record enrichment metrics (Assume hive for now until Enricher returns sources)
             for isin in holdings_map.keys():
                 monitor.record_enrichment("hive")
 
             # Phase 4: Aggregate (via service)
             start = time.time()
-            progress_callback("Calculating exposures...", 0.7)
+            progress_callback("Calculating true exposure...", 0.7, "aggregation")
             exposure_df, agg_errors = self._aggregator.aggregate(
                 direct_positions, etf_positions, enriched_holdings
+            )
+
+            unique_securities = len(exposure_df) if not exposure_df.empty else 0
+            progress_callback(
+                f"Aggregated {unique_securities} unique securities", 0.8, "aggregation"
             )
             errors.extend(agg_errors)
             monitor.record_phase("aggregation", time.time() - start)
 
             # Phase 5: Write reports
             start = time.time()
-            progress_callback("Writing reports...", 0.85)
+            progress_callback("Writing reports...", 0.85, "reporting")
             self._write_reports(exposure_df, direct_positions, etf_positions)
             monitor.record_phase("reporting", time.time() - start)
 
             # Phase 6: Auto-harvest (non-fatal)
-            progress_callback("Harvesting new securities...", 0.95)
+            progress_callback("Harvesting new securities...", 0.95, "reporting")
             harvested_count = self._harvest()
 
-            progress_callback("Complete!", 1.0)
+            progress_callback("Analysis complete!", 1.0, "complete")
 
             total_value = calculate_portfolio_total_value(
                 direct_positions, etf_positions

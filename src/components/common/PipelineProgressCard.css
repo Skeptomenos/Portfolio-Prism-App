@@ -1,0 +1,361 @@
+/* =============================================================================
+   PipelineProgressCard - Refined Technical Aesthetic
+   ============================================================================= */
+
+.pipeline-progress-card {
+  padding: 24px;
+  position: relative;
+  background: linear-gradient(
+    135deg,
+    rgba(15, 23, 42, 0.6) 0%,
+    rgba(30, 41, 59, 0.4) 100%
+  );
+}
+
+/* -----------------------------------------------------------------------------
+   Header
+   ----------------------------------------------------------------------------- */
+
+.pipeline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.pipeline-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.02em;
+}
+
+.pipeline-icon {
+  font-size: 18px;
+  color: var(--accent-cyan);
+  animation: iconPulse 2s ease-in-out infinite;
+}
+
+@keyframes iconPulse {
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+
+/* Connection Indicator */
+.connection-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.connection-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.connection-indicator.connected .connection-dot {
+  background: var(--accent-emerald);
+  box-shadow: 0 0 8px var(--accent-emerald);
+}
+
+.connection-indicator.connected .connection-label {
+  color: var(--accent-emerald);
+}
+
+.connection-indicator.disconnected .connection-dot {
+  background: var(--accent-red);
+  animation: blink 1s ease-in-out infinite;
+}
+
+.connection-indicator.disconnected .connection-label {
+  color: var(--text-tertiary);
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* -----------------------------------------------------------------------------
+   Progress Section
+   ----------------------------------------------------------------------------- */
+
+.pipeline-progress-section {
+  margin-bottom: 28px;
+}
+
+/* Percentage Display */
+.progress-percentage {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  margin-bottom: 16px;
+}
+
+.progress-value {
+  font-family: var(--font-mono);
+  font-size: 48px;
+  font-weight: 700;
+  line-height: 1;
+  background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-cyan) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-variant-numeric: tabular-nums;
+}
+
+.progress-symbol {
+  font-family: var(--font-mono);
+  font-size: 24px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+
+/* Progress Bar */
+.progress-bar-container {
+  margin-bottom: 16px;
+}
+
+.progress-bar-track {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-blue) 0%, var(--accent-cyan) 100%);
+  border-radius: 4px;
+  position: relative;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.progress-bar-fill.complete {
+  background: linear-gradient(90deg, var(--accent-emerald) 0%, var(--accent-cyan) 100%);
+}
+
+.progress-bar-shimmer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.3) 50%,
+    transparent 100%
+  );
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* Message */
+.progress-message-container {
+  min-height: 20px;
+  overflow: hidden;
+}
+
+.progress-message {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0;
+  animation: messageFade 0.3s ease-out;
+}
+
+@keyframes messageFade {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* -----------------------------------------------------------------------------
+   Phase Stepper
+   ----------------------------------------------------------------------------- */
+
+.phase-stepper {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 20px 0 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.phase-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  flex: 1;
+}
+
+.phase-node {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  position: relative;
+  z-index: 1;
+}
+
+/* Phase States */
+.phase-step.pending .phase-node {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-tertiary);
+}
+
+.phase-step.active .phase-node {
+  background: rgba(59, 130, 246, 0.15);
+  border: 2px solid var(--accent-blue);
+  color: var(--accent-cyan);
+  box-shadow: 0 0 16px rgba(59, 130, 246, 0.3);
+  animation: activeGlow 1.5s ease-in-out infinite;
+}
+
+@keyframes activeGlow {
+  0%, 100% { box-shadow: 0 0 12px rgba(59, 130, 246, 0.3); }
+  50% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.5); }
+}
+
+.phase-step.complete .phase-node {
+  background: rgba(16, 185, 129, 0.15);
+  border: 2px solid var(--accent-emerald);
+  color: var(--accent-emerald);
+}
+
+.phase-icon {
+  font-size: 12px;
+}
+
+.phase-check {
+  width: 14px;
+  height: 14px;
+  stroke: var(--accent-emerald);
+}
+
+.phase-label {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  transition: color 0.3s ease;
+}
+
+.phase-step.pending .phase-label {
+  color: var(--text-tertiary);
+}
+
+.phase-step.active .phase-label {
+  color: var(--accent-cyan);
+}
+
+.phase-step.complete .phase-label {
+  color: var(--accent-emerald);
+}
+
+/* Phase Connectors */
+.phase-connector {
+  position: absolute;
+  top: 16px;
+  left: calc(50% + 20px);
+  width: calc(100% - 40px);
+  height: 2px;
+  background: rgba(255, 255, 255, 0.08);
+  z-index: 0;
+  transition: background 0.3s ease;
+}
+
+.phase-connector.complete {
+  background: linear-gradient(90deg, var(--accent-emerald) 0%, var(--accent-cyan) 100%);
+}
+
+/* -----------------------------------------------------------------------------
+   Completion State
+   ----------------------------------------------------------------------------- */
+
+.pipeline-complete {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  animation: completeFade 0.5s ease-out;
+}
+
+@keyframes completeFade {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.complete-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--accent-emerald);
+}
+
+.complete-badge svg {
+  width: 18px;
+  height: 18px;
+  stroke: var(--accent-emerald);
+}
+
+/* -----------------------------------------------------------------------------
+   Responsive
+   ----------------------------------------------------------------------------- */
+
+@media (max-width: 600px) {
+  .pipeline-progress-card {
+    padding: 20px;
+  }
+
+  .progress-value {
+    font-size: 36px;
+  }
+
+  .phase-label {
+    font-size: 9px;
+  }
+
+  .phase-node {
+    width: 28px;
+    height: 28px;
+  }
+}

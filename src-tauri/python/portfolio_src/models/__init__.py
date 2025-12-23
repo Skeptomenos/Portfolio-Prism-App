@@ -11,11 +11,15 @@ Usage:
     from models import Position, ETFHolding, ExposureRecord
 """
 
+from .asset_class import AssetClass, normalize_asset_class
 from .portfolio import Position, DirectPosition, ETFPosition
 from .holdings import ETFHolding, ClassifiedHolding, EnrichedHolding
 from .exposure import ExposureRecord, AggregatedExposure
 
 __all__ = [
+    # Asset classification
+    "AssetClass",
+    "normalize_asset_class",
     # Portfolio models
     "Position",
     "DirectPosition",

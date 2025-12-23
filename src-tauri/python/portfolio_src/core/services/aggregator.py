@@ -193,15 +193,37 @@ class Aggregator:
             else "Unknown"
         )
 
-        # Exposure (Value)
-        if value_col:
+        # Exposure (Value) - calculate as quantity * price if no market_value
+        if value_col and value_col == "market_value":
+            # Direct market value column available
             vals = direct_positions[value_col]
             if isinstance(vals, pd.DataFrame):
                 vals = vals.iloc[:, 0]
-            # Use getattr to bypass static analysis for fillna
             numeric_vals = pd.to_numeric(cast(Any, vals), errors="coerce")
             df["total_exposure"] = getattr(numeric_vals, "fillna")(0.0)
+        elif (
+            "quantity" in direct_positions.columns
+            and "price" in direct_positions.columns
+        ):
+            # Calculate from quantity * price
+            qty = pd.to_numeric(direct_positions["quantity"], errors="coerce").fillna(0)
+            price = pd.to_numeric(direct_positions["price"], errors="coerce").fillna(0)
+            df["total_exposure"] = qty * price
+        elif (
+            "quantity" in direct_positions.columns
+            and "current_price" in direct_positions.columns
+        ):
+            # Fallback: use current_price column name directly
+            qty = pd.to_numeric(direct_positions["quantity"], errors="coerce").fillna(0)
+            price = pd.to_numeric(
+                direct_positions["current_price"], errors="coerce"
+            ).fillna(0)
+            df["total_exposure"] = qty * price
         else:
+            logger.warning(
+                f"Cannot calculate exposure: missing value columns. "
+                f"Available: {list(direct_positions.columns)}"
+            )
             df["total_exposure"] = 0.0
 
         return df

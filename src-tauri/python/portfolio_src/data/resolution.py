@@ -30,7 +30,7 @@ from typing import Dict, List, Literal, Optional, Any
 import pandas as pd
 import requests
 
-from portfolio_src.config import ASSET_UNIVERSE_PATH, PROXY_URL, PROXY_API_KEY
+from portfolio_src.config import ASSET_UNIVERSE_PATH
 from portfolio_src.prism_utils.isin_validator import is_valid_isin, is_placeholder_isin
 from portfolio_src.prism_utils.logging_config import get_logger
 from portfolio_src.data.manual_enrichments import load_manual_enrichments
