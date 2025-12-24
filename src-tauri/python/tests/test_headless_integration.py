@@ -16,10 +16,10 @@ class TestHeadlessIntegration:
     """Integration verification between Headless Engine and Pipeline."""
 
     @patch("prism_headless.get_bridge")
-    @patch("portfolio_src.core.pipeline.Pipeline")  # Patch where it is imported/used
+    @patch("portfolio_src.core.pipeline.Pipeline")
     @patch("portfolio_src.data.database.sync_positions_from_tr")
     @patch("portfolio_src.data.database.update_sync_state")
-    @patch("prism_headless.emit_progress")
+    @patch("portfolio_src.headless.handlers.sync.emit_progress")
     def test_sync_portfolio_triggers_pipeline(
         self,
         mock_emit_progress,

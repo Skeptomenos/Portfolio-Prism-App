@@ -88,12 +88,11 @@ class TestProgressCallback:
 
         progress_calls = []
 
-        def mock_callback(msg: str, pct: float):
-            progress_calls.append((msg, pct))
+        def mock_callback(msg: str, pct: float, phase: str):
+            progress_calls.append((msg, pct, phase))
 
         pipeline = Pipeline()
 
-        # Mock _load_portfolio to return empty data (avoids real file access)
         import pandas as pd
 
         with patch.object(
@@ -102,10 +101,8 @@ class TestProgressCallback:
             with patch.object(pipeline, "_init_services"):
                 result = pipeline.run(progress_callback=mock_callback)
 
-        # Should have at least called progress_callback once
         assert len(progress_calls) > 0
-        # First call should be initialization
-        assert any("Initializing" in msg for msg, _ in progress_calls)
+        assert any("Initializing" in msg for msg, _, _ in progress_calls)
 
 
 class TestHarvesting:
