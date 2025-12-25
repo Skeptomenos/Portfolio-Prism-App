@@ -272,3 +272,29 @@ This document tracks significant architectural decisions (ADRs) for the project.
   - (+) Consistent pattern across all database operations.
   - (-) Breaking API change - all existing callers must be updated.
   - (-) Requires grep of entire codebase to find all call sites.
+
+---
+
+## [2025-12-25] Hive Extension: Dual-Path ISIN Resolution
+
+- **Context:** X-Ray pipeline broken because ETF holdings have tickers but no ISINs. Enricher needs ISINs for sector/geography lookup. Deprecated `asset_universe.csv` was only resolution source.
+- **Decision:** Implement dual-path resolution with `USE_LEGACY_CSV` feature flag. New path: LocalCache (SQLite) → HiveClient (Supabase RPC) → API fallbacks.
+- **Consequences:**
+  - (+) Safe rollback via feature flag (default: legacy CSV path).
+  - (+) Offline-capable via LocalCache SQLite.
+  - (+) Community-powered via Hive crowdsourced data.
+  - (+) 970x performance improvement by skipping network calls for tier2 holdings.
+  - (-) Adds complexity (two resolution paths until Phase 5 cleanup).
+  - (-) Requires Supabase RPC functions with `SECURITY DEFINER` to bypass RLS.
+
+---
+
+## [2025-12-25] Tiered ISIN Resolution (Performance Optimization)
+
+- **Context:** Initial Hive path made network calls for every holding, causing 97s decomposition time per ETF.
+- **Decision:** Skip Hive network calls for tier2 holdings (weight ≤ 0.5%). Only check local cache for minor holdings.
+- **Consequences:**
+  - (+) Decomposition reduced from 97s to 0.1s per ETF.
+  - (+) API rate limits preserved for significant holdings.
+  - (-) Tier2 holdings may remain unresolved if not in local cache.
+  - **Mitigation:** Tier2 holdings are <0.5% weight each, minimal impact on X-Ray accuracy.

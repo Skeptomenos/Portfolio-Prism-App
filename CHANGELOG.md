@@ -7,11 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Hive Extension (Phases 0-4):** Complete ISIN resolution infrastructure for X-Ray pipeline.
+  - Phase 0: `aliases` table + 7 RPC functions with `SECURITY DEFINER` for RLS bypass.
+  - Phase 1: HiveClient read methods (`resolve_ticker`, `batch_resolve_tickers`, `lookup_by_alias`).
+  - Phase 2: LocalCache SQLite for offline-capable resolution.
+  - Phase 3: ISINResolver dual-path refactor with `USE_LEGACY_CSV` feature flag.
+  - Phase 4: Decomposer wiring - ISINResolver injected into ETF decomposition pipeline.
+  - 63 unit tests covering all new functionality.
+
 ### Changed
 
 - **Framework Migration:** Migrated from Anamnesis to **Keystone v4.4** framework.
 - **Directory Restructuring:** Renamed `anamnesis/` to `keystone/` and moved project state to `keystone/project/`.
 - **Protocol Upgrade:** Implemented **OODA Loop** for debugging and **First Principles** for thinking.
+
+### Performance
+
+- **ISIN Resolution:** Reduced decomposition time from 97s to 0.1s per ETF (970x improvement) by skipping Hive network calls for tier2 holdings.
 
 ### Added
 

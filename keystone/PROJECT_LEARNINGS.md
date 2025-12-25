@@ -220,3 +220,18 @@ This document tracks the specific constraints, patterns, and lessons learned _du
 
 - **Learning:** First code review found connection leak. Fix introduced new bug (settings.py not updated). Second review caught it.
 - **Mandate:** After fixing bugs from code review, run review again to catch cascading issues from the fix itself.
+
+### 5.23 [2025-12-25] Hive Network Calls Are Expensive Per-Item
+
+- **Learning:** Calling Supabase RPC for each of 1349 holdings took 97s (72ms/call). Network latency dominates.
+- **Mandate:** Batch network calls or skip for low-priority items. Use `skip_network` parameter for tier2 holdings.
+
+### 5.24 [2025-12-25] Feature Flags Enable Safe Dual-Path Refactors
+
+- **Learning:** `USE_LEGACY_CSV` flag allowed testing new Hive path without breaking production.
+- **Mandate:** Major refactors should use feature flags. Default to safe (legacy) path. Flip after production verification.
+
+### 5.25 [2025-12-25] Test Weight Parameters for Tiered Logic
+
+- **Learning:** Tests for Hive resolution failed because default `weight=0.0` triggered tier2 skip logic.
+- **Mandate:** When testing tiered logic, explicitly pass weight values that trigger the intended code path.

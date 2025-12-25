@@ -144,6 +144,78 @@ class TestHiveResolutionChain:
                 assert result.status == "unresolved"
                 assert result.detail == "hive_miss"
 
+    @patch("portfolio_src.data.resolution.USE_LEGACY_CSV", False)
+    def test_tier2_resolves_via_local_cache(self):
+        """Test that tier2 holdings still resolve if found in local cache."""
+        with patch("portfolio_src.data.resolution.get_local_cache") as mock_cache_fn:
+            with patch("portfolio_src.data.resolution.get_hive_client") as mock_hive_fn:
+                mock_cache = MagicMock()
+                mock_cache.get_isin_by_ticker.return_value = "US0378331005"
+                mock_cache.is_stale.return_value = False
+                mock_cache_fn.return_value = mock_cache
+
+                mock_hive = MagicMock()
+                mock_hive_fn.return_value = mock_hive
+
+                resolver = ISINResolver(tier1_threshold=0.5)
+                # Pass weight <= threshold (0.1)
+                result = resolver.resolve("AAPL", "Apple Inc", weight=0.1)
+
+                assert result.isin == "US0378331005"
+                assert result.detail == "local_cache_ticker"
+                # Should not have needed to call Hive network
+                mock_hive.resolve_ticker.assert_not_called()
+
+    @patch("portfolio_src.data.resolution.USE_LEGACY_CSV", False)
+    def test_tier2_miss_skips_network_calls(self):
+        """Test that tier2 holdings that miss local cache skip network calls."""
+        with patch("portfolio_src.data.resolution.get_local_cache") as mock_cache_fn:
+            with patch("portfolio_src.data.resolution.get_hive_client") as mock_hive_fn:
+                mock_cache = MagicMock()
+                mock_cache.get_isin_by_ticker.return_value = None
+                mock_cache.get_isin_by_alias.return_value = None
+                mock_cache.is_stale.return_value = False
+                mock_cache_fn.return_value = mock_cache
+
+                mock_hive = MagicMock()
+                mock_hive.is_configured = True
+                mock_hive_fn.return_value = mock_hive
+
+                resolver = ISINResolver(tier1_threshold=0.5)
+                # Pass weight <= threshold (0.1)
+                result = resolver.resolve("UNKNOWN", "Unknown Co", weight=0.1)
+
+                assert result.status == "skipped"
+                assert result.detail == "tier2_skipped"
+                # CRITICAL: Must NOT call Hive network
+                mock_hive.resolve_ticker.assert_not_called()
+
+    @patch("portfolio_src.data.resolution.USE_LEGACY_CSV", False)
+    def test_tier2_falls_back_to_enrichment_cache(self):
+        """Test that tier2 holdings check enrichment cache (step 4) before skipping."""
+        with patch("portfolio_src.data.resolution.get_local_cache") as mock_cache_fn:
+            with patch("portfolio_src.data.resolution.get_hive_client") as mock_hive_fn:
+                mock_cache = MagicMock()
+                mock_cache.get_isin_by_ticker.return_value = None
+                mock_cache.get_isin_by_alias.return_value = None
+                mock_cache_fn.return_value = mock_cache
+
+                mock_hive = MagicMock()
+                mock_hive_fn.return_value = mock_hive
+
+                resolver = ISINResolver(tier1_threshold=0.5)
+                # Pre-populate enrichment cache
+                resolver.cache = {"AAPL": {"isin": "US0378331005"}}
+
+                # Pass weight <= threshold (0.1)
+                result = resolver.resolve("AAPL", "Apple Inc", weight=0.1)
+
+                assert result.isin == "US0378331005"
+                assert result.detail == "cache"
+                assert result.status == "resolved"
+                # Should not have needed to call Hive network
+                mock_hive.resolve_ticker.assert_not_called()
+
 
 class TestCacheUpdates:
     @patch("portfolio_src.data.resolution.USE_LEGACY_CSV", False)
@@ -187,6 +259,7 @@ class TestPushToHive:
                 mock_hive_fn.return_value = mock_hive
 
                 resolver = ISINResolver()
+                resolver.cache = {}  # Clear cache to force API lookup
 
                 with patch.object(resolver, "_resolve_via_api") as mock_api:
                     mock_api.return_value = ResolutionResult(
