@@ -236,36 +236,97 @@ Phase 0 (Schema/RLS) ─────┬─────────────�
 
 ---
 
-### Phase 5: Cleanup (Post-Production Verification)
-> **Objective:** Remove deprecated CSV code after production success.
-> **Blocking:** Requires Phase 4 verified in production for 1+ week.
+### Phase 5: Pipeline Decoupling & Defaults
+> **Objective:** Decouple sync from pipeline, enable Hive path by default, remove Playwright.
+> **Blocking:** None (Phase 4 complete).
+> **Plan:** `keystone/plans/PIPELINE_DECOUPLING_PLAN.md`
 
-- [ ] **HIVE-501:** Delete AssetUniverse class
-    - **Dependencies:** HIVE-404 (production verified)
+- [ ] **DECOUPLE-001:** Remove pipeline auto-trigger from sync handler
+    - **Dependencies:** None
+    - **Status:** Open
+    - **Workstream:** hive-extension
+    - **Details:** Remove `await handle_run_pipeline()` call from `handle_sync_portfolio()` in `sync.py`. Update progress message.
+
+- [ ] **DECOUPLE-002:** Update sync tests
+    - **Dependencies:** DECOUPLE-001
+    - **Status:** Open
+    - **Workstream:** hive-extension
+    - **Details:** Update `test_handlers_sync.py` to not expect pipeline auto-trigger. Add test verifying sync does NOT call pipeline.
+
+- [ ] **DECOUPLE-003:** Change USE_LEGACY_CSV default to false
+    - **Dependencies:** None
+    - **Status:** Open
+    - **Workstream:** hive-extension
+    - **Details:** In `config.py`, change default from `"true"` to `"false"`. Hive path becomes default.
+
+- [ ] **DECOUPLE-004:** Simplify AmundiAdapter (remove Playwright)
+    - **Dependencies:** None
+    - **Status:** Open
+    - **Workstream:** hive-extension
+    - **Details:** Remove `_fetch_via_playwright()`. Flow: manual file → raise `ManualUploadRequired`.
+
+- [ ] **DECOUPLE-005:** Simplify VanguardAdapter (remove Playwright)
+    - **Dependencies:** None
+    - **Status:** Open
+    - **Workstream:** hive-extension
+    - **Details:** Remove Playwright methods. Keep: manual → US API → BeautifulSoup → error.
+
+- [ ] **DECOUPLE-006:** Delete browser.py
+    - **Dependencies:** DECOUPLE-004, DECOUPLE-005
+    - **Status:** Open
+    - **Workstream:** hive-extension
+    - **Details:** Delete `prism_utils/browser.py`. Remove all Playwright imports from adapters.
+
+- [ ] **DECOUPLE-007:** Update adapter error handling
+    - **Dependencies:** DECOUPLE-006
+    - **Status:** Open
+    - **Workstream:** hive-extension
+    - **Details:** Replace `PlaywrightNotInstalledError` with direct `ManualUploadRequired` raises.
+
+- [ ] **DECOUPLE-008:** Run test suite
+    - **Dependencies:** DECOUPLE-001, DECOUPLE-002, DECOUPLE-003
+    - **Status:** Open
+    - **Workstream:** hive-extension
+    - **Details:** Run `pytest tests/ -v`. All tests must pass.
+
+- [ ] **DECOUPLE-009:** Live integration test
+    - **Dependencies:** DECOUPLE-008
+    - **Status:** Open
+    - **Workstream:** hive-extension
+    - **Details:** Verify: sync without pipeline, manual pipeline trigger, Hive path active.
+
+---
+
+### Phase 6: Cleanup (Post-Production Verification)
+> **Objective:** Remove deprecated CSV code after production success.
+> **Blocking:** Requires Phase 5 verified in production for 1+ week.
+
+- [ ] **HIVE-601:** Delete AssetUniverse class
+    - **Dependencies:** DECOUPLE-009 (production verified)
     - **Status:** Open
     - **Workstream:** hive-extension
     - **Details:** Remove `AssetUniverse` class from `resolution.py`. Remove all imports and usages.
 
-- [ ] **HIVE-502:** Remove CSV from migration.py
-    - **Dependencies:** HIVE-501
+- [ ] **HIVE-602:** Remove CSV from migration.py
+    - **Dependencies:** HIVE-601
     - **Status:** Open
     - **Workstream:** hive-extension
     - **Details:** Remove `asset_universe.csv` handling from `migration.py`. Remove `_sync_asset_universe()` from `community_sync.py`.
 
-- [ ] **HIVE-503:** Remove feature flag
-    - **Dependencies:** HIVE-502
+- [ ] **HIVE-603:** Remove feature flag
+    - **Dependencies:** HIVE-602
     - **Status:** Open
     - **Workstream:** hive-extension
     - **Details:** Remove `USE_LEGACY_CSV` from `config.py`. Remove conditional logic from `resolution.py`. Hive path becomes the only path.
 
-- [ ] **HIVE-504:** Delete deprecated files
-    - **Dependencies:** HIVE-503
+- [ ] **HIVE-604:** Delete deprecated files
+    - **Dependencies:** HIVE-603
     - **Status:** Open
     - **Workstream:** hive-extension
     - **Details:** Delete `config/asset_universe.csv`. Update any error messages referencing CSV. Optionally remove `ASSET_UNIVERSE_PATH` from config.
 
-- [ ] **HIVE-505:** Final documentation update
-    - **Dependencies:** HIVE-504
+- [ ] **HIVE-605:** Final documentation update
+    - **Dependencies:** HIVE-604
     - **Status:** Open
     - **Workstream:** hive-extension
     - **Details:** Update `HIVE_EXTENSION_STRATEGY.md` status to COMPLETE. Archive to `keystone/plans/archive/`. Update README if needed.
@@ -273,7 +334,7 @@ Phase 0 (Schema/RLS) ─────┬─────────────�
 ---
 
 ## Active State (Session Log)
-> **Current Focus:** Phases 0-4 COMPLETE. Phase 5 (Cleanup) blocked until production verification.
+> **Current Focus:** Phase 5 (Pipeline Decoupling) - Ready to implement DECOUPLE-001.
 
 ### Iteration Log
 - [2025-12-25] **Completed:** Phase 4 - Decomposer wiring with 6 passing tests
@@ -309,15 +370,17 @@ Phase 0 (Schema/RLS) ─────┬─────────────�
 ---
 
 ## Context for Resume (Handover)
-- **Next Action:** Wait for production verification (1+ week), then start Phase 5 (Cleanup)
-- **State:** Phases 0-4 COMPLETE. Hive path tested and working. 63 tests passing.
-- **Feature Flag:** `USE_LEGACY_CSV=true` (default) uses CSV, `USE_LEGACY_CSV=false` uses Hive
-- **Performance:** Decomposition reduced from 97s to 0.1s per ETF (970x improvement)
-- **Test Results:** 3547 holdings, 1999 resolved (56.4%), sources: local_cache_ticker (1633), tier2_skipped (1564), existing (350)
-- **Key Files:**
-  - Config: `src-tauri/python/portfolio_src/config.py` (feature flags)
-  - Resolution: `src-tauri/python/portfolio_src/data/resolution.py` (dual path + performance fix)
-  - LocalCache: `src-tauri/python/portfolio_src/data/local_cache.py`
-  - HiveClient: `src-tauri/python/portfolio_src/data/hive_client.py`
-  - Decomposer: `src-tauri/python/portfolio_src/core/services/decomposer.py` (wired with ISINResolver)
-  - Pipeline: `src-tauri/python/portfolio_src/core/pipeline.py` (passes resolver when USE_LEGACY_CSV=false)
+- **Next Action:** Start Phase 5 - DECOUPLE-001 (Remove pipeline auto-trigger from sync)
+- **State:** Phases 0-4 COMPLETE. Phase 5 (Pipeline Decoupling) ready to start.
+- **Plan:** `keystone/plans/PIPELINE_DECOUPLING_PLAN.md`
+- **Goals:**
+  1. Decouple sync from pipeline (separate user actions)
+  2. Make `USE_LEGACY_CSV=false` the default (Hive path active)
+  3. Remove Playwright dependency (manual upload + Hive only)
+- **Key Files for Phase 5:**
+  - Sync Handler: `src-tauri/python/portfolio_src/headless/handlers/sync.py` (line 226)
+  - Config: `src-tauri/python/portfolio_src/config.py` (line 68)
+  - Amundi Adapter: `src-tauri/python/portfolio_src/adapters/amundi.py`
+  - Vanguard Adapter: `src-tauri/python/portfolio_src/adapters/vanguard.py`
+  - Browser Utils: `src-tauri/python/portfolio_src/prism_utils/browser.py` (DELETE)
+  - Tests: `tests/headless/test_handlers_sync.py`
