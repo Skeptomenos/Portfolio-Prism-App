@@ -236,62 +236,62 @@ Phase 0 (Schema/RLS) ─────┬─────────────�
 
 ---
 
-### Phase 5: Pipeline Decoupling & Defaults
+### Phase 5: Pipeline Decoupling & Defaults ✅ COMPLETE
 > **Objective:** Decouple sync from pipeline, enable Hive path by default, remove Playwright.
-> **Blocking:** None (Phase 4 complete).
+> **Status:** COMPLETE (2025-12-25)
 > **Plan:** `keystone/plans/PIPELINE_DECOUPLING_PLAN.md`
 
-- [ ] **DECOUPLE-001:** Remove pipeline auto-trigger from sync handler
+- [x] **DECOUPLE-001:** Remove pipeline auto-trigger from sync handler
     - **Dependencies:** None
-    - **Status:** Open
+    - **Status:** Done
     - **Workstream:** hive-extension
-    - **Details:** Remove `await handle_run_pipeline()` call from `handle_sync_portfolio()` in `sync.py`. Update progress message.
+    - **Details:** Removed `await handle_run_pipeline()` call from `handle_sync_portfolio()` in `sync.py`. Updated progress message.
 
-- [ ] **DECOUPLE-002:** Update sync tests
+- [x] **DECOUPLE-002:** Update sync tests
     - **Dependencies:** DECOUPLE-001
-    - **Status:** Open
+    - **Status:** Done
     - **Workstream:** hive-extension
-    - **Details:** Update `test_handlers_sync.py` to not expect pipeline auto-trigger. Add test verifying sync does NOT call pipeline.
+    - **Details:** Updated `test_handlers_sync.py` and `test_headless_integration.py` to verify sync does NOT call pipeline.
 
-- [ ] **DECOUPLE-003:** Change USE_LEGACY_CSV default to false
+- [x] **DECOUPLE-003:** Change USE_LEGACY_CSV default to false
     - **Dependencies:** None
-    - **Status:** Open
+    - **Status:** Done
     - **Workstream:** hive-extension
-    - **Details:** In `config.py`, change default from `"true"` to `"false"`. Hive path becomes default.
+    - **Details:** In `config.py`, changed default from `"true"` to `"false"`. Hive path is now default.
 
-- [ ] **DECOUPLE-004:** Simplify AmundiAdapter (remove Playwright)
+- [x] **DECOUPLE-004:** Simplify AmundiAdapter (remove Playwright)
     - **Dependencies:** None
-    - **Status:** Open
+    - **Status:** Done
     - **Workstream:** hive-extension
-    - **Details:** Remove `_fetch_via_playwright()`. Flow: manual file → raise `ManualUploadRequired`.
+    - **Details:** Removed `_fetch_via_playwright()`. Flow: manual file → raise `ManualUploadRequired`.
 
-- [ ] **DECOUPLE-005:** Simplify VanguardAdapter (remove Playwright)
+- [x] **DECOUPLE-005:** Simplify VanguardAdapter (remove Playwright)
     - **Dependencies:** None
-    - **Status:** Open
+    - **Status:** Done
     - **Workstream:** hive-extension
-    - **Details:** Remove Playwright methods. Keep: manual → US API → BeautifulSoup → error.
+    - **Details:** Removed Playwright methods (~240 lines). Kept: manual → US API → BeautifulSoup → ManualUploadRequired.
 
-- [ ] **DECOUPLE-006:** Delete browser.py
+- [x] **DECOUPLE-006:** Delete browser.py
     - **Dependencies:** DECOUPLE-004, DECOUPLE-005
-    - **Status:** Open
+    - **Status:** Done
     - **Workstream:** hive-extension
-    - **Details:** Delete `prism_utils/browser.py`. Remove all Playwright imports from adapters.
+    - **Details:** Deleted `prism_utils/browser.py`. Removed all Playwright imports from adapters.
 
-- [ ] **DECOUPLE-007:** Update adapter error handling
+- [x] **DECOUPLE-007:** Update adapter error handling
     - **Dependencies:** DECOUPLE-006
-    - **Status:** Open
+    - **Status:** Done
     - **Workstream:** hive-extension
-    - **Details:** Replace `PlaywrightNotInstalledError` with direct `ManualUploadRequired` raises.
+    - **Details:** Updated docstrings to remove Playwright references. Adapters now raise `ManualUploadRequired` directly.
 
-- [ ] **DECOUPLE-008:** Run test suite
+- [x] **DECOUPLE-008:** Run test suite
     - **Dependencies:** DECOUPLE-001, DECOUPLE-002, DECOUPLE-003
-    - **Status:** Open
+    - **Status:** Done
     - **Workstream:** hive-extension
-    - **Details:** Run `pytest tests/ -v`. All tests must pass.
+    - **Details:** All 378 tests passing.
 
 - [ ] **DECOUPLE-009:** Live integration test
     - **Dependencies:** DECOUPLE-008
-    - **Status:** Open
+    - **Status:** Open (requires manual verification)
     - **Workstream:** hive-extension
     - **Details:** Verify: sync without pipeline, manual pipeline trigger, Hive path active.
 
@@ -334,9 +334,12 @@ Phase 0 (Schema/RLS) ─────┬─────────────�
 ---
 
 ## Active State (Session Log)
-> **Current Focus:** Phase 5 (Pipeline Decoupling) - Ready to implement DECOUPLE-001.
+> **Current Focus:** Phase 6 (Legacy Cleanup) - Waiting for production verification.
 
 ### Iteration Log
+- [2025-12-25] **Completed:** Phase 5 - Pipeline decoupling, Hive default, Playwright removal (8/9 tasks)
+- [2025-12-25] **Documentation:** Updated strategy, ipc_api.md, created pipeline_triggering.md spec
+- [2025-12-25] **Tests:** All 378 tests passing after Phase 5 changes
 - [2025-12-25] **Completed:** Phase 4 - Decomposer wiring with 6 passing tests
 - [2025-12-25] **Performance Fix:** Skip Hive network calls for tier2 holdings (970x faster)
 - [2025-12-25] **Tested:** Full pipeline with Hive path - 3547 holdings, 1999 resolved (56.4%)
@@ -348,13 +351,19 @@ Phase 0 (Schema/RLS) ─────┬─────────────�
 - [02:22] **Updated:** Strategy document with RLS discovery, feature flag, phase dependencies
 
 ### Artifacts Produced
-- [x] `keystone/strategy/HIVE_EXTENSION_STRATEGY.md` (updated)
+- [x] `keystone/strategy/HIVE_EXTENSION_STRATEGY.md` (updated with Phase 5 complete)
+- [x] `keystone/specs/ipc_api.md` (updated with run_pipeline command)
+- [x] `keystone/specs/pipeline_triggering.md` (NEW - explains decoupled architecture)
 - [x] `infrastructure/supabase/migrations/20251224_add_aliases.sql`
 - [x] `infrastructure/supabase/functions.sql` (7 RPC functions + contribute_alias)
-- [x] `src-tauri/python/portfolio_src/config.py` (USE_LEGACY_CSV flag)
+- [x] `src-tauri/python/portfolio_src/config.py` (USE_LEGACY_CSV=false default)
 - [x] `src-tauri/python/portfolio_src/data/hive_client.py` (read methods + contribute_alias)
 - [x] `src-tauri/python/portfolio_src/data/local_cache.py`
 - [x] `src-tauri/python/portfolio_src/data/resolution.py` (dual path refactor)
+- [x] `src-tauri/python/portfolio_src/headless/handlers/sync.py` (decoupled from pipeline)
+- [x] `src-tauri/python/portfolio_src/adapters/amundi.py` (Playwright removed)
+- [x] `src-tauri/python/portfolio_src/adapters/vanguard.py` (Playwright removed)
+- [x] `src-tauri/python/portfolio_src/prism_utils/browser.py` (DELETED)
 - [x] `src-tauri/python/tests/test_hive_client_read.py` (10 tests)
 - [x] `src-tauri/python/tests/test_local_cache.py` (31 tests)
 - [x] `src-tauri/python/tests/test_isin_resolver_hive.py` (16 tests)
@@ -366,21 +375,21 @@ Phase 0 (Schema/RLS) ─────┬─────────────�
 - [ ] Consider adding `confidence_score` to resolution results
 - [ ] Background sync thread for LocalCache (post-MVP)
 - [ ] Alias contribution UI in frontend (post-MVP)
+- [ ] DECOUPLE-009: Live integration test (requires manual app testing)
 
 ---
 
 ## Context for Resume (Handover)
-- **Next Action:** Start Phase 5 - DECOUPLE-001 (Remove pipeline auto-trigger from sync)
-- **State:** Phases 0-4 COMPLETE. Phase 5 (Pipeline Decoupling) ready to start.
-- **Plan:** `keystone/plans/PIPELINE_DECOUPLING_PLAN.md`
-- **Goals:**
-  1. Decouple sync from pipeline (separate user actions)
-  2. Make `USE_LEGACY_CSV=false` the default (Hive path active)
-  3. Remove Playwright dependency (manual upload + Hive only)
-- **Key Files for Phase 5:**
-  - Sync Handler: `src-tauri/python/portfolio_src/headless/handlers/sync.py` (line 226)
-  - Config: `src-tauri/python/portfolio_src/config.py` (line 68)
-  - Amundi Adapter: `src-tauri/python/portfolio_src/adapters/amundi.py`
-  - Vanguard Adapter: `src-tauri/python/portfolio_src/adapters/vanguard.py`
-  - Browser Utils: `src-tauri/python/portfolio_src/prism_utils/browser.py` (DELETE)
-  - Tests: `tests/headless/test_handlers_sync.py`
+- **Next Action:** DECOUPLE-009 (Live integration test) then Phase 6 (Legacy Cleanup)
+- **State:** Phases 0-5 COMPLETE (8/9 tasks). Awaiting production verification.
+- **Behavioral Changes (Phase 5):**
+  1. ✅ Sync no longer auto-triggers pipeline (decoupled)
+  2. ✅ `USE_LEGACY_CSV=false` is now default (Hive path active, 970x faster)
+  3. ✅ Playwright removed from adapters (manual upload + Hive only)
+- **To Verify in Live Test:**
+  - Sync completes without running pipeline
+  - Pipeline triggered separately from X-Ray view
+  - Hive path resolves ISINs correctly
+- **Phase 6 Prerequisites:**
+  - [ ] Phase 5 verified in production for 1+ week
+  - [ ] No rollbacks required

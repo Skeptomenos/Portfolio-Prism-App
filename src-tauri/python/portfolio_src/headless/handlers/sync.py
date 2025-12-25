@@ -220,10 +220,10 @@ async def handle_sync_portfolio(cmd_id: int, payload: dict[str, Any]) -> dict[st
         )
 
         duration_ms = int((time.time() - start_time) * 1000)
-        emit_progress(100, "Sync complete! Running Deep Analysis...", "sync")
+        emit_progress(100, "Sync complete!", "sync")
 
-        # Trigger analytics pipeline
-        await handle_run_pipeline(cmd_id, payload)
+        # Pipeline decoupled - triggered separately via run_pipeline command
+        # This allows users to sync without running expensive analysis
 
         logger.info(
             f"Portfolio sync complete: {sync_result['synced_positions']} positions in {duration_ms}ms"

@@ -11,7 +11,10 @@
 **Transport:** Rust writes JSON to Python's `stdin`. Python reads line-by-line.
 
 ### 1.1 `sync_portfolio`
-Triggers the full ETL pipeline.
+Syncs portfolio data from Trade Republic to local database.
+
+> **Note (2025-12-25):** This command no longer auto-triggers the analytics pipeline.
+> Use `run_pipeline` command separately to trigger X-Ray analysis.
 
 **Request:**
 ```json
@@ -77,7 +80,48 @@ Triggers the full ETL pipeline.
 }
 ```
 
-### 1.2 `get_health`
+### 1.2 `run_pipeline`
+Triggers the analytics pipeline (X-Ray decomposition, enrichment, aggregation).
+
+> **Note (2025-12-25):** Decoupled from `sync_portfolio`. Must be called separately.
+
+**Request:**
+```json
+{
+  "command": "run_pipeline",
+  "payload": {
+    "portfolio_id": 1
+  }
+}
+```
+
+**Response (Success):**
+```json
+{
+  "status": "success",
+  "command": "run_pipeline",
+  "data": {
+    "success": true,
+    "errors": [],
+    "durationMs": 3500
+  }
+}
+```
+
+**Response (Partial Success):**
+```json
+{
+  "status": "success",
+  "command": "run_pipeline",
+  "data": {
+    "success": false,
+    "errors": ["Failed to resolve ISIN for ticker XYZ"],
+    "durationMs": 4200
+  }
+}
+```
+
+### 1.3 `get_health`
 Heartbeat check.
 
 **Request:**

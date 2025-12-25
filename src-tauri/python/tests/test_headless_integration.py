@@ -15,28 +15,25 @@ import prism_headless
 class TestHeadlessIntegration:
     """Integration verification between Headless Engine and Pipeline."""
 
-    @patch("prism_headless.get_bridge")
-    @patch("portfolio_src.core.pipeline.Pipeline")
+    @patch("portfolio_src.headless.state.get_bridge")
+    @patch("portfolio_src.headless.state.get_auth_manager")
     @patch("portfolio_src.data.database.sync_positions_from_tr")
     @patch("portfolio_src.data.database.update_sync_state")
     @patch("portfolio_src.headless.handlers.sync.emit_progress")
-    def test_sync_portfolio_triggers_pipeline(
+    def test_sync_portfolio_does_not_trigger_pipeline(
         self,
         mock_emit_progress,
         mock_update_state,
         mock_sync_db,
-        mock_pipeline_cls,
+        mock_get_auth_manager,
         mock_get_bridge,
     ):
-        """Verify that sync_portfolio command triggers Pipeline.run()."""
+        """Verify that sync_portfolio does NOT trigger Pipeline (decoupled)."""
+        from portfolio_src.headless.handlers.sync import handle_sync_portfolio
 
-        # Setup Mocks
         mock_bridge = MagicMock()
         mock_bridge.get_status.return_value = {"status": "authenticated"}
         mock_get_bridge.return_value = mock_bridge
-
-        mock_pipeline_instance = MagicMock()
-        mock_pipeline_cls.return_value = mock_pipeline_instance
 
         mock_sync_db.return_value = {
             "synced_positions": 10,
@@ -45,7 +42,6 @@ class TestHeadlessIntegration:
             "total_value": 1000.0,
         }
 
-        # Mock TRDataFetcher to return some dummy data so logic proceeds
         with patch("portfolio_src.data.tr_sync.TRDataFetcher") as mock_fetcher_cls:
             mock_fetcher = MagicMock()
             mock_fetcher.fetch_portfolio_sync.return_value = [
@@ -59,17 +55,13 @@ class TestHeadlessIntegration:
             ]
             mock_fetcher_cls.return_value = mock_fetcher
 
-            # Execute
-            payload = {"portfolioId": 1, "force": True}
+            with patch("portfolio_src.core.pipeline.Pipeline") as mock_pipeline_cls:
+                import asyncio
 
-            import asyncio
+                payload = {"portfolioId": 1, "force": True}
+                response = asyncio.run(handle_sync_portfolio(123, payload))
 
-            response = asyncio.run(prism_headless.handle_sync_portfolio(123, payload))
+                assert response["status"] == "success"
+                assert response["data"]["syncedPositions"] == 10
 
-            # Assertions
-            assert response["status"] == "success"
-
-            # VERIFY PIPELINE TRIGGER
-            # This is expected to FAIL until we wire it up
-            mock_pipeline_cls.assert_called_once()
-            mock_pipeline_instance.run.assert_called_once()
+                mock_pipeline_cls.assert_not_called()

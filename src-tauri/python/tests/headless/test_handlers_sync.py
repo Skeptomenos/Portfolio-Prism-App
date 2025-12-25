@@ -198,15 +198,10 @@ class TestHandleSyncPortfolio:
                         with patch(
                             "portfolio_src.headless.handlers.sync.emit_progress"
                         ):
-                            with patch(
-                                "portfolio_src.headless.handlers.sync.handle_run_pipeline",
-                                new_callable=AsyncMock,
-                            ):
-                                await handle_sync_portfolio(1, {})
+                            await handle_sync_portfolio(1, {})
 
-                                # First arg should be portfolio_id=1
-                                mock_sync.assert_called_once()
-                                assert mock_sync.call_args[0][0] == 1
+                            mock_sync.assert_called_once()
+                            assert mock_sync.call_args[0][0] == 1
 
     @pytest.mark.asyncio
     async def test_returns_sync_statistics(self):
@@ -248,11 +243,7 @@ class TestHandleSyncPortfolio:
                         with patch(
                             "portfolio_src.headless.handlers.sync.emit_progress"
                         ):
-                            with patch(
-                                "portfolio_src.headless.handlers.sync.handle_run_pipeline",
-                                new_callable=AsyncMock,
-                            ):
-                                result = await handle_sync_portfolio(1, {})
+                            result = await handle_sync_portfolio(1, {})
 
         assert result["status"] == "success"
         assert result["data"]["syncedPositions"] == 1

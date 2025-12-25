@@ -370,19 +370,39 @@ When ISINResolver resolves a ticker via API, it does NOT push the result to Hive
 
 ---
 
-### Phase 5: Cleanup
-**Objective:** Remove deprecated code. **Only after production verification.**
+### Phase 5: Pipeline Decoupling & Simplification ✅ COMPLETE
+**Objective:** Decouple sync from pipeline, activate Hive path, remove Playwright.
+
+**Status:** Completed 2025-12-25
+
+**Tasks Completed:**
+1. ✅ Remove pipeline auto-trigger from sync handler
+2. ✅ Change `USE_LEGACY_CSV` default to `false` (Hive path active)
+3. ✅ Remove Playwright from AmundiAdapter (raises `ManualUploadRequired`)
+4. ✅ Remove Playwright from VanguardAdapter (keeps US API + BeautifulSoup)
+5. ✅ Delete `browser.py` utility module
+6. ✅ Update tests for decoupled behavior (378 tests passing)
+
+**Behavioral Changes:**
+- Sync completes without auto-triggering pipeline
+- Pipeline triggered separately via `run_pipeline` command
+- Hive + LocalCache path is now default (970x faster for cached ISINs)
+- Adapters require manual file upload when automated methods fail
+
+---
+
+### Phase 6: Legacy Cleanup (FUTURE)
+**Objective:** Remove deprecated CSV code. **Only after production verification.**
 
 **Prerequisites:**
-- [ ] Phase 4 deployed to production
-- [ ] `USE_LEGACY_CSV=False` running successfully for 1+ week
+- [ ] Phase 5 verified in production for 1+ week
 - [ ] No rollbacks required
 
 **Tasks:**
 1. Delete `AssetUniverse` class from `resolution.py`
 2. Remove `asset_universe.csv` from `migration.py`
 3. Remove `_sync_asset_universe()` from `community_sync.py`
-4. Remove `USE_LEGACY_CSV` feature flag
+4. Remove `USE_LEGACY_CSV` feature flag entirely
 5. Update error messages referencing CSV
 6. Optionally remove `ASSET_UNIVERSE_PATH` from `config.py`
 7. Delete `config/asset_universe.csv` file
@@ -425,25 +445,24 @@ class ISINResolver:
 ### Feature Flag: `USE_LEGACY_CSV`
 
 ```python
-# config.py
-USE_LEGACY_CSV = True  # Default: use old system (safe)
+# config.py (as of 2025-12-25)
+USE_LEGACY_CSV = False  # Default: Hive path active (970x faster)
 
 # resolution.py
 if USE_LEGACY_CSV:
     # Use AssetUniverse (CSV-based) - legacy path
     result = self._universe.lookup(ticker)
 else:
-    # Use HiveClient + LocalCache - new path
+    # Use HiveClient + LocalCache - new path (DEFAULT)
     result = self._hive_client.resolve_ticker(ticker, exchange)
 ```
 
-**Rollout Strategy:**
-1. Implement new system behind flag (flag=`True`, old system active)
-2. Test new system with flag=`False` in development
-3. Deploy with flag=`True` (no behavior change)
-4. Flip flag to `False` in production after verification
-5. Monitor for 1+ week
-6. Remove flag and legacy code in Phase 5 (cleanup)
+**Rollout Status:** ✅ Complete (2025-12-25)
+1. ✅ Implemented new system behind flag
+2. ✅ Tested with flag=`False` in development (63 tests passing)
+3. ✅ Changed default to `False` (Hive path active)
+4. ⏳ Monitor in production
+5. 🔜 Remove flag and legacy code in Phase 6 (cleanup)
 
 ### Rollback Procedure
 
@@ -513,6 +532,9 @@ If Hive integration fails in production:
 | 2025-12-24 | **RLS fix via SECURITY DEFINER** | Bypass RLS through controlled RPC endpoints, not policy changes. |
 | 2025-12-24 | **Feature flag for rollout** | `USE_LEGACY_CSV` enables safe, reversible migration. |
 | 2025-12-24 | **Exchange codes: Best Effort** | No strict MIC enforcement initially; normalize where possible. |
+| 2025-12-25 | **Decoupled sync from pipeline** | Sync was auto-triggering pipeline, blocking user control. Now separate commands. |
+| 2025-12-25 | **`USE_LEGACY_CSV` default → False** | Hive infrastructure validated (63 tests, 970x faster). Safe to activate. |
+| 2025-12-25 | **Removed Playwright from adapters** | Unreliable, complex dependency. Manual upload + Hive is simpler and sufficient. |
 
 ---
 

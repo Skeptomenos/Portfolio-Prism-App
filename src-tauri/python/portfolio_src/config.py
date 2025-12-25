@@ -63,9 +63,9 @@ WORKER_URL = os.getenv(
 # =============================================================================
 
 # Hive Extension: Use legacy CSV for ISIN resolution
-# Set to False to use Hive + LocalCache instead
-# Default: True (safe - uses existing behavior)
-USE_LEGACY_CSV = os.getenv("USE_LEGACY_CSV", "true").lower() == "true"
+# Set to True to use legacy CSV files instead of Hive + LocalCache
+# Default: False (Hive path active - 970x faster for cached ISINs)
+USE_LEGACY_CSV = os.getenv("USE_LEGACY_CSV", "false").lower() == "true"
 
 # Resolution tier threshold: only resolve holdings above this weight via API
 RESOLUTION_TIER1_THRESHOLD = float(os.getenv("RESOLUTION_TIER1_THRESHOLD", "0.5"))

@@ -20,6 +20,7 @@ import pandas as pd
 from typing import Optional, List, Dict, Any
 
 from portfolio_src.data.caching import cache_adapter_data
+from portfolio_src.data.holdings_cache import ManualUploadRequired
 from portfolio_src.prism_utils.logging_config import get_logger
 from portfolio_src.config import MANUAL_INPUTS_DIR, RAW_DOWNLOADS_DIR
 
@@ -72,8 +73,8 @@ class VanguardAdapter:
     Strategy (in order of preference):
     1. Manual file (CSV/XLSX in manual_inputs directory)
     2. US Vanguard API (complete holdings via investor.vanguard.com)
-    3. German site via Playwright (fallback)
-    4. German site via BeautifulSoup (last resort, top 10 only)
+    3. German site via BeautifulSoup (top 10 only)
+    4. Raise ManualUploadRequired if all fail
 
     The US API is preferred as it returns ALL holdings with ISINs included.
     European ISINs are mapped to their US equivalent funds.
@@ -124,19 +125,26 @@ class VanguardAdapter:
             logger.info(f"  - Success! Got {len(df)} holdings from US API")
             return df
 
-        # 3. Fallback to Playwright (German site)
-        logger.info("  - US API not available. Trying Playwright scraping...")
-        df = self._fetch_via_playwright(isin)
-        if df is not None and not df.empty:
-            return df
-
-        # 4. Last resort - BeautifulSoup (German site, top 10 only)
-        logger.info("  - Playwright failed. Falling back to BeautifulSoup...")
+        # 3. Fallback to BeautifulSoup (German site, top 10 only)
+        logger.info("  - US API not available. Trying BeautifulSoup scraping...")
         df = self._fetch_via_beautifulsoup(isin)
         if df is not None and not df.empty:
             return df
 
-        return pd.DataFrame()
+        # 4. All methods failed - require manual upload
+        product_info = VANGUARD_PRODUCTS.get(isin)
+        if product_info:
+            product_id, product_slug = product_info
+            download_url = f"https://www.de.vanguard/professionell/anlageprodukte/etf/aktien/{product_id}/{product_slug}"
+        else:
+            download_url = "https://www.de.vanguard/professionell/anlageprodukte/etf"
+
+        raise ManualUploadRequired(
+            isin=isin,
+            provider="Vanguard",
+            message=f"Vanguard ETF holdings require manual upload. Download from: {download_url}",
+            download_url=download_url,
+        )
 
     def _fetch_via_us_api(self, isin: str) -> Optional[pd.DataFrame]:
         """
@@ -146,7 +154,7 @@ class VanguardAdapter:
         and fetches all holdings via the investor.vanguard.com API.
 
         Benefits:
-        - No browser/Playwright needed - simple HTTP requests
+        - Simple HTTP requests (no browser automation needed)
         - Returns ALL holdings (not just top 10)
         - Includes ISINs, tickers, weights, market values
 
@@ -296,253 +304,12 @@ class VanguardAdapter:
 
         return pd.DataFrame(df[standard_cols])
 
-    def _fetch_via_playwright(self, isin: str) -> Optional[pd.DataFrame]:
-        """
-        Uses Playwright to scrape full holdings from Vanguard.
-
-        Intercepts network requests to find any hidden API endpoints
-        and extracts all holdings from the rendered page.
-        """
-        try:
-            from portfolio_src.prism_utils.browser import (
-                BrowserContext,
-                handle_cookie_consent,
-                save_debug_screenshot,
-                PlaywrightNotInstalledError,
-            )
-        except ImportError as e:
-            logger.error(f"Failed to import browser utilities: {e}")
-            return None
-
-        product_info = VANGUARD_PRODUCTS.get(isin)
-        if not product_info:
-            logger.error(f"ISIN {isin} not found in known Vanguard products.")
-            return None
-
-        product_id, product_slug = product_info
-        target_url = f"https://www.de.vanguard/professionell/anlageprodukte/etf/aktien/{product_id}/{product_slug}"
-
-        captured_apis: List[Dict[str, Any]] = []
-
-        try:
-            with BrowserContext(headless=True, timeout=60000) as ctx:
-                page = ctx.new_page()
-
-                # Set up network interception to capture API calls
-                def capture_response(response):
-                    url = response.url
-                    content_type = response.headers.get("content-type", "")
-
-                    # Look for JSON APIs that might contain holdings data
-                    if "json" in content_type or "api" in url.lower():
-                        try:
-                            if response.ok:
-                                body = response.text()
-                                if (
-                                    "holding" in body.lower()
-                                    or "portfolio" in body.lower()
-                                ):
-                                    captured_apis.append(
-                                        {"url": url, "body": body[:5000]}
-                                    )
-                        except Exception:
-                            pass
-
-                page.on("response", capture_response)
-
-                # Navigate to page
-                logger.info(f"1. Navigating to: {target_url}")
-                page.goto(target_url)
-                page.wait_for_load_state("networkidle")
-
-                # Handle cookie consent
-                logger.info("2. Handling cookie consent...")
-                handle_cookie_consent(page)
-                page.wait_for_timeout(2000)
-
-                # Scroll to load any lazy content
-                logger.info("3. Scrolling to load all content...")
-                page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-                page.wait_for_timeout(2000)
-
-                # Check if we captured any API data
-                if captured_apis:
-                    logger.info(f"   Found {len(captured_apis)} potential API calls")
-                    for api in captured_apis:
-                        df = self._parse_api_response(api["body"])
-                        if df is not None and not df.empty:
-                            logger.info(f"   Extracted {len(df)} holdings from API")
-                            return df
-
-                # Extract from rendered page
-                logger.info("4. Extracting holdings from rendered page...")
-                holdings_df = self._extract_holdings_from_playwright(page)
-
-                if holdings_df.empty:
-                    logger.warning("   - Could not extract holdings from page.")
-                    save_debug_screenshot(page, f"vanguard_{isin}_debug")
-
-                return holdings_df
-
-        except PlaywrightNotInstalledError as e:
-            logger.error(str(e))
-            return None
-        except Exception as e:
-            logger.error(f"Playwright scraping failed: {e}")
-            return None
-
-    def _extract_holdings_from_playwright(self, page) -> pd.DataFrame:
-        """Extracts holdings data from the Playwright page."""
-        try:
-            # Find all tables on the page
-            tables = page.locator("table").all()
-            logger.info(f"   - Found {len(tables)} tables on page")
-
-            for i, table in enumerate(tables):
-                try:
-                    # Get table headers
-                    headers = table.locator("th").all()
-                    header_texts = [h.text_content().strip() for h in headers]
-
-                    # Look for holdings table
-                    header_str = " ".join(header_texts).lower()
-                    if "wertpapiere" in header_str or "% der assets" in header_str:
-                        logger.info(f"   - Found holdings table (table {i})")
-                        return self._parse_playwright_table(table)
-
-                except Exception as e:
-                    logger.debug(f"   - Table {i} parsing error: {e}")
-                    continue
-
-            logger.warning("   - No holdings table found")
-            return pd.DataFrame()
-
-        except Exception as e:
-            logger.error(f"   - Failed to extract holdings: {e}")
-            return pd.DataFrame()
-
-    def _parse_playwright_table(self, table) -> pd.DataFrame:
-        """Parses a Playwright table locator into a DataFrame."""
-        try:
-            rows = table.locator("tr").all()
-            data = []
-
-            # Get headers from first row
-            if rows:
-                header_cells = rows[0].locator("th").all()
-                if not header_cells:
-                    header_cells = rows[0].locator("td").all()
-                headers = [cell.text_content().strip() for cell in header_cells]
-            else:
-                headers = []
-
-            # Parse data rows
-            for row in rows[1:]:
-                cells = row.locator("td").all()
-                if len(cells) >= 2:
-                    row_data = [cell.text_content().strip() for cell in cells]
-                    data.append(row_data)
-
-            if not data:
-                return pd.DataFrame()
-
-            # Create DataFrame
-            df = pd.DataFrame(data)
-            if headers and len(headers) >= len(df.columns):
-                df.columns = headers[: len(df.columns)]
-
-            # Normalize column names
-            df.columns = df.columns.str.strip().str.lower()
-
-            col_map = {
-                "wertpapiere": "name",
-                "securities": "name",
-                "% der assets": "weight_percentage",
-                "% of assets": "weight_percentage",
-                "sektor": "sector",
-                "sector": "sector",
-                "region": "location",
-                "marktwert": "market_value",
-                "anteile": "shares",
-            }
-            df = df.rename(columns=col_map)
-
-            # Clean weight column
-            if "weight_percentage" in df.columns:
-                df["weight_percentage"] = (
-                    df["weight_percentage"]
-                    .astype(str)
-                    .str.replace("%", "")
-                    .str.replace(",", ".")
-                    .str.replace("\xa0", "")
-                    .str.strip()
-                )
-                df["weight_percentage"] = pd.to_numeric(
-                    df["weight_percentage"], errors="coerce"
-                )
-
-            # Filter valid rows
-            if "name" in df.columns and "weight_percentage" in df.columns:
-                df = pd.DataFrame(df.dropna(subset=["name", "weight_percentage"]))
-                df = pd.DataFrame(df[df["weight_percentage"] > 0])
-
-            # Ensure required columns
-            for col in ["ticker", "isin", "sector", "location"]:
-                if col not in df.columns:
-                    df[col] = None
-
-            logger.info(f"   - Parsed {len(df)} holdings from table")
-            return pd.DataFrame(df)
-
-        except Exception as e:
-            logger.error(f"   - Table parsing error: {e}")
-            return pd.DataFrame()
-
-    def _parse_api_response(self, body: str) -> Optional[pd.DataFrame]:
-        """Attempts to parse holdings from an API response body."""
-        try:
-            data = json.loads(body)
-
-            # Look for holdings array in various locations
-            holdings = None
-            if isinstance(data, list):
-                holdings = data
-            elif isinstance(data, dict):
-                for key in ["holdings", "positions", "constituents", "data"]:
-                    if key in data and isinstance(data[key], list):
-                        holdings = data[key]
-                        break
-
-            if not holdings:
-                return None
-
-            df = pd.DataFrame(holdings)
-
-            # Try to identify and rename columns
-            col_map = {
-                "securityName": "name",
-                "name": "name",
-                "weight": "weight_percentage",
-                "percentage": "weight_percentage",
-                "ticker": "ticker",
-                "isin": "isin",
-            }
-            df = df.rename(columns=col_map)
-
-            if "name" in df.columns and "weight_percentage" in df.columns:
-                return df
-
-            return None
-
-        except Exception:
-            return None
-
     def _fetch_via_beautifulsoup(self, isin: str) -> Optional[pd.DataFrame]:
         """
         Lightweight scraping using requests + BeautifulSoup.
 
         Note: This method only gets the top 10 holdings displayed on the page.
-        For complete holdings, use Playwright or provide a manual file.
+        For complete holdings, provide a manual file or use Hive community data.
         """
         try:
             import requests
