@@ -5,7 +5,7 @@ Enricher Service - Adds sector, geography, and asset class metadata.
 UI-agnostic, reusable with React.
 """
 
-from typing import Dict, List, Tuple, Any, Optional
+from typing import Dict, List, Tuple, Any, Optional, Callable
 import pandas as pd
 from dataclasses import dataclass
 
@@ -111,7 +111,9 @@ class Enricher:
         self.enrichment_service = enrichment_service or HiveEnrichmentService()
 
     def enrich(
-        self, holdings_map: Dict[str, pd.DataFrame]
+        self,
+        holdings_map: Dict[str, pd.DataFrame],
+        progress_callback: Optional[Callable[[str, float, int, int], None]] = None,
     ) -> Tuple[Dict[str, pd.DataFrame], List[PipelineError]]:
         """
         Enrich holdings with metadata (Sector, Geography).
@@ -138,10 +140,23 @@ class Enricher:
             )
             return {}, errors
 
-        for etf_isin, holdings in holdings_map.items():
+        total_etfs = len(holdings_map)
+        total_securities = sum(len(h) for h in holdings_map.values())
+        processed_securities = 0
+
+        for idx, (etf_isin, holdings) in enumerate(holdings_map.items()):
+            if progress_callback:
+                progress_callback(
+                    f"Enriching ETF {idx + 1}/{total_etfs} ({processed_securities}/{total_securities} securities)...",
+                    idx / total_etfs,
+                    processed_securities,
+                    total_securities,
+                )
+
             try:
                 enriched = self._enrich_holdings(holdings)
                 enriched_map[etf_isin] = enriched
+                processed_securities += len(holdings)
                 logger.debug(f"Enriched {etf_isin}: {len(enriched)} holdings")
             except Exception as e:
                 errors.append(
@@ -153,8 +168,8 @@ class Enricher:
                         fix_hint="Check API connectivity or add manual enrichment",
                     )
                 )
-                # Keep original holdings even if enrichment fails
                 enriched_map[etf_isin] = holdings
+                processed_securities += len(holdings)
 
         logger.info(
             f"Enrichment complete: {len(enriched_map)} ETFs processed, {len(errors)} errors"

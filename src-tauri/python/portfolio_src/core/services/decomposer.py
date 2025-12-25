@@ -1,5 +1,5 @@
 # core/services/decomposer.py
-from typing import Dict, List, Tuple, Optional, Any, TYPE_CHECKING
+from typing import Dict, List, Tuple, Optional, Any, Callable, TYPE_CHECKING
 import pandas as pd
 
 from portfolio_src.core.errors import PipelineError, ErrorPhase, ErrorType
@@ -29,7 +29,9 @@ class Decomposer:
         self._resolution_stats: Dict[str, Dict[str, Any]] = {}
 
     def decompose(
-        self, etf_positions: pd.DataFrame
+        self,
+        etf_positions: pd.DataFrame,
+        progress_callback: Optional[Callable[[str, float], None]] = None,
     ) -> Tuple[Dict[str, pd.DataFrame], List[PipelineError]]:
         """
         Decompose ETFs into their underlying holdings.
@@ -78,8 +80,17 @@ class Decomposer:
         if normalized_etf_positions.empty:
             return holdings_map, errors
 
-        for _, etf in normalized_etf_positions.iterrows():
+        total_etfs = len(normalized_etf_positions)
+        for idx, (_, etf) in enumerate(normalized_etf_positions.iterrows()):
             isin = str(etf["isin"])
+            etf_name = str(etf.get("name", etf.get("Name", isin)))[:30]
+
+            if progress_callback:
+                progress_callback(
+                    f"Decomposing ETF {idx + 1}/{total_etfs}: {etf_name}...",
+                    (idx / total_etfs),
+                )
+
             try:
                 holdings, error = self._get_holdings(isin)
 

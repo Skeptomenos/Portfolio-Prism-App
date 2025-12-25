@@ -271,7 +271,14 @@ class Pipeline:
                 )
             else:
                 progress_callback("No ETFs to decompose", 0.25, "decomposition")
-            holdings_map, decompose_errors = self._decomposer.decompose(etf_positions)
+
+            def decompose_progress(msg: str, pct: float) -> None:
+                scaled = 0.25 + (pct * 0.10)
+                progress_callback(msg, scaled, "decomposition")
+
+            holdings_map, decompose_errors = self._decomposer.decompose(
+                etf_positions, progress_callback=decompose_progress
+            )
 
             self._dump_debug_snapshot("02_decomposed_holdings", holdings_map)
 
@@ -305,7 +312,16 @@ class Pipeline:
                 0.5,
                 "enrichment",
             )
-            enriched_holdings, enrich_errors = self._enricher.enrich(holdings_map)
+
+            def enrich_progress(
+                msg: str, pct: float, processed: int, total: int
+            ) -> None:
+                scaled = 0.50 + (pct * 0.10)
+                progress_callback(msg, scaled, "enrichment")
+
+            enriched_holdings, enrich_errors = self._enricher.enrich(
+                holdings_map, progress_callback=enrich_progress
+            )
             errors.extend(enrich_errors)
 
             self._dump_debug_snapshot("03_enriched_holdings", enriched_holdings)

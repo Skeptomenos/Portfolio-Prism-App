@@ -32,9 +32,7 @@ class TestPipelineVerification:
     def mock_enricher(self, monkeypatch):
         """Mock enricher to avoid API calls."""
 
-        def mock_enrich_batch(self, holdings_map):
-            # Just return as is, assuming mock data has sector/geo cols if needed
-            # or add dummy data for direct holdings
+        def mock_enrich_batch(self, holdings_map, progress_callback=None):
             enriched = {}
             errors = []
 
