@@ -58,6 +58,18 @@ WORKER_URL = os.getenv(
     os.getenv("PROXY_URL", "https://portfolio-prism-proxy.bold-unit-582c.workers.dev"),
 )
 
+# =============================================================================
+# FEATURE FLAGS
+# =============================================================================
+
+# Hive Extension: Use legacy CSV for ISIN resolution
+# Set to False to use Hive + LocalCache instead
+# Default: True (safe - uses existing behavior)
+USE_LEGACY_CSV = os.getenv("USE_LEGACY_CSV", "true").lower() == "true"
+
+# Resolution tier threshold: only resolve holdings above this weight via API
+RESOLUTION_TIER1_THRESHOLD = float(os.getenv("RESOLUTION_TIER1_THRESHOLD", "0.5"))
+
 # Ensure directories exist
 for directory in [
     DATA_DIR,

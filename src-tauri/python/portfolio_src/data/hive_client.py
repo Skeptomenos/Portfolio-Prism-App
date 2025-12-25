@@ -16,8 +16,11 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict, List, Any
 from dataclasses import dataclass
 from dotenv import load_dotenv
+from portfolio_src.prism_utils.logging_config import get_logger
 
 load_dotenv()
+
+logger = get_logger(__name__)
 
 # Placeholder definitions for type checking when supabase is not installed
 # This is a common pattern to avoid errors when dependencies are optional.
@@ -553,6 +556,234 @@ class HiveClient:
                 )
         except Exception as e:
             return HiveResult(success=False, error=f"RPC call failed: {str(e)}")
+
+    def contribute_alias(
+        self,
+        p_alias: str,
+        p_isin: str,
+        p_alias_type: str = "name",
+        p_language: Optional[str] = None,
+    ) -> HiveResult:
+        if not self._is_contribution_allowed():
+            return HiveResult(success=False, error="Hive contribution disabled by user")
+        client = self._get_client()
+        if not client:
+            return HiveResult(success=False, error="Supabase client not configured")
+
+        try:
+            response = client.rpc(
+                "contribute_alias",
+                {
+                    "p_alias": p_alias,
+                    "p_isin": p_isin,
+                    "p_alias_type": p_alias_type,
+                    "p_language": p_language,
+                },
+            ).execute()
+
+            if response.data and response.data[0].get("success"):
+                return HiveResult(success=True, data=response.data[0])
+            else:
+                return HiveResult(
+                    success=False,
+                    error=response.data[0].get(
+                        "error_message", "Alias contribution failed"
+                    ),
+                )
+        except Exception as e:
+            return HiveResult(success=False, error=f"RPC call failed: {str(e)}")
+
+    def resolve_ticker(
+        self,
+        ticker: str,
+        exchange: Optional[str] = None,
+    ) -> Optional[str]:
+        client = self._get_client()
+        if not client:
+            return None
+
+        try:
+            response = client.rpc(
+                "resolve_ticker_rpc",
+                {
+                    "p_ticker": ticker,
+                    "p_exchange": exchange,
+                },
+            ).execute()
+
+            if response.data and len(response.data) > 0:
+                isin = response.data[0].get("isin")
+                if isin:
+                    logger.debug(f"Hive resolved {ticker} -> {isin}")
+                    return isin
+
+            return None
+
+        except Exception as e:
+            logger.warning(f"Hive ticker resolution failed for {ticker}: {e}")
+            return None
+
+    def batch_resolve_tickers(
+        self,
+        tickers: List[str],
+        chunk_size: int = 100,
+    ) -> Dict[str, Optional[str]]:
+        """
+        Batch resolve multiple tickers to ISINs.
+
+        Args:
+            tickers: List of ticker symbols
+            chunk_size: Max tickers per RPC call (default 100)
+
+        Returns:
+            Dict mapping ticker -> ISIN (or None if not found)
+        """
+        if not tickers:
+            return {}
+
+        client = self._get_client()
+        if not client:
+            return {t: None for t in tickers}
+
+        results: Dict[str, Optional[str]] = {t: None for t in tickers}
+
+        # Process in chunks to avoid RPC payload limits
+        for i in range(0, len(tickers), chunk_size):
+            chunk = tickers[i : i + chunk_size]
+
+            try:
+                response = client.rpc(
+                    "batch_resolve_tickers_rpc",
+                    {"p_tickers": chunk},
+                ).execute()
+
+                if response.data:
+                    for row in response.data:
+                        ticker = row.get("ticker", "").upper()
+                        isin = row.get("isin")
+                        # Match back to original case
+                        for orig_ticker in chunk:
+                            if orig_ticker.upper() == ticker:
+                                results[orig_ticker] = isin
+                                break
+
+            except Exception as e:
+                logger.warning(f"Hive batch resolution failed for chunk: {e}")
+                # Continue with next chunk
+
+        resolved_count = sum(1 for v in results.values() if v is not None)
+        logger.info(f"Hive batch resolved {resolved_count}/{len(tickers)} tickers")
+
+        return results
+
+    def lookup_by_alias(
+        self,
+        alias: str,
+    ) -> Optional[str]:
+        """
+        Look up ISIN by name/alias (case-insensitive).
+
+        Args:
+            alias: Name or alias to search (e.g., "Apple", "NVIDIA Corp")
+
+        Returns:
+            ISIN string if found, None otherwise
+        """
+        if not alias or not alias.strip():
+            return None
+
+        client = self._get_client()
+        if not client:
+            return None
+
+        try:
+            response = client.rpc(
+                "lookup_alias_rpc",
+                {"p_alias": alias.strip()},
+            ).execute()
+
+            if response.data and len(response.data) > 0:
+                isin = response.data[0].get("isin")
+                if isin:
+                    logger.debug(f"Hive alias resolved '{alias}' -> {isin}")
+                    return isin
+
+            return None
+
+        except Exception as e:
+            logger.warning(f"Hive alias lookup failed for '{alias}': {e}")
+            return None
+
+    def sync_identity_domain(
+        self,
+        page_size: int = 1000,
+    ) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        Pull full identity domain (assets, listings, aliases) from Hive.
+
+        Used by LocalCache to sync data for offline operation.
+
+        Args:
+            page_size: Rows per page for pagination
+
+        Returns:
+            Dict with keys 'assets', 'listings', 'aliases', each containing
+            a list of row dicts.
+        """
+        client = self._get_client()
+        if not client:
+            return {"assets": [], "listings": [], "aliases": []}
+
+        result = {"assets": [], "listings": [], "aliases": []}
+
+        # Fetch assets
+        try:
+            # Use RPC to bypass RLS
+            response = client.rpc("get_all_assets_rpc", {}).execute()
+            if response.data:
+                result["assets"] = response.data
+                logger.info(f"Synced {len(response.data)} assets from Hive")
+        except Exception as e:
+            logger.warning(f"Failed to sync assets: {e}")
+            # Fallback: try direct query (may fail due to RLS)
+            try:
+                response = client.from_("assets").select("*").execute()
+                if response.data:
+                    result["assets"] = response.data
+            except Exception:
+                pass
+
+        # Fetch listings
+        try:
+            response = client.rpc("get_all_listings_rpc", {}).execute()
+            if response.data:
+                result["listings"] = response.data
+                logger.info(f"Synced {len(response.data)} listings from Hive")
+        except Exception as e:
+            logger.warning(f"Failed to sync listings: {e}")
+            try:
+                response = client.from_("listings").select("*").execute()
+                if response.data:
+                    result["listings"] = response.data
+            except Exception:
+                pass
+
+        # Fetch aliases
+        try:
+            response = client.rpc("get_all_aliases_rpc", {}).execute()
+            if response.data:
+                result["aliases"] = response.data
+                logger.info(f"Synced {len(response.data)} aliases from Hive")
+        except Exception as e:
+            logger.warning(f"Failed to sync aliases: {e}")
+            try:
+                response = client.from_("aliases").select("*").execute()
+                if response.data:
+                    result["aliases"] = response.data
+            except Exception:
+                pass
+
+        return result
 
     def get_etf_holdings(self, etf_isin: str) -> Optional[pd.DataFrame]:
         """

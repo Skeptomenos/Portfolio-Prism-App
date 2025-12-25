@@ -95,12 +95,13 @@ class Pipeline:
     - Writes outputs
     """
 
-    def __init__(self, data_dir: Optional[Path] = None):
+    def __init__(self, data_dir: Optional[Path] = None, debug: bool = False):
         """
         Initialize the pipeline.
 
         Args:
             data_dir: Optional override for data directory
+            debug: Enable debug mode (writes intermediate snapshots)
         """
         # Dev-only: load .env if not in production
         if not os.getenv("PRISM_DATA_DIR"):
@@ -112,6 +113,7 @@ class Pipeline:
                 pass
 
         self.data_dir = data_dir or DATA_DIR
+        self.debug = debug or os.getenv("DEBUG_PIPELINE", "false").lower() == "true"
 
         # Services are initialized lazily when run() is called
         self._decomposer: Optional[Decomposer] = None
@@ -131,6 +133,41 @@ class Pipeline:
         self._decomposer = Decomposer(holdings_cache, adapter_registry)
         self._enricher = Enricher(enrichment_service)
         self._aggregator = Aggregator()
+
+    def _dump_debug_snapshot(self, phase: str, data: Any):
+        """Dump intermediate data for debugging."""
+        if not self.debug:
+            return
+
+        try:
+            debug_dir = self.data_dir / "outputs" / "debug"
+            debug_dir.mkdir(parents=True, exist_ok=True)
+
+            if isinstance(data, pd.DataFrame):
+                path = debug_dir / f"{phase}.csv"
+                data.to_csv(path, index=False)
+                logger.info(f"[DEBUG] Wrote snapshot: {path}")
+            elif isinstance(data, dict):
+                # Handle dict of DataFrames (holdings_map)
+                if data and isinstance(next(iter(data.values())), pd.DataFrame):
+                    # Concatenate all holdings into one CSV with parent_isin column
+                    all_holdings = []
+                    for parent_isin, df in data.items():
+                        df_copy = df.copy()
+                        df_copy["parent_isin"] = parent_isin
+                        all_holdings.append(df_copy)
+
+                    if all_holdings:
+                        path = debug_dir / f"{phase}.csv"
+                        pd.concat(all_holdings).to_csv(path, index=False)
+                        logger.info(f"[DEBUG] Wrote snapshot: {path}")
+                else:
+                    path = debug_dir / f"{phase}.json"
+                    with open(path, "w") as f:
+                        json.dump(data, f, indent=2, default=str)
+                    logger.info(f"[DEBUG] Wrote snapshot: {path}")
+        except Exception as e:
+            logger.warning(f"[DEBUG] Failed to write snapshot for {phase}: {e}")
 
     def run(
         self, progress_callback: Optional[Callable[[str, float, str], None]] = None
@@ -177,6 +214,9 @@ class Pipeline:
             progress_callback("Loading portfolio...", 0.1, "loading")
             direct_positions, etf_positions = self._load_portfolio()
 
+            self._dump_debug_snapshot("01_direct_positions", direct_positions)
+            self._dump_debug_snapshot("01_etf_positions", etf_positions)
+
             stock_count = len(direct_positions)
             etf_count = len(etf_positions)
             total_holdings = stock_count + etf_count
@@ -217,6 +257,8 @@ class Pipeline:
                 progress_callback("No ETFs to decompose", 0.25, "decomposition")
             holdings_map, decompose_errors = self._decomposer.decompose(etf_positions)
 
+            self._dump_debug_snapshot("02_decomposed_holdings", holdings_map)
+
             total_underlying = sum(len(h) for h in holdings_map.values())
             if total_underlying > 0:
                 progress_callback(
@@ -235,6 +277,8 @@ class Pipeline:
             enriched_holdings, enrich_errors = self._enricher.enrich(holdings_map)
             errors.extend(enrich_errors)
 
+            self._dump_debug_snapshot("03_enriched_holdings", enriched_holdings)
+
             progress_callback(
                 f"Enriching {len(direct_positions)} direct positions...",
                 0.55,
@@ -244,6 +288,8 @@ class Pipeline:
                 direct_positions
             )
             errors.extend(direct_enrich_errors)
+
+            self._dump_debug_snapshot("03_enriched_direct", direct_positions)
 
             progress_callback(
                 "Fetching sector and geography data...", 0.6, "enrichment"
@@ -259,6 +305,8 @@ class Pipeline:
             exposure_df, agg_errors = self._aggregator.aggregate(
                 direct_positions, etf_positions, enriched_holdings
             )
+
+            self._dump_debug_snapshot("04_aggregated_exposure", exposure_df)
 
             unique_securities = len(exposure_df) if not exposure_df.empty else 0
             progress_callback(
@@ -310,20 +358,17 @@ class Pipeline:
                 total_value=0,
                 errors=errors,
             )
-
         finally:
-            # Always write reports if we have data, to aid debugging
             try:
-                # Write health report
                 self._write_health_report(
                     errors, direct_positions, etf_positions, holdings_map, monitor
                 )
 
-                # Write breakdown report
-                if not etf_positions.empty:
-                    self._write_breakdown_report(etf_positions, holdings_map)
+                report_holdings = locals().get("enriched_holdings") or holdings_map
 
-                # Write error log
+                if not etf_positions.empty:
+                    self._write_breakdown_report(etf_positions, report_holdings)
+
                 self._write_errors(errors)
 
             except Exception as e:
@@ -509,8 +554,10 @@ class Pipeline:
                             "child_name": row.get(name_col, "Unknown"),
                             "weight_percent": weight_pct,
                             "value_eur": value_eur,
-                            "sector": row.get("Sector", "Unknown"),
-                            "geography": row.get("Country", "Unknown"),
+                            "sector": row.get("sector", row.get("Sector", "Unknown")),
+                            "geography": row.get(
+                                "geography", row.get("Country", "Unknown")
+                            ),
                         }
                     )
                 except Exception:

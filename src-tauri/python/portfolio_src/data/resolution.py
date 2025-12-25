@@ -30,11 +30,13 @@ from typing import Dict, List, Literal, Optional, Any
 import pandas as pd
 import requests
 
-from portfolio_src.config import ASSET_UNIVERSE_PATH
+from portfolio_src.config import ASSET_UNIVERSE_PATH, USE_LEGACY_CSV
 from portfolio_src.prism_utils.isin_validator import is_valid_isin, is_placeholder_isin
 from portfolio_src.prism_utils.logging_config import get_logger
 from portfolio_src.data.manual_enrichments import load_manual_enrichments
 from portfolio_src.data.proxy_client import get_proxy_client
+from portfolio_src.data.local_cache import get_local_cache, LocalCache
+from portfolio_src.data.hive_client import get_hive_client, HiveClient
 
 logger = get_logger(__name__)
 
@@ -195,14 +197,7 @@ class ISINResolver:
     """
 
     def __init__(self, tier1_threshold: float = 1.0):
-        """
-        Initialize resolver.
-
-        Args:
-            tier1_threshold: Weight threshold for Tier 1 resolution (default 1.0%)
-        """
         self.tier1_threshold = tier1_threshold
-        self.universe = AssetUniverse.load()
         self.cache = self._load_cache()
         self.newly_resolved: List[Dict[str, Any]] = []
         self.stats = {
@@ -212,6 +207,21 @@ class ISINResolver:
             "skipped": 0,
             "by_source": {},
         }
+
+        if USE_LEGACY_CSV:
+            self.universe = AssetUniverse.load()
+            self._local_cache: Optional[LocalCache] = None
+            self._hive_client: Optional[HiveClient] = None
+        else:
+            self.universe = None
+            self._local_cache = get_local_cache()
+            self._hive_client = get_hive_client()
+
+            if self._local_cache.is_stale():
+                try:
+                    self._local_cache.sync_from_hive(self._hive_client)
+                except Exception as e:
+                    logger.warning(f"Failed to sync LocalCache: {e}")
 
     def _load_cache(self) -> Dict[str, Dict]:
         """Load enrichment cache with validation."""
@@ -298,31 +308,17 @@ class ISINResolver:
                 self._record_resolution(ticker_clean, name_clean, result)
                 return result
 
-        # 2. Universe lookup by ticker
-        universe_isin = self.universe.lookup_by_ticker(ticker_clean)
-        if universe_isin:
-            result = ResolutionResult(
-                isin=universe_isin,
-                status="resolved",
-                detail="universe_ticker",
-                source=None,  # Already in universe
-            )
+        # 2-3. Local resolution (CSV or Hive based on flag)
+        if USE_LEGACY_CSV:
+            result = self._resolve_via_csv(ticker_clean, name_clean)
+        else:
+            result = self._resolve_via_hive(ticker_clean, name_clean)
+
+        if result.status == "resolved":
             self._record_resolution(ticker_clean, name_clean, result)
             return result
 
-        # 3. Universe lookup by alias/name
-        universe_isin = self.universe.lookup_by_alias(name_clean)
-        if universe_isin:
-            result = ResolutionResult(
-                isin=universe_isin,
-                status="resolved",
-                detail="universe_alias",
-                source=None,
-            )
-            self._record_resolution(ticker_clean, name_clean, result)
-            return result
-
-        # 4. Cache lookup
+        # 4. Cache lookup (enrichment cache)
         cache_entry = self.cache.get(ticker_clean.upper())
         if cache_entry:
             cache_isin = cache_entry.get("isin")
@@ -344,7 +340,123 @@ class ISINResolver:
         # 6. API resolution (Tier 1 only)
         result = self._resolve_via_api(ticker_clean, name_clean)
         self._record_resolution(ticker_clean, name_clean, result)
+
+        # 7. Push to Hive on API success (new path only)
+        if not USE_LEGACY_CSV and result.status == "resolved" and result.isin:
+            self._push_to_hive(ticker_clean, name_clean, result.isin, result.source)
+
         return result
+
+    def _resolve_via_csv(self, ticker: str, name: str) -> ResolutionResult:
+        """Legacy path: resolve via AssetUniverse CSV."""
+        if self.universe is None:
+            return ResolutionResult(
+                isin=None, status="unresolved", detail="no_universe"
+            )
+
+        universe_isin = self.universe.lookup_by_ticker(ticker)
+        if universe_isin:
+            return ResolutionResult(
+                isin=universe_isin,
+                status="resolved",
+                detail="universe_ticker",
+                source=None,
+            )
+
+        universe_isin = self.universe.lookup_by_alias(name)
+        if universe_isin:
+            return ResolutionResult(
+                isin=universe_isin,
+                status="resolved",
+                detail="universe_alias",
+                source=None,
+            )
+
+        return ResolutionResult(isin=None, status="unresolved", detail="csv_miss")
+
+    def _resolve_via_hive(self, ticker: str, name: str) -> ResolutionResult:
+        """New path: resolve via LocalCache + HiveClient."""
+        if self._local_cache is None:
+            return ResolutionResult(isin=None, status="unresolved", detail="no_cache")
+
+        isin = self._local_cache.get_isin_by_ticker(ticker)
+        if isin:
+            return ResolutionResult(
+                isin=isin,
+                status="resolved",
+                detail="local_cache_ticker",
+                source=None,
+            )
+
+        if name:
+            isin = self._local_cache.get_isin_by_alias(name)
+            if isin:
+                return ResolutionResult(
+                    isin=isin,
+                    status="resolved",
+                    detail="local_cache_alias",
+                    source=None,
+                )
+
+        if self._hive_client and self._hive_client.is_configured:
+            isin = self._hive_client.resolve_ticker(ticker)
+            if isin:
+                self._local_cache.upsert_listing(ticker, "UNKNOWN", isin, "USD")
+                return ResolutionResult(
+                    isin=isin,
+                    status="resolved",
+                    detail="hive_ticker",
+                    source=None,
+                )
+
+            if name:
+                isin = self._hive_client.lookup_by_alias(name)
+                if isin:
+                    self._local_cache.upsert_alias(name, isin)
+                    return ResolutionResult(
+                        isin=isin,
+                        status="resolved",
+                        detail="hive_alias",
+                        source=None,
+                    )
+
+        return ResolutionResult(isin=None, status="unresolved", detail="hive_miss")
+
+    def _push_to_hive(
+        self,
+        ticker: str,
+        name: str,
+        isin: str,
+        source: Optional[str],
+    ) -> None:
+        """Push successful API resolution to Hive and LocalCache."""
+        if not self._hive_client or not self._hive_client.is_configured:
+            return
+        if not self._local_cache:
+            return
+
+        try:
+            self._hive_client.contribute_listing(
+                isin=isin,
+                ticker=ticker,
+                exchange="UNKNOWN",
+                currency="USD",
+            )
+
+            self._local_cache.upsert_listing(ticker, "UNKNOWN", isin, "USD")
+
+            if name and len(name) > 2:
+                self._hive_client.contribute_alias(
+                    p_alias=name,
+                    p_isin=isin,
+                    p_alias_type="name",
+                )
+                self._local_cache.upsert_alias(name, isin)
+
+            logger.debug(f"Pushed to Hive: {ticker} -> {isin} (source: {source})")
+
+        except Exception as e:
+            logger.warning(f"Failed to push to Hive: {e}")
 
     def _resolve_via_api(self, ticker: str, name: str) -> ResolutionResult:
         """
@@ -529,13 +641,11 @@ class ISINResolver:
             )
 
     def flush_to_universe(self) -> int:
-        """
-        Batch write newly resolved ISINs to asset_universe.csv.
-
-        Returns:
-            Number of entries added
-        """
         if not self.newly_resolved:
+            return 0
+
+        if self.universe is None:
+            self.newly_resolved = []
             return 0
 
         added = 0

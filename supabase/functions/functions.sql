@@ -222,7 +222,7 @@ STABLE
 AS $$
 BEGIN
     RETURN QUERY
-    SELECT DISTINCT ON (UPPER(l.ticker))
+    SELECT
         l.ticker,
         l.isin,
         a.name,
@@ -232,48 +232,14 @@ BEGIN
     JOIN public.assets a ON l.isin = a.isin
     WHERE UPPER(l.ticker) = ANY(
         SELECT UPPER(t) FROM unnest(p_tickers) AS t
-    )
-    ORDER BY UPPER(l.ticker), l.exchange;
+    );
 END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.batch_resolve_tickers_rpc(VARCHAR[]) TO anon;
 
-COMMENT ON FUNCTION public.batch_resolve_tickers_rpc IS 
-    'Batch resolve tickers to ISINs. Max recommended: 100 tickers per call. Deduplicates by ticker.';
-
--- =============================================================================
--- BULK DATA RPCs
--- =============================================================================
-
-CREATE OR REPLACE FUNCTION public.get_all_assets_rpc()
-RETURNS SETOF assets
-LANGUAGE sql
-SECURITY DEFINER
-STABLE
-AS $$ SELECT * FROM public.assets; $$;
-
-CREATE OR REPLACE FUNCTION public.get_all_listings_rpc()
-RETURNS SETOF listings
-LANGUAGE sql
-SECURITY DEFINER
-STABLE
-AS $$ SELECT * FROM public.listings; $$;
-
-CREATE OR REPLACE FUNCTION public.get_all_aliases_rpc()
-RETURNS SETOF aliases
-LANGUAGE sql
-SECURITY DEFINER
-STABLE
-AS $$ SELECT * FROM public.aliases; $$;
-
-GRANT EXECUTE ON FUNCTION public.get_all_assets_rpc() TO anon;
-GRANT EXECUTE ON FUNCTION public.get_all_listings_rpc() TO anon;
-GRANT EXECUTE ON FUNCTION public.get_all_aliases_rpc() TO anon;
-
-COMMENT ON FUNCTION public.get_all_assets_rpc IS 'Fetch all assets. SECURITY DEFINER bypasses RLS.';
-COMMENT ON FUNCTION public.get_all_listings_rpc IS 'Fetch all listings. SECURITY DEFINER bypasses RLS.';
-COMMENT ON FUNCTION public.get_all_aliases_rpc IS 'Fetch all aliases. SECURITY DEFINER bypasses RLS.';
+COMMENT ON FUNCTION public.batch_resolve_tickers_rpc IS
+    'Batch resolve tickers to ISINs. Max recommended: 100 tickers per call.';
 
 -- =============================================================================
 -- FUNCTION: lookup_alias_rpc
