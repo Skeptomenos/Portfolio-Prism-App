@@ -69,6 +69,12 @@ def get_weight_column(df: pd.DataFrame) -> Optional[str]:
     Returns:
         Column name for weight, or None if not found
     """
+    # Check for standard names first
+    if "weight" in df.columns:
+        return "weight"
+    if "weight_percentage" in df.columns:
+        return "weight_percentage"
+
     normalized_df = SchemaNormalizer.normalize_columns(df)
     return "weight" if "weight" in normalized_df.columns else None
 
@@ -128,17 +134,28 @@ class SchemaNormalizer:
         # Apply standard mappings - convert any remaining columns to lowercase
         # and map common variations to standard names
         column_mapping = {}
+        mapped_targets = set()
+
+        # First pass: Exact matches (highest priority)
         for col in normalized_df.columns:
             col_str = str(col)
             col_lower = col_str.lower()
-
-            # Direct matches
-            if col_lower in ["isin", "name", "weight", "ticker", "sector", "geography"]:
+            if col_lower in SchemaNormalizer.STANDARD_COLUMNS:
                 column_mapping[col] = col_lower
+                mapped_targets.add(col_lower)
 
+        # Second pass: Fuzzy matches (only if target not yet mapped)
+        for col in normalized_df.columns:
+            if col in column_mapping:
+                continue
+
+            col_str = str(col)
+            col_lower = col_str.lower()
+
+            target = None
             # Common variations
-            elif "isin" in col_lower:
-                column_mapping[col] = "isin"
+            if "isin" in col_lower and "shareclass" not in col_lower:
+                target = "isin"
             elif (
                 "market_value" in col_lower
                 or "market value" in col_lower
@@ -147,26 +164,32 @@ class SchemaNormalizer:
                 or "total_value" in col_lower
                 or "value" in col_lower
             ):
-                column_mapping[col] = "market_value"
+                target = "market_value"
             elif "name" in col_lower or "fund" in col_lower:
-                column_mapping[col] = "name"
+                target = "name"
             elif "ticker" in col_lower or "symbol" in col_lower:
-                column_mapping[col] = "ticker"
+                target = "ticker"
             elif "weight" in col_lower:
-                column_mapping[col] = "weight"
+                target = "weight"
             elif "quantity" in col_lower or "shares" in col_lower:
-                column_mapping[col] = "quantity"
+                target = "quantity"
             elif "price" in col_lower:
-                column_mapping[col] = "price"
+                target = "price"
             elif (
                 "asset_class" in col_lower
                 or "asset type" in col_lower
                 or "asset_type" in col_lower
             ):
-                column_mapping[col] = "asset_class"
+                target = "asset_class"
+
+            if target and target not in mapped_targets:
+                column_mapping[col] = target
+                mapped_targets.add(target)
 
         if column_mapping:
             normalized_df = normalized_df.rename(columns=column_mapping)
+            # Drop duplicate columns if any (keep first)
+            normalized_df = normalized_df.loc[:, ~normalized_df.columns.duplicated()]
             logger.debug(f"Normalized columns: {column_mapping}")
 
         return normalized_df

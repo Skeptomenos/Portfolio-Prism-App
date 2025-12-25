@@ -10,7 +10,8 @@ WORKSTREAMS_DIR = PROJECT_DIR / "workstreams"
 REGISTRY_FILE = WORKSTREAMS_DIR / "registry.md"
 BOARD_FILE = PROJECT_DIR / "board.md"
 
-TASK_PATTERN = re.compile(r"- \[([ xX])\] \*\*([A-Z0-9]+-\d+)(.*?)\*\*(.*)")
+# Task ID pattern: PREFIX-NNN or PREFIX-SUBPREFIX-NNN (e.g., HIVE-001, TASK-LOG-001)
+TASK_PATTERN = re.compile(r"- \[([ xX])\] \*\*([A-Z]+-(?:[A-Z]+-)?[0-9]+)(.*?)\*\*(.*)")
 STATUS_PATTERN = re.compile(
     r"Status:?\s*\*?\*?(.*?)\*?\*?\s*$", re.MULTILINE | re.IGNORECASE
 )
@@ -57,7 +58,9 @@ def parse_task_file(file_path):
         content = f.read()
 
     task_section_match = re.search(
-        r"## .*Tasks.*?\n(.*?)(?=\n## |\Z)", content, re.DOTALL | re.IGNORECASE
+        r"^## [^\n]*Tasks[^\n]*\n(.*?)(?=\n## |\Z)",
+        content,
+        re.DOTALL | re.IGNORECASE | re.MULTILINE,
     )
 
     if task_section_match:

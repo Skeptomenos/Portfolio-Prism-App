@@ -210,29 +210,29 @@ Phase 0 (Schema/RLS) ─────┬─────────────�
 > **Objective:** Wire ISINResolver into Decomposer to fix X-Ray pipeline.
 > **Blocking:** Requires Phase 3 complete.
 
-- [ ] **HIVE-401:** Inject ISINResolver into Decomposer
+- [x] **HIVE-401:** Inject ISINResolver into Decomposer
     - **Dependencies:** HIVE-306
-    - **Status:** Open
+    - **Status:** Done
     - **Workstream:** hive-extension
     - **Details:** Modify `decomposer.py` constructor to accept `ISINResolver` instance. Update all Decomposer instantiation sites.
 
-- [ ] **HIVE-402:** Call resolver after adapter fetch
+- [x] **HIVE-402:** Call resolver after adapter fetch
     - **Dependencies:** HIVE-401
-    - **Status:** Open
+    - **Status:** Done
     - **Workstream:** hive-extension
     - **Details:** After fetching holdings from adapter, call `resolver.batch_resolve(holdings)`. Update DataFrame with resolved ISINs. Handle partial resolution.
 
-- [ ] **HIVE-403:** Add resolution stats logging
+- [x] **HIVE-403:** Add resolution stats logging
     - **Dependencies:** HIVE-402
-    - **Status:** Open
+    - **Status:** Done
     - **Workstream:** hive-extension
     - **Details:** Log resolution stats: total holdings, resolved count, unresolved count, resolution sources (cache/hive/api). Emit as pipeline progress event.
 
-- [ ] **HIVE-404:** Integration test for X-Ray pipeline
+- [x] **HIVE-404:** Integration test for X-Ray pipeline
     - **Dependencies:** HIVE-402
-    - **Status:** Open
+    - **Status:** Done
     - **Workstream:** hive-extension
-    - **Details:** Create `tests/test_xray_integration.py`. Test: ETF decomposition resolves ISINs, enrichment receives valid ISINs, unresolved holdings handled gracefully.
+    - **Details:** Create `tests/test_decomposer_resolution.py`. Test: ETF decomposition resolves ISINs, enrichment receives valid ISINs, unresolved holdings handled gracefully.
 
 ---
 

@@ -21,6 +21,8 @@
 
 ## Technical Debt
 
+- [ ] **BUG-FIXES: Active Bug Fixes** — see `keystone/project/workstreams/bug-fixes.md` for details. — added: 2025-12
+
 - [ ] **TASK-612: Async I/O for Adapters** — deferred because: High risk refactoring during release-prep phase. Converting `requests` to `httpx` async requires changes to cache decorator, adapter registry, and decomposer. Marginal performance gain (parallel ETF fetches) doesn't justify risk to MVP stability. **Priority:** Get MVP running with smooth UX and automatic issue reporting for rapid iteration. Revisit post-MVP when we have more users and can measure actual bottlenecks. — added: 2024-12
 
 ## Someday/Maybe
