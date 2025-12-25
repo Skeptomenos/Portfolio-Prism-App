@@ -17,14 +17,86 @@ import asyncio
 import json
 import os
 import sys
+import time
 from contextlib import asynccontextmanager
-from typing import Any
+from typing import Any, Optional, List, Dict, TypedDict
 
 from portfolio_src.headless.dispatcher import dispatch
 from portfolio_src.headless.lifecycle import get_session_id
 from portfolio_src.prism_utils.logging_config import get_logger
 
 logger = get_logger(__name__)
+
+
+# =============================================================================
+# Pipeline Summary Event Types (XRAY-010)
+# =============================================================================
+
+
+class HoldingsSummary(TypedDict):
+    """Holdings count and value summary."""
+
+    stocks: int
+    etfs: int
+    total_value: float
+
+
+class ETFDecompositionDetail(TypedDict):
+    """Per-ETF decomposition result."""
+
+    isin: str
+    name: str
+    holdings_count: int
+    status: str  # 'success' | 'failed' | 'partial'
+
+
+class DecompositionSummary(TypedDict):
+    """ETF decomposition summary."""
+
+    etfs_processed: int
+    etfs_failed: int
+    total_underlying: int
+    per_etf: List[ETFDecompositionDetail]
+
+
+class ResolutionSummary(TypedDict):
+    """ISIN resolution summary."""
+
+    total: int
+    resolved: int
+    unresolved: int
+    skipped_tier2: int
+    by_source: Dict[str, int]
+
+
+class TimingSummary(TypedDict):
+    """Pipeline phase timing summary."""
+
+    total_seconds: float
+    phases: Dict[str, float]
+
+
+class UnresolvedItem(TypedDict):
+    """Unresolved ISIN details for user action."""
+
+    ticker: str
+    name: str
+    weight: float
+    parent_etf: str
+    reason: str  # 'api_all_failed' | 'no_ticker' | 'invalid_isin'
+
+
+class PipelineSummaryData(TypedDict):
+    """Complete pipeline summary data."""
+
+    holdings: HoldingsSummary
+    decomposition: DecompositionSummary
+    resolution: ResolutionSummary
+    timing: TimingSummary
+    unresolved: List[UnresolvedItem]
+    unresolved_truncated: bool
+    unresolved_total: int
+
 
 # Engine version
 VERSION = "0.1.0"
@@ -36,6 +108,27 @@ VERSION = "0.1.0"
 # Connected SSE clients - each client gets a queue for receiving events
 _progress_clients: set[asyncio.Queue] = set()
 _clients_lock = asyncio.Lock()
+
+# Main event loop reference - set at FastAPI startup for cross-thread broadcasting
+_main_loop: Optional[asyncio.AbstractEventLoop] = None
+
+# Rate limiting state
+_last_broadcast_time: float = 0.0
+_last_broadcast_phase: str = ""
+_MIN_BROADCAST_INTERVAL: float = 0.1  # 100ms debounce
+
+
+def set_main_loop(loop: asyncio.AbstractEventLoop) -> None:
+    """Store reference to the main event loop for cross-thread broadcasting.
+
+    Must be called from the main asyncio thread during startup.
+
+    Args:
+        loop: The main asyncio event loop.
+    """
+    global _main_loop
+    _main_loop = loop
+    logger.debug("SSE broadcast: main event loop reference stored")
 
 
 async def add_sse_client(queue: asyncio.Queue) -> None:
@@ -68,11 +161,31 @@ def broadcast_progress(progress: int, message: str, phase: str = "pipeline") -> 
     This is called from emit_progress() in sync.py to push updates to browser clients.
     Thread-safe: can be called from executor threads.
 
+    Rate-limited to max 10 events/second (100ms interval) to prevent frontend jitter.
+    Phase changes and 100% completion always emit immediately.
+
     Args:
         progress: Progress percentage (0-100).
         message: Human-readable progress message.
         phase: Pipeline phase identifier (e.g., 'loading', 'decomposition', 'enrichment').
     """
+    global _last_broadcast_time, _last_broadcast_phase
+
+    if _main_loop is None:
+        logger.warning("SSE broadcast skipped: main event loop not set")
+        return
+
+    now = time.time()
+    is_phase_change = phase != _last_broadcast_phase
+    is_completion = progress == 100
+    is_important = is_phase_change or is_completion
+
+    if not is_important and (now - _last_broadcast_time) < _MIN_BROADCAST_INTERVAL:
+        return
+
+    _last_broadcast_time = now
+    _last_broadcast_phase = phase
+
     event_data = {
         "type": "progress",
         "progress": progress,
@@ -81,15 +194,9 @@ def broadcast_progress(progress: int, message: str, phase: str = "pipeline") -> 
     }
 
     try:
-        loop = asyncio.get_running_loop()
-        loop.call_soon_threadsafe(_broadcast_sync, event_data)
-    except RuntimeError:
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                loop.call_soon_threadsafe(_broadcast_sync, event_data)
-        except RuntimeError:
-            pass
+        _main_loop.call_soon_threadsafe(_broadcast_sync, event_data)
+    except RuntimeError as e:
+        logger.warning(f"SSE broadcast failed: {e}")
 
 
 def _broadcast_sync(event_data: dict) -> None:
@@ -108,6 +215,31 @@ def _broadcast_sync(event_data: dict) -> None:
             logger.warning("SSE client queue full, dropping event")
         except Exception as e:
             logger.warning(f"Failed to queue SSE event: {e}")
+
+
+def broadcast_summary(summary: PipelineSummaryData) -> None:
+    """Broadcast pipeline summary to all connected SSE clients.
+
+    Emits a 'pipeline_summary' event with detailed statistics at pipeline completion.
+    Thread-safe: can be called from executor threads.
+
+    Args:
+        summary: Complete pipeline summary data matching PipelineSummaryData schema.
+    """
+    if _main_loop is None:
+        logger.warning("SSE summary broadcast skipped: main event loop not set")
+        return
+
+    event_data = {
+        "type": "pipeline_summary",
+        "data": dict(summary),
+    }
+
+    try:
+        _main_loop.call_soon_threadsafe(_broadcast_sync, event_data)
+        logger.debug("Pipeline summary broadcast sent")
+    except RuntimeError as e:
+        logger.warning(f"SSE summary broadcast failed: {e}")
 
 
 # Check if HTTP dependencies are available
@@ -147,7 +279,7 @@ def run_echo_bridge(host: str = "0.0.0.0", port: int = 5001) -> None:
         """FastAPI lifespan handler for startup/shutdown."""
         from portfolio_src.prism_utils.sentinel import audit_previous_session
 
-        # Start background audit on startup
+        set_main_loop(asyncio.get_running_loop())
         asyncio.create_task(audit_previous_session())
         logger.info(f"Echo-Bridge started, session: {get_session_id()}")
         yield

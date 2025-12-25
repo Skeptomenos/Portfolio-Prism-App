@@ -42,6 +42,16 @@ from portfolio_src.core.utils import (
     get_isin_column,
     get_name_column,
 )
+from portfolio_src.headless.transports.echo_bridge import (
+    broadcast_summary,
+    PipelineSummaryData,
+    HoldingsSummary,
+    DecompositionSummary,
+    ETFDecompositionDetail,
+    ResolutionSummary,
+    TimingSummary,
+    UnresolvedItem,
+)
 
 logger = get_logger(__name__)
 
@@ -223,12 +233,15 @@ class Pipeline:
             stock_count = len(direct_positions)
             etf_count = len(etf_positions)
             total_holdings = stock_count + etf_count
+            portfolio_value = calculate_portfolio_total_value(
+                direct_positions, etf_positions
+            )
             if total_holdings > 0:
-                progress_callback(
-                    f"Found {total_holdings} holdings ({stock_count} stocks, {etf_count} ETFs)",
-                    0.15,
-                    "loading",
-                )
+                value_str = f"€{portfolio_value:,.0f}" if portfolio_value > 0 else ""
+                msg = f"Found {total_holdings} holdings ({stock_count} stocks, {etf_count} ETFs)"
+                if value_str:
+                    msg += f" worth {value_str}"
+                progress_callback(msg, 0.15, "loading")
             monitor.record_phase("data_loading", time.time() - start)
 
             if direct_positions.empty and etf_positions.empty:
@@ -266,27 +279,37 @@ class Pipeline:
             if total_underlying > 0:
                 progress_callback(
                     f"Extracted {total_underlying} underlying holdings from {len(holdings_map)} ETFs",
+                    0.35,
+                    "decomposition",
+                )
+
+            resolution_stats = self._decomposer.get_resolution_stats()
+            if resolution_stats.get("total", 0) > 0:
+                resolved = resolution_stats.get("resolved", 0)
+                total = resolution_stats.get("total", 0)
+                rate = resolution_stats.get("resolution_rate", "N/A")
+                progress_callback(
+                    f"Resolved {resolved}/{total} ISINs ({rate})",
                     0.4,
                     "decomposition",
                 )
+
             errors.extend(decompose_errors)
             monitor.record_phase("etf_decomposition", time.time() - start)
 
             # Phase 3: Enrich (via service)
             start = time.time()
+            total_to_enrich = total_underlying + len(direct_positions)
             progress_callback(
-                f"Enriching {total_underlying} holdings...", 0.5, "enrichment"
+                f"Enriching {total_to_enrich} securities with sector/geography data...",
+                0.5,
+                "enrichment",
             )
             enriched_holdings, enrich_errors = self._enricher.enrich(holdings_map)
             errors.extend(enrich_errors)
 
             self._dump_debug_snapshot("03_enriched_holdings", enriched_holdings)
 
-            progress_callback(
-                f"Enriching {len(direct_positions)} direct positions...",
-                0.55,
-                "enrichment",
-            )
             direct_positions, direct_enrich_errors = self._enricher.enrich_positions(
                 direct_positions
             )
@@ -294,8 +317,11 @@ class Pipeline:
 
             self._dump_debug_snapshot("03_enriched_direct", direct_positions)
 
+            enriched_count = sum(len(h) for h in enriched_holdings.values()) + len(
+                direct_positions
+            )
             progress_callback(
-                "Fetching sector and geography data...", 0.6, "enrichment"
+                f"Enriched {enriched_count} securities", 0.6, "enrichment"
             )
             monitor.record_phase("enrichment", time.time() - start)
 
@@ -333,6 +359,16 @@ class Pipeline:
             total_value = calculate_portfolio_total_value(
                 direct_positions, etf_positions
             )
+
+            summary = self._build_summary(
+                direct_positions=direct_positions,
+                etf_positions=etf_positions,
+                holdings_map=holdings_map,
+                decompose_errors=decompose_errors,
+                monitor=monitor,
+                total_value=total_value,
+            )
+            broadcast_summary(summary)
 
             return PipelineResult(
                 success=True,
@@ -570,3 +606,159 @@ class Pipeline:
         HOLDINGS_BREAKDOWN_PATH.parent.mkdir(parents=True, exist_ok=True)
         df.to_csv(HOLDINGS_BREAKDOWN_PATH, index=False)
         logger.info(f"Wrote holdings breakdown to {HOLDINGS_BREAKDOWN_PATH}")
+
+    def _build_summary(
+        self,
+        direct_positions: pd.DataFrame,
+        etf_positions: pd.DataFrame,
+        holdings_map: Dict[str, pd.DataFrame],
+        decompose_errors: List[PipelineError],
+        monitor: PipelineMonitor,
+        total_value: float,
+    ) -> PipelineSummaryData:
+        stock_count = len(direct_positions)
+        etf_count = len(etf_positions)
+
+        holdings_summary: HoldingsSummary = {
+            "stocks": stock_count,
+            "etfs": etf_count,
+            "total_value": total_value,
+        }
+
+        etf_names: Dict[str, str] = {}
+        if not etf_positions.empty:
+            name_col = get_name_column(etf_positions)
+            if name_col and name_col in etf_positions.columns:
+                for _, row in etf_positions.iterrows():
+                    isin_val = row.get("isin", "")
+                    name_val = row.get(name_col, "Unknown ETF")
+                    if isin_val:
+                        etf_names[str(isin_val)] = (
+                            str(name_val) if name_val else "Unknown ETF"
+                        )
+
+        failed_isins = {e.item for e in decompose_errors}
+        per_etf: List[ETFDecompositionDetail] = []
+        for isin, holdings in holdings_map.items():
+            per_etf.append(
+                {
+                    "isin": isin,
+                    "name": etf_names.get(isin, "Unknown ETF"),
+                    "holdings_count": len(holdings),
+                    "status": "success" if len(holdings) > 0 else "partial",
+                }
+            )
+        for isin in failed_isins:
+            if isin not in holdings_map:
+                per_etf.append(
+                    {
+                        "isin": isin,
+                        "name": etf_names.get(isin, "Unknown ETF"),
+                        "holdings_count": 0,
+                        "status": "failed",
+                    }
+                )
+
+        total_underlying = sum(len(h) for h in holdings_map.values())
+        decomposition_summary: DecompositionSummary = {
+            "etfs_processed": len(holdings_map),
+            "etfs_failed": len(decompose_errors),
+            "total_underlying": total_underlying,
+            "per_etf": per_etf,
+        }
+
+        resolution_stats = (
+            self._decomposer.get_resolution_stats() if self._decomposer else {}
+        )
+        by_source_raw = resolution_stats.get("by_source", {})
+        tier2_skipped = by_source_raw.get("tier2_skipped", 0)
+        by_source = {k: v for k, v in by_source_raw.items() if k != "tier2_skipped"}
+
+        resolution_summary: ResolutionSummary = {
+            "total": resolution_stats.get("total", 0),
+            "resolved": resolution_stats.get("resolved", 0),
+            "unresolved": resolution_stats.get("unresolved", 0),
+            "skipped_tier2": tier2_skipped,
+            "by_source": by_source,
+        }
+
+        metrics = monitor.get_metrics()
+        timing_summary: TimingSummary = {
+            "total_seconds": metrics.get("execution_time_seconds", 0.0),
+            "phases": metrics.get("phase_durations", {}),
+        }
+
+        unresolved_items = self._collect_unresolved_items(holdings_map, etf_names)
+        max_unresolved = 100
+        unresolved_total = len(unresolved_items)
+        unresolved_truncated = unresolved_total > max_unresolved
+
+        return {
+            "holdings": holdings_summary,
+            "decomposition": decomposition_summary,
+            "resolution": resolution_summary,
+            "timing": timing_summary,
+            "unresolved": unresolved_items[:max_unresolved],
+            "unresolved_truncated": unresolved_truncated,
+            "unresolved_total": unresolved_total,
+        }
+
+    def _collect_unresolved_items(
+        self,
+        holdings_map: Dict[str, pd.DataFrame],
+        etf_names: Dict[str, str],
+    ) -> List[UnresolvedItem]:
+        from portfolio_src.prism_utils.isin_validator import is_valid_isin
+
+        unresolved: List[UnresolvedItem] = []
+
+        for parent_isin, holdings in holdings_map.items():
+            if holdings.empty:
+                continue
+
+            weight_col = get_weight_column(holdings)
+            isin_col = get_isin_column(holdings)
+
+            for _, row in holdings.iterrows():
+                child_isin = row.get(isin_col) if isin_col else None
+                if (
+                    child_isin
+                    and isinstance(child_isin, str)
+                    and is_valid_isin(child_isin)
+                ):
+                    continue
+
+                ticker = str(row.get("ticker", "")).strip()
+                name = str(row.get("name", row.get("Name", "Unknown"))).strip()
+                weight = 0.0
+                if weight_col:
+                    try:
+                        weight_val = row.get(weight_col)
+                        if weight_val is not None and str(weight_val) not in (
+                            "",
+                            "nan",
+                            "NaN",
+                        ):
+                            weight = float(weight_val)
+                    except (ValueError, TypeError, KeyError):
+                        weight = 0.0
+
+                if not ticker:
+                    reason = "no_ticker"
+                elif child_isin and not is_valid_isin(str(child_isin)):
+                    reason = "invalid_isin"
+                else:
+                    reason = "api_all_failed"
+
+                unresolved.append(
+                    {
+                        "ticker": ticker or "N/A",
+                        "name": name,
+                        "weight": weight,
+                        "parent_etf": etf_names.get(parent_isin, parent_isin),
+                        "reason": reason,
+                    }
+                )
+
+        unresolved.sort(key=lambda x: x["weight"], reverse=True)
+        return unresolved

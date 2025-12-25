@@ -11,10 +11,12 @@ from unittest.mock import patch, MagicMock, AsyncMock
 
 from portfolio_src.headless.transports.echo_bridge import (
     broadcast_progress,
+    broadcast_summary,
     add_sse_client,
     remove_sse_client,
     _progress_clients,
     _broadcast_sync,
+    PipelineSummaryData,
 )
 
 
@@ -540,3 +542,231 @@ class TestPipelineGranularProgress:
             assert isinstance(msg, str)
             assert len(msg) > 0
             assert len(msg) < 200
+
+
+class TestBroadcastSummary:
+    """Tests for broadcast_summary function."""
+
+    @pytest.fixture(autouse=True)
+    def clear_clients(self):
+        """Clear client set before and after each test."""
+        _progress_clients.clear()
+        yield
+        _progress_clients.clear()
+
+    @pytest.fixture
+    def sample_summary(self) -> PipelineSummaryData:
+        """Create a sample pipeline summary for testing."""
+        return {
+            "holdings": {"stocks": 5, "etfs": 3, "total_value": 50000.0},
+            "decomposition": {
+                "etfs_processed": 3,
+                "etfs_failed": 0,
+                "total_underlying": 150,
+                "per_etf": [
+                    {
+                        "isin": "IE00B4L5Y983",
+                        "name": "iShares MSCI World",
+                        "holdings_count": 100,
+                        "status": "success",
+                    },
+                ],
+            },
+            "resolution": {
+                "total": 150,
+                "resolved": 140,
+                "unresolved": 10,
+                "skipped_tier2": 5,
+                "by_source": {"hive": 100, "api": 40},
+            },
+            "timing": {
+                "total_seconds": 12.5,
+                "phases": {
+                    "loading": 0.5,
+                    "decomposition": 8.0,
+                    "enrichment": 3.0,
+                    "aggregation": 1.0,
+                },
+            },
+            "unresolved": [
+                {
+                    "ticker": "ABNB",
+                    "name": "Airbnb",
+                    "weight": 0.8,
+                    "parent_etf": "MSCI World",
+                    "reason": "api_all_failed",
+                },
+            ],
+            "unresolved_truncated": False,
+            "unresolved_total": 1,
+        }
+
+    @pytest.mark.asyncio
+    async def test_broadcast_summary_to_client(self, sample_summary):
+        """broadcast_summary sends summary event to connected client."""
+        queue = asyncio.Queue()
+        await add_sse_client(queue)
+
+        _broadcast_sync({"type": "pipeline_summary", "data": dict(sample_summary)})
+
+        assert not queue.empty()
+        event = await queue.get()
+        assert event["type"] == "pipeline_summary"
+        assert "data" in event
+        assert event["data"]["holdings"]["stocks"] == 5
+        assert event["data"]["resolution"]["resolved"] == 140
+
+    @pytest.mark.asyncio
+    async def test_broadcast_summary_event_structure(self, sample_summary):
+        """broadcast_summary creates correct event structure."""
+        queue = asyncio.Queue()
+        await add_sse_client(queue)
+
+        _broadcast_sync({"type": "pipeline_summary", "data": dict(sample_summary)})
+
+        event = await queue.get()
+
+        assert event["type"] == "pipeline_summary"
+        data = event["data"]
+        assert "holdings" in data
+        assert "decomposition" in data
+        assert "resolution" in data
+        assert "timing" in data
+        assert "unresolved" in data
+        assert "unresolved_truncated" in data
+        assert "unresolved_total" in data
+
+    @pytest.mark.asyncio
+    async def test_broadcast_summary_to_multiple_clients(self, sample_summary):
+        """broadcast_summary sends to all connected clients."""
+        queue1 = asyncio.Queue()
+        queue2 = asyncio.Queue()
+
+        await add_sse_client(queue1)
+        await add_sse_client(queue2)
+
+        _broadcast_sync({"type": "pipeline_summary", "data": dict(sample_summary)})
+
+        for queue in [queue1, queue2]:
+            assert not queue.empty()
+            event = await queue.get()
+            assert event["type"] == "pipeline_summary"
+
+
+class TestPipelineSummaryEmission:
+    """Tests for pipeline summary emission at completion."""
+
+    def test_pipeline_emits_summary_on_success(self):
+        """Pipeline emits summary event on successful completion."""
+        from portfolio_src.core.pipeline import Pipeline
+        import pandas as pd
+
+        with patch("portfolio_src.core.pipeline.Pipeline._load_portfolio") as mock_load:
+            mock_load.return_value = (pd.DataFrame(), pd.DataFrame())
+            with patch(
+                "portfolio_src.core.pipeline.broadcast_summary"
+            ) as mock_broadcast:
+                pipeline = Pipeline()
+                result = pipeline.run()
+
+                if result.success:
+                    mock_broadcast.assert_called_once()
+                    call_args = mock_broadcast.call_args[0][0]
+                    assert "holdings" in call_args
+                    assert "resolution" in call_args
+                    assert "timing" in call_args
+
+    def test_pipeline_summary_contains_holdings_info(self):
+        """Pipeline summary contains holdings information."""
+        from portfolio_src.core.pipeline import Pipeline
+        import pandas as pd
+
+        direct = pd.DataFrame(
+            {"isin": ["US0378331005"], "asset_class": ["Stock"], "name": ["Apple"]}
+        )
+        etfs = pd.DataFrame(
+            {"isin": ["IE00B4L5Y983"], "asset_class": ["ETF"], "name": ["iShares"]}
+        )
+
+        with patch("portfolio_src.core.pipeline.Pipeline._load_portfolio") as mock_load:
+            mock_load.return_value = (direct, etfs)
+            with patch(
+                "portfolio_src.core.pipeline.broadcast_summary"
+            ) as mock_broadcast:
+                with patch("portfolio_src.core.pipeline.Pipeline._init_services"):
+                    pipeline = Pipeline()
+                    pipeline._decomposer = MagicMock()
+                    pipeline._decomposer.decompose.return_value = ({}, [])
+                    pipeline._decomposer.get_resolution_stats.return_value = {
+                        "total": 0,
+                        "resolved": 0,
+                        "unresolved": 0,
+                    }
+                    pipeline._enricher = MagicMock()
+                    pipeline._enricher.enrich.return_value = ({}, [])
+                    pipeline._enricher.enrich_positions.return_value = (direct, [])
+                    pipeline._aggregator = MagicMock()
+                    pipeline._aggregator.aggregate.return_value = (pd.DataFrame(), [])
+
+                    pipeline.run()
+
+                    if mock_broadcast.called:
+                        summary = mock_broadcast.call_args[0][0]
+                        assert summary["holdings"]["stocks"] == 1
+                        assert summary["holdings"]["etfs"] == 1
+
+    def test_pipeline_summary_truncates_unresolved(self):
+        """Pipeline summary truncates unresolved list to max 100 items."""
+        from portfolio_src.core.pipeline import Pipeline
+        import pandas as pd
+
+        holdings_with_many_unresolved = pd.DataFrame(
+            {
+                "ticker": [f"TICK{i}" for i in range(150)],
+                "name": [f"Company {i}" for i in range(150)],
+                "weight": [0.5] * 150,
+            }
+        )
+
+        with patch("portfolio_src.core.pipeline.Pipeline._load_portfolio") as mock_load:
+            mock_load.return_value = (
+                pd.DataFrame(),
+                pd.DataFrame(
+                    {"isin": ["IE00B4L5Y983"], "asset_class": ["ETF"], "name": ["Test"]}
+                ),
+            )
+            with patch(
+                "portfolio_src.core.pipeline.broadcast_summary"
+            ) as mock_broadcast:
+                with patch("portfolio_src.core.pipeline.Pipeline._init_services"):
+                    pipeline = Pipeline()
+                    pipeline._decomposer = MagicMock()
+                    pipeline._decomposer.decompose.return_value = (
+                        {"IE00B4L5Y983": holdings_with_many_unresolved},
+                        [],
+                    )
+                    pipeline._decomposer.get_resolution_stats.return_value = {
+                        "total": 150,
+                        "resolved": 0,
+                        "unresolved": 150,
+                        "by_source": {},
+                    }
+                    pipeline._enricher = MagicMock()
+                    pipeline._enricher.enrich.return_value = (
+                        {"IE00B4L5Y983": holdings_with_many_unresolved},
+                        [],
+                    )
+                    pipeline._enricher.enrich_positions.return_value = (
+                        pd.DataFrame(),
+                        [],
+                    )
+                    pipeline._aggregator = MagicMock()
+                    pipeline._aggregator.aggregate.return_value = (pd.DataFrame(), [])
+
+                    pipeline.run()
+
+                    if mock_broadcast.called:
+                        summary = mock_broadcast.call_args[0][0]
+                        assert len(summary["unresolved"]) <= 100
+                        assert summary["unresolved_truncated"] == True
+                        assert summary["unresolved_total"] == 150

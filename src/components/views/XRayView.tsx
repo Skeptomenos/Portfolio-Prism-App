@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import GlassCard from '../GlassCard';
 import PipelineProgressCard from '../common/PipelineProgressCard';
+import PipelineSummaryCard from '../common/PipelineSummaryCard';
 import { useDashboardData } from '../../hooks/usePortfolioData';
 import { useActivePortfolioId } from '../../store/useAppStore';
 import { runPipeline } from '../../lib/ipc';
 import { useQueryClient } from '@tanstack/react-query';
+import { usePipelineProgress } from '../../hooks/usePipelineProgress';
 
 // Palette for dynamic charts
 const COLORS = [
@@ -26,6 +28,8 @@ export default function XRayView() {
     const queryClient = useQueryClient();
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const { progress, summary } = usePipelineProgress();
+    const [showSummary, setShowSummary] = useState(true);
 
     // Helper to transform allocations record to chart data
     const getChartData = (allocations: Record<string, number> | undefined) => {
@@ -171,6 +175,16 @@ export default function XRayView() {
             {isAnalyzing && (
                 <div style={{ marginBottom: '24px' }}>
                     <PipelineProgressCard />
+                </div>
+            )}
+
+            {showSummary && summary && !isAnalyzing && progress === 100 && (
+                <div style={{ marginBottom: '24px' }}>
+                    <PipelineSummaryCard 
+                        summary={summary}
+                        isVisible={true}
+                        onDismiss={() => setShowSummary(false)}
+                    />
                 </div>
             )}
 

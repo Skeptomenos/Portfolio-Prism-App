@@ -21,17 +21,64 @@ export type PipelinePhase =
   | 'reporting' 
   | 'complete';
 
+export interface HoldingsSummary {
+  stocks: number;
+  etfs: number;
+  total_value: number;
+}
+
+export interface ETFDecompositionDetail {
+  isin: string;
+  name: string;
+  holdings_count: number;
+  status: 'success' | 'failed' | 'partial';
+}
+
+export interface DecompositionSummary {
+  etfs_processed: number;
+  etfs_failed: number;
+  total_underlying: number;
+  per_etf: ETFDecompositionDetail[];
+}
+
+export interface ResolutionSummary {
+  total: number;
+  resolved: number;
+  unresolved: number;
+  skipped_tier2: number;
+  by_source: Record<string, number>;
+}
+
+export interface TimingSummary {
+  total_seconds: number;
+  phases: Record<string, number>;
+}
+
+export interface UnresolvedItem {
+  ticker: string;
+  name: string;
+  weight: number;
+  parent_etf: string;
+  reason: 'api_all_failed' | 'no_ticker' | 'invalid_isin';
+}
+
+export interface PipelineSummaryData {
+  holdings: HoldingsSummary;
+  decomposition: DecompositionSummary;
+  resolution: ResolutionSummary;
+  timing: TimingSummary;
+  unresolved: UnresolvedItem[];
+  unresolved_truncated: boolean;
+  unresolved_total: number;
+}
+
 export interface PipelineProgressState {
-  /** Progress percentage (0-100) */
   progress: number;
-  /** Human-readable status message */
   message: string;
-  /** Current pipeline phase */
   phase: PipelinePhase;
-  /** Whether connected to SSE endpoint */
   isConnected: boolean;
-  /** Error message if connection failed */
   error: string | null;
+  summary: PipelineSummaryData | null;
 }
 
 interface SSEProgressEvent {
@@ -51,7 +98,12 @@ interface SSEHeartbeatEvent {
   timestamp?: string;
 }
 
-type SSEEvent = SSEProgressEvent | SSEConnectedEvent | SSEHeartbeatEvent;
+interface SSESummaryEvent {
+  type: 'pipeline_summary';
+  data: PipelineSummaryData;
+}
+
+type SSEEvent = SSEProgressEvent | SSEConnectedEvent | SSEHeartbeatEvent | SSESummaryEvent;
 
 // =============================================================================
 // Constants
@@ -72,6 +124,7 @@ const initialState: PipelineProgressState = {
   phase: 'idle',
   isConnected: false,
   error: null,
+  summary: null,
 };
 
 // =============================================================================
@@ -164,8 +217,15 @@ export function usePipelineProgress(enabled: boolean = true): PipelineProgressSt
         break;
 
       case 'heartbeat':
-        // Heartbeat keeps connection alive, no state update needed
         console.debug('[SSE] Heartbeat received');
+        break;
+
+      case 'pipeline_summary':
+        console.log('[SSE] Pipeline summary received');
+        setState(prev => ({
+          ...prev,
+          summary: event.data,
+        }));
         break;
 
       default:

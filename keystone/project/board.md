@@ -9,7 +9,7 @@
 | :--- | :--- | :--- | :--- |
 | ``infrastructure`` | `keystone/project/workstreams/infrastructure.md` | ``root-session`` | `Active` |
 | ``data-engine`` | `keystone/project/workstreams/data-engine.md` | ``root-session`` | `Active` |
-| ``frontend`` | `keystone/project/workstreams/frontend.md` | ``PP-UI-main`` | `Paused` |
+| ``frontend`` | `keystone/project/workstreams/frontend.md` | ``PP-UI-main`` | `Active` |
 | ``sqlite-migration`` | `keystone/project/workstreams/sqlite-migration.md` | ``root-session`` | `Active` |
 | ``tailwind-migration-fix`` | `keystone/project/workstreams/tailwind-migration-fix.md` | ``PP-UI-main`` | `Done` |
 | ``beautiful-logs`` | `keystone/project/workstreams/beautiful_logs.md` | ``AutoFeedback`` | `Active` |
@@ -205,3 +205,4 @@
 - `keystone/project/workstreams/pipeline-progress-ux.md`
 - `keystone/project/workstreams/sqlite-migration.md`
 - `keystone/project/workstreams/tailwind-migration-fix.md`
+- `keystone/plans/PIPELINE_TRANSPARENCY_PLAN.md`
