@@ -273,9 +273,12 @@ Phase 0 (Schema/RLS) ─────┬─────────────�
 ---
 
 ## Active State (Session Log)
-> **Current Focus:** Phase 0, 1, 2, and 3 complete. Ready for Phase 4 (Decomposer Wiring).
+> **Current Focus:** Phases 0-4 COMPLETE. Phase 5 (Cleanup) blocked until production verification.
 
 ### Iteration Log
+- [2025-12-25] **Completed:** Phase 4 - Decomposer wiring with 6 passing tests
+- [2025-12-25] **Performance Fix:** Skip Hive network calls for tier2 holdings (970x faster)
+- [2025-12-25] **Tested:** Full pipeline with Hive path - 3547 holdings, 1999 resolved (56.4%)
 - [2025-12-25] **Completed:** Phase 3 - ISINResolver refactor with 16 passing tests
 - [2025-12-25] **Completed:** Phase 2 - LocalCache with 31 passing tests
 - [2025-12-24] **Completed:** Phase 1 - HiveClient read methods with 10 passing tests
@@ -294,6 +297,7 @@ Phase 0 (Schema/RLS) ─────┬─────────────�
 - [x] `src-tauri/python/tests/test_hive_client_read.py` (10 tests)
 - [x] `src-tauri/python/tests/test_local_cache.py` (31 tests)
 - [x] `src-tauri/python/tests/test_isin_resolver_hive.py` (16 tests)
+- [x] `src-tauri/python/tests/test_decomposer_resolution.py` (6 tests)
 - [x] `scripts/test_hive_rpc.py`
 - [x] `scripts/deploy_hive_schema.py`
 
@@ -305,12 +309,15 @@ Phase 0 (Schema/RLS) ─────┬─────────────�
 ---
 
 ## Context for Resume (Handover)
-- **Next Action:** Start Phase 4 - HIVE-401 (Inject ISINResolver into Decomposer)
-- **State:** Phase 0-3 complete. ISINResolver now supports dual path (CSV or Hive).
+- **Next Action:** Wait for production verification (1+ week), then start Phase 5 (Cleanup)
+- **State:** Phases 0-4 COMPLETE. Hive path tested and working. 63 tests passing.
 - **Feature Flag:** `USE_LEGACY_CSV=true` (default) uses CSV, `USE_LEGACY_CSV=false` uses Hive
+- **Performance:** Decomposition reduced from 97s to 0.1s per ETF (970x improvement)
+- **Test Results:** 3547 holdings, 1999 resolved (56.4%), sources: local_cache_ticker (1633), tier2_skipped (1564), existing (350)
 - **Key Files:**
   - Config: `src-tauri/python/portfolio_src/config.py` (feature flags)
-  - Resolution: `src-tauri/python/portfolio_src/data/resolution.py` (dual path)
+  - Resolution: `src-tauri/python/portfolio_src/data/resolution.py` (dual path + performance fix)
   - LocalCache: `src-tauri/python/portfolio_src/data/local_cache.py`
   - HiveClient: `src-tauri/python/portfolio_src/data/hive_client.py`
-  - Decomposer: `src-tauri/python/portfolio_src/core/decomposer.py` (to be wired)
+  - Decomposer: `src-tauri/python/portfolio_src/core/services/decomposer.py` (wired with ISINResolver)
+  - Pipeline: `src-tauri/python/portfolio_src/core/pipeline.py` (passes resolver when USE_LEGACY_CSV=false)
