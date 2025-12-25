@@ -289,11 +289,11 @@ Phase 0 (Schema/RLS) ─────┬─────────────�
     - **Workstream:** hive-extension
     - **Details:** All 378 tests passing.
 
-- [ ] **DECOUPLE-009:** Live integration test
+- [x] **DECOUPLE-009:** Live integration test
     - **Dependencies:** DECOUPLE-008
-    - **Status:** Open (requires manual verification)
+    - **Status:** Done
     - **Workstream:** hive-extension
-    - **Details:** Verify: sync without pipeline, manual pipeline trigger, Hive path active.
+    - **Details:** Verified: sync without pipeline ✅, manual pipeline trigger via X-Ray "Deep Analysis" button ✅, Hive path active ✅.
 
 ---
 
@@ -337,7 +337,8 @@ Phase 0 (Schema/RLS) ─────┬─────────────�
 > **Current Focus:** Phase 6 (Legacy Cleanup) - Waiting for production verification.
 
 ### Iteration Log
-- [2025-12-25] **Completed:** Phase 5 - Pipeline decoupling, Hive default, Playwright removal (8/9 tasks)
+- [2025-12-25] **Verified:** DECOUPLE-009 - Live integration test passed (sync decoupled, Deep Analysis button works)
+- [2025-12-25] **Completed:** Phase 5 - Pipeline decoupling, Hive default, Playwright removal (9/9 tasks)
 - [2025-12-25] **Documentation:** Updated strategy, ipc_api.md, created pipeline_triggering.md spec
 - [2025-12-25] **Tests:** All 378 tests passing after Phase 5 changes
 - [2025-12-25] **Completed:** Phase 4 - Decomposer wiring with 6 passing tests
@@ -375,21 +376,20 @@ Phase 0 (Schema/RLS) ─────┬─────────────�
 - [ ] Consider adding `confidence_score` to resolution results
 - [ ] Background sync thread for LocalCache (post-MVP)
 - [ ] Alias contribution UI in frontend (post-MVP)
-- [ ] DECOUPLE-009: Live integration test (requires manual app testing)
 
 ---
 
 ## Context for Resume (Handover)
-- **Next Action:** DECOUPLE-009 (Live integration test) then Phase 6 (Legacy Cleanup)
-- **State:** Phases 0-5 COMPLETE (8/9 tasks). Awaiting production verification.
+- **Next Action:** Phase 6 (Legacy Cleanup) after 1+ week production verification
+- **State:** Phases 0-5 COMPLETE (all 9 tasks). Production verified 2025-12-25.
 - **Behavioral Changes (Phase 5):**
   1. ✅ Sync no longer auto-triggers pipeline (decoupled)
   2. ✅ `USE_LEGACY_CSV=false` is now default (Hive path active, 970x faster)
   3. ✅ Playwright removed from adapters (manual upload + Hive only)
-- **To Verify in Live Test:**
-  - Sync completes without running pipeline
-  - Pipeline triggered separately from X-Ray view
-  - Hive path resolves ISINs correctly
+- **Live Test Results (2025-12-25):**
+  - ✅ Sync completes without running pipeline
+  - ✅ Pipeline triggered via "Deep Analysis" button on X-Ray page
+  - ✅ Hive path active and working
 - **Phase 6 Prerequisites:**
-  - [ ] Phase 5 verified in production for 1+ week
+  - [ ] Phase 5 verified in production for 1+ week (started 2025-12-25)
   - [ ] No rollbacks required
