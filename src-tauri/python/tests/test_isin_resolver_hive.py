@@ -79,6 +79,7 @@ class TestHiveResolutionChain:
 
     @patch("portfolio_src.data.resolution.USE_LEGACY_CSV", False)
     def test_cache_miss_hits_hive(self):
+        """Test that tier1 holdings (weight > threshold) hit Hive when local cache misses."""
         with patch("portfolio_src.data.resolution.get_local_cache") as mock_cache_fn:
             with patch("portfolio_src.data.resolution.get_hive_client") as mock_hive_fn:
                 mock_cache = MagicMock()
@@ -92,8 +93,8 @@ class TestHiveResolutionChain:
                 mock_hive.resolve_ticker.return_value = "US0378331005"
                 mock_hive_fn.return_value = mock_hive
 
-                resolver = ISINResolver()
-                result = resolver.resolve("AAPL", "Apple Inc")
+                resolver = ISINResolver(tier1_threshold=0.5)
+                result = resolver.resolve("AAPL", "Apple Inc", weight=1.0)
 
                 assert result.isin == "US0378331005"
                 assert result.detail == "hive_ticker"
@@ -115,8 +116,8 @@ class TestHiveResolutionChain:
                 mock_hive.lookup_by_alias.return_value = "US0378331005"
                 mock_hive_fn.return_value = mock_hive
 
-                resolver = ISINResolver()
-                result = resolver.resolve("AAPL", "Apple Inc")
+                resolver = ISINResolver(tier1_threshold=0.5)
+                result = resolver.resolve("AAPL", "Apple Inc", weight=1.0)
 
                 assert result.isin == "US0378331005"
                 assert result.detail == "hive_alias"

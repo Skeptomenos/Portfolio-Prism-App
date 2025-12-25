@@ -308,11 +308,17 @@ class ISINResolver:
                 self._record_resolution(ticker_clean, name_clean, result)
                 return result
 
+        # Determine if this is a tier2 holding (skip network calls for performance)
+        is_tier2 = weight <= self.tier1_threshold
+
         # 2-3. Local resolution (CSV or Hive based on flag)
         if USE_LEGACY_CSV:
             result = self._resolve_via_csv(ticker_clean, name_clean)
         else:
-            result = self._resolve_via_hive(ticker_clean, name_clean)
+            # For tier2 holdings, only check local cache (no Hive network calls)
+            result = self._resolve_via_hive(
+                ticker_clean, name_clean, skip_network=is_tier2
+            )
 
         if result.status == "resolved":
             self._record_resolution(ticker_clean, name_clean, result)
@@ -330,7 +336,7 @@ class ISINResolver:
                 return result
 
         # 5. Tier check - skip API for minor holdings
-        if weight <= self.tier1_threshold:
+        if is_tier2:
             result = ResolutionResult(
                 isin=None, status="skipped", detail="tier2_skipped"
             )
@@ -374,8 +380,17 @@ class ISINResolver:
 
         return ResolutionResult(isin=None, status="unresolved", detail="csv_miss")
 
-    def _resolve_via_hive(self, ticker: str, name: str) -> ResolutionResult:
-        """New path: resolve via LocalCache + HiveClient."""
+    def _resolve_via_hive(
+        self, ticker: str, name: str, skip_network: bool = False
+    ) -> ResolutionResult:
+        """
+        New path: resolve via LocalCache + HiveClient.
+
+        Args:
+            ticker: Ticker symbol to resolve
+            name: Security name for alias lookup
+            skip_network: If True, only check local cache (no Hive network calls)
+        """
         if self._local_cache is None:
             return ResolutionResult(isin=None, status="unresolved", detail="no_cache")
 
@@ -397,6 +412,12 @@ class ISINResolver:
                     detail="local_cache_alias",
                     source=None,
                 )
+
+        # Skip Hive network calls for tier2 holdings (performance optimization)
+        if skip_network:
+            return ResolutionResult(
+                isin=None, status="unresolved", detail="local_cache_miss"
+            )
 
         if self._hive_client and self._hive_client.is_configured:
             isin = self._hive_client.resolve_ticker(ticker)
