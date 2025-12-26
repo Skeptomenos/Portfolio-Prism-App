@@ -191,6 +191,18 @@ Alias contributions use the existing Hive trust model (see `keystone/strategy/hi
 
 **User Identification:** Supabase anonymous auth generates stable `contributor_hash` per device without requiring login.
 
+### 8.2 Hive Seeding
+
+To prevent cold start data quality issues, pre-populate the Hive before launch:
+
+| Seed Data | Source | Count |
+|-----------|--------|-------|
+| S&P 500 constituents | OpenFIGI / Wikidata | ~500 |
+| Major ETF holdings (top 10 ETFs) | Provider exports | ~2,000 unique |
+| Common ticker aliases | Manual curation | ~100 |
+
+**Why:** First user contributions are high-risk (MVP corroboration = 1). Seeding with authoritative data ensures common securities resolve correctly from day one.
+
 ---
 
 ## 9. Currency Handling
@@ -204,6 +216,8 @@ Alias contributions use the existing Hive trust model (see `keystone/strategy/hi
 | Provider includes currency | Store ticker→ISIN→currency mapping |
 
 **Storage:** Aliases include optional `currency` and `exchange` fields. Resolution returns ISIN + currency when known.
+
+**Currency Source Logging:** Store `currency_source: 'explicit' | 'inferred'` to track confidence. Inferred currencies flagged for future review.
 
 **MVP Focus:** Resolve to ISIN. Currency is bonus metadata when available.
 

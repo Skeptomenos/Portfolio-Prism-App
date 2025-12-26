@@ -202,6 +202,7 @@ Contributors identified by `contributor_hash` generated via Supabase anonymous a
 | API rate limit | Skip to next API in cascade |
 | API timeout | Skip to next API in cascade |
 | Hive unavailable | Continue with local cache + APIs |
+| Fully offline | Use local cache only; if miss, display raw name as-is |
 | Multiple ISIN candidates | Take highest confidence, log ambiguity |
 
 ### 8.1 Negative Caching
