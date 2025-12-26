@@ -1,4 +1,4 @@
-# Project Objective
+den# Project Objective
 
 > **Purpose:** This is the living objective for this project. It evolves as understanding deepens through iteration.
 > **Read this:** At session start to orient on the big picture.
