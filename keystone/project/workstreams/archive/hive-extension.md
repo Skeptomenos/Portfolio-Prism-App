@@ -2,7 +2,7 @@
 
 > **Feature Plan:** `keystone/strategy/HIVE_EXTENSION_STRATEGY.md`
 > **Owner:** OptiPie
-> **Status:** Active
+> **Status:** Done
 > **Last Heartbeat:** 2025-12-26 08:45
 
 ---
@@ -308,35 +308,40 @@ Phase 0 (Schema/RLS) ─────┬─────────────�
 > **Objective:** Remove deprecated CSV code after production success.
 > **Blocking:** Requires Phase 5 verified in production for 1+ week.
 
-- [ ] **HIVE-601:** Delete AssetUniverse class
+- [x] **HIVE-601:** Delete AssetUniverse class
     - **Dependencies:** DECOUPLE-009 (production verified)
-    - **Status:** Open
+    - **Status:** Done
     - **Workstream:** hive-extension
-    - **Details:** Remove `AssetUniverse` class from `resolution.py`. Remove all imports and usages.
+    - **Details:** Removed `AssetUniverse` class from `resolution.py`. Removed all imports and usages.
+    - **Completed:** 2025-12-26
 
-- [ ] **HIVE-602:** Remove CSV from migration.py
+- [x] **HIVE-602:** Remove CSV from migration.py
     - **Dependencies:** HIVE-601
-    - **Status:** Open
+    - **Status:** Done
     - **Workstream:** hive-extension
-    - **Details:** Remove `asset_universe.csv` handling from `migration.py`. Remove `_sync_asset_universe()` from `community_sync.py`.
+    - **Details:** Removed `asset_universe.csv` handling from `migration.py` and `lifecycle.py`.
+    - **Completed:** 2025-12-26
 
-- [ ] **HIVE-603:** Remove feature flag
+- [x] **HIVE-603:** Remove feature flag
     - **Dependencies:** HIVE-602
-    - **Status:** Open
+    - **Status:** Done
     - **Workstream:** hive-extension
-    - **Details:** Remove `USE_LEGACY_CSV` from `config.py`. Remove conditional logic from `resolution.py`. Hive path becomes the only path.
+    - **Details:** Removed `USE_LEGACY_CSV` from `config.py`. Removed conditional logic from `resolution.py`. Hive path is now the only path.
+    - **Completed:** 2025-12-26
 
-- [ ] **HIVE-604:** Delete deprecated files
+- [x] **HIVE-604:** Delete deprecated files
     - **Dependencies:** HIVE-603
-    - **Status:** Open
+    - **Status:** Done
     - **Workstream:** hive-extension
-    - **Details:** Delete `config/asset_universe.csv`. Update any error messages referencing CSV. Optionally remove `ASSET_UNIVERSE_PATH` from config.
+    - **Details:** Deleted `config/asset_universe.csv` and `default_config/asset_universe.csv`. Removed `ASSET_UNIVERSE_PATH` from config.
+    - **Completed:** 2025-12-26
 
-- [ ] **HIVE-605:** Final documentation update
+- [x] **HIVE-605:** Final documentation update
     - **Dependencies:** HIVE-604
-    - **Status:** Open
+    - **Status:** Done
     - **Workstream:** hive-extension
-    - **Details:** Update `HIVE_EXTENSION_STRATEGY.md` status to COMPLETE. Archive to `keystone/plans/archive/`. Update README if needed.
+    - **Details:** Updated CHANGELOG.md with removal of legacy CSV system.
+    - **Completed:** 2025-12-26
 
 ---
 
@@ -403,7 +408,7 @@ Phase 0 (Schema/RLS) ─────┬─────────────�
 ---
 
 ## Active State (Session Log)
-> **Current Focus:** Phase 7 COMPLETE. Ready for frontend implementation.
+> **Current Focus:** ALL PHASES COMPLETE. Workstream archived.
 
 ### Iteration Log
 - [2025-12-26] **Completed:** Phase 7 (Data Provenance) - 9/9 tasks. Backend now emits source tracking and Hive logs.
@@ -451,8 +456,8 @@ Phase 0 (Schema/RLS) ─────┬─────────────�
 ---
 
 ## Context for Resume (Handover)
-- **Next Action:** Frontend implementation (see `keystone/plans/PIPELINE_FRONTEND_IMPLEMENTATION_PLAN.md`)
-- **State:** Phases 0-5, 7 COMPLETE. Phase 6 waiting for production verification.
+- **Next Action:** None - workstream complete and archived.
+- **State:** ALL PHASES COMPLETE (0-7). Legacy CSV system removed.
 - **Phase 7 Output:** Backend now emits provenance data in `pipeline_health.json`:
   ```json
   {
@@ -470,6 +475,4 @@ Phase 0 (Schema/RLS) ─────┬─────────────�
   - `src-tauri/python/portfolio_src/core/services/enricher.py` - EnrichmentResult dataclass, contributions tracking
   - `src-tauri/python/portfolio_src/headless/transports/echo_bridge.py` - ETFDecompositionDetail.source field
   - `src-tauri/python/tests/*.py` - Updated tests for new API signatures (384 passing)
-- **Phase 6 Prerequisites (still waiting):**
-  - [ ] Phase 5 verified in production for 1+ week (started 2025-12-25)
-  - [ ] No rollbacks required
+- **Phase 6 Completed:** 2025-12-26 - Legacy CSV system removed, all code cleaned up.
