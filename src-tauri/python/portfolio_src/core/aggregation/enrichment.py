@@ -92,7 +92,7 @@ def enrich_etf_holdings(
         has_valid = holdings["isin"].apply(
             lambda x: is_valid_isin(str(x)) if pd.notna(x) else False
         )
-        if has_valid.all():
+        if bool(has_valid.all()):
             # All ISINs are valid, just add status columns
             holdings["resolution_status"] = "resolved"
             holdings["resolution_detail"] = "provider"
