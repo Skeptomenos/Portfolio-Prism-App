@@ -542,8 +542,8 @@ If Hive integration fails in production:
 
 | File | Changes |
 |------|---------|
-| `infrastructure/supabase/schema.sql` | Add `aliases` table |
-| `infrastructure/supabase/functions.sql` | Add `contribute_alias()` RPC |
+| `supabase/schema.sql` | Add `aliases` table |
+| `supabase/functions/functions.sql` | Add `contribute_alias()` RPC |
 | `data/hive_client.py` | Add read methods, sync logic |
 | `data/resolution.py` | Remove `AssetUniverse`, add Hive integration |
 | `data/local_cache.py` | NEW - Local SQLite cache |

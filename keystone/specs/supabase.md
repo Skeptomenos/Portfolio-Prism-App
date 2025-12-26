@@ -59,19 +59,21 @@ The Hive is a community-driven Supabase PostgreSQL database that enables crowdso
 
 ```
 MVP/
-├── supabase/                          # Supabase CLI project root
-│   ├── config.toml                    # Supabase project configuration
-│   ├── schema.sql                     # Core table definitions (reference)
+├── supabase/                          # Supabase CLI project root (SINGLE SOURCE OF TRUTH)
+│   ├── .branches/                     # CLI state
+│   ├── .temp/                         # CLI cache
+│   ├── schema.sql                     # Full schema reference
 │   ├── functions/
-│   │   └── functions.sql              # RPC function definitions (reference)
-│   └── migrations/                    # Versioned migrations (source of truth)
+│   │   └── functions.sql              # All RPC function definitions
+│   └── migrations/                    # Versioned migrations (applied to DB)
 │       ├── 20251224_add_aliases.sql
+│       ├── 20251224_test_rpc.sql
 │       └── 20251226_fix_contribute_alias_logging.sql
 │
 ├── infrastructure/
-│   └── supabase/
-│       ├── schema.sql                 # Canonical schema (keep in sync)
-│       └── functions.sql              # Canonical functions (keep in sync)
+│   └── cloudflare/                    # Cloudflare Workers only
+│       ├── worker.js
+│       └── wrangler.toml
 ```
 
 ### File Roles
@@ -81,7 +83,6 @@ MVP/
 | `supabase/migrations/*.sql` | **Source of Truth** - Applied to remote DB | Always create new migration for changes |
 | `supabase/schema.sql` | Reference - Full schema snapshot | Update after migrations for documentation |
 | `supabase/functions/functions.sql` | Reference - All RPC functions | Update after function changes |
-| `infrastructure/supabase/*` | Canonical copies | Keep in sync with supabase/ |
 
 ---
 

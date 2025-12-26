@@ -47,7 +47,7 @@ Fix critical bugs identified during code reviews and testing to ensure system st
 
 ### Artifacts Produced
 - [ ] `src-tauri/python/portfolio_src/core/pipeline.py`
-- [ ] `infrastructure/supabase/functions.sql`
+- [x] `supabase/functions/functions.sql`
 
 ### Parked Items / Ideas
 - [ ] None

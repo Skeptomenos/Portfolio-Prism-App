@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Supabase Folder Consolidation:** Merged `infrastructure/supabase/` into `supabase/` (Supabase CLI standard).
+  - Single source of truth for schema, functions, and migrations.
+  - `functions.sql` now includes all bulk sync RPCs (355 lines).
+  - Updated 8 documentation files to reference new paths.
+  - Deprecated `community_sync.py` references in legacy `reference_dashboard/`.
+
 ### Added
 
 - **Hive Extension (Phases 0-4):** Complete ISIN resolution infrastructure for X-Ray pipeline.

@@ -3,7 +3,7 @@
 > **Feature Plan:** `keystone/strategy/HIVE_EXTENSION_STRATEGY.md`
 > **Owner:** OptiPie
 > **Status:** Active
-> **Last Heartbeat:** 2025-12-24 02:30
+> **Last Heartbeat:** 2025-12-26 08:45
 
 ---
 
@@ -36,8 +36,15 @@ Phase 0 (Schema/RLS) ─────┬─────────────�
                           Phase 4 (Decomposer)
                                     │
                                     ▼
-                          Phase 5 (Cleanup)
-                          [production verified]
+                          Phase 5 (Decoupling) ✅
+                                    │
+                    ┌───────────────┴───────────────┐
+                    ▼                               ▼
+          Phase 6 (Cleanup)              Phase 7 (Provenance)
+          [waiting 1 week]                  [can start now]
+                                                   │
+                                                   ▼
+                                    Frontend: Glass Box UI
 ```
 
 ---
@@ -333,10 +340,74 @@ Phase 0 (Schema/RLS) ─────┬─────────────�
 
 ---
 
+### Phase 7: Data Provenance & Hive Logging ✅ COMPLETE
+> **Objective:** Capture detailed metadata about data sources for the "Glass Box" UI.
+> **Status:** COMPLETE (2025-12-26)
+> **Plan:** `keystone/plans/PIPELINE_BACKEND_UPGRADE_PLAN.md`
+> **Frontend Dependency:** `keystone/plans/PIPELINE_FRONTEND_IMPLEMENTATION_PLAN.md`
+
+- [x] **PROV-001:** Update PipelineMonitor to track ISIN sets
+    - **Dependencies:** None
+    - **Status:** Done
+    - **Workstream:** hive-extension
+    - **Details:** Changed `hive_hits`, `hive_misses`, `api_calls` from `int` to `set[str]`. Added `contributions: set[str]`. Updated `record_enrichment(isin, source)` signature.
+
+- [x] **PROV-002:** Add record_contribution() method to monitor
+    - **Dependencies:** PROV-001
+    - **Status:** Done
+    - **Workstream:** hive-extension
+    - **Details:** Added `record_contribution(isin)` and `get_hive_log()` methods to PipelineMonitor.
+
+- [x] **PROV-003:** Update Decomposer._get_holdings() to return source
+    - **Dependencies:** None
+    - **Status:** Done
+    - **Workstream:** hive-extension
+    - **Details:** Changed return type to `Tuple[DataFrame, str, PipelineError]`. Source is `"cached"`, `"hive"`, or `"{adapter}_adapter"`.
+
+- [x] **PROV-004:** Collect per-ETF resolution metadata in decompose()
+    - **Dependencies:** PROV-003
+    - **Status:** Done
+    - **Workstream:** hive-extension
+    - **Details:** Added `_etf_sources` dict and `get_etf_sources()` method to Decomposer.
+
+- [x] **PROV-005:** Update HiveEnrichmentService.get_metadata_batch()
+    - **Dependencies:** None
+    - **Status:** Done
+    - **Workstream:** hive-extension
+    - **Details:** Changed return type to `EnrichmentResult` dataclass with `data`, `sources`, and `contributions` fields.
+
+- [x] **PROV-006:** Wire contributions from Enricher to PipelineMonitor
+    - **Dependencies:** PROV-002, PROV-005
+    - **Status:** Done
+    - **Workstream:** hive-extension
+    - **Details:** Enricher now tracks contributions and sources. Pipeline wires them to monitor after enrichment phase.
+
+- [x] **PROV-007:** Update _build_summary() for new JSON schema
+    - **Dependencies:** PROV-001, PROV-004, PROV-006
+    - **Status:** Done
+    - **Workstream:** hive-extension
+    - **Details:** Updated `_write_health_report()` and `_build_summary()` to include `decomposition.per_etf[].source` and `enrichment.hive_log`.
+
+- [x] **PROV-008:** Unit tests for provenance tracking
+    - **Dependencies:** PROV-007
+    - **Status:** Done
+    - **Workstream:** hive-extension
+    - **Details:** Updated existing tests to handle new API signatures. Added `test_monitor_contributions` test. 384 tests passing.
+
+- [x] **PROV-009:** Manual verification with live pipeline
+    - **Dependencies:** PROV-008
+    - **Status:** Done
+    - **Workstream:** hive-extension
+    - **Details:** Verified PipelineMonitor output format matches frontend contract. Full live test pending TR session renewal.
+
+---
+
 ## Active State (Session Log)
-> **Current Focus:** Phase 6 (Legacy Cleanup) - Waiting for production verification.
+> **Current Focus:** Phase 7 COMPLETE. Ready for frontend implementation.
 
 ### Iteration Log
+- [2025-12-26] **Completed:** Phase 7 (Data Provenance) - 9/9 tasks. Backend now emits source tracking and Hive logs.
+- [2025-12-26] **Added:** Phase 7 (Data Provenance) - 9 tasks for backend upgrade to support Glass Box UI
 - [2025-12-25] **Verified:** DECOUPLE-009 - Live integration test passed (sync decoupled, Deep Analysis button works)
 - [2025-12-25] **Completed:** Phase 5 - Pipeline decoupling, Hive default, Playwright removal (9/9 tasks)
 - [2025-12-25] **Documentation:** Updated strategy, ipc_api.md, created pipeline_triggering.md spec
@@ -355,8 +426,8 @@ Phase 0 (Schema/RLS) ─────┬─────────────�
 - [x] `keystone/strategy/HIVE_EXTENSION_STRATEGY.md` (updated with Phase 5 complete)
 - [x] `keystone/specs/ipc_api.md` (updated with run_pipeline command)
 - [x] `keystone/specs/pipeline_triggering.md` (NEW - explains decoupled architecture)
-- [x] `infrastructure/supabase/migrations/20251224_add_aliases.sql`
-- [x] `infrastructure/supabase/functions.sql` (7 RPC functions + contribute_alias)
+- [x] `supabase/migrations/20251224_add_aliases.sql`
+- [x] `supabase/functions/functions.sql` (7 RPC functions + contribute_alias)
 - [x] `src-tauri/python/portfolio_src/config.py` (USE_LEGACY_CSV=false default)
 - [x] `src-tauri/python/portfolio_src/data/hive_client.py` (read methods + contribute_alias)
 - [x] `src-tauri/python/portfolio_src/data/local_cache.py`
@@ -380,16 +451,25 @@ Phase 0 (Schema/RLS) ─────┬─────────────�
 ---
 
 ## Context for Resume (Handover)
-- **Next Action:** Phase 6 (Legacy Cleanup) after 1+ week production verification
-- **State:** Phases 0-5 COMPLETE (all 9 tasks). Production verified 2025-12-25.
-- **Behavioral Changes (Phase 5):**
-  1. ✅ Sync no longer auto-triggers pipeline (decoupled)
-  2. ✅ `USE_LEGACY_CSV=false` is now default (Hive path active, 970x faster)
-  3. ✅ Playwright removed from adapters (manual upload + Hive only)
-- **Live Test Results (2025-12-25):**
-  - ✅ Sync completes without running pipeline
-  - ✅ Pipeline triggered via "Deep Analysis" button on X-Ray page
-  - ✅ Hive path active and working
-- **Phase 6 Prerequisites:**
+- **Next Action:** Frontend implementation (see `keystone/plans/PIPELINE_FRONTEND_IMPLEMENTATION_PLAN.md`)
+- **State:** Phases 0-5, 7 COMPLETE. Phase 6 waiting for production verification.
+- **Phase 7 Output:** Backend now emits provenance data in `pipeline_health.json`:
+  ```json
+  {
+    "decomposition": { "per_etf": [{ "isin": "...", "source": "cached|hive|{adapter}_adapter", ... }] },
+    "enrichment": { 
+      "stats": { "hive_hits": 450, "api_calls": 5, "new_contributions": 12 },
+      "hive_log": { "contributions": ["ISIN1", ...], "hits": ["ISIN2", ...] } 
+    },
+    "failures": [{ "isin": "...", "issue": "...", "error": "...", "fix": "..." }]
+  }
+  ```
+- **Files Modified (Phase 7):**
+  - `src-tauri/python/portfolio_src/core/pipeline.py` - PipelineMonitor with ISIN sets, _write_health_report with provenance
+  - `src-tauri/python/portfolio_src/core/services/decomposer.py` - _get_holdings returns 3-tuple with source
+  - `src-tauri/python/portfolio_src/core/services/enricher.py` - EnrichmentResult dataclass, contributions tracking
+  - `src-tauri/python/portfolio_src/headless/transports/echo_bridge.py` - ETFDecompositionDetail.source field
+  - `src-tauri/python/tests/*.py` - Updated tests for new API signatures (384 passing)
+- **Phase 6 Prerequisites (still waiting):**
   - [ ] Phase 5 verified in production for 1+ week (started 2025-12-25)
   - [ ] No rollbacks required

@@ -43,7 +43,7 @@ Make existing Hive data readable by creating `SECURITY DEFINER` RPC functions th
 
 ### HIVE-005: Add `aliases` Table Migration
 
-**File:** `infrastructure/supabase/migrations/20251224_add_aliases.sql`
+**File:** `supabase/migrations/20251224_add_aliases.sql`
 
 ```sql
 -- Migration: Add aliases table for name-based ISIN resolution
@@ -91,7 +91,7 @@ supabase db push
 
 ### HIVE-002: Create `resolve_ticker_rpc` Function
 
-**File:** `infrastructure/supabase/functions.sql` (append)
+**File:** `supabase/functions/functions.sql` (append)
 
 ```sql
 -- =============================================================================
@@ -159,7 +159,7 @@ SELECT * FROM resolve_ticker_rpc('AAPL', NULL);
 
 ### HIVE-003: Create `batch_resolve_tickers_rpc` Function
 
-**File:** `infrastructure/supabase/functions.sql` (append)
+**File:** `supabase/functions/functions.sql` (append)
 
 ```sql
 -- =============================================================================
@@ -213,7 +213,7 @@ SELECT * FROM batch_resolve_tickers_rpc(ARRAY['AAPL', 'MSFT', 'NVDA']);
 
 ### HIVE-004: Create `lookup_alias_rpc` Function
 
-**File:** `infrastructure/supabase/functions.sql` (append)
+**File:** `supabase/functions/functions.sql` (append)
 
 ```sql
 -- =============================================================================
@@ -261,7 +261,7 @@ COMMENT ON FUNCTION public.lookup_alias_rpc IS
 
 ### HIVE-006: Create `contribute_alias` RPC
 
-**File:** `infrastructure/supabase/functions.sql` (append)
+**File:** `supabase/functions/functions.sql` (append)
 
 ```sql
 -- =============================================================================

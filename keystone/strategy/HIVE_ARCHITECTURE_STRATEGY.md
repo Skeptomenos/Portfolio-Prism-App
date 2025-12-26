@@ -82,6 +82,6 @@ We chose a normalized PostgreSQL schema over a NoSQL/JSON-blob approach.
 
 See `docs/PLAN_HIVE_SETUP.md` for the execution roadmap.
 
-1.  **Schema:** `infrastructure/supabase/schema.sql` (Pending Generation)
+1.  **Schema:** `supabase/schema.sql`
 2.  **Client:** `hive_client.py` (Update to use RPCs)
 3.  **Seed:** `scripts/seed_hive.py` (Migration)

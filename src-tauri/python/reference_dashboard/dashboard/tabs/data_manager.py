@@ -5,7 +5,9 @@ from datetime import datetime
 from pathlib import Path
 from portfolio_src.dashboard.utils import load_asset_universe, CONFIG_DIR
 from data.holdings_cache import get_holdings_cache, MANUAL_UPLOAD_DIR
-from data.community_sync import get_community_sync
+
+# DEPRECATED: community_sync removed in favor of HiveClient
+# from data.community_sync import get_community_sync
 from data.holdings_normalizer import normalize_holdings
 
 # Use centralized path from utils
@@ -217,13 +219,14 @@ def render():
         "for look-through analysis."
     )
 
-    # Initialize cache and sync
+    # Initialize cache
     holdings_cache = get_holdings_cache()
-    community_sync = get_community_sync()
+    # DEPRECATED: community_sync removed in favor of HiveClient
+    # community_sync = get_community_sync()
 
     # Cache Statistics
     cache_stats = holdings_cache.get_cache_stats()
-    sync_stats = community_sync.get_sync_stats()
+    # sync_stats = community_sync.get_sync_stats()  # DEPRECATED
 
     stat_col1, stat_col2, stat_col3, stat_col4 = st.columns(4)
     stat_col1.metric(
@@ -243,8 +246,8 @@ def render():
     )
     stat_col4.metric(
         "Last Sync",
-        _format_last_sync(sync_stats.get("last_sync")),
-        help="When community data was last synchronized",
+        "N/A (deprecated)",
+        help="Community sync has been replaced by Hive integration",
     )
 
     # Action buttons row
@@ -253,26 +256,10 @@ def render():
 
     with action_col1:
         if st.button("🔄 Sync Community Data", type="secondary"):
-            with st.spinner("Syncing with GitHub..."):
-                try:
-                    results = community_sync.pull_community_data()
-                    if results["downloaded"]:
-                        st.success(
-                            f"Downloaded {len(results['downloaded'])} ETFs: "
-                            f"{', '.join(results['downloaded'][:5])}"
-                            f"{'...' if len(results['downloaded']) > 5 else ''}"
-                        )
-                    if results["skipped"]:
-                        st.info(
-                            f"Skipped {len(results['skipped'])} (already up-to-date)"
-                        )
-                    if results["failed"]:
-                        st.warning(f"Failed: {', '.join(results['failed'])}")
-                    if not results["downloaded"] and not results["failed"]:
-                        st.info("Already up-to-date!")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Sync failed: {e}")
+            # DEPRECATED: community_sync removed in favor of HiveClient
+            st.warning(
+                "Community sync has been replaced by Hive integration. Use the main app instead."
+            )
 
     with action_col2:
         if st.button("🗑️ Clear Local Cache", type="secondary"):

@@ -54,11 +54,11 @@ def render():
         if st.button("Run Analysis Pipeline", type="primary", key="xray_run_pipeline"):
             progress_bar = st.progress(0.0)
             status_text = st.empty()
-            
+
             try:
                 from portfolio_src.core.pipeline import Pipeline
                 from portfolio_src.dashboard.utils import DATA_DIR
-                
+
                 def update_progress(msg: str, pct: float):
                     progress_bar.progress(pct)
                     status_text.text(msg)
@@ -66,9 +66,11 @@ def render():
                 pipeline = Pipeline(data_dir=DATA_DIR)
                 status_text.text("Starting pipeline...")
                 result = pipeline.run(progress_callback=update_progress)
-                
+
                 if result.success:
-                    st.success(f"Analysis complete! Processed {result.etfs_processed} ETFs.")
+                    st.success(
+                        f"Analysis complete! Processed {result.etfs_processed} ETFs."
+                    )
                     st.balloons()
                     st.rerun()
                 else:
@@ -78,22 +80,13 @@ def render():
             finally:
                 progress_bar.empty()
 
-        # Fix 24: Added Community Sync next to pipeline control
+        # DEPRECATED: Community sync moved to Hive integration
+        # The community_sync module was removed in favor of HiveClient.
+        # This reference_dashboard is legacy code preserved for reference only.
         if st.button("🔄 Sync Community Data", key="xray_sync_community"):
-            with st.spinner("Syncing latest ETF data from community..."):
-                try:
-                    from portfolio_src.data.community_sync import get_community_sync
-                    syncer = get_community_sync()
-                    results = syncer.pull_community_data()
-                    
-                    msg = f"Synced {len(results['downloaded'])} ETFs."
-                    if results['failed']:
-                         msg += f" (Failed: {len(results['failed'])})"
-                    
-                    st.success(msg)
-                    # No rerun needed here, just info
-                except Exception as e:
-                    st.error(f"Sync failed: {e}")
+            st.warning(
+                "Community sync has been replaced by Hive integration. Use the main app instead."
+            )
 
     direct_df = load_direct_holdings()
     exposure_df = load_exposure_report()
