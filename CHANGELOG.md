@@ -7,8 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Optimization
+
+- **Pipeline Initialization:** Prevented redundant service re-initialization in `Pipeline._init_services` to improve repeated run performance.
+
 ### Fixed
 
+- **Sector/Geography Allocation:** Fixed 4653% allocation bug by calculating percentages from `total_exposure` sums instead of summing pre-calculated percentages.
+- **UI Progress Bar:** Fixed 0% progress bar issue by normalizing backend progress scale (0.0-1.0) to UI scale (0-100) automatically.
+- **Background Sync:** Moved Hive cache synchronization to a background thread in `ISINResolver` to prevent UI freeze on startup.
+- **Warning Reporting:** Updated pipeline status to report "completed with warnings" if partial failures occurred (e.g. unresolved ETFs).
 - **Pipeline Breakdown Report:** Fixed missing ETF values in breakdown report by adding fallback calculation (quantity * price) when pre-calculated value columns are missing.
 - **Hive Data Flow Fix:** Resolved 0% Hive hit rate caused by `sync_universe()` querying non-existent `master_view`.
   - `sync_universe()` now uses `get_all_assets_rpc` and `get_all_listings_rpc` (RLS bypass).

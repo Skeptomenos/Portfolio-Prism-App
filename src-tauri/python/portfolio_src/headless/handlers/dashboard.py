@@ -101,21 +101,21 @@ def handle_get_dashboard_data(cmd_id: int, payload: dict[str, Any]) -> dict[str,
 
         if os.path.exists(TRUE_EXPOSURE_REPORT):
             df = pd.read_csv(TRUE_EXPOSURE_REPORT)
-            if not df.empty:
-                sector_alloc = {
-                    str(k): round(float(v), 2)
-                    for k, v in df.groupby("sector")["portfolio_percentage"]
-                    .sum()
-                    .items()
-                    if v > 0
-                }
-                region_alloc = {
-                    str(k): round(float(v), 2)
-                    for k, v in df.groupby("geography")["portfolio_percentage"]
-                    .sum()
-                    .items()
-                    if v > 0
-                }
+            if not df.empty and "total_exposure" in df.columns:
+                total_exposure = df["total_exposure"].sum()
+                if total_exposure > 0:
+                    sector_alloc = {
+                        str(k): round((v / total_exposure) * 100, 2)
+                        for k, v in df.groupby("sector")["total_exposure"].sum().items()
+                        if v > 0
+                    }
+                    region_alloc = {
+                        str(k): round((v / total_exposure) * 100, 2)
+                        for k, v in df.groupby("geography")["total_exposure"]
+                        .sum()
+                        .items()
+                        if v > 0
+                    }
     except Exception:
         pass
 
