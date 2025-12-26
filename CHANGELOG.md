@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Identity Resolution Schema Documentation:** Updated schema docs to close gap between requirements and implementation.
+  - `hive-database-schema.md`: Expanded `aliases` table with 6 new columns (source, confidence, currency, exchange, currency_source, contributor_hash), updated RPC function signatures.
+  - `data_schema.md`: Added `isin_cache` table for local identity resolution caching with negative cache support.
+  - Created `identity_resolution_schema_implementation.md`: Comprehensive 4-phase implementation plan with SQL migrations, rollback procedures, and testing plan.
+
 ### Changed
 
 - **Specs Consolidation:** Reduced specs directory from 14 to 10 files (-280 lines, 14% reduction).

@@ -56,6 +56,45 @@ Immutable history of all buys/sells/dividends.
 | `amount` | REAL | NOT NULL | Total cash impact (signed) |
 | `currency` | TEXT | NOT NULL | Currency of the transaction |
 
+### 1.5 `isin_cache` Table (Identity Resolution Cache)
+
+Local cache for resolved aliases. Enables offline resolution and reduces API calls.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | INTEGER | PRIMARY KEY | Auto-increment |
+| `alias` | TEXT | NOT NULL | Normalized identifier (ticker or name) |
+| `alias_type` | TEXT | NOT NULL | 'ticker' or 'name' |
+| `isin` | TEXT | | Resolved ISIN (NULL for negative cache entries) |
+| `confidence` | REAL | NOT NULL | Resolution confidence 0.0-1.0 |
+| `source` | TEXT | NOT NULL | Resolution source: 'cache', 'hive', 'finnhub', 'wikidata', 'openfigi', 'yfinance' |
+| `resolution_status` | TEXT | NOT NULL, DEFAULT 'resolved' | 'resolved', 'unresolved', 'pending' |
+| `expires_at` | DATETIME | | TTL for negative cache entries (NULL = never expires) |
+| `created_at` | DATETIME | DEFAULT NOW | When entry was created |
+| `updated_at` | DATETIME | DEFAULT NOW | When entry was last updated |
+
+**Constraints:**
+- `UNIQUE(alias, alias_type)` — One cache entry per alias/type combination
+- `CHECK(alias_type IN ('ticker', 'name'))`
+- `CHECK(resolution_status IN ('resolved', 'unresolved', 'pending'))`
+- `CHECK(confidence >= 0.0 AND confidence <= 1.0)`
+
+**Indexes:**
+- `idx_isin_cache_alias ON isin_cache(alias)` — Fast lookup by alias
+- `idx_isin_cache_expires ON isin_cache(expires_at)` — Cleanup expired entries
+
+**Negative Caching:**
+When an alias cannot be resolved after exhausting all sources, store with:
+- `isin = NULL`
+- `resolution_status = 'unresolved'`
+- `confidence = 0.0`
+- `expires_at = NOW() + 7 days` (retry after TTL)
+
+This prevents repeated API calls for known-unresolvable aliases.
+
+> **See:** `keystone/specs/identity_resolution.md` for resolution cascade and confidence scoring.
+> **See:** `keystone/architecture/identity-resolution.md` Section 4.1 for storage schema design.
+
 ---
 
 ## 2. Analytics Cache (Parquet)
