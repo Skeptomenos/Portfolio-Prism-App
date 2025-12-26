@@ -7,13 +7,9 @@
 
 | Workstream | Feature Plan | Session Name | Status | Last Heartbeat |
 | :--- | :--- | :--- | :--- | :--- |
-| `infrastructure` | `keystone/project/workstreams/infrastructure.md` | `root-session` | `Done` | 2025-12-26 |
-| `data-engine` | `keystone/project/workstreams/data-engine.md` | `root-session` | `Done` | 2025-12-26 |
+| `data-engine` | `keystone/project/workstreams/data-engine.md` | `root-session` | `Active` | 2025-12-26 |
 | `frontend` | `keystone/project/workstreams/frontend.md` | `PP-UI-main` | `Paused` | 2025-12-22 |
-| `sqlite-migration` | `keystone/project/workstreams/sqlite-migration.md` | `root-session` | `Done` | 2025-12-26 |
-| `beautiful-logs` | `keystone/project/workstreams/beautiful_logs.md` | `AutoFeedback` | `Done` | 2025-12-26 |
 | `prism-refactor` | `keystone/project/workstreams/prism_refactor.md` | `None` | `Backlog` | 2025-12-22 |
-| `pipeline-progress-ux` | `keystone/project/workstreams/pipeline-progress-ux.md` | `Pipeline Optimization` | `Done` | 2025-12-26 |
 
 ## Archived Workstreams
 
@@ -23,6 +19,10 @@
 | `bug-fixes` | `keystone/project/workstreams/archive/bug-fixes.md` | 2025-12-26 |
 | `hive-data-flow-fix` | `keystone/project/workstreams/archive/hive-data-flow-fix.md` | 2025-12-26 |
 | `hive-extension` | `keystone/project/workstreams/archive/hive-extension.md` | 2025-12-26 |
+| `infrastructure` | `keystone/project/workstreams/archive/infrastructure.md` | 2025-12-26 |
+| `sqlite-migration` | `keystone/project/workstreams/archive/sqlite-migration.md` | 2025-12-26 |
+| `beautiful-logs` | `keystone/project/workstreams/archive/beautiful_logs.md` | 2025-12-26 |
+| `pipeline-progress-ux` | `keystone/project/workstreams/archive/pipeline-progress-ux.md` | 2025-12-26 |
 
 ---
 

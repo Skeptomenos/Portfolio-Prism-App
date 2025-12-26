@@ -2,7 +2,7 @@
 
 > **Feature Plan:** `docs/MVP_IMPLEMENTATION_PLAN.md`
 > **Owner:** root-session
-> **Status:** Done
+> **Status:** Active
 > **Last Heartbeat:** 2025-12-21
 
 ---
