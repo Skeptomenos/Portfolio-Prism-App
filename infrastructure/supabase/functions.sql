@@ -341,8 +341,13 @@ BEGIN
 
 EXCEPTION
     WHEN foreign_key_violation THEN
+        INSERT INTO public.contributions (target_table, payload, trust_score, error_message)
+        VALUES ('alias_rpc_error', jsonb_build_object('alias', p_alias, 'isin', p_isin), 0.0,
+                'ISIN does not exist in assets table.');
         RETURN QUERY SELECT FALSE, 'ISIN does not exist in assets table.'::TEXT;
     WHEN OTHERS THEN
+        INSERT INTO public.contributions (target_table, payload, trust_score, error_message)
+        VALUES ('alias_rpc_error', jsonb_build_object('alias', p_alias, 'isin', p_isin), 0.0, SQLERRM);
         RETURN QUERY SELECT FALSE, SQLERRM::TEXT;
 END;
 $$;
