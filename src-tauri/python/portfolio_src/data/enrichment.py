@@ -35,7 +35,7 @@ def debug_log(msg):
     try:
         with open(DEBUG_LOG_FILE, "a") as f:
             f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - {msg}\n")
-    except:
+    except Exception:
         pass
 
 
@@ -401,8 +401,6 @@ def enrich_securities_bulk(
 
                 if wikidata_isin:
                     result["isin"] = wikidata_isin
-                if wikidata_isin:
-                    result["isin"] = wikidata_isin
                     logger.debug(
                         f"Resolved ISIN via Wikidata: {identifier} -> {wikidata_isin}"
                     )
@@ -414,9 +412,6 @@ def enrich_securities_bulk(
 
         # Fallback: YFinance (if Finnhub failed or returned Unknown for sector/geo)
         if result["sector"] == "Unknown" or result["geography"] == "Unknown":
-            yf_data = fetch_from_yfinance(identifier)
-            if yf_data:
-                result.update(yf_data)
             yf_data = fetch_from_yfinance(identifier)
             if yf_data:
                 result.update(yf_data)
