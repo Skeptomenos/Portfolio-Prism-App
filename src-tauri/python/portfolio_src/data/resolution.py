@@ -1,37 +1,27 @@
 """
 Unified ISIN Resolution Module.
 
-This module provides a single entry point for resolving ticker/name
-to ISIN, using a priority-ordered resolution strategy:
-
+Resolution priority:
 1. Provider-supplied ISIN (if valid)
-2. Local asset_universe.csv lookup (by ticker)
-3. Local asset_universe.csv lookup (by alias)
-4. Enrichment cache lookup (validated)
-5. API calls (Tier 1 only): Finnhub -> Wikidata -> YFinance
-6. Mark as unresolved
-
-Key principles:
-- ISIN is always valid or None (never composite keys)
-- Local resolution is attempted before any API calls
-- Successfully resolved ISINs are auto-added to asset_universe
-- Explicit status tracking for every resolution attempt
+2. Manual enrichments (user-provided mappings)
+3. LocalCache lookup (backed by Hive sync)
+4. Hive network lookup (if cache miss)
+5. Enrichment cache lookup (validated)
+6. API calls (Tier 1 only): Finnhub -> Wikidata -> YFinance
+7. Mark as unresolved
 """
 
 import json
 import os
 import time
 import threading
-from dataclasses import dataclass, field
-from datetime import datetime
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Literal, Optional, Any
 
-import pandas as pd
 import requests
 
-from portfolio_src.config import ASSET_UNIVERSE_PATH, USE_LEGACY_CSV
-from portfolio_src.prism_utils.isin_validator import is_valid_isin, is_placeholder_isin
+from portfolio_src.prism_utils.isin_validator import is_valid_isin
 from portfolio_src.prism_utils.logging_config import get_logger
 from portfolio_src.data.manual_enrichments import load_manual_enrichments
 from portfolio_src.data.proxy_client import get_proxy_client
@@ -40,26 +30,19 @@ from portfolio_src.data.hive_client import get_hive_client, HiveClient
 
 logger = get_logger(__name__)
 
-# Constants
 CACHE_PATH = Path("data/working/cache/enrichment_cache.json")
 FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY")
 FINNHUB_API_URL = "https://finnhub.io/api/v1"
 
-# Thread lock for universe writes
-_universe_lock = threading.Lock()
-
 
 @dataclass
 class ResolutionResult:
-    """Result of an ISIN resolution attempt."""
-
     isin: Optional[str]
     status: Literal["resolved", "unresolved", "skipped"]
     detail: str
-    source: Optional[str] = None  # For tracking in asset_universe
+    source: Optional[str] = None
 
     def __post_init__(self):
-        # Validate ISIN if provided
         if self.isin and not is_valid_isin(self.isin):
             logger.warning(f"Invalid ISIN format in resolution result: {self.isin}")
             self.isin = None
@@ -67,134 +50,7 @@ class ResolutionResult:
             self.detail = "isin_format_invalid"
 
 
-@dataclass
-class AssetUniverse:
-    """Manages the asset_universe.csv lookup table."""
-
-    df: pd.DataFrame = field(default_factory=pd.DataFrame)
-    ticker_index: Dict[str, str] = field(default_factory=dict)
-    alias_index: Dict[str, str] = field(default_factory=dict)
-
-    @classmethod
-    def load(cls) -> "AssetUniverse":
-        """Load asset universe from CSV."""
-        if not os.path.exists(ASSET_UNIVERSE_PATH):
-            logger.warning(f"Asset universe not found: {ASSET_UNIVERSE_PATH}")
-            return cls()
-
-        try:
-            df = pd.read_csv(ASSET_UNIVERSE_PATH)
-
-            # Check for duplicate ISINs and warn
-            duplicates = df[df["ISIN"].duplicated(keep=False)]
-            if not duplicates.empty:
-                dup_isins = duplicates["ISIN"].unique().tolist()
-                logger.warning(
-                    f"Duplicate ISINs found in asset_universe.csv: {dup_isins}. "
-                    "Keeping first occurrence only."
-                )
-                df = df.drop_duplicates(subset=["ISIN"], keep="first")
-
-            # Build ticker index (Yahoo_Ticker -> ISIN)
-            ticker_index = {}
-            for _, row in df.iterrows():
-                isin = row.get("ISIN")
-                yahoo_ticker = row.get("Yahoo_Ticker")
-                tr_ticker = row.get("TR_Ticker")
-
-                if isin and is_valid_isin(str(isin)):
-                    if yahoo_ticker and pd.notna(yahoo_ticker):
-                        ticker_index[str(yahoo_ticker).upper()] = str(isin)
-                    if tr_ticker and pd.notna(tr_ticker):
-                        ticker_index[str(tr_ticker).upper()] = str(isin)
-
-            # Build alias index
-            alias_index = {}
-            for _, row in df.iterrows():
-                isin = row.get("ISIN")
-                aliases = row.get("Aliases", "")
-
-                if isin and is_valid_isin(str(isin)) and aliases and pd.notna(aliases):
-                    for alias in str(aliases).split("|"):
-                        alias_clean = alias.strip().upper()
-                        if alias_clean:
-                            alias_index[alias_clean] = str(isin)
-
-            logger.info(
-                f"Loaded asset universe: {len(df)} entries, "
-                f"{len(ticker_index)} ticker mappings, "
-                f"{len(alias_index)} alias mappings"
-            )
-
-            return cls(df=df, ticker_index=ticker_index, alias_index=alias_index)
-
-        except Exception as e:
-            logger.error(f"Failed to load asset universe: {e}")
-            return cls()
-
-    def lookup_by_ticker(self, ticker: str) -> Optional[str]:
-        """Look up ISIN by ticker symbol."""
-        if not ticker:
-            return None
-        return self.ticker_index.get(ticker.upper().strip())
-
-    def lookup_by_alias(self, alias: str) -> Optional[str]:
-        """Look up ISIN by alias."""
-        if not alias:
-            return None
-        return self.alias_index.get(alias.upper().strip())
-
-    def add_entry(
-        self,
-        isin: str,
-        ticker: str,
-        name: str,
-        source: str,
-    ) -> bool:
-        """
-        Add a new entry to the asset universe.
-
-        Thread-safe with deduplication.
-        """
-        if not is_valid_isin(isin):
-            return False
-
-        with _universe_lock:
-            # Check for duplicates
-            if isin in self.df["ISIN"].values:
-                return False
-
-            # Add new row
-            new_row = {
-                "ISIN": isin,
-                "TR_Ticker": "",
-                "Yahoo_Ticker": ticker,
-                "Name": name,
-                "Aliases": "",
-                "Provider": "",
-                "Asset_Class": "Stock",
-                "Source": source,
-                "Added_Date": datetime.now().strftime("%Y-%m-%d"),
-                "Last_Verified": "",
-            }
-
-            self.df = pd.concat([self.df, pd.DataFrame([new_row])], ignore_index=True)
-            self.df.to_csv(ASSET_UNIVERSE_PATH, index=False)
-
-            self.ticker_index[ticker.upper()] = isin
-
-            logger.info(f"Added to asset universe: {isin} ({ticker})")
-            return True
-
-
 class ISINResolver:
-    """
-    Main ISIN resolution class.
-
-    Implements the resolution priority order and tracks results
-    for auto-adding to asset_universe.
-    """
-
     def __init__(self, tier1_threshold: float = 1.0):
         self.tier1_threshold = tier1_threshold
         self.cache = self._load_cache()
@@ -207,23 +63,16 @@ class ISINResolver:
             "by_source": {},
         }
 
-        if USE_LEGACY_CSV:
-            self.universe = AssetUniverse.load()
-            self._local_cache: Optional[LocalCache] = None
-            self._hive_client: Optional[HiveClient] = None
-        else:
-            self.universe = None
-            self._local_cache = get_local_cache()
-            self._hive_client = get_hive_client()
+        self._local_cache: Optional[LocalCache] = get_local_cache()
+        self._hive_client: Optional[HiveClient] = get_hive_client()
 
-            if self._local_cache.is_stale():
-                logger.info("Local cache stale, starting background sync...")
-                threading.Thread(
-                    target=self._background_sync, daemon=True, name="hive_sync_bg"
-                ).start()
+        if self._local_cache and self._local_cache.is_stale():
+            logger.info("Local cache stale, starting background sync...")
+            threading.Thread(
+                target=self._background_sync, daemon=True, name="hive_sync_bg"
+            ).start()
 
     def _background_sync(self) -> None:
-        """Sync local cache from Hive in background."""
         try:
             if self._local_cache and self._hive_client:
                 self._local_cache.sync_from_hive(self._hive_client)
@@ -231,7 +80,6 @@ class ISINResolver:
             logger.warning(f"Background Hive sync failed: {e}")
 
     def _load_cache(self) -> Dict[str, Dict]:
-        """Load enrichment cache with validation."""
         if not CACHE_PATH.exists():
             return {}
 
@@ -239,10 +87,8 @@ class ISINResolver:
             with open(CACHE_PATH, "r") as f:
                 raw_cache = json.load(f)
 
-            # Filter out invalid entries
             valid_cache = {}
             for key, value in raw_cache.items():
-                # Reject composite keys
                 if (
                     "|" in key
                     or key.startswith("FALLBACK")
@@ -250,7 +96,6 @@ class ISINResolver:
                 ):
                     continue
 
-                # Only keep entries with valid ISIN
                 isin = value.get("isin")
                 if isin and is_valid_isin(isin):
                     valid_cache[key] = value
@@ -272,25 +117,12 @@ class ISINResolver:
         provider_isin: Optional[str] = None,
         weight: float = 0.0,
     ) -> ResolutionResult:
-        """
-        Resolve ticker/name to ISIN using priority order.
-
-        Args:
-            ticker: Yahoo-compatible ticker symbol
-            name: Security name from provider
-            provider_isin: ISIN from provider (if available)
-            weight: Weight percentage in ETF (for tier determination)
-
-        Returns:
-            ResolutionResult with ISIN (or None) and status
-        """
         self.stats["total"] += 1
 
-        # Normalize inputs
         ticker_clean = (ticker or "").strip()
         name_clean = (name or "").strip()
 
-        # 1. Provider ISIN (highest priority)
+        # 1. Provider ISIN
         if provider_isin and is_valid_isin(provider_isin):
             result = ResolutionResult(
                 isin=provider_isin,
@@ -301,7 +133,7 @@ class ISINResolver:
             self._record_resolution(ticker_clean, name_clean, result)
             return result
 
-        # 1b. Manual enrichments (user-provided ISINs)
+        # 2. Manual enrichments
         manual_mappings = load_manual_enrichments()
         if ticker_clean.upper() in manual_mappings:
             manual_isin = manual_mappings[ticker_clean.upper()]
@@ -315,23 +147,16 @@ class ISINResolver:
                 self._record_resolution(ticker_clean, name_clean, result)
                 return result
 
-        # Determine if this is a tier2 holding (skip network calls for performance)
         is_tier2 = weight <= self.tier1_threshold
 
-        # 2-3. Local resolution (CSV or Hive based on flag)
-        if USE_LEGACY_CSV:
-            result = self._resolve_via_csv(ticker_clean, name_clean)
-        else:
-            # For tier2 holdings, only check local cache (no Hive network calls)
-            result = self._resolve_via_hive(
-                ticker_clean, name_clean, skip_network=is_tier2
-            )
+        # 3. LocalCache + Hive resolution
+        result = self._resolve_via_hive(ticker_clean, name_clean, skip_network=is_tier2)
 
         if result.status == "resolved":
             self._record_resolution(ticker_clean, name_clean, result)
             return result
 
-        # 4. Cache lookup (enrichment cache)
+        # 4. Enrichment cache lookup
         cache_entry = self.cache.get(ticker_clean.upper())
         if cache_entry:
             cache_isin = cache_entry.get("isin")
@@ -350,54 +175,19 @@ class ISINResolver:
             self._record_resolution(ticker_clean, name_clean, result)
             return result
 
-        # 6. API resolution (Tier 1 only)
+        # 6. API resolution
         result = self._resolve_via_api(ticker_clean, name_clean)
         self._record_resolution(ticker_clean, name_clean, result)
 
-        # 7. Push to Hive on API success (new path only)
-        if not USE_LEGACY_CSV and result.status == "resolved" and result.isin:
+        # 7. Push to Hive on API success
+        if result.status == "resolved" and result.isin:
             self._push_to_hive(ticker_clean, name_clean, result.isin, result.source)
 
         return result
 
-    def _resolve_via_csv(self, ticker: str, name: str) -> ResolutionResult:
-        """Legacy path: resolve via AssetUniverse CSV."""
-        if self.universe is None:
-            return ResolutionResult(
-                isin=None, status="unresolved", detail="no_universe"
-            )
-
-        universe_isin = self.universe.lookup_by_ticker(ticker)
-        if universe_isin:
-            return ResolutionResult(
-                isin=universe_isin,
-                status="resolved",
-                detail="universe_ticker",
-                source=None,
-            )
-
-        universe_isin = self.universe.lookup_by_alias(name)
-        if universe_isin:
-            return ResolutionResult(
-                isin=universe_isin,
-                status="resolved",
-                detail="universe_alias",
-                source=None,
-            )
-
-        return ResolutionResult(isin=None, status="unresolved", detail="csv_miss")
-
     def _resolve_via_hive(
         self, ticker: str, name: str, skip_network: bool = False
     ) -> ResolutionResult:
-        """
-        New path: resolve via LocalCache + HiveClient.
-
-        Args:
-            ticker: Ticker symbol to resolve
-            name: Security name for alias lookup
-            skip_network: If True, only check local cache (no Hive network calls)
-        """
         if self._local_cache is None:
             return ResolutionResult(isin=None, status="unresolved", detail="no_cache")
 
@@ -420,7 +210,6 @@ class ISINResolver:
                     source=None,
                 )
 
-        # Skip Hive network calls for tier2 holdings (performance optimization)
         if skip_network:
             return ResolutionResult(
                 isin=None, status="unresolved", detail="local_cache_miss"
@@ -457,7 +246,6 @@ class ISINResolver:
         isin: str,
         source: Optional[str],
     ) -> None:
-        """Push successful API resolution to Hive and LocalCache."""
         if not self._hive_client or not self._hive_client.is_configured:
             return
         if not self._local_cache:
@@ -487,19 +275,12 @@ class ISINResolver:
             logger.warning(f"Failed to push to Hive: {e}")
 
     def _resolve_via_api(self, ticker: str, name: str) -> ResolutionResult:
-        """
-        Attempt ISIN resolution via external APIs.
-
-        Order: Finnhub -> Wikidata -> YFinance
-        """
-        # Finnhub
         isin = self._call_finnhub(ticker)
         if isin:
             return ResolutionResult(
                 isin=isin, status="resolved", detail="api_finnhub", source="api_finnhub"
             )
 
-        # Wikidata
         isin = self._call_wikidata(name, ticker)
         if isin:
             return ResolutionResult(
@@ -509,7 +290,6 @@ class ISINResolver:
                 source="api_wikidata",
             )
 
-        # YFinance (last resort - often doesn't have ISIN)
         isin = self._call_yfinance(ticker)
         if isin:
             return ResolutionResult(
@@ -522,12 +302,10 @@ class ISINResolver:
         return ResolutionResult(isin=None, status="unresolved", detail="api_all_failed")
 
     def _call_finnhub(self, ticker: str) -> Optional[str]:
-        """Call Finnhub API for ISIN (via proxy or direct)."""
         if not ticker:
             return None
 
         try:
-            # Try proxy first (preferred method - uses Cloudflare worker)
             proxy_client = get_proxy_client()
             response = proxy_client.get_company_profile(ticker)
 
@@ -539,13 +317,11 @@ class ISINResolver:
             elif not response.success:
                 logger.debug(f"Finnhub proxy error for {ticker}: {response.error}")
 
-            # Rate limiting
             time.sleep(0.5)
 
         except Exception as e:
             logger.debug(f"Finnhub API error for {ticker}: {e}")
 
-        # Fallback to direct API call if proxy fails and we have API key
         if FINNHUB_API_KEY:
             try:
                 response = requests.get(
@@ -562,7 +338,6 @@ class ISINResolver:
                         logger.debug(f"Finnhub direct resolved {ticker} -> {isin}")
                         return isin
 
-                # Rate limiting for direct API
                 time.sleep(1.1)
 
             except Exception as e:
@@ -571,14 +346,12 @@ class ISINResolver:
         return None
 
     def _call_wikidata(self, name: str, ticker: str) -> Optional[str]:
-        """Call Wikidata API for ISIN."""
         if not name:
             return None
 
         headers = {"User-Agent": "PortfolioAnalyzer/1.0 (Educational Python Project)"}
 
         try:
-            # Search for entity
             search_url = "https://www.wikidata.org/w/api.php"
             params = {
                 "action": "wbsearchentities",
@@ -599,7 +372,6 @@ class ISINResolver:
             for result in results:
                 entity_id = result["id"]
 
-                # Get entity details
                 detail_params = {
                     "action": "wbgetentities",
                     "ids": entity_id,
@@ -617,7 +389,6 @@ class ISINResolver:
                 entity = detail_response.json().get("entities", {}).get(entity_id, {})
                 claims = entity.get("claims", {})
 
-                # P946 is ISIN property
                 isin_claims = claims.get("P946", [])
                 if isin_claims:
                     isin = isin_claims[0]["mainsnak"]["datavalue"]["value"]
@@ -630,7 +401,6 @@ class ISINResolver:
         return None
 
     def _call_yfinance(self, ticker: str) -> Optional[str]:
-        """Call YFinance for ISIN (often not available)."""
         if not ticker:
             return None
 
@@ -650,13 +420,11 @@ class ISINResolver:
     def _record_resolution(
         self, ticker: str, name: str, result: ResolutionResult
     ) -> None:
-        """Record resolution result for stats and auto-add."""
         self.stats[result.status] += 1
 
         source = result.detail
         self.stats["by_source"][source] = self.stats["by_source"].get(source, 0) + 1
 
-        # Track for auto-add to universe
         if result.status == "resolved" and result.source:
             self.newly_resolved.append(
                 {
@@ -667,34 +435,7 @@ class ISINResolver:
                 }
             )
 
-    def flush_to_universe(self) -> int:
-        if not self.newly_resolved:
-            return 0
-
-        if self.universe is None:
-            self.newly_resolved = []
-            return 0
-
-        added = 0
-        for entry in self.newly_resolved:
-            if self.universe.add_entry(
-                isin=entry["isin"],
-                ticker=entry["ticker"],
-                name=entry["name"],
-                source=entry["source"],
-            ):
-                added += 1
-
-        if added > 0:
-            logger.info(f"Added {added} new entries to asset_universe.csv")
-
-        # Clear the list
-        self.newly_resolved = []
-
-        return added
-
     def get_stats_summary(self) -> str:
-        """Get a formatted summary of resolution statistics."""
         total = self.stats["total"]
         if total == 0:
             return "No resolutions performed."
@@ -721,17 +462,11 @@ class ISINResolver:
         return "\n".join(lines)
 
 
-# Convenience function for simple use cases
 def resolve_isin(
     ticker: str,
     name: str,
     provider_isin: Optional[str] = None,
     weight: float = 0.0,
 ) -> ResolutionResult:
-    """
-    Convenience function for single ISIN resolution.
-
-    For batch resolution, use ISINResolver class directly.
-    """
     resolver = ISINResolver()
     return resolver.resolve(ticker, name, provider_isin, weight)

@@ -151,12 +151,6 @@ def install_default_config() -> None:
 
     Copies bundled config files to the user's config directory on first run.
     Skips files that already exist to preserve user customizations.
-
-    Config files installed:
-        - adapter_registry.json
-        - asset_universe.csv
-        - ishares_config.json
-        - ticker_map.json
     """
     try:
         from portfolio_src.config import CONFIG_DIR
@@ -176,7 +170,6 @@ def install_default_config() -> None:
 
     files_to_install = [
         "adapter_registry.json",
-        "asset_universe.csv",
         "ishares_config.json",
         "ticker_map.json",
     ]

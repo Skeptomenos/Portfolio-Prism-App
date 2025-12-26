@@ -33,8 +33,6 @@ MANUAL_INPUTS_DIR = INPUTS_DIR / "manual_holdings"
 WORKING_DIR = DATA_DIR / "working"
 RAW_DOWNLOADS_DIR = WORKING_DIR / "raw_downloads"
 
-# File Paths
-ASSET_UNIVERSE_PATH = CONFIG_DIR / "asset_universe.csv"
 
 # Output Directories
 REPORTS_DIR = OUTPUTS_DIR  # For now, reports go to root of outputs
@@ -57,15 +55,6 @@ WORKER_URL = os.getenv(
     "WORKER_URL",
     os.getenv("PROXY_URL", "https://portfolio-prism-proxy.bold-unit-582c.workers.dev"),
 )
-
-# =============================================================================
-# FEATURE FLAGS
-# =============================================================================
-
-# Hive Extension: Use legacy CSV for ISIN resolution
-# Set to True to use legacy CSV files instead of Hive + LocalCache
-# Default: False (Hive path active - 970x faster for cached ISINs)
-USE_LEGACY_CSV = os.getenv("USE_LEGACY_CSV", "false").lower() == "true"
 
 # Resolution tier threshold: only resolve holdings above this weight via API
 RESOLUTION_TIER1_THRESHOLD = float(os.getenv("RESOLUTION_TIER1_THRESHOLD", "0.5"))

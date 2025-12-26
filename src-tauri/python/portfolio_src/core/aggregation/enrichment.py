@@ -51,10 +51,9 @@ def get_resolver() -> ISINResolver:
 
 
 def reset_resolver() -> None:
-    """Reset the resolver (call at end of pipeline to flush to universe)."""
+    """Reset the resolver and log stats."""
     global _resolver
     if _resolver is not None:
-        _resolver.flush_to_universe()
         logger.info(_resolver.get_stats_summary())
         _resolver = None
 
@@ -239,7 +238,7 @@ def _log_tier1_failures(
             stage="ENRICHMENT",
             item=ticker,
             error=f"Tier 1 ISIN Resolution Failed: {detail}",
-            fix=f"Add {ticker} to config/asset_universe.csv",
+            fix=f"Add {ticker} via manual enrichments or wait for Hive sync",
             severity="MEDIUM",
         )
 

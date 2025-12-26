@@ -9,9 +9,7 @@ from dotenv import load_dotenv
 from portfolio_src.data.caching import load_from_cache, save_to_cache, get_cache_key
 from portfolio_src.prism_utils.validation import is_valid_isin
 
-# Use absolute import to ensure we get the correct config
 from portfolio_src.config import (
-    ASSET_UNIVERSE_PATH,
     WORKER_URL,
     OUTPUTS_DIR,
 )
@@ -206,23 +204,19 @@ def fetch_isin_from_wikidata(
 
 
 def load_asset_universe() -> Dict[str, str]:
-    """
-    Loads the asset universe and returns a mapping of Ticker -> ISIN.
-    """
-    if not os.path.exists(ASSET_UNIVERSE_PATH):
+    """Load ticker -> ISIN mapping from LocalCache."""
+    from portfolio_src.data.local_cache import get_local_cache
+
+    cache = get_local_cache()
+    if cache is None:
         return {}
+
     try:
-        df = pd.read_csv(ASSET_UNIVERSE_PATH)
-        # Create mapping from Yahoo Ticker to ISIN
-        # Ensure we drop NaNs
-        mapping = (
-            df.dropna(subset=["Yahoo_Ticker", "ISIN"])
-            .set_index("Yahoo_Ticker")["ISIN"]
-            .to_dict()
-        )
-        return mapping
+        conn = cache._get_connection()
+        cursor = conn.execute("SELECT ticker, isin FROM cache_listings")
+        return {row["ticker"]: row["isin"] for row in cursor}
     except Exception as e:
-        print(f"Warning: Failed to load asset universe: {e}")
+        logger.warning(f"Failed to load asset universe from cache: {e}")
         return {}
 
 

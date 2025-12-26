@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- **Legacy CSV Resolution:** Removed `AssetUniverse` class and `asset_universe.csv` files.
+  - Deleted `USE_LEGACY_CSV` feature flag from config.
+  - All ISIN resolution now uses Hive + LocalCache exclusively.
+  - Removed CSV references from `migration.py`, `lifecycle.py`, `enrichment.py`.
+  - Updated `harvesting.py` to push to Hive instead of CSV.
+  - Simplified codebase by ~300 lines.
+
 ### Optimization
 
 - **Pipeline Initialization:** Prevented redundant service re-initialization in `Pipeline._init_services` to improve repeated run performance.

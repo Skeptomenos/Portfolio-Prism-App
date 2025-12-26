@@ -153,13 +153,12 @@ class Pipeline:
         from portfolio_src.adapters.registry import AdapterRegistry
         from portfolio_src.core.services.enricher import HiveEnrichmentService
         from portfolio_src.data.resolution import ISINResolver
-        from portfolio_src.config import USE_LEGACY_CSV
 
         holdings_cache = get_holdings_cache()
         adapter_registry = AdapterRegistry()
         enrichment_service = HiveEnrichmentService()
 
-        isin_resolver = None if USE_LEGACY_CSV else ISINResolver(tier1_threshold=0.5)
+        isin_resolver = ISINResolver(tier1_threshold=0.5)
         self._decomposer = Decomposer(holdings_cache, adapter_registry, isin_resolver)
         self._enricher = Enricher(enrichment_service)
         self._aggregator = Aggregator()

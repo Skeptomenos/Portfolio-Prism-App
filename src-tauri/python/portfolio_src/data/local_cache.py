@@ -520,6 +520,12 @@ class LocalCache:
             return datetime.fromisoformat(row["oldest_sync"])
         return None
 
+    def get_all_isins(self) -> set:
+        """Get all ISINs from the cache."""
+        conn = self._get_connection()
+        cursor = conn.execute("SELECT DISTINCT isin FROM cache_assets")
+        return {row["isin"] for row in cursor}
+
     def get_stats(self) -> Dict[str, Any]:
         """Get cache statistics."""
         conn = self._get_connection()
