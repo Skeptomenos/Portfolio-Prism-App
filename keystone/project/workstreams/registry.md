@@ -8,8 +8,6 @@
 | Workstream | Feature Plan | Session Name | Status | Last Heartbeat |
 | :--- | :--- | :--- | :--- | :--- |
 | `data-engine` | `keystone/project/workstreams/data-engine.md` | `root-session` | `Active` | 2025-12-26 |
-| `frontend` | `keystone/project/workstreams/frontend.md` | `PP-UI-main` | `Paused` | 2025-12-22 |
-| `prism-refactor` | `keystone/project/workstreams/prism_refactor.md` | `None` | `Backlog` | 2025-12-22 |
 
 ## Archived Workstreams
 
@@ -23,6 +21,8 @@
 | `sqlite-migration` | `keystone/project/workstreams/archive/sqlite-migration.md` | 2025-12-26 |
 | `beautiful-logs` | `keystone/project/workstreams/archive/beautiful_logs.md` | 2025-12-26 |
 | `pipeline-progress-ux` | `keystone/project/workstreams/archive/pipeline-progress-ux.md` | 2025-12-26 |
+| `frontend` | `keystone/project/workstreams/archive/frontend.md` | 2025-12-26 |
+| `prism-refactor` | `keystone/project/workstreams/archive/prism_refactor.md` | 2025-12-26 |
 
 ---
 
