@@ -362,3 +362,137 @@ If consolidation causes issues:
 - [ ] INDEX.md files created for both directories
 - [ ] Total line count < 2,500
 - [ ] Zero broken internal links
+
+---
+
+## Critical Risk Assessment
+
+### Content Loss Risk Analysis
+
+| File to Archive | Unique Valuable Content | Risk | Mitigation |
+|-----------------|------------------------|------|------------|
+| `HIVE_EXTENSION_STRATEGY.md` | **Decision Log (lines 519-538)** - 15 dated decisions with rationale | **MEDIUM** | Extract Decision Log to `DECISION_LOG.md` before archiving |
+| `HIVE_EXTENSION_STRATEGY.md` | **Files to Modify table** - Implementation checklist | **LOW** | Work is done, checklist no longer needed |
+| `HIVE_EXTENSION_STRATEGY.md` | **Success Criteria** - Metrics targets | **LOW** | Already achieved, can reference in retrospective |
+| `HIVE_SCHEMA_OPTIONS.md` | **Options analysis** - Why we chose normalized schema | **LOW** | Already captured in `hive-architecture.md` |
+| `architecture_strategy.md` | **Gatekeeper Proxy diagram** - Mermaid sequence diagram | **MEDIUM** | Merge into `external-integrations.md` before archiving |
+| `technical-components.md` | **Component flexibility ratings** - Assessment framework | **MEDIUM** | Framework is useful but content is stale; update and keep OR archive with note |
+
+### High-Value Content at Risk (MUST PRESERVE)
+
+1. **Decision Log from `HIVE_EXTENSION_STRATEGY.md`** (lines 519-538)
+   - Contains 15 architectural decisions with dates and rationale
+   - **Action:** Append to `keystone/DECISION_LOG.md` before archiving
+
+2. **Gatekeeper Proxy Pattern from `architecture_strategy.md`**
+   - Mermaid diagram showing API key protection flow
+   - **Action:** Merge into `external-integrations.md` Section 1
+
+3. **Component Flexibility Framework from `technical-components.md`**
+   - Useful assessment methodology (HIGH/MEDIUM/LOW flexibility)
+   - **Action:** Consider updating and keeping, OR archive with clear note that methodology is valuable
+
+---
+
+## Complexity Assessment
+
+### Will AI Agents Follow the New Structure?
+
+| Concern | Assessment | Mitigation |
+|---------|------------|------------|
+| **Fewer files = harder to find specific info** | LOW RISK | INDEX.md files provide clear navigation |
+| **Merged content = longer files** | LOW RISK | Files stay under 200 lines each; still scannable |
+| **Archive folder = confusion about what's current** | MEDIUM RISK | Clear naming: `archive/` folder, files marked with "ARCHIVED" header |
+| **Renamed files = broken mental models** | LOW RISK | kebab-case is standard; SCREAMING_CASE was the anomaly |
+| **Cross-references break** | MEDIUM RISK | Phase 7 explicitly updates all internal links |
+
+### AI Agent Readability Improvements
+
+| Before | After | Improvement |
+|--------|-------|-------------|
+| 5 Hive files, unclear which is authoritative | 2 files: schema + strategy | Clear separation of concerns |
+| Duplicate sections in same file | Single occurrence of each section | No confusion about which version is correct |
+| Mixed naming conventions | Consistent kebab-case | Predictable file discovery |
+| No index files | INDEX.md in each directory | Quick orientation for new sessions |
+| Stale Streamlit references | Updated to React | Accurate current state |
+
+---
+
+## Effort, Risk, and Confidence Assessment
+
+### Per-Phase Assessment
+
+| Phase | Effort | Risk | Confidence | Notes |
+|-------|--------|------|------------|-------|
+| **Phase 0: Pre-Work** | 5 min | None | 100% | Git checkpoint is trivial |
+| **Phase 1: Archive Files** | 15 min | LOW | 95% | Simple moves, git preserves history |
+| **Phase 2: Consolidate Hive** | 45 min | MEDIUM | 80% | Merging requires careful content selection |
+| **Phase 3: Fix Duplication** | 20 min | LOW | 95% | Mechanical deletion of duplicate sections |
+| **Phase 4: Update Stale Content** | 30 min | LOW | 90% | Search-and-replace with verification |
+| **Phase 5: Rename Files** | 10 min | LOW | 95% | `git mv` handles cleanly |
+| **Phase 6: Create Indexes** | 15 min | None | 100% | New files, no risk |
+| **Phase 7: Cross-References** | 30 min | MEDIUM | 85% | Must verify all links work |
+
+### Overall Assessment
+
+| Metric | Value |
+|--------|-------|
+| **Total Effort** | ~3 hours |
+| **Overall Risk** | LOW-MEDIUM |
+| **Confidence in Success** | 85% |
+| **Confidence in Token Savings** | 90% (60% reduction achievable) |
+| **Confidence in AI Readability** | 90% (clearer structure) |
+
+### Risk Breakdown
+
+| Risk Level | Count | Items |
+|------------|-------|-------|
+| **HIGH** | 0 | None |
+| **MEDIUM** | 3 | Hive consolidation, Decision Log preservation, Cross-reference updates |
+| **LOW** | 16 | All other tasks |
+
+---
+
+## Revised Recommendations
+
+### Before Executing: Add These Safeguards
+
+1. **TASK-C00 (NEW):** Extract Decision Log from `HIVE_EXTENSION_STRATEGY.md` → append to `DECISION_LOG.md`
+2. **TASK-C03 (REVISED):** Extract Gatekeeper Proxy section → merge into `external-integrations.md` BEFORE archiving
+3. **TASK-C04 (REVISED):** Add "ARCHIVED - See current docs" header to `technical-components.md` instead of silent archive
+
+### Consider NOT Doing
+
+| Task | Reconsider? | Reason |
+|------|-------------|--------|
+| **Phase 5: Rename files** | Maybe defer | Low value, some risk of breaking external references |
+| **Phase 7.1: Trim "Also read"** | Maybe skip | Low impact, some value in cross-references |
+
+### Definitely Do
+
+| Task | Why Critical |
+|------|--------------|
+| **Phase 1: Archive obsolete** | Removes confusion about what's current |
+| **Phase 2: Consolidate Hive** | Biggest token savings, clearest win |
+| **Phase 3: Fix duplication** | Removes literal copy-paste errors |
+| **Phase 4: Update stale** | Prevents AI from giving wrong advice |
+| **Phase 6: Create indexes** | Huge discoverability improvement |
+
+---
+
+## Final Verdict
+
+| Question | Answer |
+|----------|--------|
+| **Are we risking losing valuable content?** | **MEDIUM RISK** - Decision Log and Gatekeeper Proxy must be preserved. Added TASK-C00 to address. |
+| **Are we making things more complicated?** | **NO** - Fewer files, clearer structure, better indexes. Complexity decreases. |
+| **Will AI be able to follow the new structure?** | **YES (90% confidence)** - INDEX.md files, consistent naming, and single source of truth per topic will improve AI navigation. |
+| **Is the effort worth it?** | **YES** - 3 hours of work for 60% ongoing token savings and clearer documentation. |
+
+### Go/No-Go Recommendation
+
+**GO** - with the following conditions:
+1. Execute TASK-C00 first (preserve Decision Log)
+2. Verify Gatekeeper Proxy content is merged before archiving
+3. Consider deferring Phase 5 (renames) to a separate PR if time-constrained
+4. Run link verification after Phase 7
