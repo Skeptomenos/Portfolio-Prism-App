@@ -115,7 +115,7 @@
 
 ### 8.1 Requirements Syntax (EARS)
 
-*   **Usage:** All functional requirements in `requirements.md` MUST use **EARS** (Easy Approach to Requirements Syntax).
+*   **Usage:** All functional requirements MUST use **EARS** (Easy Approach to Requirements Syntax). See `product.md` Section 7.
 *   **Patterns:**
     *   **Ubiquitous:** "The system shall [response]." (Always true).
     *   **Event-Driven:** "When [trigger], the system shall [response]."

@@ -35,13 +35,11 @@ your-project/
 │   │   └── GEMINI.md            # Gemini-specific AGENTS variant
 │   │
 │   ├── specs/                   # Specification files
-│   │   ├── problem.md           # Problem definition
-│   │   ├── options.md           # Solution options
-│   │   ├── requirements.md      # EARS syntax requirements
-│   │   ├── design.md            # Architecture diagrams
-│   │   ├── tasks.md             # Atomic task list
+│   │   ├── product.md           # Product definition + requirements
 │   │   ├── tech.md              # Technical decisions
-│   │   └── product.md           # Product definition
+│   │   ├── design.md            # Architecture diagrams
+│   │   ├── ipc_api.md           # IPC protocol spec
+│   │   └── archive/             # Historical planning docs
 │   │
 │   ├── .context/                # Project state (living files)
 │   │   ├── mission.md           # Living objective

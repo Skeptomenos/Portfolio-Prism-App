@@ -92,3 +92,31 @@ The problem is solved when:
 - [ ] **2FA Flow:** User can authenticate with Trade Republic via in-app 2FA
 - [ ] **Offline Mode:** App functions with cached data when disconnected
 - [ ] **Community Contribution:** New ISIN resolutions sync to/from Supabase "Hive"
+
+---
+
+## 7. Functional Requirements (EARS Syntax)
+
+> **Syntax:** EARS (Easy Approach to Requirements Syntax) reduces ambiguity.
+
+### Ubiquitous (Always True)
+- **REQ-001:** The system shall launch as a standalone desktop application without requiring Python installation.
+- **REQ-002:** The system shall provide a native macOS application experience using system WebKit (via Tauri v2).
+- **REQ-003:** The system shall authenticate users with Trade Republic using phone + PIN → 2FA code flow within the React UI.
+- **REQ-005:** The system shall function offline with cached data when network connectivity is unavailable.
+- **REQ-006:** The system shall synchronize portfolio data with external APIs in the background without blocking the UI.
+- **REQ-010:** The system shall throttle external API requests (max 5 concurrent) to prevent rate limiting.
+
+### Event-Driven (When... Then...)
+- **REQ-101:** When user launches application, then system shall display the React Welcome screen immediately (<2s).
+- **REQ-103:** When authentication is successful, then system shall trigger the Python Engine to import portfolio data in the background.
+- **REQ-106:** When network becomes unavailable, then system shall enter offline mode and continue functioning with cached data.
+
+### State-Driven (While... Then...)
+- **REQ-201:** While portfolio is being synchronized, then system shall display a non-blocking progress indicator.
+- **REQ-202:** While application is running, then Rust Shell shall monitor the Python Sidecar and restart it if it crashes.
+
+### Unwanted Behavior (If... Then... NOT)
+- **REQ-301:** If application crashes, then system shall NOT lose user data or corrupt portfolio files (ACID compliance via SQLite).
+- **REQ-302:** If user has not opted in, then system shall NOT transmit any telemetry or crash reports.
+- **REQ-303:** If Python Engine is processing, then UI shall NOT freeze or become unresponsive.

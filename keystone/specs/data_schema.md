@@ -100,40 +100,10 @@ Pre-calculated dashboard metrics for the UI.
 
 ## 3. Community Database (Hive / Supabase)
 
-This cloud database (PostgreSQL) is the **Source of Truth for Metadata**. It maps messy broker data to clean ISINs and provides ETF compositions.
+> **See:** `keystone/specs/supabase.md` for full Hive schema and deployment instructions.
+> **See:** `keystone/architecture/hive-database-schema.md` for schema design rationale.
 
-### 3.1 `assets` Table (The Entity)
-Master record of atomic financial entities.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `isin` | TEXT (PK) | Unique Identifier (e.g., US0378331005) |
-| `name` | TEXT | Normalized Name (e.g., "Apple Inc.") |
-| `wkn` | TEXT | German WKN (e.g., "865985") |
-| `asset_class`| TEXT | 'Equity', 'ETF', 'Bond' |
-| `base_currency`| TEXT | Accounting Currency (e.g., 'USD') |
-| `enrichment_status`| TEXT | 'active', 'stub' (auto-created) |
-
-### 3.2 `listings` Table (The Quote)
-Maps Ticker+Exchange combinations to ISINs. Solves currency ambiguity.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `ticker` | TEXT (PK) | Symbol (e.g., "APC") |
-| `exchange` | TEXT (PK) | Market Code (e.g., "XETRA", "NASDAQ") |
-| `currency` | TEXT | Trading Currency (e.g., "EUR") |
-| `isin` | TEXT (FK) | Link to `assets` |
-
-### 3.3 `etf_holdings` Table (The X-Ray)
-Current composition of ETFs. Normalized for reverse lookups.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `etf_isin` | TEXT (FK) | The Fund |
-| `holding_isin`| TEXT (FK) | The Underlying Asset |
-| `weight` | FLOAT | 0.0 to 1.0 |
-| `confidence_score`| FLOAT | 0.0 to 1.0 (Trust Level) |
-| `last_updated`| DATE | Staleness check |
+The Hive is documented separately as it has its own operational lifecycle (migrations, RPC functions, etc.).
 
 ---
 

@@ -68,3 +68,48 @@ NEVER modify `.spec` files without version control diff check. Symptom of corrup
 - Use `collect_submodules()` for: pandas, numpy, pyarrow, pydantic, keyring, pytr
 - Set `strip=False, upx=False`
 - Missing modules cause bootloader hang, not import error
+
+---
+
+## 7. Implementation Plan
+
+### Phase 1: Script Enhancement (`scripts/build-python.sh`)
+
+1. **Add Hashing Logic**:
+   - Implement `get_python_hash()` using `find` and `md5` (or `shasum`).
+   - Include `.py`, `.spec`, `pyproject.toml`, and `uv.lock` in the hash.
+
+2. **Implement Skip Logic**:
+   - Read `.last_build_hash`.
+   - If current hash matches, exit with message "Python source unchanged, skipping build."
+
+3. **Parallelize PyInstaller**:
+   - Refactor the `for spec in *.spec` loop.
+   - Remove `--clean` from the command.
+   - Run commands in background: `uv run pyinstaller "$spec" --noconfirm &`.
+   - Add `wait` to ensure all builds finish before the smoke test.
+
+4. **Add Force Flag**:
+   - Support `-f` or `--force` to bypass hash check and add `--clean` back to PyInstaller.
+
+### Phase 2: Spec Audit (`prism_headless.spec`)
+
+1. **Review Excludes**: Verify `matplotlib`, `PIL`, `tkinter` are fully excluded.
+2. **Verify ARM64 Flags**: Ensure `strip=False` and `upx=False` remain set.
+
+### Phase 3: Verification
+
+1. **Smoke Test**: Run the existing verification logic in `build-python.sh`.
+2. **Timing Benchmark**:
+   - Cold Build (with `--force`)
+   - No-change Build (should be < 2s)
+   - Incremental Build (change one `.py` file)
+
+### Success Metrics
+- **Cold Build**: No regression in time.
+- **No-change Build**: >99% reduction in time.
+- **Incremental Build**: >60% reduction in time.
+
+### Rollback Plan
+- Revert `scripts/build-python.sh` to the previous version using `git checkout`.
+- Delete `.last_build_hash` to force a clean state.

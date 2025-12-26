@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Specs Consolidation:** Reduced specs directory from 14 to 10 files (-280 lines, 14% reduction).
+  - Archived obsolete planning docs (`problem.md`, `options.md`, `requirements.md`) to `specs/archive/`.
+  - Merged EARS requirements into `product.md` Section 7.
+  - Merged `build_optimization_implementation.md` into `build_optimization.md`.
+  - Removed duplicate Hive schema from `data_schema.md` (cross-references Supabase docs).
+  - Updated cross-references in `global.md`, `EXECUTION.md`, `README.md`.
+
 ### Removed
 
 - **Legacy CSV Resolution:** Removed `AssetUniverse` class and `asset_universe.csv` files.

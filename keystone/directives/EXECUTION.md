@@ -131,7 +131,7 @@
 
 ### 3.1: Drift Detection (Reverse-Sync)
 
-- **Check:** Does the implemented code contradict `keystone/specs/requirements.md`?
+- **Check:** Does the implemented code contradict `keystone/specs/product.md` Section 7 (Functional Requirements)?
 - **Action:** Fix Code or Update Spec.
 
 ---
