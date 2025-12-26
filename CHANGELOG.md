@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Merged `build_optimization_implementation.md` into `build_optimization.md`.
   - Removed duplicate Hive schema from `data_schema.md` (cross-references Supabase docs).
   - Updated cross-references in `global.md`, `EXECUTION.md`, `README.md`.
+- **Plans Archival:** Moved all 28 completed implementation plans to `plans/archive/`.
+  - Includes: Hive phases 0-5, Pipeline plans, Echo-Sentinel plans, etc.
+  - Deleted `proposals/` directory (contained only obsolete restructure proposal).
 
 ### Removed
 
