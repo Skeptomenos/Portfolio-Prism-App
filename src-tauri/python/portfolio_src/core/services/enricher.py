@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from portfolio_src.core.errors import PipelineError, ErrorPhase, ErrorType, SchemaError
 from portfolio_src.core.utils import get_isin_column, SchemaNormalizer
 from portfolio_src.data.hive_client import get_hive_client, AssetEntry
+from portfolio_src.data.local_cache import get_local_cache
 from portfolio_src.data.enrichment import EnrichmentService
 from portfolio_src.prism_utils.logging_config import get_logger
 
@@ -24,6 +25,7 @@ class EnrichmentResult:
 
     data: Dict[str, Dict[str, Any]]
     sources: Dict[str, str]
+    contributions: List[str]  # ISINs contributed to Hive this batch
 
 
 class HiveEnrichmentService:
@@ -35,38 +37,65 @@ class HiveEnrichmentService:
 
     def __init__(self):
         self.hive_client = get_hive_client()
+        self.local_cache = get_local_cache()
         self.fallback_service = EnrichmentService()
 
-    def get_metadata_batch(self, isins: List[str]) -> Dict[str, Dict[str, Any]]:
+    def get_metadata_batch(self, isins: List[str]) -> EnrichmentResult:
         """
         Fetch metadata for a batch of ISINs using the multi-tier strategy.
+
+        Returns EnrichmentResult with:
+        - data: Dict mapping ISIN to metadata
+        - sources: Dict mapping ISIN to source ("hive" or API name)
+        - contributions: List of ISINs that were contributed to Hive
         """
         if not isins:
-            return {}
+            return EnrichmentResult(data={}, sources={}, contributions=[])
 
-        # 1. Try Hive first
-        hive_results = self.hive_client.batch_lookup(isins)
-
-        # Convert AssetEntry objects to dicts and identify gaps
         metadata = {}
-        missing_isins = []
         sources = {}
+        remaining_isins = []
 
+        # Step 1: Check LocalCache first (fast, offline-capable)
         for isin in isins:
-            asset = hive_results.get(isin)
-            if asset and asset.name != "Unknown":
+            cached_asset = self.local_cache.get_asset(isin)
+            if cached_asset and cached_asset.name and cached_asset.name != "Unknown":
                 metadata[isin] = {
-                    "isin": asset.isin,
-                    "name": asset.name,
-                    "sector": asset.asset_class,  # Map asset_class to sector if specific sector missing
-                    "geography": "Unknown",  # Hive schema needs enhancement for geography
-                    "asset_class": asset.asset_class,
+                    "isin": cached_asset.isin,
+                    "name": cached_asset.name,
+                    "sector": cached_asset.asset_class,
+                    "geography": "Unknown",
+                    "asset_class": cached_asset.asset_class,
                 }
                 sources[isin] = "hive"
             else:
-                missing_isins.append(isin)
+                remaining_isins.append(isin)
 
-        # 2. Fill gaps with fallback APIs
+        cache_hits = len(isins) - len(remaining_isins)
+        if cache_hits > 0:
+            logger.debug(f"LocalCache hit for {cache_hits}/{len(isins)} ISINs")
+
+        # Step 2: Try HiveClient.batch_lookup for remaining ISINs
+        missing_isins = []
+        if remaining_isins:
+            hive_results = self.hive_client.batch_lookup(remaining_isins)
+
+            for isin in remaining_isins:
+                asset = hive_results.get(isin)
+                if asset and asset.name != "Unknown":
+                    metadata[isin] = {
+                        "isin": asset.isin,
+                        "name": asset.name,
+                        "sector": asset.asset_class,
+                        "geography": "Unknown",
+                        "asset_class": asset.asset_class,
+                    }
+                    sources[isin] = "hive"
+                else:
+                    missing_isins.append(isin)
+
+        contributed_isins: List[str] = []
+
         if missing_isins:
             logger.info(
                 f"Hive miss for {len(missing_isins)} assets. Calling fallback APIs for: {', '.join(missing_isins[:3])}{'...' if len(missing_isins) > 3 else ''}"
@@ -78,37 +107,33 @@ class HiveEnrichmentService:
                 metadata[isin] = data
                 sources[isin] = data.get("source", "api")
 
-                # Prepare for Hive contribution
                 new_contributions.append(
                     AssetEntry(
                         isin=isin,
                         name=data.get("name", "Unknown"),
                         asset_class=data.get("asset_class", "Stock"),
-                        base_currency="EUR",  # Default for TR users
+                        base_currency="EUR",
                         enrichment_status="active",
                     )
                 )
+                contributed_isins.append(isin)
 
-            # 3. Contribute new discoveries back to Hive
             if new_contributions:
                 logger.info(f"Contributing {len(new_contributions)} new assets to Hive")
                 self.hive_client.batch_contribute(new_contributions)
 
-        return metadata
+        return EnrichmentResult(
+            data=metadata, sources=sources, contributions=contributed_isins
+        )
 
 
 class Enricher:
     """Enriches holdings with sector, geography, asset class. UI-agnostic."""
 
     def __init__(self, enrichment_service=None):
-        """
-        Initialize with enrichment service.
-
-        Args:
-            enrichment_service: Service for fetching metadata (optional)
-        """
-        # Use HiveEnrichmentService by default if not provided
         self.enrichment_service = enrichment_service or HiveEnrichmentService()
+        self._contributions: List[str] = []
+        self._sources: Dict[str, str] = {}
 
     def enrich(
         self,
@@ -239,17 +264,18 @@ class Enricher:
         if "asset_class" not in enriched.columns:
             enriched["asset_class"] = "Equity"
 
-        # If enrichment service is available, use it
         if self.enrichment_service:
             try:
                 isins = enriched["isin"].dropna().unique().tolist()
 
-                metadata = self.enrichment_service.get_metadata_batch(isins)
+                result = self.enrichment_service.get_metadata_batch(isins)
+                self._contributions.extend(result.contributions)
+                self._sources.update(result.sources)
 
                 for idx, row in enriched.iterrows():
                     isin = row.get("isin")
-                    if isin and isin in metadata:
-                        meta = metadata[isin]
+                    if isin and isin in result.data:
+                        meta = result.data[isin]
                         enriched.at[idx, "sector"] = meta.get(
                             "sector", enriched.at[idx, "sector"]
                         )
@@ -263,3 +289,11 @@ class Enricher:
                 logger.warning(f"Enrichment service failed: {e}")
 
         return enriched
+
+    def get_contributions(self) -> List[str]:
+        """Return ISINs contributed to Hive during enrichment."""
+        return self._contributions.copy()
+
+    def get_sources(self) -> Dict[str, str]:
+        """Return mapping of ISIN to enrichment source."""
+        return self._sources.copy()

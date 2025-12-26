@@ -232,7 +232,7 @@ class HiveClient:
                 data={"count": len(self._universe_cache), "source": "file_cache"},
             )
 
-        # 3. Download from Supabase
+        # 3. Download from Supabase via RPCs (bypasses RLS)
         client = self._get_client()
         if not client:
             return HiveResult(
@@ -241,19 +241,31 @@ class HiveClient:
             )
 
         try:
-            response = client.from_("master_view").select("*").execute()
+            # Fetch assets and listings via RPC (same approach as sync_identity_domain)
+            assets_response = client.rpc("get_all_assets_rpc", {}).execute()
+            listings_response = client.rpc("get_all_listings_rpc", {}).execute()
+
+            # Build lookup dict for listings by ISIN (first listing wins)
+            listings_by_isin: Dict[str, Dict[str, Any]] = {}
+            for listing in listings_response.data or []:
+                isin = listing.get("isin")
+                if isin and isin not in listings_by_isin:
+                    listings_by_isin[isin] = listing
 
             self._universe_cache = {}
             rows = []
-            for row in response.data:
+            for row in assets_response.data or []:
+                isin = row.get("isin", "")
+                listing = listings_by_isin.get(isin, {})
+
                 asset = AssetEntry(
-                    isin=row.get("isin", ""),
+                    isin=isin,
                     name=row.get("name", ""),
                     asset_class=row.get("asset_class", "Unknown"),
                     base_currency=row.get("base_currency", "Unknown"),
-                    ticker=row.get("ticker"),
-                    exchange=row.get("exchange"),
-                    currency=row.get("currency"),
+                    ticker=listing.get("ticker"),
+                    exchange=listing.get("exchange"),
+                    currency=listing.get("currency"),
                     enrichment_status=row.get("enrichment_status", "stub"),
                     last_updated=row.get("updated_at"),
                     contributor_count=row.get("contributor_count", 1),
@@ -280,6 +292,8 @@ class HiveClient:
                 from portfolio_src.data.ingestion import DataIngestion
 
                 DataIngestion.ingest_metadata(pd.DataFrame(rows))
+
+            logger.info(f"Synced {len(self._universe_cache)} assets from Hive via RPC")
 
             return HiveResult(
                 success=True,
@@ -795,37 +809,28 @@ class HiveClient:
             return None
 
         try:
-            # Query the etf_holdings table
-            response = (
-                client.from_("etf_holdings")
-                .select("*")
-                .eq("etf_isin", etf_isin)
-                .execute()
-            )
+            response = client.rpc(
+                "get_etf_holdings_rpc", {"p_etf_isin": etf_isin}
+            ).execute()
 
             if not response.data:
                 return None
 
-            # Convert to DataFrame and normalize columns
             df = pd.DataFrame(response.data)
 
-            # Map Hive columns to standard internal names
             column_map = {
                 "holding_isin": "isin",
-                "holding_name": "name",
-                "weight_percentage": "weight",
             }
             df = df.rename(columns=column_map)
 
-            # Ensure required columns exist
-            for col in ["isin", "name", "weight"]:
+            for col in ["isin", "weight"]:
                 if col not in df.columns:
                     df[col] = "Unknown" if col != "weight" else 0.0
 
             return df
 
         except Exception as e:
-            print(f"Hive holdings lookup failed for {etf_isin}: {e}")
+            logger.warning(f"Hive holdings lookup failed for {etf_isin}: {e}")
             return None
 
     def contribute_etf_holdings(self, etf_isin: str, holdings_df: pd.DataFrame) -> bool:

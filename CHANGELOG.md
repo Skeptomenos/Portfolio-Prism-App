@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Hive Data Flow Fix:** Resolved 0% Hive hit rate caused by `sync_universe()` querying non-existent `master_view`.
+  - `sync_universe()` now uses `get_all_assets_rpc` and `get_all_listings_rpc` (RLS bypass).
+  - `get_etf_holdings()` now uses new `get_etf_holdings_rpc` function.
+  - `HiveEnrichmentService` now checks `LocalCache` first before `HiveClient.batch_lookup()`.
+  - Added `aliases` table to `schema.sql` for documentation completeness.
+
 ### Changed
 
 - **Supabase Folder Consolidation:** Merged `infrastructure/supabase/` into `supabase/` (Supabase CLI standard).

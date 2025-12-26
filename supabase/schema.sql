@@ -94,7 +94,27 @@ CREATE TABLE IF NOT EXISTS provider_mappings (
 );
 
 -- =============================================================================
--- 6. CONTRIBUTIONS Table (Audit Log for Crowdsourced Data)
+-- 6. ALIASES Table (Name-based Resolution)
+-- =============================================================================
+-- Maps name variations to ISINs for fuzzy matching.
+
+CREATE TABLE IF NOT EXISTS aliases (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    alias VARCHAR(100) NOT NULL,
+    isin VARCHAR(12) NOT NULL REFERENCES assets(isin) ON DELETE CASCADE,
+    alias_type VARCHAR(20) DEFAULT 'name',
+    language VARCHAR(5),
+    contributor_count INTEGER DEFAULT 1,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    
+    UNIQUE(alias, isin)
+);
+
+CREATE INDEX IF NOT EXISTS idx_aliases_lookup ON aliases (UPPER(alias));
+CREATE INDEX IF NOT EXISTS idx_aliases_isin ON aliases (isin);
+
+-- =============================================================================
+-- 7. CONTRIBUTIONS Table (Audit Log for Crowdsourced Data)
 -- =============================================================================
 
 CREATE TABLE IF NOT EXISTS contributions (
