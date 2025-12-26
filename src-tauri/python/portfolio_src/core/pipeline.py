@@ -14,7 +14,7 @@ Contains NO business logic — that lives in the services.
 import json
 import os
 import time
-from typing import Callable, Optional, List, Dict, Any, Tuple, cast
+from typing import Callable, Optional, List, Dict, Any, Tuple, Set, cast
 from pathlib import Path
 import pandas as pd
 
@@ -62,19 +62,17 @@ class PipelineMonitor:
     def __init__(self):
         self.start_time = time.time()
         self.phase_times: Dict[str, float] = {}
-        # Track ISINs by source for provenance (sets instead of counts)
-        self.hive_hits: set = set()
-        self.hive_misses: set = set()
-        self.api_calls: set = set()
-        self.contributions: set = set()  # ISINs contributed to Hive this run
-        self.total_assets = 0
+        # Track ISINs by source for provenance (sets for deduplication)
+        self.hive_hits: Set[str] = set()
+        self.hive_misses: Set[str] = set()
+        self.api_calls: Set[str] = set()
+        self.contributions: Set[str] = set()  # ISINs contributed to Hive this run
 
     def record_phase(self, phase: str, duration: float):
         self.phase_times[phase] = round(duration, 3)
 
     def record_enrichment(self, isin: str, source: str):
-        """Record enrichment source for an ISIN."""
-        self.total_assets += 1
+        """Record enrichment source for an ISIN (deduplicated by set)."""
         if source == "hive":
             self.hive_hits.add(isin)
         else:
@@ -94,8 +92,7 @@ class PipelineMonitor:
             "phase_durations": self.phase_times,
             "hive_hit_rate": round(hit_rate, 1),
             "api_fallback_rate": round(100.0 - hit_rate, 1) if total > 0 else 0.0,
-            "total_assets_processed": self.total_assets,
-            # New provenance fields
+            "total_assets_processed": total,
             "hive_hits_count": len(self.hive_hits),
             "hive_misses_count": len(self.hive_misses),
             "api_calls_count": len(self.api_calls),
