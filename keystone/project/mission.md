@@ -2,7 +2,7 @@
 
 > **Purpose:** This is the living objective for this project. It evolves as understanding deepens through iteration.
 > **Read this:** At session start to orient on the big picture.
-> **Last Updated:** 2025-12-20
+> **Last Updated:** 2025-12-26
 
 ---
 
@@ -43,24 +43,59 @@ Build a **privacy-first desktop portfolio analyzer** using a "Three-Tier Hybrid"
 
 ## Current Phase
 
-**Phase 6: Community & Performance.**
-The application is release-ready. We are now focused on:
+**Phase 6: Identity Resolution (TOP PRIORITY)**
 
-- Scaling the "Hive" community data.
-- Performance optimizations (vectorization).
-- Autonomous feedback loops (Project Echo).
+The X-Ray pipeline cannot deliver accurate results without solving **Identity Resolution Hell**.
+
+### The Core Problem
+
+ETF holdings data comes from multiple sources with **inconsistent identifiers**:
+
+```
+Source 1 (Trade Republic):  ISIN: US67066G1040, Name: "NVIDIA"
+Source 2 (iShares CSV):     Name: "NVIDIA CORP", Ticker: "NVDA" (NO ISIN)
+Source 3 (Vanguard CSV):    Name: "Nvidia Inc", Ticker: "NVDA US" (NO ISIN)
+Source 4 (justETF):         Name: "NVIDIA Corporation", Ticker: "NVDA.OQ"
+```
+
+**These are ALL the same company.** Without resolution, we can't:
+- Calculate true exposure (is NVIDIA in both ETFs the same?)
+- Detect overlaps (am I double-exposed?)
+- Aggregate by sector (what sector is "NVIDIA CORP"?)
+
+### The Hive's Purpose
+
+The Hive is an **identity resolver**, not just a ticker lookup:
+- **Input:** Any name variant, any ticker format, any partial match
+- **Output:** Canonical ISIN (the unique global identifier)
+- **Growth:** Every user contributes new resolutions automatically
+
+### Priority Tasks
+
+1. **Normalization Layer** - Clean names before lookup (remove "Corp", "Inc", uppercase, etc.)
+2. **Ticker Parser** - Handle Bloomberg ("NVDA US"), Reuters ("NVDA.OQ"), Yahoo ("NVDA.DE") formats
+3. **Eager Contribution** - Contribute immediately on API resolution, don't wait for pipeline end
+4. **Confidence Scoring** - Avoid bad fuzzy matches (exact match > ticker > fuzzy name)
+5. **Resolution Cascade** - Local Cache → Hive → Wikidata → Finnhub → yFinance
+
+### Success Metrics
+
+- **Resolution Rate:** >95% of ETF holdings resolved to ISIN
+- **Hive Growth:** Each user run contributes new aliases
+- **Cache Hit Rate:** >80% resolved from Local/Hive (no API calls)
 
 **Workstreams:**
 
-- `data-engine`: Maintenance + Echo-Bridge
+- `data-engine`: Identity Resolution (ACTIVE - TOP PRIORITY)
 - `infrastructure`: Done (CI/CD active)
 - `frontend`: Done (Dashboard Complete)
 
 **Next Steps:**
 
-1. Push `v0.1.0` tag to trigger first CI/CD release.
-2. Verified `.dmg` artifact.
-3. Implement Confidence Scoring Logic (Task 609).
+1. Audit current normalization in `ISINResolver`
+2. Implement `IdentifierNormalizer` class
+3. Refactor resolution to contribute immediately
+4. Add confidence scoring to resolution results
 
 ## What's Working
 
