@@ -137,7 +137,7 @@ class Decomposer:
 
         Returns:
             Tuple of (holdings_df, source, error) where source is one of:
-            - "cached" / "manual" - from local cache
+            - "cached" - from local cache
             - "hive" - from Hive community database
             - "{adapter_name}_adapter" - from provider adapter (e.g., "ishares_adapter")
         """

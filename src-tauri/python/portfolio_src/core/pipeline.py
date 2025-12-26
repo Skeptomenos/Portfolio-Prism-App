@@ -609,7 +609,7 @@ class Pipeline:
         # Map ISIN -> Market Value
         etf_values = {}
         if not etf_positions.empty:
-            # Check value column
+            # Check for explicit value column
             val_col = None
             for col in ["tr_value", "NetValue", "market_value", "net_value", "value"]:
                 if col in etf_positions.columns:
@@ -618,7 +618,36 @@ class Pipeline:
 
             if val_col:
                 for _, row in etf_positions.iterrows():
-                    etf_values[str(row["isin"])] = row[val_col]
+                    val = row[val_col]
+                    etf_values[str(row["isin"])] = (
+                        float(val) if pd.notnull(val) else 0.0
+                    )
+            else:
+                # Fallback: Calculate from quantity * price
+                # We know standard columns from database are 'quantity', 'current_price', 'cost_basis'
+                qty_col = "quantity" if "quantity" in etf_positions.columns else None
+                price_col = (
+                    "current_price"
+                    if "current_price" in etf_positions.columns
+                    else None
+                )
+                cost_col = (
+                    "cost_basis" if "cost_basis" in etf_positions.columns else None
+                )
+
+                if qty_col:
+                    logger.info(
+                        "Calculating ETF values from quantity * price (missing market_value column)"
+                    )
+                    for _, row in etf_positions.iterrows():
+                        qty = float(row[qty_col]) if pd.notnull(row[qty_col]) else 0.0
+                        price = 0.0
+                        if price_col and pd.notnull(row[price_col]):
+                            price = float(row[price_col])
+                        elif cost_col and pd.notnull(row[cost_col]):
+                            price = float(row[cost_col])
+
+                        etf_values[str(row["isin"])] = qty * price
 
         # Map ISIN -> Name (Fix 25)
         etf_names = {}
