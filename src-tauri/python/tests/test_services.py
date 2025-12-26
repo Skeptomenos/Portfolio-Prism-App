@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent / "portfolio_src"))
 
 from portfolio_src.core.services.decomposer import Decomposer
-from portfolio_src.core.services.enricher import Enricher
+from portfolio_src.core.services.enricher import Enricher, EnrichmentResult
 from portfolio_src.core.services.aggregator import Aggregator
 from portfolio_src.core.errors import PipelineError, ErrorPhase, ErrorType
 
@@ -105,21 +105,24 @@ class TestEnricher:
         )
         holdings_map = {etf_isin: holdings_df}
 
-        # Setup mock metadata
-        service.get_metadata_batch.return_value = {
-            "Stock1": {
-                "sector": "Tech",
-                "geography": "US",
-                "asset_class": "Stock",
-                "name": "Apple",
+        service.get_metadata_batch.return_value = EnrichmentResult(
+            data={
+                "Stock1": {
+                    "sector": "Tech",
+                    "geography": "US",
+                    "asset_class": "Stock",
+                    "name": "Apple",
+                },
+                "Stock2": {
+                    "sector": "Tech",
+                    "geography": "US",
+                    "asset_class": "Stock",
+                    "name": "Microsoft",
+                },
             },
-            "Stock2": {
-                "sector": "Tech",
-                "geography": "US",
-                "asset_class": "Stock",
-                "name": "Microsoft",
-            },
-        }
+            sources={"Stock1": "hive", "Stock2": "hive"},
+            contributions=[],
+        )
 
         enriched_map, errors = enricher.enrich(holdings_map)
 

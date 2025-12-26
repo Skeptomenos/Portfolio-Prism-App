@@ -40,10 +40,10 @@ Privacy-first, high-performance desktop portfolio analyzer using the Tauri + Pyt
 
 1. **Wizard:** Use `INITIATOR.md` for setup and updates.
 2. **Smart Merging:** Directives (`THINKING.md`, `EXECUTION.md`) are single files that merge framework logic with your custom rules. Read the whole file; custom rules are usually at the bottom.
-3. **State:** Read `keystone/project/mission.md` + `keystone/project/active_state.md` at session start.
-4. **Specs:** Complex tasks (>1hr) require `keystone/specs/`. No code without spec.
-5. **Consensus:** Present plan, WAIT for approval before coding.
-6. **Epilogue:** MANDATORY after feature/design completion.
+3. **State:** Read `keystone/project/mission.md` + `registry.md` at session start.
+4. **Consensus:** Present plan, WAIT for approval before coding.
+5. **Epilogue:** MANDATORY after task completion. Call `skills_keystone_board` and update `CHANGELOG.md`.
+6. **NO COMMIT WITHOUT CHANGELOG (Append to top, never overwrite):** ⚠️ CRITICAL ⚠️
 7. **NO IMPLEMENTATION WITHOUT APPROVAL:** ⚠️ CRITICAL ⚠️
    - Planning, reading, and research: ALWAYS allowed.
    - Writing, editing, or deleting files: REQUIRES explicit user approval.
@@ -57,7 +57,7 @@ Privacy-first, high-performance desktop portfolio analyzer using the Tauri + Pyt
 
 | Task | File |
 |------|------|
-| Session start | `keystone/project/mission.md` + `keystone/project/active_state.md` |
+| Session start | `keystone/project/mission.md` + `registry.md` |
 | New feature, refactor | `keystone/directives/THINKING.md` |
 | Complex bug | `keystone/directives/THINKING.md` (T1-RCA) |
 | Implementation | `keystone/directives/EXECUTION.md` |

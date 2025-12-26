@@ -27,6 +27,7 @@ class Decomposer:
         self.adapter_registry = adapter_registry
         self.isin_resolver = isin_resolver
         self._resolution_stats: Dict[str, Dict[str, Any]] = {}
+        self._etf_sources: Dict[str, str] = {}
 
     def decompose(
         self,
@@ -92,17 +93,17 @@ class Decomposer:
                 )
 
             try:
-                holdings, error = self._get_holdings(isin)
+                holdings, source, error = self._get_holdings(isin)
 
                 if error:
                     errors.append(error)
                 elif holdings is not None and not holdings.empty:
                     holdings_map[isin] = holdings
+                    self._etf_sources[isin] = source or "unknown"
                     logger.info(
-                        f"Decomposed ETF {isin}: {len(holdings)} holdings extracted"
+                        f"Decomposed ETF {isin}: {len(holdings)} holdings extracted (source: {source})"
                     )
                 else:
-                    # Should ideally be caught by error return, but fallback here
                     errors.append(
                         PipelineError(
                             phase=ErrorPhase.ETF_DECOMPOSITION,
@@ -130,7 +131,16 @@ class Decomposer:
 
     def _get_holdings(
         self, isin: str
-    ) -> Tuple[Optional[pd.DataFrame], Optional[PipelineError]]:
+    ) -> Tuple[Optional[pd.DataFrame], Optional[str], Optional[PipelineError]]:
+        """
+        Fetch holdings for an ETF from cache, Hive, or adapter.
+
+        Returns:
+            Tuple of (holdings_df, source, error) where source is one of:
+            - "cached" / "manual" - from local cache
+            - "hive" - from Hive community database
+            - "{adapter_name}_adapter" - from provider adapter (e.g., "ishares_adapter")
+        """
         holdings = None
         source = None
 
@@ -140,7 +150,7 @@ class Decomposer:
             )
             if cached is not None and not cached.empty:
                 holdings = cached
-                source = "cache"
+                source = "cached"
         except Exception as e:
             logger.warning(f"Local cache lookup failed for {isin}: {e}")
 
@@ -163,12 +173,16 @@ class Decomposer:
             try:
                 adapter = self.adapter_registry.get_adapter(isin)
                 if not adapter:
-                    return None, PipelineError(
-                        phase=ErrorPhase.ETF_DECOMPOSITION,
-                        error_type=ErrorType.NO_ADAPTER,
-                        item=isin,
-                        message="No adapter registered for this ISIN",
-                        fix_hint=f"Add adapter or upload to manual_holdings/{isin}.csv",
+                    return (
+                        None,
+                        None,
+                        PipelineError(
+                            phase=ErrorPhase.ETF_DECOMPOSITION,
+                            error_type=ErrorType.NO_ADAPTER,
+                            item=isin,
+                            message="No adapter registered for this ISIN",
+                            fix_hint=f"Add adapter or upload to manual_holdings/{isin}.csv",
+                        ),
                     )
 
                 adapter_holdings = adapter.fetch_holdings(isin)
@@ -188,31 +202,40 @@ class Decomposer:
                         logger.debug(f"Failed to contribute discovery to Hive: {e}")
 
                     holdings = adapter_holdings
-                    source = "adapter"
+                    adapter_name = type(adapter).__name__.lower().replace("adapter", "")
+                    source = f"{adapter_name}_adapter"
                 else:
-                    return None, PipelineError(
-                        phase=ErrorPhase.ETF_DECOMPOSITION,
-                        error_type=ErrorType.API_FAILURE,
-                        item=isin,
-                        message="Adapter returned empty holdings",
-                        fix_hint="Check provider website or API limits",
+                    return (
+                        None,
+                        None,
+                        PipelineError(
+                            phase=ErrorPhase.ETF_DECOMPOSITION,
+                            error_type=ErrorType.API_FAILURE,
+                            item=isin,
+                            message="Adapter returned empty holdings",
+                            fix_hint="Check provider website or API limits",
+                        ),
                     )
 
             except Exception as e:
                 logger.warning(f"Adapter failed for {isin}: {e}")
-                return None, PipelineError(
-                    phase=ErrorPhase.ETF_DECOMPOSITION,
-                    error_type=ErrorType.API_FAILURE,
-                    item=isin,
-                    message=f"Adapter fetch failed: {str(e)}",
-                    fix_hint="Check network connectivity",
+                return (
+                    None,
+                    None,
+                    PipelineError(
+                        phase=ErrorPhase.ETF_DECOMPOSITION,
+                        error_type=ErrorType.API_FAILURE,
+                        item=isin,
+                        message=f"Adapter fetch failed: {str(e)}",
+                        fix_hint="Check network connectivity",
+                    ),
                 )
 
         if holdings is not None and not holdings.empty:
             holdings, resolution_stats = self._resolve_holdings_isins(holdings, isin)
             self._resolution_stats[isin] = resolution_stats
 
-        return holdings, None
+        return holdings, source, None
 
     def _resolve_holdings_isins(
         self,
@@ -337,3 +360,7 @@ class Decomposer:
             "by_source": all_sources,
             "etfs": self._resolution_stats,
         }
+
+    def get_etf_sources(self) -> Dict[str, str]:
+        """Return mapping of ETF ISIN to decomposition source."""
+        return self._etf_sources.copy()

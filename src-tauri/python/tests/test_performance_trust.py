@@ -121,10 +121,10 @@ class TestPipelineMonitor:
     def test_monitor_metrics(self):
         monitor = PipelineMonitor()
 
-        monitor.record_enrichment("hive")
-        monitor.record_enrichment("hive")
-        monitor.record_enrichment("api")
-        monitor.record_enrichment("unknown")
+        monitor.record_enrichment("ISIN1", "hive")
+        monitor.record_enrichment("ISIN2", "hive")
+        monitor.record_enrichment("ISIN3", "api")
+        monitor.record_enrichment("ISIN4", "unknown")
 
         metrics = monitor.get_metrics()
 
@@ -133,3 +133,15 @@ class TestPipelineMonitor:
         assert metrics["api_fallback_rate"] == 50.0  # 2/4 (api + unknown)
         assert "execution_time_seconds" in metrics
         assert "phase_durations" in metrics
+        assert metrics["hive_hits_count"] == 2
+        assert metrics["contributions_count"] == 0
+
+    def test_monitor_contributions(self):
+        monitor = PipelineMonitor()
+
+        monitor.record_contribution("ISIN1")
+        monitor.record_contribution("ISIN2")
+
+        hive_log = monitor.get_hive_log()
+        assert len(hive_log["contributions"]) == 2
+        assert "ISIN1" in hive_log["contributions"]

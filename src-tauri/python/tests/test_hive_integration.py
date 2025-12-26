@@ -69,15 +69,16 @@ class TestHiveIntegration:
             }
 
             service = HiveEnrichmentService()
-            results = service.get_metadata_batch(["ISIN1", "ISIN2"])
+            result = service.get_metadata_batch(["ISIN1", "ISIN2"])
 
-            # Verify combined results
-            assert "ISIN1" in results
-            assert "ISIN2" in results
-            assert results["ISIN1"]["name"] == "Hive Asset"
-            assert results["ISIN2"]["name"] == "API Asset"
+            assert "ISIN1" in result.data
+            assert "ISIN2" in result.data
+            assert result.data["ISIN1"]["name"] == "Hive Asset"
+            assert result.data["ISIN2"]["name"] == "API Asset"
 
-            # Verify contribution was triggered for ISIN2
+            assert result.sources["ISIN1"] == "hive"
+            assert "ISIN2" in result.contributions
+
             hive_client.batch_contribute.assert_called_once()
             contributions = hive_client.batch_contribute.call_args[0][0]
             assert any(c.isin == "ISIN2" for c in contributions)

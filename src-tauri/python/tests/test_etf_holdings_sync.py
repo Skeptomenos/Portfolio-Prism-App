@@ -25,10 +25,11 @@ class TestETFHoldingsSync:
             [{"isin": "AAPL", "weight": 100.0}]
         )
 
-        holdings, error = decomposer._get_holdings(isin)
+        holdings, source, error = decomposer._get_holdings(isin)
 
         assert error is None
         assert not holdings.empty
+        assert source == "cached"
         hive_client.get_etf_holdings.assert_not_called()
 
     def test_hierarchy_hive_hit(self, mock_deps):
@@ -42,11 +43,11 @@ class TestETFHoldingsSync:
             [{"isin": "MSFT", "weight": 100.0}]
         )
 
-        holdings, error = decomposer._get_holdings(isin)
+        holdings, source, error = decomposer._get_holdings(isin)
 
         assert error is None
         assert holdings.iloc[0]["isin"] == "MSFT"
-        # Verify it was saved to local cache
+        assert source == "hive"
         cache._save_to_local_cache.assert_called_once()
         registry.get_adapter.assert_not_called()
 
@@ -65,13 +66,12 @@ class TestETFHoldingsSync:
         )
         registry.get_adapter.return_value = mock_adapter
 
-        holdings, error = decomposer._get_holdings(isin)
+        holdings, source, error = decomposer._get_holdings(isin)
 
         assert error is None
         assert holdings.iloc[0]["isin"] == "GOOG"
-        # Verify contribution to Hive
+        assert "_adapter" in source
         hive_client.contribute_etf_holdings.assert_called_once()
-        # Verify local caching
         assert cache._save_to_local_cache.call_count == 1
 
     def test_hive_failure_resilience(self, mock_deps):
@@ -89,9 +89,9 @@ class TestETFHoldingsSync:
         )
         registry.get_adapter.return_value = mock_adapter
 
-        holdings, error = decomposer._get_holdings(isin)
+        holdings, source, error = decomposer._get_holdings(isin)
 
         assert error is None
         assert holdings.iloc[0]["isin"] == "AMZN"
-        # Should have fallen back to adapter
+        assert "_adapter" in source
         registry.get_adapter.assert_called_once()

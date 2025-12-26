@@ -1,6 +1,6 @@
 # Execution Directives (Build & Deliver)
 
-> **Protocol Version:** 4.6
+> **Protocol Version:** 4.7.0
 
 > **PROGRESSIVE DISCLOSURE:**
 > This file guides implementation AFTER thinking is complete.
@@ -95,6 +95,11 @@
 
 - **Decompose:** Break complex requests down into **Atomic Units** in your workstream file under `## 📋 Tasks`.
 - **Prefixed IDs**: Use your workstream prefix for all new tasks.
+- **Task Lifecycle Dates**:
+    - **Created**: Set to current date (`YYYY-MM-DD`) when task is first added.
+    - **Started**: Set to current date when work begins (Status: `In Progress`).
+    - **Completed**: Set to current date when task is finished (Status: `Done`).
+- **AI Fallback**: If you don't know the current date, ask the user: *"What is today's date for task tracking?"*
 
 ### 1.2: The Consensus Gate (CRITICAL)
 
@@ -132,7 +137,7 @@
 ### 4.1: Documentation Sync
 
 - [ ] **Spec Check:** Ensure `keystone/specs/*` reflect reality.
-- [ ] **User Facing:** Update `CHANGELOG.md` if needed.
+- [ ] **Changelog (MANDATORY):** Update `CHANGELOG.md` with all changes from this session. **CRITICAL: Always append new entries to the top (under the header), never overwrite existing history.** No commit without a corresponding changelog entry.
 - [ ] **Decision Record:** Update `keystone/DECISION_LOG.md`.
 
 ### 4.2: Reflective Learning (T-RFL)
@@ -143,6 +148,7 @@
 ### 4.3: Archival Rotation
 
 - [ ] **Archive Completed Tasks**: Move `Done` tasks to the `Archive` section in your workstream file.
+- [ ] **Logging Audit**: Run `skills_keystone_log_audit` on modified files to enforce standards.
 - [ ] **Update Board**: Call `skills_keystone_board`.
 - [ ] **Handover**: Update your workstream file -> `## 💾 Context for Resume`.
 - [ ] **Registry**: Update your status to `Paused` or `Done` in `registry.md`.

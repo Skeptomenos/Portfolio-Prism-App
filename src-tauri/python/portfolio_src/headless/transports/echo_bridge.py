@@ -41,13 +41,14 @@ class HoldingsSummary(TypedDict):
     total_value: float
 
 
-class ETFDecompositionDetail(TypedDict):
+class ETFDecompositionDetail(TypedDict, total=False):
     """Per-ETF decomposition result."""
 
     isin: str
     name: str
     holdings_count: int
     status: str  # 'success' | 'failed' | 'partial'
+    source: str  # 'cached' | 'hive' | '{adapter}_adapter' (optional for SSE)
 
 
 class DecompositionSummary(TypedDict):

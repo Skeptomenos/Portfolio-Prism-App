@@ -22,8 +22,8 @@ class TestPipelineVerification:
         def mock_get_holdings(self, isin):
             file_path = MOCK_ETF_DIR / f"{isin}.csv"
             if file_path.exists():
-                return pd.read_csv(file_path), []
-            return pd.DataFrame(), []
+                return pd.read_csv(file_path), "cached", None
+            return pd.DataFrame(), None, None
 
         monkeypatch.setattr(Decomposer, "_get_holdings", mock_get_holdings)
         return Decomposer(None, None)

@@ -14,6 +14,7 @@
 | `prism-refactor` | `keystone/project/workstreams/prism_refactor.md` | `None` | `Backlog` | 2025-12-22 |
 | `pipeline-progress-ux` | `keystone/project/workstreams/pipeline-progress-ux.md` | `Pipeline Optimization` | `Active` | 2025-12-23 |
 | `hive-extension` | `keystone/strategy/HIVE_EXTENSION_STRATEGY.md` | `OptiPie` | `Active` | 2025-12-25 |
+| `hive-data-flow-fix` | `keystone/project/workstreams/hive-data-flow-fix.md` | `root-session` | `Active` | 2025-12-26 |
 
 ---
 

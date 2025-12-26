@@ -1,4 +1,4 @@
-in# Workstream: data-engine
+# Workstream: data-engine
 
 > **Feature Plan:** `docs/MVP_IMPLEMENTATION_PLAN.md`
 > **Owner:** root-session

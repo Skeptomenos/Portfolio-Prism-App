@@ -23,6 +23,9 @@
     - **Dependencies:** None
     - **Status:** Open
     - **Workstream:** [Name]
+    - **Created:** [YYYY-MM-DD]
+    - **Started:** (pending)
+    - **Completed:** (pending)
 
 ---
 

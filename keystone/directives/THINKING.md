@@ -1,6 +1,6 @@
 # Hybrid Thinking Directives (First Principles & Structured Analysis)
 
-> **Protocol Version:** 4.6
+> **Protocol Version:** 4.6.1
 
 > **PROGRESSIVE DISCLOSURE:**
 > This file guides problem decomposition BEFORE implementation using a hybrid approach that combines first-principles thinking with structured six-question analysis.

@@ -57,40 +57,56 @@ logger = get_logger(__name__)
 
 
 class PipelineMonitor:
-    """Tracks pipeline performance and community hit rates."""
+    """Tracks pipeline performance, community hit rates, and data provenance."""
 
     def __init__(self):
         self.start_time = time.time()
         self.phase_times: Dict[str, float] = {}
-        self.hive_hits = 0
-        self.hive_misses = 0
-        self.api_calls = 0
+        # Track ISINs by source for provenance (sets instead of counts)
+        self.hive_hits: set = set()
+        self.hive_misses: set = set()
+        self.api_calls: set = set()
+        self.contributions: set = set()  # ISINs contributed to Hive this run
         self.total_assets = 0
 
     def record_phase(self, phase: str, duration: float):
         self.phase_times[phase] = round(duration, 3)
 
-    def record_enrichment(self, source: str):
+    def record_enrichment(self, isin: str, source: str):
+        """Record enrichment source for an ISIN."""
         self.total_assets += 1
         if source == "hive":
-            self.hive_hits += 1
+            self.hive_hits.add(isin)
         else:
-            self.hive_misses += 1
-            if source != "unknown":
-                self.api_calls += 1
+            self.hive_misses.add(isin)
+            if source not in ("unknown", ""):
+                self.api_calls.add(isin)
+
+    def record_contribution(self, isin: str):
+        """Record an ISIN that was contributed to Hive during this run."""
+        self.contributions.add(isin)
 
     def get_metrics(self) -> Dict[str, Any]:
-        hit_rate = (
-            (self.hive_hits / self.total_assets * 100) if self.total_assets > 0 else 0.0
-        )
+        total = len(self.hive_hits) + len(self.hive_misses)
+        hit_rate = (len(self.hive_hits) / total * 100) if total > 0 else 0.0
         return {
             "execution_time_seconds": round(time.time() - self.start_time, 2),
             "phase_durations": self.phase_times,
             "hive_hit_rate": round(hit_rate, 1),
-            "api_fallback_rate": round(100.0 - hit_rate, 1)
-            if self.total_assets > 0
-            else 0.0,
+            "api_fallback_rate": round(100.0 - hit_rate, 1) if total > 0 else 0.0,
             "total_assets_processed": self.total_assets,
+            # New provenance fields
+            "hive_hits_count": len(self.hive_hits),
+            "hive_misses_count": len(self.hive_misses),
+            "api_calls_count": len(self.api_calls),
+            "contributions_count": len(self.contributions),
+        }
+
+    def get_hive_log(self) -> Dict[str, List[str]]:
+        """Return detailed Hive interaction log for UI."""
+        return {
+            "hits": sorted(self.hive_hits),
+            "contributions": sorted(self.contributions),
         }
 
 
@@ -341,8 +357,12 @@ class Pipeline:
             )
             monitor.record_phase("enrichment", time.time() - start)
 
-            for isin in holdings_map.keys():
-                monitor.record_enrichment("hive")
+            enrichment_sources = self._enricher.get_sources()
+            for isin, source in enrichment_sources.items():
+                monitor.record_enrichment(isin, source)
+
+            for isin in self._enricher.get_contributions():
+                monitor.record_contribution(isin)
 
             # Phase 4: Aggregate (via service)
             start = time.time()
@@ -383,6 +403,7 @@ class Pipeline:
                 decompose_errors=decompose_errors,
                 monitor=monitor,
                 total_value=total_value,
+                decomposer=self._decomposer,
             )
             broadcast_summary(summary)
 
@@ -416,7 +437,12 @@ class Pipeline:
         finally:
             try:
                 self._write_health_report(
-                    errors, direct_positions, etf_positions, holdings_map, monitor
+                    errors,
+                    direct_positions,
+                    etf_positions,
+                    holdings_map,
+                    monitor,
+                    self._decomposer,
                 )
 
                 report_holdings = locals().get("enriched_holdings") or holdings_map
@@ -492,12 +518,14 @@ class Pipeline:
         etf_positions,
         holdings_map,
         monitor: PipelineMonitor,
+        decomposer: Optional[Decomposer] = None,
     ):
-        """Write rich pipeline health report for UI."""
+        """Write rich pipeline health report for UI with provenance data."""
         from datetime import datetime
 
-        # Calculate ETF stats
-        etf_stats = []
+        etf_sources = decomposer.get_etf_sources() if decomposer else {}
+
+        per_etf = []
         for isin, holdings in holdings_map.items():
             weight_col = get_weight_column(holdings)
             weight_sum = (
@@ -506,29 +534,41 @@ class Pipeline:
                 else 0.0
             )
 
-            etf_stats.append(
+            per_etf.append(
                 {
-                    "ticker": isin,
+                    "isin": isin,
+                    "name": self._get_etf_name(etf_positions, isin),
                     "holdings_count": len(holdings),
                     "weight_sum": weight_sum,
-                    "status": "complete" if not holdings.empty else "empty",
+                    "status": "success" if not holdings.empty else "failed",
+                    "source": etf_sources.get(isin, "unknown"),
                 }
             )
 
-        # Structure for UI
+        hive_log = monitor.get_hive_log()
+        metrics = monitor.get_metrics()
+
         health_data = {
             "timestamp": datetime.now().isoformat(),
             "metrics": {
                 "direct_holdings": len(direct_positions),
                 "etf_positions": len(etf_positions),
-                "etfs_processed": len(
-                    [e for e in etf_stats if e["status"] == "complete"]
-                ),
+                "etfs_processed": len([e for e in per_etf if e["status"] == "success"]),
                 "tier1_resolved": 0,
                 "tier1_failed": len(errors),
             },
-            "performance": monitor.get_metrics(),
-            "etf_stats": etf_stats,
+            "performance": metrics,
+            "decomposition": {
+                "per_etf": per_etf,
+            },
+            "enrichment": {
+                "stats": {
+                    "hive_hits": metrics.get("hive_hits_count", 0),
+                    "api_calls": metrics.get("api_calls_count", 0),
+                    "new_contributions": metrics.get("contributions_count", 0),
+                },
+                "hive_log": hive_log,
+            },
             "failures": [
                 {
                     "severity": "ERROR",
@@ -536,6 +576,9 @@ class Pipeline:
                     if hasattr(e.phase, "value")
                     else str(e.phase),
                     "item": e.item,
+                    "issue": e.error_type.value
+                    if hasattr(e.error_type, "value")
+                    else str(e.error_type),
                     "error": e.message,
                     "fix": e.fix_hint,
                 }
@@ -548,6 +591,18 @@ class Pipeline:
             json.dump(health_data, f, indent=2)
 
         logger.info(f"Wrote pipeline health report to {PIPELINE_HEALTH_PATH}")
+
+    def _get_etf_name(self, etf_positions: pd.DataFrame, isin: str) -> str:
+        """Get ETF name from positions DataFrame."""
+        if etf_positions.empty:
+            return "Unknown ETF"
+        name_col = get_name_column(etf_positions)
+        if not name_col:
+            return "Unknown ETF"
+        match = etf_positions[etf_positions["isin"] == isin]
+        if match.empty:
+            return "Unknown ETF"
+        return str(match.iloc[0].get(name_col, "Unknown ETF"))
 
     def _write_breakdown_report(self, etf_positions, holdings_map):
         """Write detailed holdings breakdown for UI exploration."""
@@ -631,6 +686,7 @@ class Pipeline:
         decompose_errors: List[PipelineError],
         monitor: PipelineMonitor,
         total_value: float,
+        decomposer: Optional[Decomposer] = None,
     ) -> PipelineSummaryData:
         stock_count = len(direct_positions)
         etf_count = len(etf_positions)
@@ -653,6 +709,8 @@ class Pipeline:
                             str(name_val) if name_val else "Unknown ETF"
                         )
 
+        etf_sources = decomposer.get_etf_sources() if decomposer else {}
+
         failed_isins = {e.item for e in decompose_errors}
         per_etf: List[ETFDecompositionDetail] = []
         for isin, holdings in holdings_map.items():
@@ -662,6 +720,7 @@ class Pipeline:
                     "name": etf_names.get(isin, "Unknown ETF"),
                     "holdings_count": len(holdings),
                     "status": "success" if len(holdings) > 0 else "partial",
+                    "source": etf_sources.get(isin, "unknown"),
                 }
             )
         for isin in failed_isins:
