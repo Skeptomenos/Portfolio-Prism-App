@@ -298,3 +298,39 @@ This document tracks significant architectural decisions (ADRs) for the project.
   - (+) API rate limits preserved for significant holdings.
   - (-) Tier2 holdings may remain unresolved if not in local cache.
   - **Mitigation:** Tier2 holdings are <0.5% weight each, minimal impact on X-Ray accuracy.
+
+---
+
+## [2025-12-24] Hive Extension Decisions (Batch)
+
+> Extracted from `HIVE_EXTENSION_STRATEGY.md` during docs consolidation.
+
+| Date | Decision | Rationale |
+|------|----------|-----------|
+| 2025-12-24 | **Hive scope: Identity + Compositions only** | Price data available from external APIs |
+| 2025-12-24 | **Add `aliases` table** | Long-term solution for name variations |
+| 2025-12-24 | **Same database for all domains** | Foreign key integrity between holdings and assets |
+| 2025-12-24 | **Local SQLite cache** | Offline support, reduce Hive load |
+| 2025-12-24 | **Selective cache for holdings** | Only cache user's ETFs, not entire table |
+| 2025-12-24 | **Tiered resolution (Option A)** | Performance: skip micro-holdings in API calls |
+| 2025-12-24 | **Disable `asset_universe.csv`** | User directive. POC artifact must go. |
+| 2025-12-24 | **Enable Bidirectional Sync** | Hive has data; users can contribute more. |
+| 2025-12-24 | **Strict FKs Remain** | We will not relax database schemas; we fix the data instead. |
+| 2025-12-24 | **RLS fix via SECURITY DEFINER** | Bypass RLS through controlled RPC endpoints, not policy changes. |
+| 2025-12-24 | **Feature flag for rollout** | `USE_LEGACY_CSV` enables safe, reversible migration. |
+| 2025-12-24 | **Exchange codes: Best Effort** | No strict MIC enforcement initially; normalize where possible. |
+| 2025-12-25 | **Decoupled sync from pipeline** | Sync was auto-triggering pipeline, blocking user control. Now separate commands. |
+| 2025-12-25 | **`USE_LEGACY_CSV` default → False** | Hive infrastructure validated (63 tests, 970x faster). Safe to activate. |
+| 2025-12-25 | **Removed Playwright from adapters** | Unreliable, complex dependency. Manual upload + Hive is simpler and sufficient. |
+
+---
+
+## [2025-12-26] Legacy CSV Removal
+
+- **Context:** `USE_LEGACY_CSV` feature flag was set to False by default. Legacy `AssetUniverse` class and `asset_universe.csv` files no longer used.
+- **Decision:** Remove all legacy CSV resolution code and files.
+- **Consequences:**
+  - (+) ~2,751 lines of dead code removed
+  - (+) Simpler codebase, single resolution path
+  - (+) No confusion about which path is active
+  - (-) None - feature flag validated the new path works

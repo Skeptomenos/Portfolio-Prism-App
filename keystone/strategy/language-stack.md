@@ -19,7 +19,7 @@ Portfolio Prism employs a **three-language architecture** optimized for rapid fe
 
 | Language | Role | Why It's Optimal | Current Usage |
 |----------|------|------------------|---------------|
-| **Python** | Analytics Engine, Business Logic | Unmatched financial data ecosystem (pandas, NumPy, yfinance), rapid prototyping, mature quantitative finance libraries | 85% of codebase - portfolio calculations, data processing, Streamlit UI |
+| **Python** | Analytics Engine, Business Logic | Unmatched financial data ecosystem (pandas, NumPy, yfinance), rapid prototyping, mature quantitative finance libraries | 85% of codebase - portfolio calculations, data processing, headless sidecar |
 | **Rust** | Shell, Performance Operations | Memory safety, zero-cost abstractions, single binary deployment, excellent FFI | 10% of codebase - Tauri shell, process management, future performance optimizations |
 | **TypeScript** | User Interface, Feedback Features | Modern web ecosystem, React components, state management, rapid UI iteration | 5% of codebase - loading screen, future native UI components |
 
@@ -128,7 +128,7 @@ Portfolio Prism employs a **three-language architecture** optimized for rapid fe
 - Create FFI bridges for future Python integration
 
 **TypeScript Foundation:**
-- Add feedback overlay to existing Streamlit UI
+- Add feedback overlay to React UI
 - Implement error reporting and telemetry
 - Create component library foundation
 

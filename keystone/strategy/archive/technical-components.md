@@ -1,5 +1,9 @@
 # Fundamental Technical Components Analysis
 
+> **⚠️ ARCHIVED (2025-12-26):** This document contains outdated information (references Streamlit as current UI).
+> For current architecture, see `keystone/strategy/architecture-overview.md`.
+> Preserved for historical reference and component flexibility assessment methodology.
+
 > **Purpose:** Assessment of core technical components for flexibility, isolation potential, and strategic alignment with rapid feedback loop vision
 > **Scope:** High-level component analysis, not implementation specifications
 > **Also read:** `keystone/strategy/language-stack.md` for language strategy

@@ -410,4 +410,4 @@ CREATE INDEX IF NOT EXISTS idx_name ON table (...);
 - [Supabase CLI Docs](https://supabase.com/docs/reference/cli)
 - [PostgreSQL PL/pgSQL](https://www.postgresql.org/docs/current/plpgsql.html)
 - `keystone/strategy/hive-architecture.md` - Architecture decisions
-- `keystone/architecture/HIVE_DATABASE_SCHEMA.md` - Schema design rationale
+- `keystone/architecture/hive-database-schema.md` - Schema design rationale

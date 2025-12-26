@@ -14,6 +14,33 @@ Portfolio Prism employs a **"Community-First, Multi-Tier"** external integration
 
 ---
 
+## The API Key Problem: Gatekeeper Proxy
+
+**Challenge:** API keys cannot be embedded in distributed desktop apps - they will be extracted and abused.
+
+**Solution:** Route all external API calls through a Cloudflare Worker that injects keys server-side.
+
+```mermaid
+sequenceDiagram
+    participant App as Desktop App (Tauri)
+    participant Proxy as Cloudflare Worker (Gatekeeper)
+    participant Finnhub as Finnhub API
+
+    App->>Proxy: Request Stock Data (ISIN)
+    Note over Proxy: 1. Check Rate Limit (User IP)<br/>2. Add Secret API Key
+    Proxy->>Finnhub: Forward Request + Key
+    Finnhub-->>Proxy: Data
+    Proxy-->>App: Data
+```
+
+**Implementation:**
+- **Technology:** Cloudflare Workers (free tier: 100k req/day)
+- **Security:** Worker holds `FINNHUB_API_KEY` in secure environment variables
+- **Features:** Rate limiting by IP, response caching, key injection
+- **Benefits:** Zero maintenance, infinite scale, perfect key protection
+
+---
+
 ## Current Integration Assessment
 
 ### **External Integration Landscape**

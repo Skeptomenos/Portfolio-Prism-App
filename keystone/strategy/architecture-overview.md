@@ -64,8 +64,8 @@ graph TD
 ## 3. Core Architectural Decisions (The Manifesto)
 
 ### **Rule 1: React-First MVP**
-*   **Decision:** We bypass the "Streamlit Enhancement" phase. The MVP will be built directly in React + TypeScript.
-*   **Implication:** Streamlit remains only as a reference implementation (POC). The build system prioritizes serving the Vite/React bundle.
+*   **Decision:** MVP built directly in React + TypeScript (Streamlit phase bypassed).
+*   **Implication:** Python runs as headless sidecar (stdin/stdout JSON IPC). The build system serves the Vite/React bundle.
 
 ### **Rule 2: State-at-Rest vs. State-in-Motion**
 *   **At Rest (Storage):** Data sleeps in **SQLite** (Transactional/User Data) and **Parquet** (Analytics/Cache). This ensures ACID compliance and schema integrity.
