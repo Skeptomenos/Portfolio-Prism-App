@@ -173,6 +173,8 @@ Contributors identified by `contributor_hash` generated via Supabase anonymous a
 - No login required
 - Enables contribution counting for corroboration
 
+**Offline Fallback:** If Supabase is unreachable, use locally-generated device UUID as `contributor_hash`. Contributions are queued locally and synced when connectivity returns. This preserves the "local-first" promise.
+
 ---
 
 ## 7. Confidence Thresholds
@@ -201,6 +203,19 @@ Contributors identified by `contributor_hash` generated via Supabase anonymous a
 | API timeout | Skip to next API in cascade |
 | Hive unavailable | Continue with local cache + APIs |
 | Multiple ISIN candidates | Take highest confidence, log ambiguity |
+
+### 8.1 Negative Caching
+
+Cache failed lookups to prevent repeated API calls for the same unknown identifier.
+
+| Cache Entry | TTL | Purpose |
+|-------------|-----|---------|
+| `{alias} → UNRESOLVED` | 24 hours | Prevent API quota burn on repeated failures |
+| `{alias} → RATE_LIMITED` | 1 hour | Back off from rate-limited APIs |
+
+**Why this matters:** If 1,000 users sync "Unknown Ticker X" at 9:00 AM, without negative caching we burn API quota on 1,000 identical failed lookups. With negative caching, only the first user hits APIs; others get instant "unresolved" from cache.
+
+**Implementation:** Store in local SQLite cache with `resolution_status = 'unresolved'` and `expires_at` timestamp.
 
 ---
 
