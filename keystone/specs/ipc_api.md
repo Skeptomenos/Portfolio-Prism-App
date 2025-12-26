@@ -6,6 +6,23 @@
 
 ---
 
+## 0. Critical Rules
+
+### 🔴 Stdout is Reserved for JSON
+ALL Python loggers MUST write to `stderr`. Any output to `stdout` corrupts the JSON IPC channel.
+- **Symptom:** Rust fails to parse Python responses
+- **Audit:** Check `logging_config.py` after any logging changes
+
+### 🔴 Unified Entry Point
+Use the exact same entry point for native sidecar and browser-bridge. The `--http` flag in `prism_headless.py` ensures bug fixes apply to both modes.
+
+### 🔴 Subprocess Path Isolation
+Scripts spawned as subprocesses MUST add parent directory to `sys.path` BEFORE any `portfolio_src` imports.
+- **Symptom:** `ModuleNotFoundError` → "no ready signal" error
+- **Example:** See path setup block in `tr_daemon.py`
+
+---
+
 ## 1. Command Protocol (Rust -> Python)
 
 **Transport:** Rust writes JSON to Python's `stdin`. Python reads line-by-line.

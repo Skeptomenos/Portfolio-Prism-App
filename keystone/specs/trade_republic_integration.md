@@ -48,6 +48,10 @@ If a portfolio fetch times out (60s), the underlying websocket or session might 
 -   **Wrong**: Catching `TimeoutError` and returning an error while keeping `self.api`.
 -   **Right**: Set `self.api = None` and `self._cached_auth_status = "idle"` to force a fresh connection on the next attempt.
 
+### 🔴 pytr Library Quirks
+-   **Typo in v0.4.2:** Method is `inititate_weblogin` (extra 't')
+-   **asyncio.Lock at import:** Creates locks at import time → requires process isolation (Daemon pattern)
+
 ---
 
 ## 3. Key Components & Fragility Points

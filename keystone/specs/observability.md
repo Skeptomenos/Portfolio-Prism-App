@@ -60,3 +60,23 @@ All developer operations (build, dev, test) must be managed through a single Pyt
 ### 3.2 Telemetry (Future)
 - Critical errors should be hashed and reported to the Cloudflare Proxy only after user consent.
 - Telemetry must never include raw PII.
+
+---
+
+## 4. Privacy Rules
+
+### 4.1 Scrubbed-by-Default Telemetry
+Users of financial apps are hyper-sensitive to data leaks. Telemetry must be:
+- **Scrubbed-by-Default:** No PII or financial values transmitted
+- **Opt-out-by-Choice:** User controls what is sent
+- **Transparent:** "Review Scrubbed Data" view builds trust
+
+### 4.2 Context-Aware Feedback
+Manual bug reports are 5x more useful with automated context. Every feedback submission must auto-inject:
+- `currentView` (which screen the user was on)
+- `version` (app version)
+
+### 4.3 Stable Error Hashing
+Memory addresses in stack traces (e.g., `0x12345678`) break hash stability across runs.
+- Normalize addresses to `0xADDR` before hashing
+- Use first 500 chars of traceback for stability

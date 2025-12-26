@@ -74,6 +74,10 @@ Document the core "physics" of the problem:
 > 2. **What can be removed entirely?**
 > 3. **Ruthless prioritization:** What is the MINIMAL problem worth solving?
 
+> **ANTI-PATTERN: Linear Completion Bias**
+> AI agents can suffer from trying to "finish Phase 4 Streamlit" before "starting Phase 0 React".
+> **Solution:** Use "Strangler Fig" pattern. Freeze legacy, build new foundation immediately.
+
 ---
 
 ## Phase 2: Assumption Analysis & Validation

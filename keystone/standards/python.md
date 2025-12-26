@@ -60,3 +60,32 @@ except Exception as e:
 ### 5. Summary over Spam
 For repetitive tasks (e.g., fetching 30 days of history), log a single summary line instead of flooding the terminal with 30 individual lines.
 - **Right:** `logger.info(f"History fetch complete. Processed {count} data points.")`
+
+---
+
+## Testing
+
+### Environment Setup for Integration Tests
+Integration tests require explicit environment setup:
+```bash
+cd src-tauri/python && source .venv/bin/activate && export PYTHONPATH=$PWD:$PYTHONPATH
+```
+Avoid simple `uv run python script.py` for tests that import `portfolio_src`.
+
+---
+
+## Database Patterns
+
+### Connection Management
+ALL database query functions MUST use context manager pattern:
+```python
+with get_connection() as conn:
+    cursor = conn.execute(...)
+```
+Never call `get_connection()` without `with`. Long-running processes leak connections otherwise.
+
+### API Changes Require Full Grep
+When changing a function's return type or making it a context manager, grep the entire codebase for all call sites. Type checkers may not catch all usages in dynamically typed Python.
+
+### Async Startup Delay
+Heavy async tasks on startup can race with database initialization. Startup auditors should `await asyncio.sleep(5)` before querying database.

@@ -49,6 +49,12 @@
 > 3. **Identity Anchor**: At session start, identify your workstream from `registry.md` or ask the user.
 > 4. **Prefixed IDs**: For NEW tasks, use your workstream name as a prefix (e.g., `AUTH-001`) to prevent global ID collisions.
 
+> **THE ITERATIVE REVIEW RULE:**
+> After fixing bugs from code review, run review again. First fix often introduces cascading bugs.
+
+> **THE FEATURE FLAG RULE:**
+> Major refactors should use feature flags. Default to safe (legacy) path. Flip after production verification.
+
 ---
 
 ## Phase Overview

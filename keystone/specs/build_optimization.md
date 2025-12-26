@@ -46,3 +46,25 @@ Implement a hashing mechanism to skip the build if the `src-tauri/python/` direc
 - **Mitigation:** Provide a `--force` flag to the build script to trigger a clean build if needed.
 - **Risk:** Parallel builds exceed system memory.
 - **Mitigation:** Only 2 specs are currently built; most modern systems can handle this.
+
+---
+
+## 6. PyInstaller Constraints
+
+### 6.1 Bundle Size
+- Target: <100MB binary
+- Exclude unused libs via `excludes` list in spec file
+
+### 6.2 Build All Sidecars
+Build scripts MUST compile ALL executables in `tauri.conf.json`. Running `pyinstaller prism.spec` alone misses other sidecars.
+
+### 6.3 Frozen Import Errors
+Relative imports fail in PyInstaller binaries. Embed small shared modules directly or use absolute imports.
+
+### 6.4 Spec File Safety
+NEVER modify `.spec` files without version control diff check. Symptom of corruption: binary hangs before Python executes (dyld deadlock).
+
+### 6.5 macOS ARM64 Requirements
+- Use `collect_submodules()` for: pandas, numpy, pyarrow, pydantic, keyring, pytr
+- Set `strip=False, upx=False`
+- Missing modules cause bootloader hang, not import error

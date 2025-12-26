@@ -139,3 +139,22 @@ To prevent a "Big Ball of Mud", dependencies are strictly hierarchical:
 1.  **Telemetry & Testing:** Draft the specific strategies for these cross-cutting concerns.
 2.  **Implementation Plan:** Convert this architecture into a task-level roadmap.
 3.  **Execution:** Begin Phase 1 (React Foundation & Build System Revolution).
+
+---
+
+## 8. Runtime Patterns
+
+### 8.1 Dead Man's Switch
+Tauri keeps stdin pipe open to Python. Python monitors stdin; EOF = parent died → self-terminate.
+
+### 8.2 Data Directory Injection
+Python reads `PRISM_DATA_DIR` env var. Tauri sets this to OS-appropriate path at spawn.
+
+### 8.3 Throttled Agility
+Python Engine uses `asyncio` for parallelism but enforces `Semaphore(5)` for rate limits.
+
+### 8.4 Hive RPC Delegation
+ALL data contributions and transactional logic MUST use PL/pgSQL RPC functions (`contribute_asset`, etc.).
+- Ensures atomicity
+- Safely bypasses RLS via `SECURITY DEFINER`
+- Centralizes validation logic
