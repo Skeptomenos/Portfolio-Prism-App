@@ -141,9 +141,14 @@ ALTER TABLE public.aliases
 ALTER TABLE public.aliases 
     ADD COLUMN IF NOT EXISTS confidence DECIMAL(3, 2) DEFAULT 0.80;
 
--- Add currency column (trading currency for this alias)
+-- Add currency column (trading currency for this alias, ISO 4217)
 ALTER TABLE public.aliases 
     ADD COLUMN IF NOT EXISTS currency VARCHAR(3);
+
+-- Add check constraint for currency (must be 3 chars if set)
+ALTER TABLE public.aliases 
+    ADD CONSTRAINT chk_currency_length 
+    CHECK (currency IS NULL OR LENGTH(currency) = 3);
 
 -- Add exchange column (exchange code for this alias)
 ALTER TABLE public.aliases 
@@ -272,10 +277,9 @@ COMMENT ON FUNCTION public.lookup_alias_rpc IS
 -- =============================================================================
 -- FUNCTION: contribute_alias (Updated)
 -- Purpose: Add or update alias mapping with full identity resolution metadata
+-- Note: CREATE OR REPLACE handles signature changes gracefully in PostgreSQL.
+--       No DROP needed since we're the only client and deploy atomically.
 -- =============================================================================
-
--- First, drop the old function signature to avoid conflicts
-DROP FUNCTION IF EXISTS public.contribute_alias(VARCHAR, VARCHAR, VARCHAR, VARCHAR);
 
 CREATE OR REPLACE FUNCTION public.contribute_alias(
     p_alias VARCHAR,
@@ -471,6 +475,7 @@ ALTER TABLE public.assets
 -- Drop constraints
 ALTER TABLE public.aliases DROP CONSTRAINT IF EXISTS chk_currency_source;
 ALTER TABLE public.aliases DROP CONSTRAINT IF EXISTS chk_confidence;
+ALTER TABLE public.aliases DROP CONSTRAINT IF EXISTS chk_currency_length;
 
 -- Drop index
 DROP INDEX IF EXISTS idx_aliases_contributor;
