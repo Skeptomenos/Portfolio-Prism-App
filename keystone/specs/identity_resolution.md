@@ -3,6 +3,11 @@
 > **Purpose:** Define the system for resolving arbitrary security identifiers to canonical ISINs.
 > **Status:** Draft
 > **Last Updated:** 2025-12-26
+> **Related:**
+> - `keystone/strategy/identity-resolution.md` (resolution logic)
+> - `keystone/architecture/identity-resolution.md` (components & integration)
+> - `keystone/strategy/hive-architecture.md` (trust & validation model)
+> - `keystone/strategy/external-integrations.md` (confidence scoring)
 
 ---
 
@@ -103,9 +108,30 @@ Order matters. Stop at first successful resolution.
 | 2 | Local SQLite cache | 0.95 | Free |
 | 3 | The Hive (Supabase) | 0.90 | Free |
 | 4 | Wikidata SPARQL | 0.80 | Free |
-| 5 | Finnhub API | 0.75 | Rate-limited |
-| 6 | yFinance | 0.70 | Unreliable |
-| 7 | Unresolved | 0.0 | Log for review |
+| 5 | OpenFIGI | 0.80 | Free (rate-limited) |
+| 6 | Finnhub API | 0.75 | Rate-limited |
+| 7 | yFinance | 0.70 | Unreliable |
+| 8 | Unresolved | 0.0 | Log for review |
+
+### 6.1 External Data Sources
+
+| Source | Type | Cost | Rate Limit | Best For | Notes |
+|--------|------|------|------------|----------|-------|
+| **Wikidata** | SPARQL | Free | None | ISIN lookup by name/ticker | High quality, community maintained |
+| **OpenFIGI** | REST API | Free | 250/min | Ticker→ISIN, FIGI mapping | Industry standard symbology |
+| **Finnhub** | REST API | Free tier | 60/min | Metadata enrichment | Good for sector/country |
+| **yFinance** | Scraping | Free | Unstable | Fallback | Unreliable, use as last resort |
+
+#### Alternative Sources (Future Consideration)
+
+| Source | Cost | Notes |
+|--------|------|-------|
+| **Polygon.io** | Free tier available | Good US coverage, real-time data |
+| **EODHD** | Free tier (20/day) | Global coverage, fundamental data |
+| **Intrinio** | Paid | Professional grade, expensive |
+| **Koyfin** | Free tier | Good for ETF data |
+
+**Priority:** Free sources first. Paid sources only if free options fail consistently.
 
 ---
 
@@ -148,9 +174,82 @@ Order matters. Stop at first successful resolution.
 | 0.50-0.79 | Medium confidence | Use but flag for review |
 | <0.50 | Low confidence | Reject, log as unresolved |
 
+### 8.1 Trust & Validation
+
+Alias contributions use the existing Hive trust model (see `keystone/strategy/hive-architecture.md` Section 3.4).
+
+**Confidence Formula:**
+```
+(SubmissionCount * 40%) + (SourceReliability * 30%) + (Freshness * 20%) + (Consensus * 10%)
+```
+
+| Factor | MVP | v1+ |
+|--------|-----|-----|
+| **Corroboration threshold** | 1 (accept first valid) | 3 (require consensus) |
+| **API-sourced trust** | Higher initial score | Higher initial score |
+| **User-sourced trust** | Accept as provisional | Require corroboration |
+
+**User Identification:** Supabase anonymous auth generates stable `contributor_hash` per device without requiring login.
+
 ---
 
-## 9. Edge Cases
+## 9. Currency Handling
+
+**Problem:** NVDA trades in USD (NASDAQ), EUR (Xetra), MXN (BMV). Same ISIN, different currencies.
+
+| Scenario | Resolution |
+|----------|------------|
+| Ticker without exchange | Resolve ISIN, currency unknown |
+| Ticker with exchange suffix | Resolve ISIN + infer currency from exchange |
+| Provider includes currency | Store ticker→ISIN→currency mapping |
+
+**Storage:** Aliases include optional `currency` and `exchange` fields. Resolution returns ISIN + currency when known.
+
+**MVP Focus:** Resolve to ISIN. Currency is bonus metadata when available.
+
+---
+
+## 10. Metadata Enrichment
+
+When hitting external APIs, capture all available metadata—not just ISIN.
+
+| Field | Source Priority | Storage |
+|-------|-----------------|---------|
+| **ISIN** | All sources | Required |
+| **Sector** | Finnhub > Wikidata > yFinance | Hive `assets.sector` |
+| **Country** | Finnhub > Wikidata | Hive `assets.geography` |
+| **Currency** | Exchange inference > API | Hive `listings.currency` |
+| **Asset Class** | API response | Hive `assets.asset_class` |
+
+**Conflict Resolution:** When sources disagree (e.g., OpenFIGI says "Technology", yFinance says "Electronics"):
+- Store all values with source attribution
+- Use highest-confidence source for display
+- Flag conflicts for review
+
+**MVP Focus:** Store ISIN + sector + country. Full metadata in v1+.
+
+---
+
+## 11. Temporal Validity
+
+Aliases can become stale due to corporate actions (mergers, name changes, ticker changes).
+
+| Field | Purpose |
+|-------|---------|
+| `valid_from` | When this alias became valid |
+| `deprecated_at` | When this alias was superseded (null if current) |
+| `superseded_by` | New alias that replaced this one |
+
+**Examples:**
+- "FACEBOOK" → deprecated 2021-10-28, superseded by "META PLATFORMS"
+- "FB" → deprecated 2022-06-09, superseded by "META"
+
+**MVP:** Not implemented. All aliases treated as current.
+**v1+:** Add temporal fields, support historical lookups.
+
+---
+
+## 12. Edge Cases
 
 | Case | Example | Solution |
 |------|---------|----------|
@@ -158,10 +257,11 @@ Order matters. Stop at first successful resolution.
 | Share classes | GOOGL vs GOOG | Different ISINs, preserve class info |
 | Corporate actions | Facebook → Meta | Historical aliases, both resolve to same ISIN |
 | Non-equity | Cash, futures | Skip resolution, use synthetic ID or null |
+| Currency ambiguity | NVDA in USD vs EUR | Store exchange/currency with alias |
 
 ---
 
-## 10. Components
+## 13. Components
 
 | Component | Responsibility |
 |-----------|----------------|
@@ -176,7 +276,7 @@ Order matters. Stop at first successful resolution.
 
 ---
 
-## 11. Implementation Phases
+## 14. Implementation Phases
 
 | Phase | Scope | Deliverables |
 |-------|-------|--------------|
@@ -187,7 +287,7 @@ Order matters. Stop at first successful resolution.
 
 ---
 
-## 12. Success Metrics
+## 15. Success Metrics
 
 | Metric | Target | How to Measure |
 |--------|--------|----------------|

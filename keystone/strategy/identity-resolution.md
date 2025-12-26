@@ -1,7 +1,10 @@
 # Identity Resolution Strategy
 
 > **Purpose:** Define how to resolve arbitrary security identifiers to canonical ISINs.
-> **Related:** `keystone/specs/identity_resolution.md` (requirements & formats)
+> **Related:**
+> - `keystone/specs/identity_resolution.md` (requirements & formats)
+> - `keystone/architecture/identity-resolution.md` (components & integration)
+> - `keystone/strategy/hive-architecture.md` (trust & validation model)
 > **Last Updated:** 2025-12-26
 
 ---
@@ -79,8 +82,9 @@ Stop at first successful resolution.
 │ STEP 5: External API Cascade                                │
 │                                                             │
 │         5a. Wikidata SPARQL (free) → confidence 0.80        │
-│         5b. Finnhub API (rate-limited) → confidence 0.75    │
-│         5c. yFinance (unreliable) → confidence 0.70         │
+│         5b. OpenFIGI (free, rate-limited) → confidence 0.80 │
+│         5c. Finnhub API (rate-limited) → confidence 0.75    │
+│         5d. yFinance (unreliable) → confidence 0.70         │
 │                                                             │
 │         On ANY success:                                     │
 │           - Cache locally                                   │
@@ -125,22 +129,60 @@ When an identifier is resolved via external API:
 1. **Immediately contribute to Hive** - Don't wait for pipeline end
 2. **Include metadata** - Source API, confidence score, timestamp
 3. **Normalize before contributing** - Store canonical form
+4. **Grab all available metadata** - Sector, country, currency (see spec Section 10)
 
 This ensures:
 - Next user with same identifier gets instant Hive hit
 - Hive grows organically with real-world data
 - API calls decrease over time
+- Metadata enrichment happens once, benefits all users
 
 ---
 
-## 6. Confidence Thresholds
+## 6. Trust Model for Aliases
+
+Alias contributions follow the Hive trust model (see `keystone/strategy/hive-architecture.md` Section 3.4).
+
+### Source Weighting
+
+| Source | Initial Trust | Rationale |
+|--------|---------------|-----------|
+| API resolution (Wikidata, OpenFIGI, Finnhub) | High (0.8) | Authoritative sources |
+| User contribution | Low (0.5) | Needs corroboration |
+| Hive consensus (3+ matching) | High (0.9) | Community validated |
+
+### MVP vs v1+ Thresholds
+
+| Phase | Corroboration Required | Rationale |
+|-------|------------------------|-----------|
+| **MVP** | 1 (accept first valid) | Fast Hive growth, bootstrap phase |
+| **v1+** | 3 (require consensus) | Data quality over growth |
+
+### Data Poisoning Prevention
+
+| Risk | Mitigation |
+|------|------------|
+| Buggy resolver contributes wrong mapping | API-sourced mappings get higher trust than user-sourced |
+| Malicious contribution | Low initial trust, requires corroboration in v1+ |
+| Conflicting mappings | Flag for review, don't overwrite existing high-trust mapping |
+
+### User Identification
+
+Contributors identified by `contributor_hash` generated via Supabase anonymous auth:
+- Stable per device (survives app restarts)
+- No login required
+- Enables contribution counting for corroboration
+
+---
+
+## 7. Confidence Thresholds
 
 | Score | Source | Action |
 |-------|--------|--------|
 | 1.0 | Direct ISIN | Use without question |
 | 0.95 | Local cache | Use (previously validated) |
 | 0.90 | Hive exact match | Use |
-| 0.80 | Wikidata | Use |
+| 0.80 | Wikidata / OpenFIGI | Use |
 | 0.75 | Finnhub | Use |
 | 0.70 | yFinance | Use but flag as lower quality |
 | <0.50 | Fuzzy match | Reject, log as unresolved |
@@ -150,7 +192,7 @@ This ensures:
 
 ---
 
-## 7. Failure Handling
+## 8. Failure Handling
 
 | Failure | Action |
 |---------|--------|
@@ -162,7 +204,7 @@ This ensures:
 
 ---
 
-## 8. Performance Targets
+## 9. Performance Targets
 
 | Metric | Target | Rationale |
 |--------|--------|-----------|

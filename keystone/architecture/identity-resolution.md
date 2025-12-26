@@ -4,6 +4,7 @@
 > **Related:** 
 > - `keystone/specs/identity_resolution.md` (requirements & formats)
 > - `keystone/strategy/identity-resolution.md` (resolution logic)
+> - `keystone/strategy/hive-architecture.md` (trust & validation model)
 > **Last Updated:** 2025-12-26
 
 ---
@@ -82,8 +83,9 @@ Identity resolution is **Stage 0** of the X-Ray pipeline, before decomposition.
 │  │  │ Local Cache │  │ HiveClient  │  │ External APIs           │  │    │
 │  │  │ (SQLite)    │  │ (Supabase)  │  │                         │  │    │
 │  │  │             │  │             │  │ - WikidataResolver      │  │    │
-│  │  │ get/set     │  │ lookup      │  │ - FinnhubResolver       │  │    │
-│  │  │             │  │ contribute  │  │ - YFinanceResolver      │  │    │
+│  │  │ get/set     │  │ lookup      │  │ - OpenFIGIResolver      │  │    │
+│  │  │             │  │ contribute  │  │ - FinnhubResolver       │  │    │
+│  │  │             │  │             │  │ - YFinanceResolver      │  │    │
 │  │  └─────────────┘  └─────────────┘  └─────────────────────────┘  │    │
 │  └─────────────────────────────────────────────────────────────────┘    │
 │                                │                                         │
@@ -156,6 +158,10 @@ CASCADE (for each normalized identifier):
      │         │
      │        MISS
      │         ▼
+     ├──▶ OpenFIGI ────HIT──▶ Cache + Contribute to Hive, Return (0.80)
+     │         │
+     │        MISS
+     │         ▼
      ├──▶ Finnhub ─────HIT──▶ Cache + Contribute to Hive, Return (0.75)
      │         │
      │        MISS
@@ -212,14 +218,20 @@ security_aliases (
     isin TEXT REFERENCES security_master(isin),
     alias TEXT NOT NULL,
     alias_type TEXT NOT NULL,         -- "ticker" or "name"
-    source TEXT NOT NULL,             -- "finnhub", "wikidata", "user", etc.
+    source TEXT NOT NULL,             -- "finnhub", "wikidata", "openfigi", "user", etc.
     confidence REAL NOT NULL,
+    currency TEXT,                    -- Optional: trading currency for this alias
+    exchange TEXT,                    -- Optional: exchange code
+    valid_from TIMESTAMP,             -- Optional: when alias became valid (v1+)
+    deprecated_at TIMESTAMP,          -- Optional: when alias was superseded (v1+)
+    contributor_hash TEXT,            -- Anonymous contributor ID
     contributed_at TIMESTAMP DEFAULT NOW(),
     
     UNIQUE(alias, alias_type)
 );
 
 CREATE INDEX idx_aliases_alias ON security_aliases(alias);
+CREATE INDEX idx_aliases_isin ON security_aliases(isin);
 ```
 
 ---
@@ -320,18 +332,94 @@ ISINResolver
     ├── HiveClient (existing)
     └── ExternalResolvers
         ├── WikidataResolver
+        ├── OpenFIGIResolver
         ├── FinnhubResolver
         └── YFinanceResolver
 ```
 
 ---
 
-## 8. Error Handling
+## 8. Parser Versioning & Resilience
+
+ETF providers change export formats without warning. Parsers must be resilient.
+
+### 8.1 Format Detection
+
+Each parser implements format detection before parsing:
+
+| Check | Purpose |
+|-------|---------|
+| Header row detection | Find actual data start (skip metadata rows) |
+| Column name matching | Verify expected columns exist |
+| Sample row validation | Check data types match expectations |
+
+### 8.2 Graceful Degradation
+
+| Scenario | Behavior |
+|----------|----------|
+| New column added | Ignore, continue parsing known columns |
+| Column renamed | Log warning, attempt fuzzy column match |
+| Column removed | Log error, skip file if critical column |
+| Row format changed | Log error, skip malformed rows |
+| File structure changed | Raise `FormatChangedError`, alert user |
+
+### 8.3 Version Tracking
+
+```
+parsers/
+├── ishares.py          # Current parser
+├── ishares_v1.py       # Archived: pre-2025 format
+└── parser_registry.py  # Auto-detects format, selects parser
+```
+
+**On format change:**
+1. Log detailed error with file sample
+2. Fall back to manual upload flow
+3. Create GitHub issue via feedback system
+4. User can still use app with cached/manual data
+
+---
+
+## 9. User Identification
+
+Contributors identified for corroboration counting without requiring login.
+
+### 9.1 Strategy: Supabase Anonymous Auth
+
+| Aspect | Implementation |
+|--------|----------------|
+| **Method** | Supabase `signInAnonymously()` |
+| **Persistence** | Token stored in local keychain |
+| **Stability** | Same ID across app restarts |
+| **Privacy** | No PII collected, just anonymous UUID |
+
+### 9.2 Contributor Hash
+
+```
+contributor_hash = SHA256(supabase_anonymous_user_id)
+```
+
+- Stored with each contribution
+- Enables counting unique contributors per alias
+- Cannot be reversed to identify user
+
+### 9.3 Upgrade Path
+
+If user later creates account:
+- Anonymous contributions can be linked to account
+- Contribution history preserved
+- Trust score carries over
+
+---
+
+## 10. Error Handling
 
 | Scenario | Behavior |
 |----------|----------|
 | Parser fails to read file | Raise `ParseError`, skip file |
+| Parser detects format change | Raise `FormatChangedError`, fall back to manual |
 | Hive unavailable | Continue with local cache + APIs |
 | All APIs fail | Log as unresolved, continue with null ISIN |
 | Invalid ISIN format | Treat as name, attempt resolution |
 | Duplicate ISIN candidates | Take highest confidence, log ambiguity |
+| Contribution rejected | Log locally, retry on next sync |
