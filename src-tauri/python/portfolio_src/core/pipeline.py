@@ -145,6 +145,10 @@ class Pipeline:
 
     def _init_services(self):
         """Initialize services with their dependencies."""
+        if self._decomposer and self._enricher and self._aggregator:
+            logger.debug("Services already initialized, skipping.")
+            return
+
         from portfolio_src.data.holdings_cache import get_holdings_cache
         from portfolio_src.adapters.registry import AdapterRegistry
         from portfolio_src.core.services.enricher import HiveEnrichmentService

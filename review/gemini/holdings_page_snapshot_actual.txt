@@ -1,0 +1,19 @@
+uid=3_0 RootWebArea "Portfolio Prism" url="http://localhost:1420/"
+  uid=3_1 heading "Portfolio Prism" level="1"
+  uid=3_2 StaticText "True Exposure Analysis"
+  uid=3_3 navigation
+    uid=3_4 button "Dashboard"
+    uid=3_5 button "Trade Republic"
+    uid=3_6 button "X-Ray"
+    uid=3_7 button "Overlap"
+    uid=3_8 button "Holdings" focusable focused
+    uid=3_9 button "Data"
+    uid=3_10 button "Health"
+  uid=3_11 button "Send Feedback"
+  uid=3_12 StaticText "Connected"
+  uid=3_13 button "Sync portfolio"
+  uid=3_14 button
+  uid=3_15 StaticText "Last sync: "
+  uid=3_16 StaticText "Never"
+  uid=3_17 main
+  uid=3_18 button "Open Tanstack query devtools"

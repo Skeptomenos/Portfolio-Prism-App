@@ -1,0 +1,16 @@
+{
+  "model": "gpt-5.2-pro",
+  "status": "completed",
+  "log": {
+    "path": "models/gpt-5.2-pro.log"
+  },
+  "startedAt": "2025-12-26T14:04:05.372Z",
+  "completedAt": "2025-12-26T14:11:53.329Z",
+  "usage": {
+    "inputTokens": 10606,
+    "outputTokens": 8008,
+    "reasoningTokens": 0,
+    "totalTokens": 18614,
+    "cost": 1.5680699999999999
+  }
+}

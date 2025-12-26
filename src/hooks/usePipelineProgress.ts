@@ -206,9 +206,14 @@ export function usePipelineProgress(enabled: boolean = true): PipelineProgressSt
         break;
 
       case 'progress':
+        let normalizedProgress = event.progress;
+        if (normalizedProgress <= 1.0 && normalizedProgress > 0) {
+          normalizedProgress = normalizedProgress * 100;
+        }
+
         setState(prev => ({
           ...prev,
-          progress: Math.min(100, Math.max(0, event.progress)),
+          progress: Math.min(100, Math.max(0, normalizedProgress)),
           message: event.message || '',
           phase: normalizePhase(event.phase),
           isConnected: true,

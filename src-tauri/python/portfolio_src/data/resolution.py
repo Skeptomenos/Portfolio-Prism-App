@@ -72,8 +72,8 @@ class AssetUniverse:
     """Manages the asset_universe.csv lookup table."""
 
     df: pd.DataFrame = field(default_factory=pd.DataFrame)
-    ticker_index: Dict[str, str] = field(default_factory=dict)  # ticker -> ISIN
-    alias_index: Dict[str, str] = field(default_factory=dict)  # alias -> ISIN
+    ticker_index: Dict[str, str] = field(default_factory=dict)
+    alias_index: Dict[str, str] = field(default_factory=dict)
 
     @classmethod
     def load(cls) -> "AssetUniverse":
@@ -181,7 +181,6 @@ class AssetUniverse:
             self.df = pd.concat([self.df, pd.DataFrame([new_row])], ignore_index=True)
             self.df.to_csv(ASSET_UNIVERSE_PATH, index=False)
 
-            # Update index
             self.ticker_index[ticker.upper()] = isin
 
             logger.info(f"Added to asset universe: {isin} ({ticker})")
@@ -218,10 +217,18 @@ class ISINResolver:
             self._hive_client = get_hive_client()
 
             if self._local_cache.is_stale():
-                try:
-                    self._local_cache.sync_from_hive(self._hive_client)
-                except Exception as e:
-                    logger.warning(f"Failed to sync LocalCache: {e}")
+                logger.info("Local cache stale, starting background sync...")
+                threading.Thread(
+                    target=self._background_sync, daemon=True, name="hive_sync_bg"
+                ).start()
+
+    def _background_sync(self) -> None:
+        """Sync local cache from Hive in background."""
+        try:
+            if self._local_cache and self._hive_client:
+                self._local_cache.sync_from_hive(self._hive_client)
+        except Exception as e:
+            logger.warning(f"Background Hive sync failed: {e}")
 
     def _load_cache(self) -> Dict[str, Dict]:
         """Load enrichment cache with validation."""
@@ -644,7 +651,6 @@ class ISINResolver:
         self, ticker: str, name: str, result: ResolutionResult
     ) -> None:
         """Record resolution result for stats and auto-add."""
-        # Update stats
         self.stats[result.status] += 1
 
         source = result.detail

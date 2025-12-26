@@ -1,0 +1,119 @@
+/* PipelineStepper.css - Styles for the pipeline step visualization */
+
+.pipeline-stepper-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 16px 24px;
+  background: rgba(15, 20, 32, 0.5);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  gap: 8px;
+}
+
+.stepper-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  flex: 1;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+  padding: 8px;
+  border-radius: 8px;
+}
+
+.stepper-step:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.stepper-step.active {
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.stepper-node {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 8px;
+  transition: all 0.3s ease;
+}
+
+.stepper-step.success .stepper-node {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.5);
+  color: #10b981;
+}
+
+.stepper-step.warning .stepper-node {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.5);
+  color: #f59e0b;
+}
+
+.stepper-step.error .stepper-node {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #ef4444;
+}
+
+.stepper-step.pending .stepper-node {
+  opacity: 0.5;
+}
+
+.stepper-check {
+  width: 18px;
+  height: 18px;
+}
+
+.stepper-icon {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.stepper-icon.warning {
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.stepper-icon.error {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.stepper-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.stepper-detail {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.stepper-connector {
+  position: absolute;
+  top: 26px; /* Center of the node */
+  left: calc(50% + 24px);
+  width: calc(100% - 48px);
+  height: 2px;
+  background: rgba(255, 255, 255, 0.1);
+  z-index: 0;
+}
+
+.stepper-connector.complete {
+  background: linear-gradient(
+    90deg,
+    rgba(16, 185, 129, 0.5),
+    rgba(16, 185, 129, 0.2)
+  );
+}

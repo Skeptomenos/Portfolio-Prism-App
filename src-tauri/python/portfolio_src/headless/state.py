@@ -4,6 +4,7 @@ Provides lazy-initialized singleton instances for shared resources:
 - TRAuthManager: Trade Republic authentication
 - TRBridge: Trade Republic API bridge
 - ThreadPoolExecutor: Throttled executor for bridge operations
+- Pipeline: Data processing pipeline
 
 These singletons are initialized on first access to avoid import-time side effects.
 The executor is pre-configured with max_workers=2 to respect API rate limits (REQ-010).
@@ -17,12 +18,14 @@ from portfolio_src.prism_utils.logging_config import get_logger
 if TYPE_CHECKING:
     from portfolio_src.core.tr_auth import TRAuthManager
     from portfolio_src.core.tr_bridge import TRBridge
+    from portfolio_src.core.pipeline import Pipeline
 
 logger = get_logger(__name__)
 
 # Module-level singletons (lazy-initialized)
 _auth_manager: "TRAuthManager | None" = None
 _bridge: "TRBridge | None" = None
+_pipeline: "Pipeline | None" = None
 
 # Pre-initialized executor with throttling constraint (REQ-010: max 5 concurrent API requests)
 # Bridge operations use 2 workers to leave headroom for other async tasks
@@ -65,6 +68,17 @@ def get_bridge() -> "TRBridge":
     return _bridge
 
 
+def get_pipeline() -> "Pipeline":
+    """Get or create the Pipeline singleton."""
+    global _pipeline
+    if _pipeline is None:
+        from portfolio_src.core.pipeline import Pipeline
+
+        logger.debug("Initializing Pipeline singleton")
+        _pipeline = Pipeline()
+    return _pipeline
+
+
 def get_executor() -> ThreadPoolExecutor:
     """Get the shared bridge executor.
 
@@ -85,7 +99,8 @@ def reset_state() -> None:
         This should only be used in test fixtures to ensure clean state.
         Do not call in production code.
     """
-    global _auth_manager, _bridge
+    global _auth_manager, _bridge, _pipeline
     logger.debug("Resetting headless state singletons")
     _auth_manager = None
     _bridge = None
+    _pipeline = None
