@@ -148,15 +148,23 @@ Improve ISIN resolution accuracy and efficiency through name/ticker normalizatio
     - **Commit:** `5c4ea19`
 
 ### Phase 5: Format Learning
+> **Plan:** [`keystone/plans/identity_resolution_format_learning_implementation.md`](../../plans/identity_resolution_format_learning_implementation.md)
 
 - [ ] **IR-501:** Track successful ticker formats per API
     - **Status:** Backlog
+    - **Details:** Add detect_format() to TickerParser, record success/failure after API calls
 
 - [ ] **IR-502:** Persist format learnings to SQLite
     - **Status:** Backlog
+    - **Details:** Add format_learnings table, record_format_success/failure methods
 
 - [ ] **IR-503:** Use historical success rates to prioritize variants
     - **Status:** Backlog
+    - **Details:** Add _reorder_variants_by_success(), pass etf_provider through pipeline
+
+- [ ] **IR-504:** Add unit tests for format learning
+    - **Status:** Backlog
+    - **Details:** Test format detection, learning persistence, variant reordering
 
 ### Phase 6: UI Integration
 
