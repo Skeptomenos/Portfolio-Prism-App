@@ -27,6 +27,12 @@ from portfolio_src.data.manual_enrichments import load_manual_enrichments
 from portfolio_src.data.proxy_client import get_proxy_client
 from portfolio_src.data.local_cache import get_local_cache, LocalCache
 from portfolio_src.data.hive_client import get_hive_client, HiveClient
+from portfolio_src.data.normalizer import (
+    NameNormalizer,
+    TickerParser,
+    get_name_normalizer,
+    get_ticker_parser,
+)
 
 logger = get_logger(__name__)
 
@@ -65,6 +71,8 @@ class ISINResolver:
 
         self._local_cache: Optional[LocalCache] = get_local_cache()
         self._hive_client: Optional[HiveClient] = get_hive_client()
+        self._name_normalizer: NameNormalizer = get_name_normalizer()
+        self._ticker_parser: TickerParser = get_ticker_parser()
 
         if self._local_cache and self._local_cache.is_stale():
             logger.info("Local cache stale, starting background sync...")
@@ -119,8 +127,20 @@ class ISINResolver:
     ) -> ResolutionResult:
         self.stats["total"] += 1
 
-        ticker_clean = (ticker or "").strip()
-        name_clean = (name or "").strip()
+        ticker_raw = (ticker or "").strip()
+        name_raw = (name or "").strip()
+
+        # Parse ticker to get root and generate search variants
+        ticker_root, _exchange_hint = self._ticker_parser.parse(ticker_raw)
+        ticker_variants = self._ticker_parser.generate_variants(ticker_raw)
+
+        # Normalize name and generate search variants
+        name_normalized = self._name_normalizer.normalize(name_raw)
+        name_variants = self._name_normalizer.generate_variants(name_raw)
+
+        # Use root ticker and normalized name as primary identifiers
+        ticker_clean = ticker_root
+        name_clean = name_normalized
 
         # 1. Provider ISIN
         if provider_isin and is_valid_isin(provider_isin):
@@ -133,24 +153,31 @@ class ISINResolver:
             self._record_resolution(ticker_clean, name_clean, result)
             return result
 
-        # 2. Manual enrichments
+        # 2. Manual enrichments - try all ticker variants
         manual_mappings = load_manual_enrichments()
-        if ticker_clean.upper() in manual_mappings:
-            manual_isin = manual_mappings[ticker_clean.upper()]
-            if is_valid_isin(manual_isin):
-                result = ResolutionResult(
-                    isin=manual_isin,
-                    status="resolved",
-                    detail="manual",
-                    source="manual",
-                )
-                self._record_resolution(ticker_clean, name_clean, result)
-                return result
+        for t_variant in ticker_variants:
+            if t_variant.upper() in manual_mappings:
+                manual_isin = manual_mappings[t_variant.upper()]
+                if is_valid_isin(manual_isin):
+                    result = ResolutionResult(
+                        isin=manual_isin,
+                        status="resolved",
+                        detail="manual",
+                        source="manual",
+                    )
+                    self._record_resolution(ticker_clean, name_clean, result)
+                    return result
 
         is_tier2 = weight <= self.tier1_threshold
 
-        # 3. LocalCache + Hive resolution
-        result = self._resolve_via_hive(ticker_clean, name_clean, skip_network=is_tier2)
+        # 3. LocalCache + Hive resolution with variants
+        result = self._resolve_via_hive(
+            ticker_clean,
+            name_clean,
+            skip_network=is_tier2,
+            ticker_variants=ticker_variants,
+            name_variants=name_variants,
+        )
 
         if result.status == "resolved":
             self._record_resolution(ticker_clean, name_clean, result)
@@ -186,22 +213,34 @@ class ISINResolver:
         return result
 
     def _resolve_via_hive(
-        self, ticker: str, name: str, skip_network: bool = False
+        self,
+        ticker: str,
+        name: str,
+        skip_network: bool = False,
+        ticker_variants: Optional[List[str]] = None,
+        name_variants: Optional[List[str]] = None,
     ) -> ResolutionResult:
         if self._local_cache is None:
             return ResolutionResult(isin=None, status="unresolved", detail="no_cache")
 
-        isin = self._local_cache.get_isin_by_ticker(ticker)
-        if isin:
-            return ResolutionResult(
-                isin=isin,
-                status="resolved",
-                detail="local_cache_ticker",
-                source=None,
-            )
+        # Try all ticker variants against local cache
+        tickers_to_try = (
+            ticker_variants if ticker_variants else ([ticker] if ticker else [])
+        )
+        for t in tickers_to_try:
+            isin = self._local_cache.get_isin_by_ticker(t)
+            if isin:
+                return ResolutionResult(
+                    isin=isin,
+                    status="resolved",
+                    detail="local_cache_ticker",
+                    source=None,
+                )
 
-        if name:
-            isin = self._local_cache.get_isin_by_alias(name)
+        # Try all name variants against local cache
+        names_to_try = name_variants if name_variants else ([name] if name else [])
+        for n in names_to_try:
+            isin = self._local_cache.get_isin_by_alias(n)
             if isin:
                 return ResolutionResult(
                     isin=isin,
@@ -215,21 +254,23 @@ class ISINResolver:
                 isin=None, status="unresolved", detail="local_cache_miss"
             )
 
+        # Try Hive network with all variants
         if self._hive_client and self._hive_client.is_configured:
-            isin = self._hive_client.resolve_ticker(ticker)
-            if isin:
-                self._local_cache.upsert_listing(ticker, "UNKNOWN", isin, "USD")
-                return ResolutionResult(
-                    isin=isin,
-                    status="resolved",
-                    detail="hive_ticker",
-                    source=None,
-                )
+            for t in tickers_to_try:
+                isin = self._hive_client.resolve_ticker(t)
+                if isin:
+                    self._local_cache.upsert_listing(t, "UNKNOWN", isin, "USD")
+                    return ResolutionResult(
+                        isin=isin,
+                        status="resolved",
+                        detail="hive_ticker",
+                        source=None,
+                    )
 
-            if name:
-                alias_result = self._hive_client.lookup_by_alias(name)
+            for n in names_to_try:
+                alias_result = self._hive_client.lookup_by_alias(n)
                 if alias_result:
-                    self._local_cache.upsert_alias(name, alias_result.isin)
+                    self._local_cache.upsert_alias(n, alias_result.isin)
                     return ResolutionResult(
                         isin=alias_result.isin,
                         status="resolved",
