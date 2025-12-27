@@ -147,24 +147,40 @@ Improve ISIN resolution accuracy and efficiency through name/ticker normalizatio
     - **Status:** Done
     - **Commit:** `5c4ea19`
 
-### Phase 5: Format Learning
+### Phase 5: Format Logging (Observability)
 > **Plan:** [`keystone/plans/identity_resolution_format_learning_implementation.md`](../../plans/identity_resolution_format_learning_implementation.md)
 
-- [ ] **IR-501:** Track successful ticker formats per API
+- [ ] **IR-501:** Add format detection to TickerParser
     - **Status:** Backlog
-    - **Details:** Add detect_format() to TickerParser, record success/failure after API calls
+    - **Details:** Add detect_format() method (bloomberg, reuters, yahoo_dash, numeric, plain)
 
-- [ ] **IR-502:** Persist format learnings to SQLite
+- [ ] **IR-502:** Add format_logs table and logging methods
     - **Status:** Backlog
-    - **Details:** Add format_learnings table, record_format_success/failure methods
+    - **Details:** Add format_logs table, log_format_attempt(), get_format_stats(), cleanup methods
 
-- [ ] **IR-503:** Use historical success rates to prioritize variants
+- [ ] **IR-503:** Integrate logging into resolution flow
     - **Status:** Backlog
-    - **Details:** Add _reorder_variants_by_success(), pass etf_provider through pipeline
+    - **Details:** Log each API attempt with format type and success/failure
 
-- [ ] **IR-504:** Add unit tests for format learning
+- [ ] **IR-504:** Add unit tests for format logging
     - **Status:** Backlog
-    - **Details:** Test format detection, learning persistence, variant reordering
+    - **Details:** Test format detection, log insertion, stats aggregation
+
+### Phase 5b: Format Optimization (Deferred)
+> **Plan:** [`keystone/plans/identity_resolution_format_optimization.md`](../../plans/identity_resolution_format_optimization.md)
+> **Prerequisite:** Phase 5 complete with 2-4 weeks of data
+
+- [ ] **IR-510:** Add format_learnings aggregate table
+    - **Status:** Backlog
+    - **Details:** Aggregate table derived from format_logs for fast lookups
+
+- [ ] **IR-511:** Add variant reordering based on success rates
+    - **Status:** Backlog
+    - **Details:** Reorder variants to try highest success rate formats first
+
+- [ ] **IR-512:** Integrate reordering into Finnhub/yFinance calls
+    - **Status:** Backlog
+    - **Details:** Use reordered list for primary_ticker selection
 
 ### Phase 6: UI Integration
 
