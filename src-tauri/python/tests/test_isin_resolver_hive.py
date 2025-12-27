@@ -4,6 +4,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 
 from portfolio_src.data.resolution import ISINResolver, ResolutionResult
+from portfolio_src.data.hive_client import AliasLookupResult
 
 
 class TestHiveResolutionChain:
@@ -75,7 +76,15 @@ class TestHiveResolutionChain:
                 mock_hive = MagicMock()
                 mock_hive.is_configured = True
                 mock_hive.resolve_ticker.return_value = None
-                mock_hive.lookup_by_alias.return_value = "US0378331005"
+                mock_hive.lookup_by_alias.return_value = AliasLookupResult(
+                    isin="US0378331005",
+                    name="Apple Inc",
+                    asset_class="Equity",
+                    alias_type="name",
+                    contributor_count=1,
+                    source="user",
+                    confidence=0.8,
+                )
                 mock_hive_fn.return_value = mock_hive
 
                 resolver = ISINResolver(tier1_threshold=0.5)
@@ -238,8 +247,8 @@ class TestPushToHive:
 
                 mock_hive.contribute_alias.assert_called_once()
                 call_args = mock_hive.contribute_alias.call_args
-                assert call_args[1]["p_alias"] == "Apple Inc"
-                assert call_args[1]["p_isin"] == "US0378331005"
+                assert call_args[1]["alias"] == "Apple Inc"
+                assert call_args[1]["isin"] == "US0378331005"
 
     def test_push_to_hive_skips_short_names(self):
         with patch("portfolio_src.data.resolution.get_local_cache") as mock_cache_fn:

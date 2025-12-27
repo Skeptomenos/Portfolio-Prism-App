@@ -227,14 +227,14 @@ class ISINResolver:
                 )
 
             if name:
-                isin = self._hive_client.lookup_by_alias(name)
-                if isin:
-                    self._local_cache.upsert_alias(name, isin)
+                alias_result = self._hive_client.lookup_by_alias(name)
+                if alias_result:
+                    self._local_cache.upsert_alias(name, alias_result.isin)
                     return ResolutionResult(
-                        isin=isin,
+                        isin=alias_result.isin,
                         status="resolved",
                         detail="hive_alias",
-                        source=None,
+                        source=alias_result.source,
                     )
 
         return ResolutionResult(isin=None, status="unresolved", detail="hive_miss")
@@ -263,9 +263,9 @@ class ISINResolver:
 
             if name and len(name) > 2:
                 self._hive_client.contribute_alias(
-                    p_alias=name,
-                    p_isin=isin,
-                    p_alias_type="name",
+                    alias=name,
+                    isin=isin,
+                    alias_type="name",
                 )
                 self._local_cache.upsert_alias(name, isin)
 

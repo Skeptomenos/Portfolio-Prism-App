@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated `contribute_alias` to accept 10 parameters (was 4).
   - Local SQLite: Added `isin_cache` table for offline resolution caching with negative cache support.
   - Documentation: Updated `hive-database-schema.md`, `data_schema.md`, `functions.sql`, `schema.sql`.
+  - Python client: Added `AliasLookupResult` dataclass, updated `lookup_by_alias` to return rich result, added `lookup_alias_isin` convenience method.
 
 ### Changed
 

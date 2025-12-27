@@ -99,11 +99,22 @@ class AssetEntry:
 
 @dataclass
 class HiveResult:
-    """Result from a hive operation."""
-
     success: bool
     data: Optional[Any] = None
     error: Optional[str] = None
+
+
+@dataclass
+class AliasLookupResult:
+    isin: str
+    name: str
+    asset_class: str
+    alias_type: str
+    contributor_count: int
+    source: str
+    confidence: float
+    currency: Optional[str] = None
+    exchange: Optional[str] = None
 
 
 class HiveClient:
@@ -573,10 +584,16 @@ class HiveClient:
 
     def contribute_alias(
         self,
-        p_alias: str,
-        p_isin: str,
-        p_alias_type: str = "name",
-        p_language: Optional[str] = None,
+        alias: str,
+        isin: str,
+        alias_type: str = "name",
+        language: Optional[str] = None,
+        source: str = "user",
+        confidence: float = 0.80,
+        currency: Optional[str] = None,
+        exchange: Optional[str] = None,
+        currency_source: Optional[str] = None,
+        contributor_hash: Optional[str] = None,
     ) -> HiveResult:
         if not self._is_contribution_allowed():
             return HiveResult(success=False, error="Hive contribution disabled by user")
@@ -588,10 +605,16 @@ class HiveClient:
             response = client.rpc(
                 "contribute_alias",
                 {
-                    "p_alias": p_alias,
-                    "p_isin": p_isin,
-                    "p_alias_type": p_alias_type,
-                    "p_language": p_language,
+                    "p_alias": alias,
+                    "p_isin": isin,
+                    "p_alias_type": alias_type,
+                    "p_language": language,
+                    "p_source": source,
+                    "p_confidence": confidence,
+                    "p_currency": currency,
+                    "p_exchange": exchange,
+                    "p_currency_source": currency_source,
+                    "p_contributor_hash": contributor_hash,
                 },
             ).execute()
 
@@ -693,16 +716,7 @@ class HiveClient:
     def lookup_by_alias(
         self,
         alias: str,
-    ) -> Optional[str]:
-        """
-        Look up ISIN by name/alias (case-insensitive).
-
-        Args:
-            alias: Name or alias to search (e.g., "Apple", "NVIDIA Corp")
-
-        Returns:
-            ISIN string if found, None otherwise
-        """
+    ) -> Optional[AliasLookupResult]:
         if not alias or not alias.strip():
             return None
 
@@ -717,16 +731,31 @@ class HiveClient:
             ).execute()
 
             if response.data and len(response.data) > 0:
-                isin = response.data[0].get("isin")
+                row = response.data[0]
+                isin = row.get("isin")
                 if isin:
                     logger.debug(f"Hive alias resolved '{alias}' -> {isin}")
-                    return isin
+                    return AliasLookupResult(
+                        isin=isin,
+                        name=row.get("name", ""),
+                        asset_class=row.get("asset_class", "Unknown"),
+                        alias_type=row.get("alias_type", "name"),
+                        contributor_count=row.get("contributor_count", 1),
+                        source=row.get("source", "unknown"),
+                        confidence=float(row.get("confidence", 0.0)),
+                        currency=row.get("currency"),
+                        exchange=row.get("exchange"),
+                    )
 
             return None
 
         except Exception as e:
             logger.warning(f"Hive alias lookup failed for '{alias}': {e}")
             return None
+
+    def lookup_alias_isin(self, alias: str) -> Optional[str]:
+        result = self.lookup_by_alias(alias)
+        return result.isin if result else None
 
     def sync_identity_domain(
         self,

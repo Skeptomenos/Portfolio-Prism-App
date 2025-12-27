@@ -2,7 +2,11 @@
 
 import pytest
 from unittest.mock import Mock, patch, MagicMock
-from portfolio_src.data.hive_client import HiveClient, get_hive_client
+from portfolio_src.data.hive_client import (
+    HiveClient,
+    get_hive_client,
+    AliasLookupResult,
+)
 
 
 class TestResolveTickerMethod:
@@ -115,16 +119,57 @@ class TestLookupByAliasMethod:
     """Tests for lookup_by_alias() method."""
 
     def test_lookup_alias_success(self):
-        """Should return ISIN when alias is found."""
+        """Should return AliasLookupResult when alias is found."""
         client = HiveClient()
 
         mock_supabase = MagicMock()
         mock_response = MagicMock()
-        mock_response.data = [{"isin": "US0378331005", "name": "Apple Inc"}]
+        mock_response.data = [
+            {
+                "isin": "US0378331005",
+                "name": "Apple Inc",
+                "asset_class": "Equity",
+                "alias_type": "name",
+                "contributor_count": 5,
+                "source": "user",
+                "confidence": 0.9,
+                "currency": "USD",
+                "exchange": "NASDAQ",
+            }
+        ]
         mock_supabase.rpc.return_value.execute.return_value = mock_response
 
         with patch.object(client, "_get_client", return_value=mock_supabase):
             result = client.lookup_by_alias("Apple")
+
+        assert result is not None
+        assert isinstance(result, AliasLookupResult)
+        assert result.isin == "US0378331005"
+        assert result.name == "Apple Inc"
+        assert result.source == "user"
+        assert result.confidence == 0.9
+
+    def test_lookup_alias_isin_convenience(self):
+        """Should return just ISIN string via convenience method."""
+        client = HiveClient()
+
+        mock_supabase = MagicMock()
+        mock_response = MagicMock()
+        mock_response.data = [
+            {
+                "isin": "US0378331005",
+                "name": "Apple Inc",
+                "asset_class": "Equity",
+                "alias_type": "name",
+                "contributor_count": 1,
+                "source": "user",
+                "confidence": 0.8,
+            }
+        ]
+        mock_supabase.rpc.return_value.execute.return_value = mock_response
+
+        with patch.object(client, "_get_client", return_value=mock_supabase):
+            result = client.lookup_alias_isin("Apple")
 
         assert result == "US0378331005"
 
