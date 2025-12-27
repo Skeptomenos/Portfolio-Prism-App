@@ -7,10 +7,17 @@
 
 ---
 
-## 🎯 Objective
+## Objective
+
 Python Backend, SQLite Migration, Data Contracts, and IPC.
 
-## 🚨 Critical Constraints
+## Sub-Workstreams
+
+| Workstream | Status | Description |
+|------------|--------|-------------|
+| [`identity-resolution`](./identity-resolution.md) | Active | ISIN resolution optimization (normalization, API cascade, confidence) |
+
+## Critical Constraints
 - [ ] Local-first architecture
 - [ ] Python sidecar must be headless
 
