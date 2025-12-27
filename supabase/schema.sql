@@ -25,7 +25,9 @@ CREATE TABLE IF NOT EXISTS assets (
     name TEXT NOT NULL,
     wkn VARCHAR(12),
     asset_class asset_class_type NOT NULL,
-    base_currency VARCHAR(3) NOT NULL, -- ISO 4217 code (e.g., 'USD')
+    base_currency VARCHAR(3) NOT NULL,
+    sector VARCHAR(50),
+    geography VARCHAR(50),
     enrichment_status asset_enrichment_status DEFAULT 'stub' NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -104,14 +106,24 @@ CREATE TABLE IF NOT EXISTS aliases (
     isin VARCHAR(12) NOT NULL REFERENCES assets(isin) ON DELETE CASCADE,
     alias_type VARCHAR(20) DEFAULT 'name',
     language VARCHAR(5),
+    source VARCHAR(30) DEFAULT 'user',
+    confidence DECIMAL(3, 2) DEFAULT 0.80,
+    currency VARCHAR(3),
+    exchange VARCHAR(10),
+    currency_source VARCHAR(20),
+    contributor_hash VARCHAR(64),
     contributor_count INTEGER DEFAULT 1,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     
-    UNIQUE(alias, isin)
+    UNIQUE(alias, isin),
+    CONSTRAINT chk_currency_length CHECK (currency IS NULL OR LENGTH(currency) = 3),
+    CONSTRAINT chk_currency_source CHECK (currency_source IS NULL OR currency_source IN ('explicit', 'inferred')),
+    CONSTRAINT chk_confidence CHECK (confidence >= 0 AND confidence <= 1)
 );
 
 CREATE INDEX IF NOT EXISTS idx_aliases_lookup ON aliases (UPPER(alias));
 CREATE INDEX IF NOT EXISTS idx_aliases_isin ON aliases (isin);
+CREATE INDEX IF NOT EXISTS idx_aliases_contributor ON aliases (contributor_hash);
 
 -- =============================================================================
 -- 7. CONTRIBUTIONS Table (Audit Log for Crowdsourced Data)

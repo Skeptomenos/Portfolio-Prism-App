@@ -9,10 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Identity Resolution Schema Documentation:** Updated schema docs to close gap between requirements and implementation.
-  - `hive-database-schema.md`: Expanded `aliases` table with 6 new columns (source, confidence, currency, exchange, currency_source, contributor_hash), updated RPC function signatures.
-  - `data_schema.md`: Added `isin_cache` table for local identity resolution caching with negative cache support.
-  - Created `identity_resolution_schema_implementation.md`: Comprehensive 4-phase implementation plan with SQL migrations, rollback procedures, and testing plan.
+- **Identity Resolution Schema Implementation:** Deployed schema changes to support identity resolution.
+  - Supabase `aliases` table: Added 6 new columns (source, confidence, currency, exchange, currency_source, contributor_hash) with constraints.
+  - Supabase `assets` table: Added `sector` and `geography` columns.
+  - Updated `lookup_alias_rpc` to return 9 columns (was 5).
+  - Updated `contribute_alias` to accept 10 parameters (was 4).
+  - Local SQLite: Added `isin_cache` table for offline resolution caching with negative cache support.
+  - Documentation: Updated `hive-database-schema.md`, `data_schema.md`, `functions.sql`, `schema.sql`.
 
 ### Changed
 

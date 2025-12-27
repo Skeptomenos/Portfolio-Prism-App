@@ -277,7 +277,7 @@ COMMENT ON FUNCTION public.get_all_aliases_rpc IS 'Fetch all aliases. SECURITY D
 
 -- =============================================================================
 -- FUNCTION: lookup_alias_rpc
--- Purpose: Resolve a name/alias to ISIN (case-insensitive).
+-- Purpose: Resolve a name/alias to ISIN with identity resolution metadata.
 -- =============================================================================
 
 CREATE OR REPLACE FUNCTION public.lookup_alias_rpc(
@@ -288,7 +288,11 @@ RETURNS TABLE (
     name TEXT,
     asset_class VARCHAR(20),
     alias_type VARCHAR(20),
-    contributor_count INTEGER
+    contributor_count INTEGER,
+    source VARCHAR(30),
+    confidence DECIMAL(3, 2),
+    currency VARCHAR(3),
+    exchange VARCHAR(10)
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -301,11 +305,15 @@ BEGIN
         a.name,
         a.asset_class::VARCHAR(20),
         al.alias_type,
-        al.contributor_count
+        al.contributor_count,
+        al.source,
+        al.confidence,
+        al.currency,
+        al.exchange
     FROM public.aliases al
     JOIN public.assets a ON al.isin = a.isin
     WHERE UPPER(al.alias) = UPPER(p_alias)
-    ORDER BY al.contributor_count DESC
+    ORDER BY al.confidence DESC, al.contributor_count DESC
     LIMIT 1;
 END;
 $$;
@@ -313,46 +321,68 @@ $$;
 GRANT EXECUTE ON FUNCTION public.lookup_alias_rpc(VARCHAR) TO anon;
 
 COMMENT ON FUNCTION public.lookup_alias_rpc IS
-    'Resolve name/alias to ISIN. Returns highest contributor_count match.';
+    'Resolve alias to ISIN with full identity resolution metadata. Returns highest confidence match.';
 
 -- =============================================================================
 -- FUNCTION: contribute_alias
--- Purpose: Add or update an alias mapping.
+-- Purpose: Add or update an alias mapping with identity resolution metadata.
 -- =============================================================================
 
 CREATE OR REPLACE FUNCTION public.contribute_alias(
     p_alias VARCHAR,
     p_isin VARCHAR,
     p_alias_type VARCHAR DEFAULT 'name',
-    p_language VARCHAR DEFAULT NULL
+    p_language VARCHAR DEFAULT NULL,
+    p_source VARCHAR DEFAULT 'user',
+    p_confidence DECIMAL DEFAULT 0.80,
+    p_currency VARCHAR DEFAULT NULL,
+    p_exchange VARCHAR DEFAULT NULL,
+    p_currency_source VARCHAR DEFAULT NULL,
+    p_contributor_hash VARCHAR DEFAULT NULL
 )
 RETURNS TABLE (success BOOLEAN, error_message TEXT)
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 BEGIN
-    -- Upsert: increment contributor_count if exists
-    INSERT INTO public.aliases (alias, isin, alias_type, language, contributor_count)
-    VALUES (p_alias, p_isin, p_alias_type, p_language, 1)
+    INSERT INTO public.aliases (
+        alias, isin, alias_type, language, contributor_count,
+        source, confidence, currency, exchange, currency_source, contributor_hash
+    )
+    VALUES (
+        p_alias, p_isin, p_alias_type, p_language, 1,
+        p_source, p_confidence, p_currency, p_exchange, p_currency_source, p_contributor_hash
+    )
     ON CONFLICT (alias, isin) DO UPDATE
-    SET contributor_count = aliases.contributor_count + 1;
+    SET 
+        contributor_count = aliases.contributor_count + 1,
+        confidence = GREATEST(aliases.confidence, EXCLUDED.confidence),
+        source = CASE 
+            WHEN EXCLUDED.confidence > aliases.confidence THEN EXCLUDED.source 
+            ELSE aliases.source 
+        END,
+        currency = COALESCE(aliases.currency, EXCLUDED.currency),
+        exchange = COALESCE(aliases.exchange, EXCLUDED.exchange),
+        currency_source = COALESCE(aliases.currency_source, EXCLUDED.currency_source);
 
     RETURN QUERY SELECT TRUE, 'Alias contributed successfully.'::TEXT;
 
 EXCEPTION
     WHEN foreign_key_violation THEN
         INSERT INTO public.contributions (target_table, payload, trust_score, error_message)
-        VALUES ('alias_rpc_error', jsonb_build_object('alias', p_alias, 'isin', p_isin), 0.0,
+        VALUES ('alias_rpc_error', jsonb_build_object('alias', p_alias, 'isin', p_isin, 'source', p_source), 0.0,
                 'ISIN does not exist in assets table.');
         RETURN QUERY SELECT FALSE, 'ISIN does not exist in assets table.'::TEXT;
     WHEN OTHERS THEN
         INSERT INTO public.contributions (target_table, payload, trust_score, error_message)
-        VALUES ('alias_rpc_error', jsonb_build_object('alias', p_alias, 'isin', p_isin), 0.0, SQLERRM);
+        VALUES ('alias_rpc_error', jsonb_build_object('alias', p_alias, 'isin', p_isin, 'source', p_source), 0.0, SQLERRM);
         RETURN QUERY SELECT FALSE, SQLERRM::TEXT;
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.contribute_alias(VARCHAR, VARCHAR, VARCHAR, VARCHAR) TO anon;
+GRANT EXECUTE ON FUNCTION public.contribute_alias(
+    VARCHAR, VARCHAR, VARCHAR, VARCHAR, VARCHAR, DECIMAL, VARCHAR, VARCHAR, VARCHAR, VARCHAR
+) TO anon;
 
 -- =============================================================================
 -- FUNCTION: get_etf_holdings_rpc

@@ -120,6 +120,28 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 
 -- =============================================================================
+-- ISIN_CACHE: Local cache for resolved aliases (identity resolution)
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS isin_cache (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    alias TEXT NOT NULL,
+    alias_type TEXT NOT NULL CHECK (alias_type IN ('ticker', 'name')),
+    isin TEXT,
+    confidence REAL NOT NULL,
+    source TEXT NOT NULL,
+    resolution_status TEXT NOT NULL DEFAULT 'resolved' 
+        CHECK (resolution_status IN ('resolved', 'unresolved', 'pending')),
+    expires_at DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    
+    UNIQUE(alias, alias_type)
+);
+
+CREATE INDEX IF NOT EXISTS idx_isin_cache_alias ON isin_cache(alias);
+CREATE INDEX IF NOT EXISTS idx_isin_cache_expires ON isin_cache(expires_at);
+
+-- =============================================================================
 -- DEFAULT DATA
 -- =============================================================================
 
