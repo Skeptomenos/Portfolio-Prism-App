@@ -114,7 +114,7 @@ def aggregate_indirect_holdings(
     all_holdings = all_holdings.copy()
     all_holdings["group_id"] = all_holdings.apply(generate_group_id, axis=1)
 
-    # Also preserve resolution_status if present
+    # Also preserve resolution_status and provenance if present
     agg_dict = {
         "indirect": ("indirect", "sum"),
         "name": ("name", "first"),
@@ -125,8 +125,25 @@ def aggregate_indirect_holdings(
     if "resolution_status" in all_holdings.columns:
         agg_dict["resolution_status"] = ("resolution_status", "first")
 
+    if "resolution_confidence" in all_holdings.columns:
+        agg_dict["resolution_confidence"] = ("resolution_confidence", "max")
+
     # Aggregate by group
     aggregated = all_holdings.groupby("group_id").agg(**agg_dict).reset_index()
+
+    # Map resolution_source from the row with max confidence per group
+    if (
+        "resolution_source" in all_holdings.columns
+        and "resolution_confidence" in all_holdings.columns
+    ):
+        source_map = {}
+        for group_id, group in all_holdings.groupby("group_id"):
+            if group["resolution_confidence"].notna().any():
+                max_idx = group["resolution_confidence"].idxmax()
+                source_map[group_id] = group.loc[max_idx, "resolution_source"]
+            else:
+                source_map[group_id] = None
+        aggregated["resolution_source"] = aggregated["group_id"].map(source_map)
 
     # Add to exposures
     for _, row in aggregated.iterrows():

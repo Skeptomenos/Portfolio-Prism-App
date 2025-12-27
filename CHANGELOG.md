@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Identity Resolution Phase 4 - Per-Holding Provenance:**
+  - Added `resolution_source` and `resolution_confidence` columns to holdings DataFrames.
+  - Decomposer stores provenance for all resolution outcomes: existing ISINs (provider/1.0), resolved (source/confidence from result), skipped (None/0.0), unresolved (None/0.0).
+  - Enrichment stores provenance and preserves existing provenance when skipping resolution.
+  - Aggregator preserves provenance during groupby: takes max confidence, maps source from max-confidence row.
+  - Grouping preserves provenance with same max-confidence pattern.
+  - Added 18 unit tests in `test_resolution_phase4.py` covering provenance storage, confidence values, aggregation, and backward compatibility.
+
 - **Identity Resolution Phase 3 - Persistent Negative Cache:**
   - Added `isin_cache` table to LocalCache SQLite schema for persistent resolution caching.
   - Added LocalCache methods: `get_isin_cache()`, `set_isin_cache()`, `is_negative_cached()`, `cleanup_expired_cache()`.

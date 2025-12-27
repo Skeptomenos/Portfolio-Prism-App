@@ -111,20 +111,32 @@ class Aggregator:
                 ]
                 return pd.DataFrame(columns=cols), errors
 
-            # Combine all exposures
             combined = pd.concat(all_exposures, ignore_index=True)
 
-            # Group by underlying ISIN
-            aggregated: Any = combined.groupby("isin", as_index=False).agg(
-                {
-                    "name": "first",
-                    "sector": "first",
-                    "geography": "first",
-                    "total_exposure": "sum",
-                }
-            )
+            agg_dict: Dict[str, Any] = {
+                "name": "first",
+                "sector": "first",
+                "geography": "first",
+                "total_exposure": "sum",
+            }
 
-            # Calculate percentages
+            if "resolution_confidence" in combined.columns:
+                agg_dict["resolution_confidence"] = "max"
+
+            aggregated: Any = combined.groupby("isin", as_index=False).agg(agg_dict)
+
+            if (
+                "resolution_source" in combined.columns
+                and "resolution_confidence" in combined.columns
+            ):
+                source_map: Dict[str, Any] = {}
+                for isin, group in combined.groupby("isin"):
+                    if group["resolution_confidence"].notna().any():
+                        max_idx = group["resolution_confidence"].idxmax()
+                        source_map[isin] = group.loc[max_idx, "resolution_source"]
+                    else:
+                        source_map[isin] = None
+                aggregated["resolution_source"] = aggregated["isin"].map(source_map)
             aggregated["portfolio_percentage"] = (
                 (aggregated["total_exposure"] / total_value * 100)
                 if total_value > 0

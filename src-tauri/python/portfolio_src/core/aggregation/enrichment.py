@@ -93,18 +93,24 @@ def enrich_etf_holdings(
             lambda x: is_valid_isin(str(x)) if pd.notna(x) else False
         )
         if bool(has_valid.all()):
-            # All ISINs are valid, just add status columns
-            holdings["resolution_status"] = "resolved"
-            holdings["resolution_detail"] = "provider"
+            if "resolution_status" not in holdings.columns:
+                holdings["resolution_status"] = "resolved"
+            if "resolution_detail" not in holdings.columns:
+                holdings["resolution_detail"] = "provider"
+            if "resolution_source" not in holdings.columns:
+                holdings["resolution_source"] = "provider"
+            if "resolution_confidence" not in holdings.columns:
+                holdings["resolution_confidence"] = 1.0
             return holdings
 
     logger.info("    - 'isin' column not found or incomplete. Running resolution...")
 
-    # Initialize new columns
     if "isin" not in holdings.columns:
         holdings["isin"] = None
     holdings["resolution_status"] = "unresolved"
     holdings["resolution_detail"] = ""
+    holdings["resolution_source"] = None
+    holdings["resolution_confidence"] = 0.0
 
     # Only process equities
     if "asset_class" not in holdings.columns:
@@ -121,10 +127,11 @@ def enrich_etf_holdings(
     for idx in holdings.index:
         row = holdings.loc[idx]
 
-        # Skip non-equities
         if row.get("asset_class") != "Equity":
             holdings.at[idx, "resolution_status"] = "skipped"
             holdings.at[idx, "resolution_detail"] = "non_equity"
+            holdings.at[idx, "resolution_source"] = None
+            holdings.at[idx, "resolution_confidence"] = 0.0
             continue
 
         ticker = row.get("ticker", "")
@@ -132,10 +139,11 @@ def enrich_etf_holdings(
         provider_isin = row.get("isin") if pd.notna(row.get("isin")) else None
         weight = float(row.get("weight_percentage", 0) or 0)
 
-        # Skip invalid tickers
         if not ticker or not isinstance(ticker, str) or len(ticker.strip()) == 0:
             holdings.at[idx, "resolution_status"] = "skipped"
             holdings.at[idx, "resolution_detail"] = "invalid_ticker"
+            holdings.at[idx, "resolution_source"] = None
+            holdings.at[idx, "resolution_confidence"] = 0.0
             continue
 
         # Track tier stats
@@ -152,10 +160,11 @@ def enrich_etf_holdings(
             weight=weight,
         )
 
-        # Update holdings
         holdings.at[idx, "isin"] = result.isin
         holdings.at[idx, "resolution_status"] = result.status
         holdings.at[idx, "resolution_detail"] = result.detail
+        holdings.at[idx, "resolution_source"] = result.source
+        holdings.at[idx, "resolution_confidence"] = result.confidence
 
         if result.status == "resolved":
             resolved_count += 1

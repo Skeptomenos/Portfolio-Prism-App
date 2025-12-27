@@ -258,8 +258,19 @@ class Decomposer:
             return holdings, {"skipped": True, "reason": "no_ticker_column"}
 
         holdings = holdings.copy()
+
+        # Initialize columns
         if "isin" not in holdings.columns:
             holdings["isin"] = None
+        if "resolution_status" not in holdings.columns:
+            holdings["resolution_status"] = None
+        if "resolution_detail" not in holdings.columns:
+            holdings["resolution_detail"] = None
+        # Add provenance columns
+        if "resolution_source" not in holdings.columns:
+            holdings["resolution_source"] = None
+        if "resolution_confidence" not in holdings.columns:
+            holdings["resolution_confidence"] = 0.0
 
         weight_col = None
         for col in ["weight", "Weight", "weight_pct", "Weight_Pct"]:
@@ -291,10 +302,18 @@ class Decomposer:
                 resolution_sources["existing"] = (
                     resolution_sources.get("existing", 0) + 1
                 )
+                holdings.at[idx, "resolution_status"] = "resolved"
+                holdings.at[idx, "resolution_detail"] = "existing"
+                holdings.at[idx, "resolution_source"] = "provider"
+                holdings.at[idx, "resolution_confidence"] = 1.0
                 continue
 
             if not ticker:
                 unresolved_count += 1
+                holdings.at[idx, "resolution_status"] = "skipped"
+                holdings.at[idx, "resolution_detail"] = "no_ticker"
+                holdings.at[idx, "resolution_source"] = None
+                holdings.at[idx, "resolution_confidence"] = 0.0
                 continue
 
             result = self.isin_resolver.resolve(
@@ -304,8 +323,13 @@ class Decomposer:
                 weight=weight,
             )
 
+            holdings.at[idx, "isin"] = result.isin
+            holdings.at[idx, "resolution_status"] = result.status
+            holdings.at[idx, "resolution_detail"] = result.detail
+            holdings.at[idx, "resolution_source"] = result.source
+            holdings.at[idx, "resolution_confidence"] = result.confidence
+
             if result.status == "resolved" and result.isin:
-                holdings.at[idx, "isin"] = result.isin
                 resolved_count += 1
                 source = result.source or result.detail or "unknown"
                 resolution_sources[source] = resolution_sources.get(source, 0) + 1
