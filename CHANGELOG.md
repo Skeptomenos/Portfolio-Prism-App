@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Identity Resolution Phase 2 - API Cascade Reorder & Confidence Scoring:**
+  - Added `confidence` field to `ResolutionResult` dataclass (0.0-1.0 scale).
+  - Added confidence constants: `CONFIDENCE_PROVIDER` (1.0), `CONFIDENCE_LOCAL_CACHE` (0.95), `CONFIDENCE_HIVE` (0.90), `CONFIDENCE_MANUAL` (0.85), `CONFIDENCE_WIKIDATA` (0.80), `CONFIDENCE_FINNHUB` (0.75), `CONFIDENCE_YFINANCE` (0.70).
+  - Reordered API cascade: Wikidata (free) → Finnhub (rate-limited) → yFinance (unreliable).
+  - Added batched Wikidata SPARQL queries using VALUES clause for efficient multi-variant lookups.
+  - Added in-memory negative cache to prevent repeated API calls for known failures (5-minute TTL).
+  - Implemented tiered variant strategy: batch all variants for Wikidata, primary ticker only for Finnhub, top 2 variants for yFinance.
+  - Added 16 unit tests covering confidence scores, cascade order, negative cache, and batch Wikidata.
+
 - **Identity Resolution Schema Implementation:** Deployed schema changes to support identity resolution.
   - Supabase `aliases` table: Added 6 new columns (source, confidence, currency, exchange, currency_source, contributor_hash) with constraints.
   - Supabase `assets` table: Added `sector` and `geography` columns.

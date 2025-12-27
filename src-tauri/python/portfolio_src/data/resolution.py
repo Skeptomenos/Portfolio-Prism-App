@@ -7,7 +7,7 @@ Resolution priority:
 3. LocalCache lookup (backed by Hive sync)
 4. Hive network lookup (if cache miss)
 5. Enrichment cache lookup (validated)
-6. API calls (Tier 1 only): Finnhub -> Wikidata -> YFinance
+6. API calls (Tier 1 only): Wikidata -> Finnhub -> yFinance
 7. Mark as unresolved
 """
 
@@ -40,6 +40,16 @@ CACHE_PATH = Path("data/working/cache/enrichment_cache.json")
 FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY")
 FINNHUB_API_URL = "https://finnhub.io/api/v1"
 
+# Resolution confidence scores per spec
+CONFIDENCE_PROVIDER = 1.0  # Provider-supplied ISIN
+CONFIDENCE_LOCAL_CACHE = 0.95  # Local SQLite cache
+CONFIDENCE_HIVE = 0.90  # The Hive (Supabase)
+CONFIDENCE_MANUAL = 0.85  # Manual enrichments
+CONFIDENCE_WIKIDATA = 0.80  # Wikidata SPARQL
+CONFIDENCE_FINNHUB = 0.75  # Finnhub API
+CONFIDENCE_YFINANCE = 0.70  # yFinance (unreliable)
+CONFIDENCE_LEGACY_CACHE = 0.70  # Legacy enrichment_cache.json
+
 
 @dataclass
 class ResolutionResult:
@@ -47,6 +57,7 @@ class ResolutionResult:
     status: Literal["resolved", "unresolved", "skipped"]
     detail: str
     source: Optional[str] = None
+    confidence: float = 0.0
 
     def __post_init__(self):
         if self.isin and not is_valid_isin(self.isin):
@@ -54,6 +65,7 @@ class ResolutionResult:
             self.isin = None
             self.status = "unresolved"
             self.detail = "isin_format_invalid"
+            self.confidence = 0.0
 
 
 class ISINResolver:
@@ -74,6 +86,10 @@ class ISINResolver:
         self._name_normalizer: NameNormalizer = get_name_normalizer()
         self._ticker_parser: TickerParser = get_ticker_parser()
 
+        # In-memory negative cache to prevent repeated API calls for known failures
+        self._api_negative_cache: Dict[str, float] = {}  # ticker -> timestamp
+        self._negative_cache_ttl = 300  # 5 minutes
+
         if self._local_cache and self._local_cache.is_stale():
             logger.info("Local cache stale, starting background sync...")
             threading.Thread(
@@ -86,6 +102,21 @@ class ISINResolver:
                 self._local_cache.sync_from_hive(self._hive_client)
         except Exception as e:
             logger.warning(f"Background Hive sync failed: {e}")
+
+    def _is_negative_cached(self, ticker: str) -> bool:
+        """Check if ticker is in negative cache and not expired."""
+        if not ticker or ticker not in self._api_negative_cache:
+            return False
+        cached_time = self._api_negative_cache[ticker]
+        if time.time() - cached_time > self._negative_cache_ttl:
+            del self._api_negative_cache[ticker]
+            return False
+        return True
+
+    def _add_negative_cache(self, ticker: str) -> None:
+        """Add ticker to negative cache."""
+        if ticker:
+            self._api_negative_cache[ticker] = time.time()
 
     def _load_cache(self) -> Dict[str, Dict]:
         if not CACHE_PATH.exists():
@@ -149,6 +180,7 @@ class ISINResolver:
                 status="resolved",
                 detail="provider",
                 source="provider",
+                confidence=CONFIDENCE_PROVIDER,
             )
             self._record_resolution(ticker_clean, name_clean, result)
             return result
@@ -164,6 +196,7 @@ class ISINResolver:
                         status="resolved",
                         detail="manual",
                         source="manual",
+                        confidence=CONFIDENCE_MANUAL,
                     )
                     self._record_resolution(ticker_clean, name_clean, result)
                     return result
@@ -189,7 +222,11 @@ class ISINResolver:
             cache_isin = cache_entry.get("isin")
             if cache_isin and is_valid_isin(cache_isin):
                 result = ResolutionResult(
-                    isin=cache_isin, status="resolved", detail="cache", source=None
+                    isin=cache_isin,
+                    status="resolved",
+                    detail="cache",
+                    source=None,
+                    confidence=CONFIDENCE_LEGACY_CACHE,
                 )
                 self._record_resolution(ticker_clean, name_clean, result)
                 return result
@@ -197,13 +234,21 @@ class ISINResolver:
         # 5. Tier check - skip API for minor holdings
         if is_tier2:
             result = ResolutionResult(
-                isin=None, status="skipped", detail="tier2_skipped"
+                isin=None,
+                status="skipped",
+                detail="tier2_skipped",
+                confidence=0.0,
             )
             self._record_resolution(ticker_clean, name_clean, result)
             return result
 
         # 6. API resolution
-        result = self._resolve_via_api(ticker_clean, name_clean)
+        result = self._resolve_via_api(
+            ticker_clean,
+            name_clean,
+            ticker_variants=ticker_variants,
+            name_variants=name_variants,
+        )
         self._record_resolution(ticker_clean, name_clean, result)
 
         # 7. Push to Hive on API success
@@ -221,7 +266,9 @@ class ISINResolver:
         name_variants: Optional[List[str]] = None,
     ) -> ResolutionResult:
         if self._local_cache is None:
-            return ResolutionResult(isin=None, status="unresolved", detail="no_cache")
+            return ResolutionResult(
+                isin=None, status="unresolved", detail="no_cache", confidence=0.0
+            )
 
         # Try all ticker variants against local cache
         tickers_to_try = (
@@ -235,6 +282,7 @@ class ISINResolver:
                     status="resolved",
                     detail="local_cache_ticker",
                     source=None,
+                    confidence=CONFIDENCE_LOCAL_CACHE,
                 )
 
         # Try all name variants against local cache
@@ -247,11 +295,15 @@ class ISINResolver:
                     status="resolved",
                     detail="local_cache_alias",
                     source=None,
+                    confidence=CONFIDENCE_LOCAL_CACHE,
                 )
 
         if skip_network:
             return ResolutionResult(
-                isin=None, status="unresolved", detail="local_cache_miss"
+                isin=None,
+                status="unresolved",
+                detail="local_cache_miss",
+                confidence=0.0,
             )
 
         # Try Hive network with all variants
@@ -265,6 +317,7 @@ class ISINResolver:
                         status="resolved",
                         detail="hive_ticker",
                         source=None,
+                        confidence=CONFIDENCE_HIVE,
                     )
 
             for n in names_to_try:
@@ -276,9 +329,12 @@ class ISINResolver:
                         status="resolved",
                         detail="hive_alias",
                         source=alias_result.source,
+                        confidence=CONFIDENCE_HIVE,
                     )
 
-        return ResolutionResult(isin=None, status="unresolved", detail="hive_miss")
+        return ResolutionResult(
+            isin=None, status="unresolved", detail="hive_miss", confidence=0.0
+        )
 
     def _push_to_hive(
         self,
@@ -315,32 +371,78 @@ class ISINResolver:
         except Exception as e:
             logger.warning(f"Failed to push to Hive: {e}")
 
-    def _resolve_via_api(self, ticker: str, name: str) -> ResolutionResult:
-        isin = self._call_finnhub(ticker)
-        if isin:
+    def _resolve_via_api(
+        self,
+        ticker: str,
+        name: str,
+        ticker_variants: Optional[List[str]] = None,
+        name_variants: Optional[List[str]] = None,
+    ) -> ResolutionResult:
+        """
+        Resolve via external APIs in priority order.
+
+        Order (per spec):
+        1. Wikidata (free, 0.80) - batch query with all name variants
+        2. Finnhub (rate-limited, 0.75) - primary ticker only
+        3. yFinance (unreliable, 0.70) - top 2 variants
+        """
+        names = name_variants or ([name] if name else [])
+        tickers = ticker_variants or ([ticker] if ticker else [])
+        primary_ticker = tickers[0] if tickers else ticker
+
+        # Check negative cache first
+        if self._is_negative_cached(primary_ticker):
             return ResolutionResult(
-                isin=isin, status="resolved", detail="api_finnhub", source="api_finnhub"
+                isin=None,
+                status="unresolved",
+                detail="negative_cached",
+                confidence=0.0,
             )
 
-        isin = self._call_wikidata(name, ticker)
+        # 1. Wikidata - batch query with all name variants (FREE, no limit)
+        isin = self._call_wikidata_batch(names)
         if isin:
             return ResolutionResult(
                 isin=isin,
                 status="resolved",
                 detail="api_wikidata",
                 source="api_wikidata",
+                confidence=CONFIDENCE_WIKIDATA,
             )
 
-        isin = self._call_yfinance(ticker)
-        if isin:
-            return ResolutionResult(
-                isin=isin,
-                status="resolved",
-                detail="api_yfinance",
-                source="api_yfinance",
-            )
+        # 2. Finnhub - PRIMARY TICKER ONLY (rate-limited 60/min)
+        if primary_ticker:
+            isin = self._call_finnhub(primary_ticker)
+            if isin:
+                return ResolutionResult(
+                    isin=isin,
+                    status="resolved",
+                    detail="api_finnhub",
+                    source="api_finnhub",
+                    confidence=CONFIDENCE_FINNHUB,
+                )
 
-        return ResolutionResult(isin=None, status="unresolved", detail="api_all_failed")
+        # 3. yFinance - top 2 variants only (unreliable)
+        for t in tickers[:2]:
+            isin = self._call_yfinance(t)
+            if isin:
+                return ResolutionResult(
+                    isin=isin,
+                    status="resolved",
+                    detail="api_yfinance",
+                    source="api_yfinance",
+                    confidence=CONFIDENCE_YFINANCE,
+                )
+
+        # Cache this failure to prevent repeated calls
+        self._add_negative_cache(primary_ticker)
+
+        return ResolutionResult(
+            isin=None,
+            status="unresolved",
+            detail="api_all_failed",
+            confidence=0.0,
+        )
 
     def _call_finnhub(self, ticker: str) -> Optional[str]:
         if not ticker:
@@ -386,7 +488,59 @@ class ISINResolver:
 
         return None
 
-    def _call_wikidata(self, name: str, ticker: str) -> Optional[str]:
+    def _escape_sparql_string(self, s: str) -> str:
+        """Escape special characters for SPARQL string literals."""
+        return s.replace("\\", "\\\\").replace('"', '\\"')
+
+    def _call_wikidata_batch(self, name_variants: List[str]) -> Optional[str]:
+        if not name_variants:
+            return None
+
+        variants = [self._escape_sparql_string(v.upper()) for v in name_variants[:5]]
+        values_clause = " ".join(f'"{v}"' for v in variants)
+
+        sparql_query = f"""
+        SELECT ?item ?isin WHERE {{
+          VALUES ?searchName {{ {values_clause} }}
+          ?item rdfs:label ?label .
+          FILTER(UCASE(?label) = ?searchName)
+          ?item wdt:P946 ?isin .
+        }}
+        LIMIT 1
+        """
+
+        headers = {
+            "User-Agent": "PortfolioAnalyzer/1.0 (Educational Python Project)",
+            "Accept": "application/sparql-results+json",
+        }
+
+        try:
+            response = requests.get(
+                "https://query.wikidata.org/sparql",
+                params={"query": sparql_query, "format": "json"},
+                headers=headers,
+                timeout=15,
+            )
+
+            if response.status_code == 200:
+                results = response.json().get("results", {}).get("bindings", [])
+                if results:
+                    isin = results[0].get("isin", {}).get("value")
+                    if isin and is_valid_isin(isin):
+                        logger.debug(f"Wikidata SPARQL resolved -> {isin}")
+                        return isin
+
+        except Exception as e:
+            logger.debug(f"Wikidata SPARQL error: {e}")
+
+        # Fallback to entity search if SPARQL fails
+        if name_variants:
+            return self._call_wikidata_entity_search(name_variants[0])
+
+        return None
+
+    def _call_wikidata_entity_search(self, name: str) -> Optional[str]:
+        """Fallback: Search Wikidata entities by name."""
         if not name:
             return None
 
@@ -437,7 +591,7 @@ class ISINResolver:
                         return isin
 
         except Exception as e:
-            logger.debug(f"Wikidata API error for {name}: {e}")
+            logger.debug(f"Wikidata entity search error for {name}: {e}")
 
         return None
 
