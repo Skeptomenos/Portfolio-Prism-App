@@ -517,13 +517,6 @@ aggregated: Any = combined.groupby("isin", as_index=False).agg(
 
 **Updated code:**
 ```python
-def _get_highest_confidence_source(group: pd.Series) -> str:
-    """Get resolution_source from row with highest confidence."""
-    if "resolution_confidence" not in group.index:
-        return None
-    max_idx = group["resolution_confidence"].idxmax()
-    return group.loc[max_idx, "resolution_source"]
-
 # Build aggregation dict dynamically based on available columns
 agg_dict = {
     "name": "first",
@@ -612,33 +605,29 @@ if "resolution_source" in all_holdings.columns and "resolution_confidence" in al
 ## 7. Implementation Order
 
 ```
-1. Create helper function for column initialization
-   |-- ensure_provenance_columns(df) -> df with correct dtypes
-   |-- Avoids repetition across Decomposer and Enrichment
-
-2. Update Decomposer._resolve_holdings_isins()
-   |-- Use ensure_provenance_columns() helper
+1. Update Decomposer._resolve_holdings_isins()
+   |-- Initialize resolution_source, resolution_confidence columns
    |-- Store result.source and result.confidence for each holding
    |-- Handle existing ISINs (set source="provider", confidence=1.0)
    |-- Handle skipped holdings (set source=None, confidence=0.0)
 
-3. Update enrich_etf_holdings()
-   |-- Use ensure_provenance_columns() helper
-   |-- PRESERVE existing provenance when all ISINs valid (don't overwrite with "provider")
+2. Update enrich_etf_holdings()
+   |-- Initialize resolution_source, resolution_confidence columns
+   |-- PRESERVE existing provenance when all ISINs valid (don't overwrite)
    |-- Store result.source and result.confidence for each holding
    |-- Handle all edge cases (non-equity, invalid ticker, etc.)
 
-4. Update core/services/aggregator.py
+3. Update core/services/aggregator.py
    |-- Add resolution_confidence to agg_dict with "max"
    |-- Add resolution_source via source-from-max-confidence pattern
    |-- Handle missing columns gracefully (backward compat)
 
-5. Update core/aggregation/grouping.py
+4. Update core/aggregation/grouping.py
    |-- Add resolution_confidence to agg_dict with "max"
    |-- Add resolution_source via source-from-max-confidence pattern
    |-- Handle missing columns gracefully (backward compat)
 
-6. Add unit tests
+5. Add unit tests
    |-- Test provenance stored for resolved holdings
    |-- Test provenance stored for unresolved holdings
    |-- Test provenance stored for skipped holdings
@@ -646,11 +635,11 @@ if "resolution_source" in all_holdings.columns and "resolution_confidence" in al
    |-- Test aggregation preserves highest confidence
    |-- Test backward compat with DataFrames missing provenance columns
 
-7. Run full test suite
+6. Run full test suite
    |-- Verify no regressions
    |-- Verify Phase 2 and Phase 3 tests still pass
 
-8. Update CHANGELOG.md
+7. Update CHANGELOG.md
 ```
 
 ---
