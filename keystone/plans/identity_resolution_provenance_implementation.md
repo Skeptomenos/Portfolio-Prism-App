@@ -5,7 +5,7 @@
 > **Created:** 2025-12-27
 > **Estimated Effort:** 2-3 hours
 > **Priority:** MEDIUM
-> **Depends On:** Phase 3 (Persistent Negative Cache) - DONE
+> **Depends On:** Phase 3 (Persistent Negative Cache) - DONE (commit `12de88a`)
 > **Related:**
 > - `keystone/specs/identity_resolution.md` (Section 8: Confidence Scoring)
 > - `keystone/strategy/identity-resolution.md` (Section 7: Confidence Scoring)
@@ -23,6 +23,7 @@
 | Holdings DataFrame | Has `isin`, `resolution_status`, `resolution_detail` | Missing `resolution_source`, `resolution_confidence` |
 | Decomposer | Calls `resolve()`, stores only `isin` | Discards `source` and `confidence` |
 | Enrichment | Stores `resolution_status`, `resolution_detail` | Missing `resolution_source`, `resolution_confidence` |
+| Aggregators | Two paths exist (see Section 3.5) | Neither preserves provenance columns |
 | UI | No visibility into resolution quality | Cannot show confidence or source to user |
 
 ### Target State
@@ -32,17 +33,24 @@
 | Holdings DataFrame | Add `resolution_source`, `resolution_confidence` columns |
 | Decomposer | Store all resolution metadata from `ResolutionResult` |
 | Enrichment | Store all resolution metadata from `ResolutionResult` |
-| Aggregator | Preserve provenance columns through aggregation |
-| UI (future) | Can display resolution confidence badges/indicators |
+| Both Aggregators | Preserve provenance columns through aggregation |
+| UI (future - OUT OF SCOPE) | Can display resolution confidence badges/indicators |
 
 ### Deliverables
 
 1. Add `resolution_source` and `resolution_confidence` columns to holdings DataFrame
 2. Update `Decomposer._resolve_holdings_isins()` to store provenance
 3. Update `enrich_etf_holdings()` to store provenance
-4. Ensure provenance columns survive aggregation
+4. Update both aggregation paths to preserve provenance columns
 5. Add unit tests for provenance storage
 6. Update CHANGELOG.md
+
+### Rollback Plan
+
+If issues occur:
+1. Revert changes to `decomposer.py`, `enrichment.py`, `grouping.py`, `aggregator.py`
+2. New columns are additive - existing code will ignore them
+3. No schema migrations required - DataFrame columns only
 
 ---
 
@@ -148,6 +156,62 @@ After resolution, holdings DataFrame has:
 |--------|------|--------|
 | `resolution_source` | str/None | `result.source` |
 | `resolution_confidence` | float | `result.confidence` |
+
+### 3.5 Resolution Flow Analysis (CRITICAL)
+
+**There are TWO code paths that call resolution:**
+
+```
+Pipeline Flow:
+                                    
+1. Decomposer.decompose()
+   └── _get_holdings()
+       └── _resolve_holdings_isins()  <-- FIRST resolution call
+           └── ISINResolver.resolve()
+                                    
+2. run_aggregation() [core/aggregation/__init__.py]
+   └── enrich_etf_holdings()          <-- SECOND resolution call
+       └── ISINResolver.resolve()
+```
+
+**Key Finding:** These are SEQUENTIAL, not alternatives. Both are called on the same holdings.
+
+**However:** `enrich_etf_holdings()` checks for existing valid ISINs first (lines 90-99):
+```python
+if "isin" in holdings.columns:
+    has_valid = holdings["isin"].apply(
+        lambda x: is_valid_isin(str(x)) if pd.notna(x) else False
+    )
+    if bool(has_valid.all()):
+        # All ISINs are valid, just add status columns
+        holdings["resolution_status"] = "resolved"
+        holdings["resolution_detail"] = "provider"
+        return holdings
+```
+
+**Conclusion:** If Decomposer resolves all ISINs, Enrichment will skip resolution. No double-resolution occurs for fully-resolved holdings. Partial resolution may trigger re-resolution for unresolved rows.
+
+**Implication for Phase 4:** Both code paths need provenance columns, but Enrichment should preserve existing provenance from Decomposer when skipping.
+
+### 3.6 Aggregation Paths Analysis (CRITICAL)
+
+**There are TWO aggregation implementations:**
+
+| File | Used By | Grouping Key | Current Columns Preserved |
+|------|---------|--------------|---------------------------|
+| `core/services/aggregator.py` | Pipeline service | `isin` | `name`, `sector`, `geography`, `total_exposure` |
+| `core/aggregation/grouping.py` | `run_aggregation()` | `group_id` | `indirect`, `name`, `isin`, `asset_class`, `resolution_status` |
+
+**Neither preserves `resolution_source` or `resolution_confidence`.**
+
+**Aggregation Strategy for Provenance:**
+
+When multiple holdings with the same ISIN are aggregated, we need to decide which provenance to keep:
+- **Option A:** Take highest confidence (most reliable source wins)
+- **Option B:** Take first (arbitrary but consistent)
+- **Option C:** Take weighted average (complex, probably overkill)
+
+**Recommendation:** Option A - Take highest confidence. This ensures the most reliable resolution is surfaced.
 
 ---
 
@@ -333,10 +397,16 @@ def enrich_etf_holdings(
             lambda x: is_valid_isin(str(x)) if pd.notna(x) else False
         )
         if bool(has_valid.all()):
-            holdings["resolution_status"] = "resolved"
-            holdings["resolution_detail"] = "provider"
-            holdings["resolution_source"] = "provider"  # NEW
-            holdings["resolution_confidence"] = 1.0  # NEW
+            # PRESERVE existing provenance if present (from Decomposer)
+            # Only set defaults if columns don't exist
+            if "resolution_status" not in holdings.columns:
+                holdings["resolution_status"] = "resolved"
+            if "resolution_detail" not in holdings.columns:
+                holdings["resolution_detail"] = "provider"
+            if "resolution_source" not in holdings.columns:
+                holdings["resolution_source"] = "provider"
+            if "resolution_confidence" not in holdings.columns:
+                holdings["resolution_confidence"] = 1.0
             return holdings
 
     logger.info("    - 'isin' column not found or incomplete. Running resolution...")
@@ -427,38 +497,102 @@ def enrich_etf_holdings(
     return holdings
 ```
 
-### 5.3 Verify Aggregation Preserves Columns
+### 5.3 Update Aggregation to Preserve Provenance
 
-**File:** `src-tauri/python/portfolio_src/core/aggregation/aggregator.py`
+There are TWO aggregation paths that need updating:
 
-Check that aggregation logic preserves provenance columns. If aggregating multiple holdings with the same ISIN, use the **highest confidence** value.
+#### 5.3.1 Update `core/services/aggregator.py`
 
+**Current code (line 118-125):**
 ```python
-# In aggregation logic, when combining holdings with same ISIN:
-def _aggregate_by_isin(holdings_list: List[pd.DataFrame]) -> pd.DataFrame:
-    """Aggregate holdings by ISIN, preserving highest-confidence provenance."""
-    combined = pd.concat(holdings_list, ignore_index=True)
-    
-    # Group by ISIN and aggregate
-    aggregated = combined.groupby("isin", as_index=False).agg({
-        "weight_percentage": "sum",
+aggregated: Any = combined.groupby("isin", as_index=False).agg(
+    {
         "name": "first",
-        "ticker": "first",
         "sector": "first",
-        "country": "first",
-        "resolution_status": "first",
-        "resolution_detail": "first",
-        # For provenance, take the row with highest confidence
-        "resolution_source": lambda x: x.iloc[x.map(
-            lambda v: combined.loc[x.index, "resolution_confidence"]
-        ).idxmax()] if len(x) > 0 else None,
-        "resolution_confidence": "max",  # Take highest confidence
-    })
-    
-    return aggregated
+        "geography": "first",
+        "total_exposure": "sum",
+    }
+)
 ```
 
-**Note:** The actual aggregation logic may vary. The key requirement is that `resolution_source` and `resolution_confidence` columns are preserved through aggregation.
+**Updated code:**
+```python
+def _get_highest_confidence_source(group: pd.Series) -> str:
+    """Get resolution_source from row with highest confidence."""
+    if "resolution_confidence" not in group.index:
+        return None
+    max_idx = group["resolution_confidence"].idxmax()
+    return group.loc[max_idx, "resolution_source"]
+
+# Build aggregation dict dynamically based on available columns
+agg_dict = {
+    "name": "first",
+    "sector": "first",
+    "geography": "first",
+    "total_exposure": "sum",
+}
+
+# Add provenance columns if present
+if "resolution_confidence" in combined.columns:
+    agg_dict["resolution_confidence"] = "max"
+if "resolution_source" in combined.columns:
+    # For source, we need the source corresponding to max confidence
+    # Use a custom aggregation
+    pass  # Handle separately below
+
+aggregated: Any = combined.groupby("isin", as_index=False).agg(agg_dict)
+
+# Handle resolution_source separately - get source from row with max confidence
+if "resolution_source" in combined.columns and "resolution_confidence" in combined.columns:
+    source_map = {}
+    for isin, group in combined.groupby("isin"):
+        max_idx = group["resolution_confidence"].idxmax()
+        source_map[isin] = group.loc[max_idx, "resolution_source"]
+    aggregated["resolution_source"] = aggregated["isin"].map(source_map)
+```
+
+#### 5.3.2 Update `core/aggregation/grouping.py`
+
+**Current code (line 118-129):**
+```python
+agg_dict = {
+    "indirect": ("indirect", "sum"),
+    "name": ("name", "first"),
+    "isin": ("isin", "first"),
+    "asset_class": ("asset_class", "first"),
+}
+
+if "resolution_status" in all_holdings.columns:
+    agg_dict["resolution_status"] = ("resolution_status", "first")
+```
+
+**Updated code:**
+```python
+agg_dict = {
+    "indirect": ("indirect", "sum"),
+    "name": ("name", "first"),
+    "isin": ("isin", "first"),
+    "asset_class": ("asset_class", "first"),
+}
+
+if "resolution_status" in all_holdings.columns:
+    agg_dict["resolution_status"] = ("resolution_status", "first")
+
+# Add provenance columns - take max confidence and corresponding source
+if "resolution_confidence" in all_holdings.columns:
+    agg_dict["resolution_confidence"] = ("resolution_confidence", "max")
+
+# Aggregate first, then fix resolution_source
+aggregated = all_holdings.groupby("group_id").agg(**agg_dict).reset_index()
+
+# Handle resolution_source - get source from row with max confidence per group
+if "resolution_source" in all_holdings.columns and "resolution_confidence" in all_holdings.columns:
+    source_map = {}
+    for group_id, group in all_holdings.groupby("group_id"):
+        max_idx = group["resolution_confidence"].idxmax()
+        source_map[group_id] = group.loc[max_idx, "resolution_source"]
+    aggregated["resolution_source"] = aggregated["group_id"].map(source_map)
+```
 
 ---
 
@@ -467,8 +601,9 @@ def _aggregate_by_isin(holdings_list: List[pd.DataFrame]) -> pd.DataFrame:
 | File | Action | Changes |
 |------|--------|---------|
 | `src-tauri/python/portfolio_src/core/services/decomposer.py` | MODIFY | Add `resolution_source`, `resolution_confidence` columns; store all `ResolutionResult` fields |
-| `src-tauri/python/portfolio_src/core/aggregation/enrichment.py` | MODIFY | Add `resolution_source`, `resolution_confidence` columns; store all `ResolutionResult` fields |
-| `src-tauri/python/portfolio_src/core/aggregation/aggregator.py` | VERIFY | Ensure provenance columns survive aggregation |
+| `src-tauri/python/portfolio_src/core/aggregation/enrichment.py` | MODIFY | Add `resolution_source`, `resolution_confidence` columns; store all `ResolutionResult` fields; preserve existing provenance when skipping |
+| `src-tauri/python/portfolio_src/core/services/aggregator.py` | MODIFY | Add provenance columns to aggregation dict; handle source-from-max-confidence |
+| `src-tauri/python/portfolio_src/core/aggregation/grouping.py` | MODIFY | Add provenance columns to agg_dict; handle source-from-max-confidence |
 | `src-tauri/python/tests/test_resolution_phase4.py` | NEW | Unit tests for provenance storage |
 | `CHANGELOG.md` | MODIFY | Document changes |
 
@@ -477,34 +612,69 @@ def _aggregate_by_isin(holdings_list: List[pd.DataFrame]) -> pd.DataFrame:
 ## 7. Implementation Order
 
 ```
-1. Update Decomposer._resolve_holdings_isins()
-   |-- Initialize resolution_source, resolution_confidence columns
+1. Create helper function for column initialization
+   |-- ensure_provenance_columns(df) -> df with correct dtypes
+   |-- Avoids repetition across Decomposer and Enrichment
+
+2. Update Decomposer._resolve_holdings_isins()
+   |-- Use ensure_provenance_columns() helper
    |-- Store result.source and result.confidence for each holding
    |-- Handle existing ISINs (set source="provider", confidence=1.0)
    |-- Handle skipped holdings (set source=None, confidence=0.0)
 
-2. Update enrich_etf_holdings()
-   |-- Initialize resolution_source, resolution_confidence columns
+3. Update enrich_etf_holdings()
+   |-- Use ensure_provenance_columns() helper
+   |-- PRESERVE existing provenance when all ISINs valid (don't overwrite with "provider")
    |-- Store result.source and result.confidence for each holding
    |-- Handle all edge cases (non-equity, invalid ticker, etc.)
 
-3. Verify aggregation preserves columns
-   |-- Check aggregator.py for column handling
-   |-- Ensure highest confidence is preserved when combining
+4. Update core/services/aggregator.py
+   |-- Add resolution_confidence to agg_dict with "max"
+   |-- Add resolution_source via source-from-max-confidence pattern
+   |-- Handle missing columns gracefully (backward compat)
 
-4. Add unit tests
+5. Update core/aggregation/grouping.py
+   |-- Add resolution_confidence to agg_dict with "max"
+   |-- Add resolution_source via source-from-max-confidence pattern
+   |-- Handle missing columns gracefully (backward compat)
+
+6. Add unit tests
    |-- Test provenance stored for resolved holdings
    |-- Test provenance stored for unresolved holdings
    |-- Test provenance stored for skipped holdings
    |-- Test confidence values match expected per source
-   |-- Test aggregation preserves provenance
+   |-- Test aggregation preserves highest confidence
+   |-- Test backward compat with DataFrames missing provenance columns
 
-5. Run full test suite
+7. Run full test suite
    |-- Verify no regressions
    |-- Verify Phase 2 and Phase 3 tests still pass
 
-6. Update CHANGELOG.md
+8. Update CHANGELOG.md
 ```
+
+---
+
+## 7.1 Backward Compatibility
+
+**Problem:** Existing cached holdings data may not have provenance columns.
+
+**Solution:** All code that reads provenance columns must handle missing columns gracefully:
+
+```python
+# Pattern for safe column access
+resolution_source = row.get("resolution_source") if "resolution_source" in df.columns else None
+resolution_confidence = row.get("resolution_confidence", 0.0) if "resolution_confidence" in df.columns else 0.0
+```
+
+**Aggregation must check column existence:**
+```python
+if "resolution_confidence" in combined.columns:
+    agg_dict["resolution_confidence"] = "max"
+# else: column not present, skip aggregation for it
+```
+
+**No migration required:** New columns are additive. Old data works, just without provenance info.
 
 ---
 
@@ -746,27 +916,94 @@ class TestConfidenceValues:
         assert CONFIDENCE_YFINANCE == 0.70
 ```
 
-### 8.2 Integration Tests
+### 8.2 Aggregation Tests
 
 ```python
-class TestProvenanceEndToEnd:
-    """End-to-end tests for provenance flow."""
+class TestAggregationProvenance:
+    """Test provenance preservation in aggregation."""
 
-    def test_provenance_survives_full_pipeline(self):
-        """Provenance should be preserved through full pipeline."""
-        # This would be a larger integration test that:
-        # 1. Creates mock ETF positions
-        # 2. Runs decomposition with resolution
-        # 3. Runs enrichment
-        # 4. Runs aggregation
-        # 5. Verifies provenance columns exist in final output
-        pass
+    def test_aggregation_takes_max_confidence(self):
+        """Aggregation should preserve highest confidence value."""
+        holdings = pd.DataFrame({
+            "isin": ["US67066G1040", "US67066G1040"],
+            "name": ["NVIDIA", "NVIDIA Corp"],
+            "total_exposure": [1000, 2000],
+            "resolution_source": ["api_yfinance", "api_finnhub"],
+            "resolution_confidence": [0.70, 0.75],
+        })
+        
+        aggregated = holdings.groupby("isin", as_index=False).agg({
+            "total_exposure": "sum",
+            "resolution_confidence": "max",
+        })
+        
+        assert aggregated.loc[0, "resolution_confidence"] == 0.75
+        assert aggregated.loc[0, "total_exposure"] == 3000
 
-    def test_aggregation_preserves_highest_confidence(self):
-        """When aggregating same ISIN, highest confidence should be preserved."""
-        # Test that if NVDA appears in two ETFs with different confidence,
-        # the aggregated result has the higher confidence value
-        pass
+    def test_aggregation_takes_source_from_max_confidence_row(self):
+        """Aggregation should take source from row with highest confidence."""
+        holdings = pd.DataFrame({
+            "isin": ["US67066G1040", "US67066G1040"],
+            "name": ["NVIDIA", "NVIDIA Corp"],
+            "resolution_source": ["api_yfinance", "api_finnhub"],
+            "resolution_confidence": [0.70, 0.75],
+        })
+        
+        # Get source from row with max confidence
+        source_map = {}
+        for isin, group in holdings.groupby("isin"):
+            max_idx = group["resolution_confidence"].idxmax()
+            source_map[isin] = group.loc[max_idx, "resolution_source"]
+        
+        assert source_map["US67066G1040"] == "api_finnhub"
+
+
+class TestBackwardCompatibility:
+    """Test handling of DataFrames without provenance columns."""
+
+    def test_aggregation_handles_missing_provenance_columns(self):
+        """Aggregation should work when provenance columns are missing."""
+        holdings = pd.DataFrame({
+            "isin": ["US67066G1040"],
+            "name": ["NVIDIA"],
+            "total_exposure": [1000],
+            # No resolution_source or resolution_confidence
+        })
+        
+        agg_dict = {"total_exposure": "sum", "name": "first"}
+        
+        # Only add provenance if present
+        if "resolution_confidence" in holdings.columns:
+            agg_dict["resolution_confidence"] = "max"
+        
+        aggregated = holdings.groupby("isin", as_index=False).agg(agg_dict)
+        
+        assert "resolution_confidence" not in aggregated.columns
+        assert aggregated.loc[0, "total_exposure"] == 1000
+
+    def test_enrichment_preserves_existing_provenance(self):
+        """Enrichment should not overwrite existing provenance from Decomposer."""
+        holdings = pd.DataFrame({
+            "ticker": ["NVDA"],
+            "name": ["NVIDIA"],
+            "isin": ["US67066G1040"],
+            "asset_class": ["Equity"],
+            "weight_percentage": [5.0],
+            "resolution_status": "resolved",
+            "resolution_detail": "api_finnhub",
+            "resolution_source": "api_finnhub",
+            "resolution_confidence": 0.75,
+        })
+        
+        # Simulate enrichment check - should preserve existing
+        if "resolution_source" in holdings.columns:
+            # Don't overwrite
+            pass
+        else:
+            holdings["resolution_source"] = "provider"
+        
+        assert holdings.loc[0, "resolution_source"] == "api_finnhub"
+        assert holdings.loc[0, "resolution_confidence"] == 0.75
 ```
 
 ---
@@ -781,52 +1018,43 @@ After implementation, verify:
 - [ ] Decomposer stores `result.confidence` for each holding
 - [ ] Enrichment stores `result.source` for each holding
 - [ ] Enrichment stores `result.confidence` for each holding
+- [ ] Enrichment PRESERVES existing provenance when skipping (doesn't overwrite)
 - [ ] Existing valid ISINs get `source="provider"`, `confidence=1.0`
 - [ ] Unresolved holdings get `source=None`, `confidence=0.0`
 - [ ] Skipped holdings get `source=None`, `confidence=0.0`
-- [ ] Aggregation preserves provenance columns
+- [ ] `core/services/aggregator.py` preserves provenance with max confidence
+- [ ] `core/aggregation/grouping.py` preserves provenance with max confidence
+- [ ] Backward compat: code handles DataFrames without provenance columns
 - [ ] All Phase 2 and Phase 3 tests still pass
 - [ ] All new Phase 4 tests pass
 
 ---
 
-## 10. Future UI Integration
-
-Once provenance is stored, the UI can:
-
-1. **Show confidence badges:**
-   - Green badge for confidence >= 0.80
-   - Yellow badge for confidence 0.50-0.79
-   - Red badge for confidence < 0.50
-
-2. **Filter by resolution quality:**
-   - "Show only low-confidence resolutions"
-   - "Show only unresolved holdings"
-
-3. **Display resolution source:**
-   - Tooltip showing "Resolved via Finnhub API"
-   - Icon indicating source type (API, cache, manual)
-
-4. **Manual override workflow:**
-   - User can click low-confidence holding
-   - Provide correct ISIN manually
-   - System stores as manual enrichment with confidence 0.85
-
----
-
-## 11. Success Metrics
+## 10. Success Metrics
 
 | Metric | Before | Target |
 |--------|--------|--------|
 | Provenance stored per holding | No | Yes |
 | Confidence visible in DataFrame | No | Yes |
 | Source visible in DataFrame | No | Yes |
-| UI can filter by confidence | No | Enabled |
+| Aggregation preserves highest confidence | N/A | Yes |
+
+---
+
+## 11. Out of Scope (Future Work)
+
+The following are explicitly OUT OF SCOPE for Phase 4:
+
+- UI confidence badges (IR-406 - Backlog)
+- Filter by resolution quality in UI
+- Manual override workflow
+- Confidence-based alerts
+
+These are tracked in the workstream as IR-406 and future phases.
 
 ---
 
 ## 12. Next Steps After Implementation
 
 1. **Phase 5:** Add format learning with persistence (IR-501 to IR-503)
-2. **UI Integration:** Add confidence badges to holdings table
-3. **Manual Override:** Allow users to correct low-confidence resolutions
+2. **IR-406 (Backlog):** UI integration for provenance display
