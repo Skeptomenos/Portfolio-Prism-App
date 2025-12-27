@@ -104,25 +104,25 @@ Improve ISIN resolution accuracy and efficiency through name/ticker normalizatio
 ### Phase 3: Persistent Negative Cache
 > **Plan:** [`keystone/plans/identity_resolution_persistent_cache_implementation.md`](../../plans/identity_resolution_persistent_cache_implementation.md)
 
-- [ ] **IR-301:** Add isin_cache table to LocalCache schema
-    - **Status:** Open
-    - **Details:** Add table with alias, alias_type, isin (nullable), resolution_status, confidence, source, created_at, expires_at
+- [x] **IR-301:** Add isin_cache table to LocalCache schema
+    - **Status:** Done
+    - **Commit:** `12de88a`
 
-- [ ] **IR-302:** Add LocalCache methods for isin_cache
-    - **Status:** Open
-    - **Details:** get_isin_cache(), set_isin_cache(), is_negative_cached(), cleanup_expired_cache()
+- [x] **IR-302:** Add LocalCache methods for isin_cache
+    - **Status:** Done
+    - **Commit:** `12de88a`
 
-- [ ] **IR-303:** Replace in-memory negative cache with SQLite
-    - **Status:** Open
-    - **Details:** Use 24h TTL for unresolved, 1h for rate_limited
+- [x] **IR-303:** Replace in-memory negative cache with SQLite
+    - **Status:** Done
+    - **Commit:** `12de88a`
 
-- [ ] **IR-304:** Remove legacy enrichment_cache.json
-    - **Status:** Open
-    - **Details:** Remove CACHE_PATH, _load_cache(), self.cache, cache lookup in resolve()
+- [x] **IR-304:** Remove legacy enrichment_cache.json
+    - **Status:** Done
+    - **Commit:** `12de88a`
 
-- [ ] **IR-305:** Add tests for persistent negative cache
-    - **Status:** Open
-    - **Details:** Test persistence, TTL expiration, cleanup, rate limit handling
+- [x] **IR-305:** Add tests for persistent negative cache
+    - **Status:** Done
+    - **Commit:** `12de88a`
 
 ### Phase 4: Per-Holding Provenance
 
@@ -150,9 +150,12 @@ Improve ISIN resolution accuracy and efficiency through name/ticker normalizatio
 | File | Description |
 |------|-------------|
 | `src-tauri/python/portfolio_src/data/normalizer.py` | NameNormalizer + TickerParser |
-| `src-tauri/python/portfolio_src/data/resolution.py` | ISINResolver with cascade/confidence |
+| `src-tauri/python/portfolio_src/data/resolution.py` | ISINResolver with cascade/confidence/persistent cache |
+| `src-tauri/python/portfolio_src/data/local_cache.py` | LocalCache with isin_cache table |
 | `src-tauri/python/tests/test_normalizer.py` | 80 normalizer tests |
-| `src-tauri/python/tests/test_resolution_phase2.py` | 16 Phase 2 tests |
+| `src-tauri/python/tests/test_resolution_phase2.py` | 15 Phase 2 tests |
+| `src-tauri/python/tests/test_resolution_phase3.py` | 20 Phase 3 tests |
+| `src-tauri/python/tests/test_isin_resolver_hive.py` | 13 Hive resolver tests |
 | `keystone/plans/identity_resolution_persistent_cache_implementation.md` | Phase 3 implementation plan |
 | `supabase/migrations/20251224_add_aliases.sql` | Schema migration |
 
@@ -160,23 +163,25 @@ Improve ISIN resolution accuracy and efficiency through name/ticker normalizatio
 
 ## Active State
 
-> **Current Focus:** Phase 3 - Persistent Negative Cache
+> **Current Focus:** Phase 4 - Per-Holding Provenance (optional)
 
 ### Iteration Log
+- **2025-12-27:** Completed Phase 3 - Persistent negative cache with SQLite, removed legacy JSON cache, 20 new tests
 - **2025-12-27:** Completed Phase 2 - API cascade reorder, confidence scoring, batched Wikidata, negative cache, tiered variants, SPARQL injection fix
 - **2025-12-27:** Completed Phase 1 - NameNormalizer + TickerParser with 80 tests
 - **2025-12-27:** Completed Phase 0 - Schema updates for identity resolution
 
 ### Test Summary
 - Normalizer: 80 tests passing
-- Phase 2: 16 tests passing
-- Existing resolver: 14 tests passing
-- **Total: 110 tests**
+- Phase 2: 15 tests passing
+- Phase 3: 20 tests passing
+- Hive resolver: 13 tests passing
+- **Total: 128+ tests**
 
 ---
 
 ## Context for Resume
 
-- **Next Action:** Implement Phase 3 - Move negative cache to SQLite, remove legacy JSON cache
-- **State:** Phases 0-2 complete. 110 tests passing. API cascade optimized.
+- **Next Action:** Phase 4 (IR-401) - Store resolution source/confidence per holding in DataFrame
+- **State:** Phases 0-3 complete. 128+ tests passing. Persistent negative cache active.
 - **Branch:** `fix/pipeline-tuning`
