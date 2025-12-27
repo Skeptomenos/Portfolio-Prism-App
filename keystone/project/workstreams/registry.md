@@ -8,7 +8,7 @@
 | Workstream | Feature Plan | Session Name | Status | Last Heartbeat |
 | :--- | :--- | :--- | :--- | :--- |
 | `data-engine` | `keystone/project/workstreams/data-engine.md` | `root-session` | `Active` | 2025-12-27 |
-| `identity-resolution` | `keystone/project/workstreams/identity-resolution.md` | `root-session` | `Active` | 2025-12-27 |
+| `identity-resolution` | `keystone/project/workstreams/identity-resolution.md` | `IdentityResolution` | `Active` | 2025-12-27 |
 
 ## Archived Workstreams
 

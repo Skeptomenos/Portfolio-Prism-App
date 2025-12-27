@@ -1,7 +1,7 @@
 # Workstream: identity-resolution
 
 > **Parent Workstream:** [`data-engine`](./data-engine.md)
-> **Owner:** root-session
+> **Owner:** IdentityResolution
 > **Status:** Active
 > **Created:** 2025-12-27
 > **Last Heartbeat:** 2025-12-27
