@@ -125,12 +125,31 @@ Improve ISIN resolution accuracy and efficiency through name/ticker normalizatio
     - **Commit:** `12de88a`
 
 ### Phase 4: Per-Holding Provenance
+> **Plan:** [`keystone/plans/identity_resolution_provenance_implementation.md`](../../plans/identity_resolution_provenance_implementation.md)
 
-- [ ] **IR-401:** Store resolution source/confidence per holding in DataFrame
+- [ ] **IR-401:** Add resolution_source and resolution_confidence columns to DataFrame
     - **Status:** Open
+    - **Details:** Initialize columns in Decomposer and Enrichment
 
-- [ ] **IR-402:** Surface provenance in UI (optional)
+- [ ] **IR-402:** Update Decomposer._resolve_holdings_isins() to store provenance
+    - **Status:** Open
+    - **Details:** Store result.source and result.confidence for each holding
+
+- [ ] **IR-403:** Update enrich_etf_holdings() to store provenance
+    - **Status:** Open
+    - **Details:** Store result.source and result.confidence for each holding
+
+- [ ] **IR-404:** Verify aggregation preserves provenance columns
+    - **Status:** Open
+    - **Details:** Ensure highest confidence is preserved when combining holdings
+
+- [ ] **IR-405:** Add unit tests for provenance storage
+    - **Status:** Open
+    - **Details:** Test provenance for resolved, unresolved, skipped holdings
+
+- [ ] **IR-406:** Surface provenance in UI (optional)
     - **Status:** Backlog
+    - **Details:** Add confidence badges, filter by resolution quality
 
 ### Phase 5: Format Learning
 
@@ -157,6 +176,7 @@ Improve ISIN resolution accuracy and efficiency through name/ticker normalizatio
 | `src-tauri/python/tests/test_resolution_phase3.py` | 20 Phase 3 tests |
 | `src-tauri/python/tests/test_isin_resolver_hive.py` | 13 Hive resolver tests |
 | `keystone/plans/identity_resolution_persistent_cache_implementation.md` | Phase 3 implementation plan |
+| `keystone/plans/identity_resolution_provenance_implementation.md` | Phase 4 implementation plan |
 | `supabase/migrations/20251224_add_aliases.sql` | Schema migration |
 
 ---
