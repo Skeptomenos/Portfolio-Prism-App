@@ -14,7 +14,6 @@ from portfolio_src.data.resolution import (
     CONFIDENCE_WIKIDATA,
     CONFIDENCE_FINNHUB,
     CONFIDENCE_YFINANCE,
-    CONFIDENCE_LEGACY_CACHE,
 )
 
 
@@ -27,6 +26,7 @@ class TestConfidenceScores:
             with patch("portfolio_src.data.resolution.get_hive_client") as mock_hive_fn:
                 mock_cache = MagicMock()
                 mock_cache.is_stale.return_value = False
+                mock_cache.is_negative_cached.return_value = False
                 mock_cache_fn.return_value = mock_cache
                 mock_hive_fn.return_value = MagicMock()
 
@@ -66,6 +66,7 @@ class TestConfidenceScores:
                 mock_cache = MagicMock()
                 mock_cache.get_isin_by_ticker.return_value = "US0378331005"
                 mock_cache.is_stale.return_value = False
+                mock_cache.is_negative_cached.return_value = False
                 mock_cache_fn.return_value = mock_cache
                 mock_hive_fn.return_value = MagicMock()
 
@@ -84,6 +85,7 @@ class TestConfidenceScores:
                 mock_cache.get_isin_by_ticker.return_value = None
                 mock_cache.get_isin_by_alias.return_value = None
                 mock_cache.is_stale.return_value = False
+                mock_cache.is_negative_cached.return_value = False
                 mock_cache_fn.return_value = mock_cache
 
                 mock_hive = MagicMock()
@@ -98,31 +100,6 @@ class TestConfidenceScores:
                 assert result.confidence == CONFIDENCE_HIVE
                 assert result.confidence == 0.90
 
-    def test_legacy_cache_has_confidence_070(self):
-        """Legacy enrichment cache should have confidence 0.70."""
-        with patch("portfolio_src.data.resolution.get_local_cache") as mock_cache_fn:
-            with patch("portfolio_src.data.resolution.get_hive_client") as mock_hive_fn:
-                mock_cache = MagicMock()
-                mock_cache.get_isin_by_ticker.return_value = None
-                mock_cache.get_isin_by_alias.return_value = None
-                mock_cache.is_stale.return_value = False
-                mock_cache_fn.return_value = mock_cache
-
-                mock_hive = MagicMock()
-                mock_hive.is_configured = True
-                mock_hive.resolve_ticker.return_value = None
-                mock_hive.lookup_by_alias.return_value = None
-                mock_hive_fn.return_value = mock_hive
-
-                resolver = ISINResolver(tier1_threshold=0.5)
-                resolver.cache = {"AAPL": {"isin": "US0378331005"}}
-
-                result = resolver.resolve("AAPL", "Apple Inc", weight=1.0)
-
-                assert result.isin == "US0378331005"
-                assert result.confidence == CONFIDENCE_LEGACY_CACHE
-                assert result.confidence == 0.70
-
 
 class TestCascadeOrder:
     """Test that APIs are called in correct order: Wikidata → Finnhub → yFinance."""
@@ -135,6 +112,7 @@ class TestCascadeOrder:
                 mock_cache.get_isin_by_ticker.return_value = None
                 mock_cache.get_isin_by_alias.return_value = None
                 mock_cache.is_stale.return_value = False
+                mock_cache.is_negative_cached.return_value = False
                 mock_cache_fn.return_value = mock_cache
 
                 mock_hive = MagicMock()
@@ -144,7 +122,6 @@ class TestCascadeOrder:
                 mock_hive_fn.return_value = mock_hive
 
                 resolver = ISINResolver()
-                resolver.cache = {}
 
                 call_order = []
 
@@ -154,13 +131,13 @@ class TestCascadeOrder:
 
                 def track_finnhub(*args, **kwargs):
                     call_order.append("finnhub")
-                    return None
+                    return (None, False)
 
                 with patch.object(
                     resolver, "_call_wikidata_batch", side_effect=track_wikidata
                 ):
                     with patch.object(
-                        resolver, "_call_finnhub", side_effect=track_finnhub
+                        resolver, "_call_finnhub_with_status", side_effect=track_finnhub
                     ):
                         result = resolver.resolve("AAPL", "Apple Inc", weight=5.0)
 
@@ -176,6 +153,7 @@ class TestCascadeOrder:
                 mock_cache.get_isin_by_ticker.return_value = None
                 mock_cache.get_isin_by_alias.return_value = None
                 mock_cache.is_stale.return_value = False
+                mock_cache.is_negative_cached.return_value = False
                 mock_cache_fn.return_value = mock_cache
 
                 mock_hive = MagicMock()
@@ -185,7 +163,6 @@ class TestCascadeOrder:
                 mock_hive_fn.return_value = mock_hive
 
                 resolver = ISINResolver()
-                resolver.cache = {}
 
                 call_order = []
 
@@ -195,13 +172,13 @@ class TestCascadeOrder:
 
                 def track_finnhub(*args, **kwargs):
                     call_order.append("finnhub")
-                    return "US0378331005"
+                    return ("US0378331005", False)
 
                 with patch.object(
                     resolver, "_call_wikidata_batch", side_effect=track_wikidata
                 ):
                     with patch.object(
-                        resolver, "_call_finnhub", side_effect=track_finnhub
+                        resolver, "_call_finnhub_with_status", side_effect=track_finnhub
                     ):
                         result = resolver.resolve("AAPL", "Apple Inc", weight=5.0)
 
@@ -217,6 +194,7 @@ class TestCascadeOrder:
                 mock_cache.get_isin_by_ticker.return_value = None
                 mock_cache.get_isin_by_alias.return_value = None
                 mock_cache.is_stale.return_value = False
+                mock_cache.is_negative_cached.return_value = False
                 mock_cache_fn.return_value = mock_cache
 
                 mock_hive = MagicMock()
@@ -226,7 +204,6 @@ class TestCascadeOrder:
                 mock_hive_fn.return_value = mock_hive
 
                 resolver = ISINResolver()
-                resolver.cache = {}
 
                 call_order = []
 
@@ -236,7 +213,7 @@ class TestCascadeOrder:
 
                 def track_finnhub(*args, **kwargs):
                     call_order.append("finnhub")
-                    return None
+                    return (None, False)
 
                 def track_yfinance(*args, **kwargs):
                     call_order.append("yfinance")
@@ -246,7 +223,7 @@ class TestCascadeOrder:
                     resolver, "_call_wikidata_batch", side_effect=track_wikidata
                 ):
                     with patch.object(
-                        resolver, "_call_finnhub", side_effect=track_finnhub
+                        resolver, "_call_finnhub_with_status", side_effect=track_finnhub
                     ):
                         with patch.object(
                             resolver, "_call_yfinance", side_effect=track_yfinance
@@ -273,6 +250,7 @@ class TestTieredVariantStrategy:
                 mock_cache.get_isin_by_ticker.return_value = None
                 mock_cache.get_isin_by_alias.return_value = None
                 mock_cache.is_stale.return_value = False
+                mock_cache.is_negative_cached.return_value = False
                 mock_cache_fn.return_value = mock_cache
 
                 mock_hive = MagicMock()
@@ -282,17 +260,16 @@ class TestTieredVariantStrategy:
                 mock_hive_fn.return_value = mock_hive
 
                 resolver = ISINResolver()
-                resolver.cache = {}
 
                 finnhub_calls = []
 
                 def track_finnhub(ticker):
                     finnhub_calls.append(ticker)
-                    return None
+                    return (None, False)
 
                 with patch.object(resolver, "_call_wikidata_batch", return_value=None):
                     with patch.object(
-                        resolver, "_call_finnhub", side_effect=track_finnhub
+                        resolver, "_call_finnhub_with_status", side_effect=track_finnhub
                     ):
                         with patch.object(
                             resolver, "_call_yfinance", return_value=None
@@ -310,6 +287,7 @@ class TestTieredVariantStrategy:
                 mock_cache.get_isin_by_ticker.return_value = None
                 mock_cache.get_isin_by_alias.return_value = None
                 mock_cache.is_stale.return_value = False
+                mock_cache.is_negative_cached.return_value = False
                 mock_cache_fn.return_value = mock_cache
 
                 mock_hive = MagicMock()
@@ -319,7 +297,6 @@ class TestTieredVariantStrategy:
                 mock_hive_fn.return_value = mock_hive
 
                 resolver = ISINResolver()
-                resolver.cache = {}
 
                 yfinance_calls = []
 
@@ -328,7 +305,11 @@ class TestTieredVariantStrategy:
                     return None
 
                 with patch.object(resolver, "_call_wikidata_batch", return_value=None):
-                    with patch.object(resolver, "_call_finnhub", return_value=None):
+                    with patch.object(
+                        resolver,
+                        "_call_finnhub_with_status",
+                        return_value=(None, False),
+                    ):
                         with patch.object(
                             resolver, "_call_yfinance", side_effect=track_yfinance
                         ):
@@ -349,6 +330,16 @@ class TestNegativeCache:
                 mock_cache.get_isin_by_ticker.return_value = None
                 mock_cache.get_isin_by_alias.return_value = None
                 mock_cache.is_stale.return_value = False
+
+                negative_cache_calls = [0]
+
+                def is_negative_cached_side_effect(*args, **kwargs):
+                    negative_cache_calls[0] += 1
+                    return negative_cache_calls[0] > 1
+
+                mock_cache.is_negative_cached.side_effect = (
+                    is_negative_cached_side_effect
+                )
                 mock_cache_fn.return_value = mock_cache
 
                 mock_hive = MagicMock()
@@ -358,29 +349,38 @@ class TestNegativeCache:
                 mock_hive_fn.return_value = mock_hive
 
                 resolver = ISINResolver()
-                resolver.cache = {}
 
                 api_call_count = 0
 
-                def track_api(*args, **kwargs):
+                def track_wikidata(*args, **kwargs):
+                    nonlocal api_call_count
+                    api_call_count += 1
+                    return None
+
+                def track_finnhub(*args, **kwargs):
+                    nonlocal api_call_count
+                    api_call_count += 1
+                    return (None, False)
+
+                def track_yfinance(*args, **kwargs):
                     nonlocal api_call_count
                     api_call_count += 1
                     return None
 
                 with patch.object(
-                    resolver, "_call_wikidata_batch", side_effect=track_api
+                    resolver, "_call_wikidata_batch", side_effect=track_wikidata
                 ):
-                    with patch.object(resolver, "_call_finnhub", side_effect=track_api):
+                    with patch.object(
+                        resolver, "_call_finnhub_with_status", side_effect=track_finnhub
+                    ):
                         with patch.object(
-                            resolver, "_call_yfinance", side_effect=track_api
+                            resolver, "_call_yfinance", side_effect=track_yfinance
                         ):
-                            # First call - should hit all APIs
                             result1 = resolver.resolve(
                                 "UNKNOWN", "Unknown Company", weight=5.0
                             )
                             first_call_count = api_call_count
 
-                            # Second call - should be negative cached
                             result2 = resolver.resolve(
                                 "UNKNOWN", "Unknown Company", weight=5.0
                             )
@@ -389,40 +389,27 @@ class TestNegativeCache:
                 assert result1.status == "unresolved"
                 assert result2.status == "unresolved"
                 assert result2.detail == "negative_cached"
-                assert second_call_count == 0  # No new API calls
+                assert second_call_count == 0
 
-    def test_negative_cache_expires_after_ttl(self):
-        """Negative cache entries should expire after TTL."""
-        with patch("portfolio_src.data.resolution.get_local_cache") as mock_cache_fn:
-            with patch("portfolio_src.data.resolution.get_hive_client") as mock_hive_fn:
-                mock_cache = MagicMock()
-                mock_cache.get_isin_by_ticker.return_value = None
-                mock_cache.get_isin_by_alias.return_value = None
-                mock_cache.is_stale.return_value = False
-                mock_cache_fn.return_value = mock_cache
+    def test_negative_cache_expires_after_ttl(self, tmp_path):
+        """Negative cache entries should expire after TTL (tested via direct insertion)."""
+        from datetime import datetime, timedelta
+        from portfolio_src.data.local_cache import LocalCache
 
-                mock_hive = MagicMock()
-                mock_hive.is_configured = True
-                mock_hive.resolve_ticker.return_value = None
-                mock_hive.lookup_by_alias.return_value = None
-                mock_hive_fn.return_value = mock_hive
+        cache = LocalCache(db_path=tmp_path / "test.db")
 
-                resolver = ISINResolver()
-                resolver.cache = {}
-                resolver._negative_cache_ttl = 1  # 1 second for testing
+        conn = cache._get_connection()
+        past_time = (datetime.now() - timedelta(hours=1)).isoformat()
+        conn.execute(
+            """
+            INSERT INTO isin_cache (alias, alias_type, isin, resolution_status, confidence, expires_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            ("EXPIRED", "ticker", None, "unresolved", 0.0, past_time),
+        )
+        conn.commit()
 
-                with patch.object(resolver, "_call_wikidata_batch", return_value=None):
-                    with patch.object(resolver, "_call_finnhub", return_value=None):
-                        with patch.object(
-                            resolver, "_call_yfinance", return_value=None
-                        ):
-                            # First call - adds to negative cache
-                            resolver.resolve("UNKNOWN", "Unknown Company", weight=5.0)
-
-                            time.sleep(1.1)
-
-                            # Check that cache entry is expired
-                            assert not resolver._is_negative_cached("UNKNOWN")
+        assert not cache.is_negative_cached("EXPIRED", "ticker")
 
     def test_negative_cache_is_per_ticker(self):
         """Different tickers should have independent cache entries."""
@@ -432,6 +419,7 @@ class TestNegativeCache:
                 mock_cache.get_isin_by_ticker.return_value = None
                 mock_cache.get_isin_by_alias.return_value = None
                 mock_cache.is_stale.return_value = False
+                mock_cache.is_negative_cached.return_value = False
                 mock_cache_fn.return_value = mock_cache
 
                 mock_hive = MagicMock()
@@ -441,23 +429,23 @@ class TestNegativeCache:
                 mock_hive_fn.return_value = mock_hive
 
                 resolver = ISINResolver()
-                resolver.cache = {}
 
                 with patch.object(resolver, "_call_wikidata_batch", return_value=None):
-                    with patch.object(resolver, "_call_finnhub", return_value=None):
+                    with patch.object(
+                        resolver,
+                        "_call_finnhub_with_status",
+                        return_value=(None, False),
+                    ):
                         with patch.object(
                             resolver, "_call_yfinance", return_value=None
                         ):
-                            # First ticker fails
                             resolver.resolve("UNKNOWN1", "Unknown 1", weight=5.0)
 
-                            # Second ticker should still try APIs
                             result = resolver.resolve(
                                 "UNKNOWN2", "Unknown 2", weight=5.0
                             )
 
-                # UNKNOWN2 should not be negative cached from UNKNOWN1
-                assert result.detail == "api_all_failed"  # Not "negative_cached"
+                assert result.detail == "api_all_failed"
 
 
 class TestWikidataBatch:
@@ -471,6 +459,7 @@ class TestWikidataBatch:
                 mock_cache.get_isin_by_ticker.return_value = None
                 mock_cache.get_isin_by_alias.return_value = None
                 mock_cache.is_stale.return_value = False
+                mock_cache.is_negative_cached.return_value = False
                 mock_cache_fn.return_value = mock_cache
 
                 mock_hive = MagicMock()
@@ -480,7 +469,6 @@ class TestWikidataBatch:
                 mock_hive_fn.return_value = mock_hive
 
                 resolver = ISINResolver()
-                resolver.cache = {}
 
                 received_variants = []
 
@@ -491,7 +479,11 @@ class TestWikidataBatch:
                 with patch.object(
                     resolver, "_call_wikidata_batch", side_effect=capture_variants
                 ):
-                    with patch.object(resolver, "_call_finnhub", return_value=None):
+                    with patch.object(
+                        resolver,
+                        "_call_finnhub_with_status",
+                        return_value=(None, False),
+                    ):
                         with patch.object(
                             resolver, "_call_yfinance", return_value=None
                         ):
@@ -499,9 +491,7 @@ class TestWikidataBatch:
                                 "AAPL", "Apple Inc Corporation", weight=5.0
                             )
 
-                # Should receive multiple name variants
                 assert len(received_variants) > 0
-                # At minimum should include the normalized name
                 assert any("APPLE" in v.upper() for v in received_variants)
 
 

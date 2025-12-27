@@ -125,6 +125,28 @@ class LocalCache:
                 ON cache_aliases (UPPER(alias));
             CREATE INDEX IF NOT EXISTS idx_cache_listings_isin
                 ON cache_listings (isin);
+
+            -- Resolution cache (positive and negative)
+            CREATE TABLE IF NOT EXISTS isin_cache (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                alias TEXT NOT NULL,
+                alias_type TEXT NOT NULL,
+                isin TEXT,
+                resolution_status TEXT NOT NULL,
+                confidence REAL DEFAULT 0.0,
+                source TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expires_at TIMESTAMP,
+                UNIQUE(alias, alias_type)
+            );
+
+            -- Indexes for isin_cache
+            CREATE INDEX IF NOT EXISTS idx_isin_cache_alias
+                ON isin_cache (UPPER(alias));
+            CREATE INDEX IF NOT EXISTS idx_isin_cache_expires
+                ON isin_cache (expires_at);
+            CREATE INDEX IF NOT EXISTS idx_isin_cache_status
+                ON isin_cache (resolution_status);
         """
         )
 
@@ -552,6 +574,170 @@ class LocalCache:
             }
 
         return stats
+
+    # =========================================================================
+    # ISIN CACHE OPERATIONS (Resolution Cache)
+    # =========================================================================
+
+    def get_isin_cache(
+        self,
+        alias: str,
+        alias_type: str = "ticker",
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get cached resolution result.
+
+        Returns None if:
+        - Not found
+        - Entry is expired (negative cache with passed expires_at)
+
+        Returns dict with keys:
+        - isin: Optional[str]
+        - resolution_status: str
+        - confidence: float
+        - source: Optional[str]
+        - created_at: str
+        - expires_at: Optional[str]
+        """
+        conn = self._get_connection()
+        cursor = conn.execute(
+            """
+            SELECT isin, resolution_status, confidence, source, created_at, expires_at
+            FROM isin_cache
+            WHERE UPPER(alias) = UPPER(?) AND alias_type = ?
+            LIMIT 1
+            """,
+            (alias, alias_type),
+        )
+
+        row = cursor.fetchone()
+        if not row:
+            return None
+
+        if row["expires_at"]:
+            expires_at = datetime.fromisoformat(row["expires_at"])
+            if datetime.now() > expires_at:
+                self._delete_isin_cache(alias, alias_type)
+                return None
+
+        return {
+            "isin": row["isin"],
+            "resolution_status": row["resolution_status"],
+            "confidence": row["confidence"],
+            "source": row["source"],
+            "created_at": row["created_at"],
+            "expires_at": row["expires_at"],
+        }
+
+    def set_isin_cache(
+        self,
+        alias: str,
+        alias_type: str,
+        isin: Optional[str],
+        resolution_status: str,
+        confidence: float = 0.0,
+        source: Optional[str] = None,
+        ttl_hours: Optional[int] = None,
+    ) -> bool:
+        """
+        Cache a resolution result.
+
+        Args:
+            alias: Normalized identifier
+            alias_type: "ticker" or "name"
+            isin: Resolved ISIN or None for negative cache
+            resolution_status: "resolved", "unresolved", or "rate_limited"
+            confidence: Resolution confidence (0.0 for negative)
+            source: API source or None
+            ttl_hours: Hours until expiration (None = never expires)
+
+        Returns:
+            True if successful, False otherwise
+        """
+        conn = self._get_connection()
+
+        expires_at = None
+        if ttl_hours is not None:
+            expires_at = (datetime.now() + timedelta(hours=ttl_hours)).isoformat()
+
+        try:
+            conn.execute(
+                """
+                INSERT INTO isin_cache (
+                    alias, alias_type, isin, resolution_status,
+                    confidence, source, created_at, expires_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
+                ON CONFLICT(alias, alias_type) DO UPDATE SET
+                    isin = excluded.isin,
+                    resolution_status = excluded.resolution_status,
+                    confidence = excluded.confidence,
+                    source = excluded.source,
+                    created_at = CURRENT_TIMESTAMP,
+                    expires_at = excluded.expires_at
+                """,
+                (
+                    alias,
+                    alias_type,
+                    isin,
+                    resolution_status,
+                    confidence,
+                    source,
+                    expires_at,
+                ),
+            )
+            conn.commit()
+            return True
+        except Exception as e:
+            logger.warning(f"Failed to cache resolution for {alias}: {e}")
+            return False
+
+    def is_negative_cached(
+        self,
+        alias: str,
+        alias_type: str = "ticker",
+    ) -> bool:
+        """
+        Check if alias has unexpired negative cache entry.
+
+        Returns True if:
+        - Entry exists with resolution_status in ("unresolved", "rate_limited")
+        - Entry has not expired (expires_at > now)
+        """
+        entry = self.get_isin_cache(alias, alias_type)
+        if not entry:
+            return False
+        return entry["resolution_status"] in ("unresolved", "rate_limited")
+
+    def cleanup_expired_cache(self) -> int:
+        """
+        Delete expired cache entries.
+
+        Returns count of deleted entries.
+        """
+        conn = self._get_connection()
+        now = datetime.now().isoformat()
+        cursor = conn.execute(
+            """
+            DELETE FROM isin_cache
+            WHERE expires_at IS NOT NULL AND expires_at < ?
+            """,
+            (now,),
+        )
+        conn.commit()
+        deleted = cursor.rowcount
+        if deleted > 0:
+            logger.debug(f"Cleaned up {deleted} expired cache entries")
+        return deleted
+
+    def _delete_isin_cache(self, alias: str, alias_type: str) -> None:
+        """Delete a single cache entry."""
+        conn = self._get_connection()
+        conn.execute(
+            "DELETE FROM isin_cache WHERE UPPER(alias) = UPPER(?) AND alias_type = ?",
+            (alias, alias_type),
+        )
+        conn.commit()
 
     def close(self) -> None:
         """Close the database connection for the current thread."""

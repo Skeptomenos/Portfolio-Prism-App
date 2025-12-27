@@ -152,27 +152,6 @@ class TestHiveResolutionChain:
                 assert result.detail == "tier2_skipped"
                 mock_hive.resolve_ticker.assert_not_called()
 
-    def test_tier2_falls_back_to_enrichment_cache(self):
-        with patch("portfolio_src.data.resolution.get_local_cache") as mock_cache_fn:
-            with patch("portfolio_src.data.resolution.get_hive_client") as mock_hive_fn:
-                mock_cache = MagicMock()
-                mock_cache.get_isin_by_ticker.return_value = None
-                mock_cache.get_isin_by_alias.return_value = None
-                mock_cache_fn.return_value = mock_cache
-
-                mock_hive = MagicMock()
-                mock_hive_fn.return_value = mock_hive
-
-                resolver = ISINResolver(tier1_threshold=0.5)
-                resolver.cache = {"AAPL": {"isin": "US0378331005"}}
-
-                result = resolver.resolve("AAPL", "Apple Inc", weight=0.1)
-
-                assert result.isin == "US0378331005"
-                assert result.detail == "cache"
-                assert result.status == "resolved"
-                mock_hive.resolve_ticker.assert_not_called()
-
 
 class TestCacheUpdates:
     def test_hive_hit_updates_local_cache(self):
@@ -214,7 +193,6 @@ class TestPushToHive:
                 mock_hive_fn.return_value = mock_hive
 
                 resolver = ISINResolver()
-                resolver.cache = {}
 
                 with patch.object(resolver, "_resolve_via_api") as mock_api:
                     mock_api.return_value = ResolutionResult(

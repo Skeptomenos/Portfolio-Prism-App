@@ -30,7 +30,7 @@ Improve ISIN resolution accuracy and efficiency through name/ticker normalizatio
 
 ---
 
-## Tasks
+## 📋 Tasks (Source of Truth)
 
 ### Phase 0: Schema
 > **Plan:** [`keystone/plans/identity_resolution_schema_implementation.md`](../../plans/identity_resolution_schema_implementation.md)
@@ -102,18 +102,27 @@ Improve ISIN resolution accuracy and efficiency through name/ticker normalizatio
     - **Commit:** `a8d095c`
 
 ### Phase 3: Persistent Negative Cache
+> **Plan:** [`keystone/plans/identity_resolution_persistent_cache_implementation.md`](../../plans/identity_resolution_persistent_cache_implementation.md)
 
-- [ ] **IR-301:** Move negative cache to SQLite (isin_cache table)
+- [ ] **IR-301:** Add isin_cache table to LocalCache schema
     - **Status:** Open
+    - **Details:** Add table with alias, alias_type, isin (nullable), resolution_status, confidence, source, created_at, expires_at
 
-- [ ] **IR-302:** Remove legacy enrichment_cache.json
+- [ ] **IR-302:** Add LocalCache methods for isin_cache
     - **Status:** Open
+    - **Details:** get_isin_cache(), set_isin_cache(), is_negative_cached(), cleanup_expired_cache()
 
-- [ ] **IR-303:** Add TTL tracking for SQLite negative cache
+- [ ] **IR-303:** Replace in-memory negative cache with SQLite
     - **Status:** Open
+    - **Details:** Use 24h TTL for unresolved, 1h for rate_limited
 
-- [ ] **IR-304:** Add tests for persistent negative cache
+- [ ] **IR-304:** Remove legacy enrichment_cache.json
     - **Status:** Open
+    - **Details:** Remove CACHE_PATH, _load_cache(), self.cache, cache lookup in resolve()
+
+- [ ] **IR-305:** Add tests for persistent negative cache
+    - **Status:** Open
+    - **Details:** Test persistence, TTL expiration, cleanup, rate limit handling
 
 ### Phase 4: Per-Holding Provenance
 
@@ -144,6 +153,7 @@ Improve ISIN resolution accuracy and efficiency through name/ticker normalizatio
 | `src-tauri/python/portfolio_src/data/resolution.py` | ISINResolver with cascade/confidence |
 | `src-tauri/python/tests/test_normalizer.py` | 80 normalizer tests |
 | `src-tauri/python/tests/test_resolution_phase2.py` | 16 Phase 2 tests |
+| `keystone/plans/identity_resolution_persistent_cache_implementation.md` | Phase 3 implementation plan |
 | `supabase/migrations/20251224_add_aliases.sql` | Schema migration |
 
 ---

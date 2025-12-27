@@ -6,17 +6,14 @@ Resolution priority:
 2. Manual enrichments (user-provided mappings)
 3. LocalCache lookup (backed by Hive sync)
 4. Hive network lookup (if cache miss)
-5. Enrichment cache lookup (validated)
-6. API calls (Tier 1 only): Wikidata -> Finnhub -> yFinance
-7. Mark as unresolved
+5. API calls (Tier 1 only): Wikidata -> Finnhub -> yFinance
+6. Mark as unresolved
 """
 
-import json
 import os
 import time
 import threading
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Dict, List, Literal, Optional, Any
 
 import requests
@@ -36,7 +33,6 @@ from portfolio_src.data.normalizer import (
 
 logger = get_logger(__name__)
 
-CACHE_PATH = Path("data/working/cache/enrichment_cache.json")
 FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY")
 FINNHUB_API_URL = "https://finnhub.io/api/v1"
 
@@ -48,7 +44,10 @@ CONFIDENCE_MANUAL = 0.85  # Manual enrichments
 CONFIDENCE_WIKIDATA = 0.80  # Wikidata SPARQL
 CONFIDENCE_FINNHUB = 0.75  # Finnhub API
 CONFIDENCE_YFINANCE = 0.70  # yFinance (unreliable)
-CONFIDENCE_LEGACY_CACHE = 0.70  # Legacy enrichment_cache.json
+
+# Negative cache TTL (per spec Section 8.1)
+NEGATIVE_CACHE_TTL_UNRESOLVED_HOURS = 24  # All APIs failed
+NEGATIVE_CACHE_TTL_RATE_LIMITED_HOURS = 1  # API rate limit hit
 
 
 @dataclass
@@ -71,7 +70,6 @@ class ResolutionResult:
 class ISINResolver:
     def __init__(self, tier1_threshold: float = 1.0):
         self.tier1_threshold = tier1_threshold
-        self.cache = self._load_cache()
         self.newly_resolved: List[Dict[str, Any]] = []
         self.stats = {
             "total": 0,
@@ -86,10 +84,6 @@ class ISINResolver:
         self._name_normalizer: NameNormalizer = get_name_normalizer()
         self._ticker_parser: TickerParser = get_ticker_parser()
 
-        # In-memory negative cache to prevent repeated API calls for known failures
-        self._api_negative_cache: Dict[str, float] = {}  # ticker -> timestamp
-        self._negative_cache_ttl = 300  # 5 minutes
-
         if self._local_cache and self._local_cache.is_stale():
             logger.info("Local cache stale, starting background sync...")
             threading.Thread(
@@ -103,51 +97,37 @@ class ISINResolver:
         except Exception as e:
             logger.warning(f"Background Hive sync failed: {e}")
 
-    def _is_negative_cached(self, ticker: str) -> bool:
-        """Check if ticker is in negative cache and not expired."""
-        if not ticker or ticker not in self._api_negative_cache:
+    def _is_negative_cached(self, alias: str, alias_type: str = "ticker") -> bool:
+        """Check if alias has unexpired negative cache entry in SQLite."""
+        if not self._local_cache:
             return False
-        cached_time = self._api_negative_cache[ticker]
-        if time.time() - cached_time > self._negative_cache_ttl:
-            del self._api_negative_cache[ticker]
-            return False
-        return True
+        return self._local_cache.is_negative_cached(alias, alias_type)
 
-    def _add_negative_cache(self, ticker: str) -> None:
-        """Add ticker to negative cache."""
-        if ticker:
-            self._api_negative_cache[ticker] = time.time()
+    def _add_negative_cache(
+        self,
+        alias: str,
+        alias_type: str = "ticker",
+        status: str = "unresolved",
+    ) -> None:
+        """Add alias to negative cache in SQLite."""
+        if not self._local_cache:
+            return
 
-    def _load_cache(self) -> Dict[str, Dict]:
-        if not CACHE_PATH.exists():
-            return {}
+        ttl_hours = (
+            NEGATIVE_CACHE_TTL_RATE_LIMITED_HOURS
+            if status == "rate_limited"
+            else NEGATIVE_CACHE_TTL_UNRESOLVED_HOURS
+        )
 
-        try:
-            with open(CACHE_PATH, "r") as f:
-                raw_cache = json.load(f)
-
-            valid_cache = {}
-            for key, value in raw_cache.items():
-                if (
-                    "|" in key
-                    or key.startswith("FALLBACK")
-                    or key.startswith("UNRESOLVED")
-                ):
-                    continue
-
-                isin = value.get("isin")
-                if isin and is_valid_isin(isin):
-                    valid_cache[key] = value
-
-            logger.info(
-                f"Loaded cache: {len(valid_cache)} valid entries "
-                f"(filtered {len(raw_cache) - len(valid_cache)} invalid)"
-            )
-            return valid_cache
-
-        except Exception as e:
-            logger.error(f"Failed to load cache: {e}")
-            return {}
+        self._local_cache.set_isin_cache(
+            alias=alias,
+            alias_type=alias_type,
+            isin=None,
+            resolution_status=status,
+            confidence=0.0,
+            source=None,
+            ttl_hours=ttl_hours,
+        )
 
     def resolve(
         self,
@@ -216,22 +196,7 @@ class ISINResolver:
             self._record_resolution(ticker_clean, name_clean, result)
             return result
 
-        # 4. Enrichment cache lookup
-        cache_entry = self.cache.get(ticker_clean.upper())
-        if cache_entry:
-            cache_isin = cache_entry.get("isin")
-            if cache_isin and is_valid_isin(cache_isin):
-                result = ResolutionResult(
-                    isin=cache_isin,
-                    status="resolved",
-                    detail="cache",
-                    source=None,
-                    confidence=CONFIDENCE_LEGACY_CACHE,
-                )
-                self._record_resolution(ticker_clean, name_clean, result)
-                return result
-
-        # 5. Tier check - skip API for minor holdings
+        # 4. Tier check - skip API for minor holdings
         if is_tier2:
             result = ResolutionResult(
                 isin=None,
@@ -390,7 +355,6 @@ class ISINResolver:
         tickers = ticker_variants or ([ticker] if ticker else [])
         primary_ticker = tickers[0] if tickers else ticker
 
-        # Check negative cache first
         if self._is_negative_cached(primary_ticker):
             return ResolutionResult(
                 isin=None,
@@ -399,9 +363,14 @@ class ISINResolver:
                 confidence=0.0,
             )
 
+        rate_limited = False
+
         # 1. Wikidata - batch query with all name variants (FREE, no limit)
         isin = self._call_wikidata_batch(names)
         if isin:
+            self._cache_positive_result(
+                primary_ticker, "ticker", isin, "api_wikidata", CONFIDENCE_WIKIDATA
+            )
             return ResolutionResult(
                 isin=isin,
                 status="resolved",
@@ -412,8 +381,13 @@ class ISINResolver:
 
         # 2. Finnhub - PRIMARY TICKER ONLY (rate-limited 60/min)
         if primary_ticker:
-            isin = self._call_finnhub(primary_ticker)
+            isin, was_rate_limited = self._call_finnhub_with_status(primary_ticker)
+            if was_rate_limited:
+                rate_limited = True
             if isin:
+                self._cache_positive_result(
+                    primary_ticker, "ticker", isin, "api_finnhub", CONFIDENCE_FINNHUB
+                )
                 return ResolutionResult(
                     isin=isin,
                     status="resolved",
@@ -426,6 +400,9 @@ class ISINResolver:
         for t in tickers[:2]:
             isin = self._call_yfinance(t)
             if isin:
+                self._cache_positive_result(
+                    t, "ticker", isin, "api_yfinance", CONFIDENCE_YFINANCE
+                )
                 return ResolutionResult(
                     isin=isin,
                     status="resolved",
@@ -434,8 +411,8 @@ class ISINResolver:
                     confidence=CONFIDENCE_YFINANCE,
                 )
 
-        # Cache this failure to prevent repeated calls
-        self._add_negative_cache(primary_ticker)
+        status = "rate_limited" if rate_limited else "unresolved"
+        self._add_negative_cache(primary_ticker, "ticker", status)
 
         return ResolutionResult(
             isin=None,
@@ -444,9 +421,10 @@ class ISINResolver:
             confidence=0.0,
         )
 
-    def _call_finnhub(self, ticker: str) -> Optional[str]:
+    def _call_finnhub_with_status(self, ticker: str) -> tuple[Optional[str], bool]:
+        """Call Finnhub API and return (isin, was_rate_limited)."""
         if not ticker:
-            return None
+            return None, False
 
         try:
             proxy_client = get_proxy_client()
@@ -456,8 +434,11 @@ class ISINResolver:
                 isin = response.data.get("isin")
                 if isin and is_valid_isin(isin):
                     logger.debug(f"Finnhub proxy resolved {ticker} -> {isin}")
-                    return isin
+                    return isin, False
             elif not response.success:
+                if "rate" in str(response.error).lower():
+                    logger.debug(f"Finnhub rate limit for {ticker}")
+                    return None, True
                 logger.debug(f"Finnhub proxy error for {ticker}: {response.error}")
 
             time.sleep(0.5)
@@ -479,14 +460,38 @@ class ISINResolver:
                     isin = data.get("isin")
                     if isin and is_valid_isin(isin):
                         logger.debug(f"Finnhub direct resolved {ticker} -> {isin}")
-                        return isin
+                        return isin, False
+                elif response.status_code == 429:
+                    logger.debug(f"Finnhub direct rate limit for {ticker}")
+                    return None, True
 
                 time.sleep(1.1)
 
             except Exception as e:
                 logger.debug(f"Finnhub direct API error for {ticker}: {e}")
 
-        return None
+        return None, False
+
+    def _cache_positive_result(
+        self,
+        alias: str,
+        alias_type: str,
+        isin: str,
+        source: str,
+        confidence: float,
+    ) -> None:
+        """Cache a successful resolution (never expires)."""
+        if not self._local_cache:
+            return
+        self._local_cache.set_isin_cache(
+            alias=alias,
+            alias_type=alias_type,
+            isin=isin,
+            resolution_status="resolved",
+            confidence=confidence,
+            source=source,
+            ttl_hours=None,
+        )
 
     def _escape_sparql_string(self, s: str) -> str:
         """Escape special characters for SPARQL string literals."""

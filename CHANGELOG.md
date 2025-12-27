@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Identity Resolution Phase 3 - Persistent Negative Cache:**
+  - Added `isin_cache` table to LocalCache SQLite schema for persistent resolution caching.
+  - Added LocalCache methods: `get_isin_cache()`, `set_isin_cache()`, `is_negative_cached()`, `cleanup_expired_cache()`.
+  - Replaced in-memory negative cache with SQLite-backed cache (survives app restarts).
+  - Added TTL constants per spec: 24 hours for unresolved, 1 hour for rate-limited entries.
+  - Added `_call_finnhub_with_status()` to track rate limit responses.
+  - Added `_cache_positive_result()` to cache successful API resolutions.
+  - Removed legacy `enrichment_cache.json` loading (CACHE_PATH, `_load_cache()`, `self.cache`).
+  - Added 20 unit tests in `test_resolution_phase3.py` covering cache schema, positive/negative caching, expiration, and legacy removal.
+
 - **Identity Resolution Phase 2 - API Cascade Reorder & Confidence Scoring:**
   - Added `confidence` field to `ResolutionResult` dataclass (0.0-1.0 scale).
   - Added confidence constants: `CONFIDENCE_PROVIDER` (1.0), `CONFIDENCE_LOCAL_CACHE` (0.95), `CONFIDENCE_HIVE` (0.90), `CONFIDENCE_MANUAL` (0.85), `CONFIDENCE_WIKIDATA` (0.80), `CONFIDENCE_FINNHUB` (0.75), `CONFIDENCE_YFINANCE` (0.70).
