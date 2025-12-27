@@ -321,6 +321,7 @@ class Decomposer:
                 name=name,
                 provider_isin=existing_isin if isinstance(existing_isin, str) else None,
                 weight=weight,
+                etf_isin=etf_isin,
             )
 
             holdings.at[idx, "isin"] = result.isin

@@ -135,6 +135,7 @@ class ISINResolver:
         name: str,
         provider_isin: Optional[str] = None,
         weight: float = 0.0,
+        etf_isin: Optional[str] = None,
     ) -> ResolutionResult:
         self.stats["total"] += 1
 
@@ -213,6 +214,7 @@ class ISINResolver:
             name_clean,
             ticker_variants=ticker_variants,
             name_variants=name_variants,
+            etf_isin=etf_isin,
         )
         self._record_resolution(ticker_clean, name_clean, result)
 
@@ -342,6 +344,7 @@ class ISINResolver:
         name: str,
         ticker_variants: Optional[List[str]] = None,
         name_variants: Optional[List[str]] = None,
+        etf_isin: Optional[str] = None,
     ) -> ResolutionResult:
         """
         Resolve via external APIs in priority order.
@@ -384,6 +387,18 @@ class ISINResolver:
             isin, was_rate_limited = self._call_finnhub_with_status(primary_ticker)
             if was_rate_limited:
                 rate_limited = True
+
+            # Log format attempt for observability
+            if self._local_cache:
+                self._local_cache.log_format_attempt(
+                    ticker_input=ticker,
+                    ticker_tried=primary_ticker,
+                    format_type=self._ticker_parser.detect_format(primary_ticker),
+                    api_source="api_finnhub",
+                    success=bool(isin),
+                    etf_isin=etf_isin,
+                )
+
             if isin:
                 self._cache_positive_result(
                     primary_ticker, "ticker", isin, "api_finnhub", CONFIDENCE_FINNHUB
@@ -399,6 +414,17 @@ class ISINResolver:
         # 3. yFinance - top 2 variants only (unreliable)
         for t in tickers[:2]:
             isin = self._call_yfinance(t)
+
+            if self._local_cache:
+                self._local_cache.log_format_attempt(
+                    ticker_input=ticker,
+                    ticker_tried=t,
+                    format_type=self._ticker_parser.detect_format(t),
+                    api_source="api_yfinance",
+                    success=bool(isin),
+                    etf_isin=etf_isin,
+                )
+
             if isin:
                 self._cache_positive_result(
                     t, "ticker", isin, "api_yfinance", CONFIDENCE_YFINANCE

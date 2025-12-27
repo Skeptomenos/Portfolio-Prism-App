@@ -273,6 +273,32 @@ class TickerParser:
         # Local format: just the ticker
         return (ticker, None)
 
+    def detect_format(self, ticker: str) -> str:
+        """
+        Detect the format type of a ticker for logging/analysis.
+
+        Returns:
+            Format type: "bloomberg", "reuters", "yahoo_dash", "numeric", or "plain"
+        """
+        if not ticker:
+            return "plain"
+
+        ticker = ticker.strip()
+
+        if self._bloomberg_pattern.match(ticker):
+            return "bloomberg"
+
+        if self._reuters_pattern.match(ticker):
+            return "reuters"
+
+        if self._yahoo_dash_pattern.match(ticker):
+            return "yahoo_dash"
+
+        if ticker.isdigit():
+            return "numeric"
+
+        return "plain"
+
     def generate_variants(self, ticker: str) -> List[str]:
         """
         Generate search variants for cascade lookup.

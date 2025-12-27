@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Identity Resolution Phase 5 - Format Logging (Observability):**
+  - Added `detect_format()` to `TickerParser` to classify tickers (bloomberg, reuters, yahoo_dash, numeric, plain).
+  - Added `format_logs` table to LocalCache for tracking resolution attempts by format and API source.
+  - Integrated logging into `_resolve_via_api()` to capture success/failure rates for Finnhub and yFinance.
+  - Added 14 unit tests in `test_resolution_phase5.py` covering format detection and logging infrastructure.
+
 - **Identity Resolution Phase 4 - Per-Holding Provenance:**
   - Added `resolution_source` and `resolution_confidence` columns to holdings DataFrames.
   - Decomposer stores provenance for all resolution outcomes: existing ISINs (provider/1.0), resolved (source/confidence from result), skipped (None/0.0), unresolved (None/0.0).

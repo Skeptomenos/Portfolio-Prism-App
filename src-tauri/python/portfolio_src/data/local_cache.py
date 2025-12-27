@@ -147,6 +147,25 @@ class LocalCache:
                 ON isin_cache (expires_at);
             CREATE INDEX IF NOT EXISTS idx_isin_cache_status
                 ON isin_cache (resolution_status);
+
+            -- Format logs table (observability for ticker format patterns)
+            CREATE TABLE IF NOT EXISTS format_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ticker_input TEXT NOT NULL,
+                ticker_tried TEXT NOT NULL,
+                format_type TEXT NOT NULL,
+                api_source TEXT NOT NULL,
+                success INTEGER NOT NULL,
+                etf_isin TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_format_logs_api
+                ON format_logs (api_source);
+            CREATE INDEX IF NOT EXISTS idx_format_logs_format
+                ON format_logs (format_type);
+            CREATE INDEX IF NOT EXISTS idx_format_logs_created
+                ON format_logs (created_at);
         """
         )
 
@@ -738,6 +757,89 @@ class LocalCache:
             (alias, alias_type),
         )
         conn.commit()
+
+    # =========================================================================
+    # FORMAT LOGGING OPERATIONS (Observability)
+    # =========================================================================
+
+    def log_format_attempt(
+        self,
+        ticker_input: str,
+        ticker_tried: str,
+        format_type: str,
+        api_source: str,
+        success: bool,
+        etf_isin: Optional[str] = None,
+    ) -> None:
+        """Log a format resolution attempt for analysis."""
+        conn = self._get_connection()
+        try:
+            conn.execute(
+                """
+                INSERT INTO format_logs (
+                    ticker_input, ticker_tried, format_type, api_source, success, etf_isin
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    ticker_input,
+                    ticker_tried,
+                    format_type,
+                    api_source,
+                    1 if success else 0,
+                    etf_isin,
+                ),
+            )
+            conn.commit()
+        except Exception as e:
+            logger.debug(f"Failed to log format attempt: {e}")
+
+    def get_format_stats(self) -> Dict[str, Any]:
+        """Get summary statistics for format attempts."""
+        conn = self._get_connection()
+
+        cursor = conn.execute(
+            """
+            SELECT api_source, format_type,
+                   SUM(success) as successes,
+                   COUNT(*) as total
+            FROM format_logs
+            GROUP BY api_source, format_type
+            ORDER BY api_source, total DESC
+            """
+        )
+
+        stats: Dict[str, Any] = {"by_api_format": []}
+        for row in cursor.fetchall():
+            total = row["total"]
+            rate = row["successes"] / total if total > 0 else 0
+            stats["by_api_format"].append(
+                {
+                    "api": row["api_source"],
+                    "format": row["format_type"],
+                    "successes": row["successes"],
+                    "total": total,
+                    "rate": round(rate, 3),
+                }
+            )
+
+        return stats
+
+    def cleanup_old_format_logs(self, days: int = 30) -> int:
+        """Remove format logs older than N days. Returns count deleted."""
+        conn = self._get_connection()
+        cursor = conn.execute(
+            """
+            DELETE FROM format_logs
+            WHERE created_at < datetime('now', ?)
+            """,
+            (f"-{days} days",),
+        )
+        conn.commit()
+        deleted = cursor.rowcount
+        if deleted > 0:
+            logger.debug(f"Cleaned up {deleted} old format log entries")
+        return deleted
 
     def close(self) -> None:
         """Close the database connection for the current thread."""
