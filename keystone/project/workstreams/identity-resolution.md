@@ -127,29 +127,25 @@ Improve ISIN resolution accuracy and efficiency through name/ticker normalizatio
 ### Phase 4: Per-Holding Provenance
 > **Plan:** [`keystone/plans/identity_resolution_provenance_implementation.md`](../../plans/identity_resolution_provenance_implementation.md)
 
-- [ ] **IR-401:** Add resolution_source and resolution_confidence columns to DataFrame
-    - **Status:** Open
-    - **Details:** Initialize columns in Decomposer and Enrichment
+- [x] **IR-401:** Add resolution_source and resolution_confidence columns to DataFrame
+    - **Status:** Done
+    - **Commit:** `5c4ea19`
 
-- [ ] **IR-402:** Update Decomposer._resolve_holdings_isins() to store provenance
-    - **Status:** Open
-    - **Details:** Store result.source and result.confidence for each holding
+- [x] **IR-402:** Update Decomposer._resolve_holdings_isins() to store provenance
+    - **Status:** Done
+    - **Commit:** `5c4ea19`
 
-- [ ] **IR-403:** Update enrich_etf_holdings() to store provenance
-    - **Status:** Open
-    - **Details:** Store result.source and result.confidence for each holding
+- [x] **IR-403:** Update enrich_etf_holdings() to store provenance
+    - **Status:** Done
+    - **Commit:** `5c4ea19`
 
-- [ ] **IR-404:** Verify aggregation preserves provenance columns
-    - **Status:** Open
-    - **Details:** Ensure highest confidence is preserved when combining holdings
+- [x] **IR-404:** Update aggregation to preserve provenance columns
+    - **Status:** Done
+    - **Commit:** `5c4ea19`
 
-- [ ] **IR-405:** Add unit tests for provenance storage
-    - **Status:** Open
-    - **Details:** Test provenance for resolved, unresolved, skipped holdings
-
-- [ ] **IR-406:** Surface provenance in UI (optional)
-    - **Status:** Backlog
-    - **Details:** Add confidence badges, filter by resolution quality
+- [x] **IR-405:** Add unit tests for provenance storage (18 tests)
+    - **Status:** Done
+    - **Commit:** `5c4ea19`
 
 ### Phase 5: Format Learning
 
@@ -161,6 +157,24 @@ Improve ISIN resolution accuracy and efficiency through name/ticker normalizatio
 
 - [ ] **IR-503:** Use historical success rates to prioritize variants
     - **Status:** Backlog
+
+### Phase 6: UI Integration
+
+- [ ] **IR-601:** Add confidence badge component to holdings table
+    - **Status:** Backlog
+    - **Details:** Visual indicator (green/yellow/red) based on resolution_confidence
+
+- [ ] **IR-602:** Add resolution source tooltip on hover
+    - **Status:** Backlog
+    - **Details:** Show source (provider, api_finnhub, hive_ticker, etc.) on hover
+
+- [ ] **IR-603:** Add filter by resolution quality
+    - **Status:** Backlog
+    - **Details:** Filter holdings by confidence threshold or resolution status
+
+- [ ] **IR-604:** Add resolution summary stats to dashboard
+    - **Status:** Backlog
+    - **Details:** Show % resolved, % unresolved, breakdown by source
 
 ---
 
@@ -174,6 +188,7 @@ Improve ISIN resolution accuracy and efficiency through name/ticker normalizatio
 | `src-tauri/python/tests/test_normalizer.py` | 80 normalizer tests |
 | `src-tauri/python/tests/test_resolution_phase2.py` | 15 Phase 2 tests |
 | `src-tauri/python/tests/test_resolution_phase3.py` | 20 Phase 3 tests |
+| `src-tauri/python/tests/test_resolution_phase4.py` | 18 Phase 4 tests |
 | `src-tauri/python/tests/test_isin_resolver_hive.py` | 13 Hive resolver tests |
 | `keystone/plans/identity_resolution_persistent_cache_implementation.md` | Phase 3 implementation plan |
 | `keystone/plans/identity_resolution_provenance_implementation.md` | Phase 4 implementation plan |
@@ -183,9 +198,10 @@ Improve ISIN resolution accuracy and efficiency through name/ticker normalizatio
 
 ## Active State
 
-> **Current Focus:** Phase 4 - Per-Holding Provenance (optional)
+> **Current Focus:** Phase 5 - Format Learning (backlog) or Phase 6 - UI Integration (backlog)
 
 ### Iteration Log
+- **2025-12-27:** Completed Phase 4 - Per-holding provenance (resolution_source, resolution_confidence), 18 new tests
 - **2025-12-27:** Completed Phase 3 - Persistent negative cache with SQLite, removed legacy JSON cache, 20 new tests
 - **2025-12-27:** Completed Phase 2 - API cascade reorder, confidence scoring, batched Wikidata, negative cache, tiered variants, SPARQL injection fix
 - **2025-12-27:** Completed Phase 1 - NameNormalizer + TickerParser with 80 tests
@@ -195,13 +211,14 @@ Improve ISIN resolution accuracy and efficiency through name/ticker normalizatio
 - Normalizer: 80 tests passing
 - Phase 2: 15 tests passing
 - Phase 3: 20 tests passing
+- Phase 4: 18 tests passing
 - Hive resolver: 13 tests passing
-- **Total: 128+ tests**
+- **Total: 146+ tests**
 
 ---
 
 ## Context for Resume
 
-- **Next Action:** Phase 4 (IR-401) - Store resolution source/confidence per holding in DataFrame
-- **State:** Phases 0-3 complete. 128+ tests passing. Persistent negative cache active.
+- **Next Action:** Phase 5 (IR-501) or Phase 6 (IR-601) - both in backlog
+- **State:** Phases 0-4 complete. 146+ tests passing. Per-holding provenance active.
 - **Branch:** `fix/pipeline-tuning`
