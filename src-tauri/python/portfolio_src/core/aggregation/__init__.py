@@ -141,10 +141,14 @@ def run_aggregation(
         direct_rows["parent_isin"] = "DIRECT"
         direct_rows["parent_name"] = "Direct Portfolio"
         direct_rows["source"] = "Direct"
-        # Map market_value to 'indirect' to share the "Value" column concept
         direct_rows["indirect"] = direct_rows["market_value"]
-        # Direct holdings effectively have 100% weight of themselves, but usually weight refers to parent
-        direct_rows["weight_percentage"] = 0.0  # Not really applicable in the same way
+        direct_rows["weight_percentage"] = 0.0
+
+        direct_rows["resolution_status"] = "resolved"
+        direct_rows["resolution_source"] = "provider"
+        direct_rows["resolution_confidence"] = 1.0
+        direct_rows["resolution_detail"] = "provider"
+        direct_rows["ticker"] = direct_rows["isin"]
 
         breakdown_df = pd.concat([breakdown_df, direct_rows], ignore_index=True)
 
@@ -157,11 +161,17 @@ def run_aggregation(
                 "source",
                 "isin",
                 "name",
+                "ticker",  # Original ticker input (for UI display)
                 "asset_class",
                 "sector",
                 "geography",
                 "weight_percentage",
                 "indirect",
+                # Resolution provenance (Phase 6)
+                "resolution_status",
+                "resolution_source",
+                "resolution_confidence",
+                "resolution_detail",
             ]
             # Ensure columns exist (direct might miss some)
             for col in cols_to_keep:

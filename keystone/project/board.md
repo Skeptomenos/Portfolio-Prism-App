@@ -33,26 +33,27 @@
 ---
 
 ## Open
+- [ ] **IR-601:** Update frontend types for resolution fields `[main]`
+- [ ] **IR-602:** Create ResolutionStatusBadge component `[main]`
+- [ ] **IR-603:** Integrate badge into PortfolioTable `[main]`
+- [ ] **IR-604:** Integrate badge into HoldingsView `[main]`
+- [ ] **IR-605:** Update Streamlit debug dashboard `[main]`
 - [ ] **TASK-612:** Implement Async I/O for Adapters. `[data-engine]`
 
 ---
 
 ## Backlog
-- [ ] **IR-501:** Add format detection to TickerParser `[main]`
-- [ ] **IR-502:** Add format_logs table and logging methods `[main]`
-- [ ] **IR-503:** Integrate logging into resolution flow `[main]`
-- [ ] **IR-504:** Add unit tests for format logging `[main]`
 - [ ] **IR-510:** Add format_learnings aggregate table `[main]`
 - [ ] **IR-511:** Add variant reordering based on success rates `[main]`
 - [ ] **IR-512:** Integrate reordering into Finnhub/yFinance calls `[main]`
-- [ ] **IR-601:** Add confidence badge component to holdings table `[main]`
-- [ ] **IR-602:** Add resolution source tooltip on hover `[main]`
-- [ ] **IR-603:** Add filter by resolution quality `[main]`
-- [ ] **IR-604:** Add resolution summary stats to dashboard `[main]`
 
 ---
 
 ## Done
+- [x] **IR-501:** Add format detection to TickerParser `[main]`
+- [x] **IR-502:** Add format_logs table and logging methods `[main]`
+- [x] **IR-503:** Integrate logging into resolution flow `[main]`
+- [x] **IR-504:** Add unit tests for format logging `[main]`
 - [x] **IR-001:** Add isin_cache table to local SQLite `[main]`
 - [x] **IR-002:** Add source/confidence/currency columns to Supabase aliases table `[main]`
 - [x] **IR-003:** Update lookup_alias_rpc to return rich result `[main]`

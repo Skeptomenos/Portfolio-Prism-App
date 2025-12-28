@@ -7,6 +7,8 @@ import json
 import os
 from typing import Any
 
+import pandas as pd
+
 from portfolio_src.headless.responses import success_response, error_response
 from portfolio_src.prism_utils.logging_config import get_logger
 
@@ -80,64 +82,142 @@ def handle_upload_holdings(cmd_id: int, payload: dict[str, Any]) -> dict[str, An
 
 
 def handle_get_true_holdings(cmd_id: int, payload: dict[str, Any]) -> dict[str, Any]:
-    """Get decomposed true holdings across all ETFs.
-
-    Args:
-        cmd_id: IPC command identifier.
-        payload: Command payload (unused).
-
-    Returns:
-        Success response with holdings list, or error response.
-    """
+    """Get decomposed true holdings across all ETFs with resolution provenance."""
     from portfolio_src.config import HOLDINGS_BREAKDOWN_PATH
-    import pandas as pd
+
+    empty_response = {"holdings": [], "summary": _empty_summary()}
 
     if not os.path.exists(HOLDINGS_BREAKDOWN_PATH):
-        return success_response(cmd_id, {"holdings": []})
+        return success_response(cmd_id, empty_response)
 
     try:
         df = pd.read_csv(HOLDINGS_BREAKDOWN_PATH)
 
         if df.empty:
-            return success_response(cmd_id, {"holdings": []})
+            return success_response(cmd_id, empty_response)
 
-        # Group by child security
+        resolution_defaults = {
+            "resolution_status": "unknown",
+            "resolution_source": "unknown",
+            "resolution_confidence": 0.0,
+            "resolution_detail": "",
+            "ticker": "",
+        }
+        for col, default in resolution_defaults.items():
+            if col not in df.columns:
+                df[col] = default
+
         grouped = df.groupby(["child_isin", "child_name"], as_index=False).agg(
-            {"value_eur": "sum", "sector": "first", "geography": "first"}
+            {
+                "value_eur": "sum",
+                "sector": "first",
+                "geography": "first",
+                "ticker": "first",
+                "resolution_status": "first",
+                "resolution_source": "first",
+                "resolution_confidence": "max",
+                "resolution_detail": "first",
+            }
         )
 
         holdings = []
         for _, row in grouped.iterrows():
-            child_isin = str(row["child_isin"])
+            raw_isin = row["child_isin"]
+            has_valid_isin = (
+                raw_isin is not None
+                and not bool(pd.isna(raw_isin))
+                and str(raw_isin) not in ("nan", "None", "")
+            )
+            child_isin = str(raw_isin) if has_valid_isin else None
 
-            # Get sources (which ETFs contain this holding)
             sources = [
                 {
                     "etf": str(s_row["parent_isin"]),
                     "value": round(float(s_row["value_eur"]), 2),
                     "weight": round(float(s_row["weight_percent"]) / 100.0, 4),
                 }
-                for _, s_row in df[df["child_isin"] == child_isin].iterrows()
+                for _, s_row in df[df["child_isin"] == raw_isin].iterrows()
             ]
 
             holdings.append(
                 {
                     "stock": str(row["child_name"]),
-                    "ticker": child_isin,
+                    "ticker": _safe_str(row.get("ticker")) or child_isin or "",
+                    "isin": child_isin,
                     "totalValue": round(float(row["value_eur"]), 2),
-                    "sector": str(row["sector"]),
-                    "geography": str(row["geography"]),
+                    "sector": _safe_str(row.get("sector")),
+                    "geography": _safe_str(row.get("geography")),
                     "sources": sources,
+                    "resolutionStatus": _safe_str(
+                        row.get("resolution_status", "unknown")
+                    ),
+                    "resolutionSource": _safe_str(
+                        row.get("resolution_source", "unknown")
+                    ),
+                    "resolutionConfidence": float(
+                        row.get("resolution_confidence") or 0.0
+                    ),
+                    "resolutionDetail": _safe_str(row.get("resolution_detail")),
                 }
             )
 
         holdings.sort(key=lambda x: x["totalValue"], reverse=True)
 
-        logger.debug(f"Returning {len(holdings)} true holdings")
-        return success_response(cmd_id, {"holdings": holdings})
+        summary = _calculate_summary(holdings)
+
+        logger.debug(f"Returning {len(holdings)} true holdings with resolution data")
+        return success_response(cmd_id, {"holdings": holdings, "summary": summary})
     except Exception as e:
         logger.error(f"Failed to get true holdings: {e}", exc_info=True)
         return error_response(cmd_id, "HOLDINGS_ERROR", str(e))
+
+
+def _safe_str(val) -> str:
+    if val is None or pd.isna(val):
+        return ""
+    s = str(val)
+    return "" if s in ("nan", "None") else s
+
+
+def _empty_summary() -> dict:
+    return {
+        "total": 0,
+        "resolved": 0,
+        "unresolved": 0,
+        "skipped": 0,
+        "unknown": 0,
+        "bySource": {},
+        "healthScore": 1.0,
+    }
+
+
+def _calculate_summary(holdings: list) -> dict:
+    total = len(holdings)
+    if total == 0:
+        return _empty_summary()
+
+    resolved = sum(1 for h in holdings if h.get("resolutionStatus") == "resolved")
+    unresolved = sum(1 for h in holdings if h.get("resolutionStatus") == "unresolved")
+    skipped = sum(1 for h in holdings if h.get("resolutionStatus") == "skipped")
+    unknown = sum(1 for h in holdings if h.get("resolutionStatus") == "unknown")
+
+    by_source: dict[str, int] = {}
+    for h in holdings:
+        source = h.get("resolutionSource") or "unknown"
+        by_source[source] = by_source.get(source, 0) + 1
+
+    denominator = resolved + unresolved
+    health_score = resolved / denominator if denominator > 0 else 1.0
+
+    return {
+        "total": total,
+        "resolved": resolved,
+        "unresolved": unresolved,
+        "skipped": skipped,
+        "unknown": unknown,
+        "bySource": by_source,
+        "healthScore": round(health_score, 3),
+    }
 
 
 def handle_get_overlap_analysis(cmd_id: int, payload: dict[str, Any]) -> dict[str, Any]:
