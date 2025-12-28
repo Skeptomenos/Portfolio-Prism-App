@@ -1,17 +1,26 @@
 import { useQuery } from '@tanstack/react-query';
-import { TrendingUp, TrendingDown, Sparkles, RefreshCw } from 'lucide-react';
+import { TrendingUp, TrendingDown, Sparkles, RefreshCw, Layers } from 'lucide-react';
 import GlassCard from '../GlassCard';
 import MetricCard from '../MetricCard';
 import PortfolioChart from '../PortfolioChart';
-import { getDashboardData } from '../../lib/ipc';
+import { getDashboardData, getTrueHoldings } from '../../lib/ipc';
 
 export default function Dashboard() {
     const { data, isLoading, isError, refetch } = useQuery({
         queryKey: ['dashboardData', 1],
         queryFn: () => getDashboardData(1),
-        staleTime: 30000, // 30 seconds
+        staleTime: 30000,
         refetchOnWindowFocus: false,
     });
+
+    const { data: trueHoldingsData } = useQuery({
+        queryKey: ['trueHoldings'],
+        queryFn: getTrueHoldings,
+        staleTime: 60000,
+        refetchOnWindowFocus: false,
+    });
+
+    const topTrueExposure = trueHoldingsData?.holdings?.slice(0, 5) || [];
 
     // Use real data or fallback
     const dashboardData = data;
@@ -235,6 +244,76 @@ export default function Dashboard() {
                     </p>
                 )}
             </GlassCard>
+
+            {/* True Exposure - Shows combined direct + indirect exposure */}
+            {topTrueExposure.length > 0 && (
+                <GlassCard style={{ padding: '24px', marginTop: '24px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                        <Layers size={20} style={{ color: 'var(--accent-purple)' }} />
+                        <h3 style={{ fontSize: '18px', fontWeight: '600' }}>
+                            True Exposure
+                        </h3>
+                    </div>
+                    <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '20px' }}>
+                        Your actual exposure including ETF holdings
+                    </p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        {topTrueExposure.map((holding, index) => {
+                            const hasMultipleSources = holding.sources.length > 1;
+                            const hasDirect = holding.sources.some(s => s.etf === 'DIRECT');
+                            
+                            return (
+                                <div
+                                    key={holding.isin || holding.stock}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        padding: '12px 16px',
+                                        background: 'rgba(139, 92, 246, 0.05)',
+                                        borderRadius: '10px',
+                                        border: '1px solid rgba(139, 92, 246, 0.1)',
+                                    }}
+                                >
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                        <div
+                                            style={{
+                                                width: '32px',
+                                                height: '32px',
+                                                borderRadius: '6px',
+                                                background: 'linear-gradient(135deg, var(--accent-purple) 0%, var(--accent-pink) 100%)',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                fontSize: '14px',
+                                                fontWeight: '700',
+                                            }}
+                                        >
+                                            {index + 1}
+                                        </div>
+                                        <div>
+                                            <div style={{ fontSize: '14px', fontWeight: '600' }}>{holding.stock}</div>
+                                            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
+                                                {hasDirect && hasMultipleSources 
+                                                    ? `Direct + ${holding.sources.length - 1} ETF${holding.sources.length > 2 ? 's' : ''}`
+                                                    : hasDirect 
+                                                        ? 'Direct only'
+                                                        : `${holding.sources.length} ETF${holding.sources.length > 1 ? 's' : ''}`
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div style={{ textAlign: 'right' }}>
+                                        <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)' }}>
+                                            €{holding.totalValue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </GlassCard>
+            )}
         </div>
     );
 }

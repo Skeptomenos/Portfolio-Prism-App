@@ -32,36 +32,42 @@ const levelConfig: Record<ConfidenceLevel, {
   color: string;
   bgColor: string;
   label: string;
+  explanation: string;
 }> = {
   verified: {
     icon: ShieldCheck,
     color: 'var(--accent-emerald, #10b981)',
     bgColor: 'rgba(16, 185, 129, 0.15)',
     label: 'Verified',
+    explanation: 'Confirmed by your broker or manual entry',
   },
   high: {
     icon: CheckCircle,
     color: 'var(--accent-blue, #3b82f6)',
     bgColor: 'rgba(59, 130, 246, 0.15)',
     label: 'High',
+    explanation: 'Strong match from community data (80%+)',
   },
   medium: {
     icon: Circle,
     color: 'var(--accent-amber, #f59e0b)',
     bgColor: 'rgba(245, 158, 11, 0.15)',
     label: 'Medium',
+    explanation: 'Probable match, may need verification (50-79%)',
   },
   unresolved: {
     icon: AlertCircle,
     color: 'var(--accent-red, #ef4444)',
     bgColor: 'rgba(239, 68, 68, 0.15)',
     label: 'Unresolved',
+    explanation: 'Could not match to a known security',
   },
   skipped: {
     icon: MinusCircle,
     color: 'var(--text-tertiary, #64748b)',
     bgColor: 'rgba(100, 116, 139, 0.15)',
     label: 'Skipped',
+    explanation: 'Intentionally excluded (cash, derivatives)',
   },
 };
 
@@ -117,6 +123,8 @@ export default function ResolutionStatusBadge({
           <Icon size={16} style={{ color: config.color }} aria-hidden="true" />
           <span style={{ color: config.color, fontWeight: 600 }}>{config.label}</span>
         </div>
+        
+        <div className="tooltip-explanation">{config.explanation}</div>
 
         <div className="tooltip-divider" />
 

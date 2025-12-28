@@ -35,6 +35,7 @@ function isHoldingSelected(selected: XRayHolding | null, holding: XRayHolding): 
 }
 
 function getEtfDisplayName(isin: string, nameMap: EtfNameMap): string {
+  if (isin === 'DIRECT') return 'Direct Holding';
   const name = nameMap[isin];
   return (name && name !== 'Unknown') ? name : isin;
 }
@@ -440,7 +441,7 @@ export default function HoldingsView() {
               <div style={{ 
                 fontSize: '10px', 
                 color: 'var(--text-tertiary)', 
-                marginBottom: '8px',
+                marginBottom: '4px',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '4px'
@@ -448,9 +449,18 @@ export default function HoldingsView() {
                 <TrendingUp size={12} aria-hidden="true" />
                 Exposure Distribution
               </div>
+              <div style={{ 
+                fontSize: '9px', 
+                color: 'var(--text-tertiary)', 
+                marginBottom: '10px',
+                opacity: 0.8
+              }}>
+                How your exposure is split (direct holdings + ETFs)
+              </div>
               {selectedStock.sources.map((source, index) => {
                 const percentage = (source.value / selectedStock.totalValue) * 100;
                 const etfName = getEtfDisplayName(source.etf, etfNameMap);
+                const isDirect = source.etf === 'DIRECT';
                 
                 return (
                   <div key={`flow-${source.etf}-${index}`} style={{ marginBottom: '6px' }}>
@@ -461,7 +471,7 @@ export default function HoldingsView() {
                       marginBottom: '3px'
                     }}>
                       <span style={{ 
-                        color: 'var(--accent-blue)', 
+                        color: isDirect ? 'var(--accent-emerald)' : 'var(--accent-blue)', 
                         fontWeight: '500',
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
@@ -484,7 +494,9 @@ export default function HoldingsView() {
                         style={{
                           height: '100%',
                           width: `${percentage}%`,
-                          background: 'linear-gradient(90deg, var(--accent-blue) 0%, var(--accent-cyan) 100%)',
+                          background: isDirect 
+                            ? 'linear-gradient(90deg, var(--accent-emerald) 0%, var(--accent-teal) 100%)'
+                            : 'linear-gradient(90deg, var(--accent-blue) 0%, var(--accent-cyan) 100%)',
                           borderRadius: '2px',
                         }}
                       />

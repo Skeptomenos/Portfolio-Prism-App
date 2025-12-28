@@ -91,7 +91,14 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 10px;
+  margin-bottom: 4px;
+}
+
+.tooltip-explanation {
+  font-size: 11px;
+  color: var(--text-secondary, #94a3b8);
+  line-height: 1.4;
+  margin-bottom: 8px;
 }
 
 .tooltip-divider {

@@ -41,6 +41,7 @@ from portfolio_src.core.utils import (
     get_weight_column,
     get_isin_column,
     get_name_column,
+    get_value_column,
     write_json_atomic,
 )
 from portfolio_src.headless.transports.echo_bridge import (
@@ -448,8 +449,9 @@ class Pipeline:
 
                 report_holdings = locals().get("enriched_holdings") or holdings_map
 
-                if not etf_positions.empty:
-                    self._write_breakdown_report(etf_positions, report_holdings)
+                self._write_breakdown_report(
+                    direct_positions, etf_positions, report_holdings
+                )
 
                 self._write_errors(errors)
 
@@ -602,10 +604,75 @@ class Pipeline:
             return "Unknown ETF"
         return str(match.iloc[0].get(name_col, "Unknown ETF"))
 
-    def _write_breakdown_report(self, etf_positions, holdings_map):
-        """Write detailed holdings breakdown for UI exploration."""
+    def _write_breakdown_report(self, direct_positions, etf_positions, holdings_map):
+        """Write detailed holdings breakdown for UI exploration.
+
+        Includes both direct stock holdings and indirect ETF holdings.
+        """
         rows = []
 
+        # Step 1: Add direct stock holdings with parent_isin = "DIRECT"
+        if not direct_positions.empty:
+            isin_col = get_isin_column(direct_positions)
+            name_col = get_name_column(direct_positions)
+            value_col = get_value_column(direct_positions)
+
+            for _, row in direct_positions.iterrows():
+                try:
+                    isin = str(row.get(isin_col, "UNKNOWN")) if isin_col else "UNKNOWN"
+                    name = str(row.get(name_col, "Unknown")) if name_col else "Unknown"
+
+                    # Calculate value
+                    if value_col and value_col in direct_positions.columns:
+                        val = row.get(value_col, 0.0)
+                        value = float(val) if pd.notnull(val) else 0.0
+                    elif (
+                        "quantity" in direct_positions.columns
+                        and "current_price" in direct_positions.columns
+                    ):
+                        qty = (
+                            float(row.get("quantity", 0))
+                            if pd.notnull(row.get("quantity"))
+                            else 0.0
+                        )
+                        price = (
+                            float(row.get("current_price", 0))
+                            if pd.notnull(row.get("current_price"))
+                            else 0.0
+                        )
+                        value = qty * price
+                    else:
+                        value = 0.0
+
+                    rows.append(
+                        {
+                            "parent_isin": "DIRECT",
+                            "parent_name": "Direct Holdings",
+                            "child_isin": isin,
+                            "child_name": name,
+                            "weight_percent": 100.0,
+                            "value_eur": value,
+                            "sector": str(row.get("sector", "Unknown")),
+                            "geography": str(row.get("geography", "Unknown")),
+                            "resolution_status": str(
+                                row.get("resolution_status", "resolved")
+                            ),
+                            "resolution_source": str(
+                                row.get("resolution_source", "provider")
+                            ),
+                            "resolution_confidence": float(
+                                row.get("resolution_confidence", 1.0) or 1.0
+                            ),
+                            "resolution_detail": str(row.get("resolution_detail", "")),
+                            "ticker": str(row.get("ticker", row.get("Ticker", ""))),
+                        }
+                    )
+                except Exception:
+                    continue
+
+            logger.info(f"Added {len(rows)} direct holdings to breakdown report")
+
+        # Step 2: Add indirect holdings from ETFs
         # We need ETF values to calculate proportional value of holdings
         # Map ISIN -> Market Value
         etf_values = {}

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **GitHub Issues #28-#33 Resolution:**
+  - #28: Created `batch_contribute_assets` RPC in Supabase to fix duplicate Hive contributions
+  - #29: Added "Exposure Distribution" explanation subtitle in HoldingsView
+  - #30: Added "Confidence Score" explanation to ResolutionStatusBadge tooltip
+  - #31: Added direct holdings to `holdings_breakdown.csv` for true exposure calculation
+  - #32: Added True Exposure widget to Dashboard showing combined direct + indirect holdings
+  - #33: Implemented ActionQueue Ignore button with localStorage persistence, Fix button shows "Coming Soon"
+
 ### Changed
 
 - **Operation Silent Night - Print Cleanup:**
