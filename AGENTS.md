@@ -4,7 +4,7 @@
 
 ## Overview
 
-Privacy-first, high-performance desktop portfolio analyzer using the Tauri + Python Sidecar pattern. Wraps an existing Python/Streamlit analytics engine in a native macOS container. "Battery Included, Browser Free" — no bundled Chromium.
+Privacy-first, high-performance desktop portfolio analyzer using the Tauri + Python Sidecar pattern. Native macOS container with React UI and headless Python analytics engine. "Battery Included, Browser Free" — no bundled Chromium.
 
 ## Tech Stack
 
