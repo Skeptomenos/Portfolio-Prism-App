@@ -1,9 +1,10 @@
-import json
 import os
 import pandas as pd
 from datetime import datetime
 from collections import defaultdict
 import logging
+
+from portfolio_src.core.utils import write_json_atomic
 
 logger = logging.getLogger(__name__)
 
@@ -184,8 +185,7 @@ class PipelineHealth:
             "etf_stats": self.etf_stats,
             "timestamp": datetime.now().isoformat(),
         }
-        with open(json_path, "w") as f:
-            json.dump(state, f, indent=2)
+        write_json_atomic(json_path, state)
 
 
 # Global Instance

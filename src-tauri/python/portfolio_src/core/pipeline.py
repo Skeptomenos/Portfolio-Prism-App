@@ -41,6 +41,7 @@ from portfolio_src.core.utils import (
     get_weight_column,
     get_isin_column,
     get_name_column,
+    write_json_atomic,
 )
 from portfolio_src.headless.transports.echo_bridge import (
     broadcast_summary,
@@ -586,10 +587,7 @@ class Pipeline:
             ],
         }
 
-        PIPELINE_HEALTH_PATH.parent.mkdir(parents=True, exist_ok=True)
-        with open(PIPELINE_HEALTH_PATH, "w") as f:
-            json.dump(health_data, f, indent=2)
-
+        write_json_atomic(PIPELINE_HEALTH_PATH, health_data)
         logger.info(f"Wrote pipeline health report to {PIPELINE_HEALTH_PATH}")
 
     def _get_etf_name(self, etf_positions: pd.DataFrame, isin: str) -> str:

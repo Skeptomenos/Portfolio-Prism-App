@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Atomic JSON Write Fix:**
+  - Added `write_json_atomic()` utility function using temp file + rename pattern.
+  - Updated `pipeline.py` to use atomic write for `pipeline_health.json`.
+  - Updated `health.py` to use atomic write for JSON state.
+  - Prevents file corruption if process is interrupted mid-write.
+  - Fixes issues #12, #13 (truncated JSON causing cascading failures).
+
 - **HealthView Null Safety Fix:**
   - Added `SystemLogReport` type for telemetry data with proper nullable fields.
   - Fixed crash when `report.category` is null (now displays "UNKNOWN").

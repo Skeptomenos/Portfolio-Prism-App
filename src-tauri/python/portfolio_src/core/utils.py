@@ -281,3 +281,32 @@ def calculate_portfolio_total_value(
             etf_value = float((prices * qtys).sum())
 
     return float(direct_value + etf_value)
+
+
+def write_json_atomic(path, data: dict) -> None:
+    """
+    Write JSON file atomically using temp file + rename.
+
+    This prevents file corruption if the process is interrupted mid-write.
+    The original file remains untouched until the new data is fully written.
+    """
+    import tempfile
+    import os
+    import json
+    from pathlib import Path
+
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    fd, temp_path = tempfile.mkstemp(dir=path.parent, suffix=".json.tmp")
+    try:
+        with os.fdopen(fd, "w") as f:
+            json.dump(data, f, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+
+        os.replace(temp_path, path)
+    except Exception:
+        if os.path.exists(temp_path):
+            os.unlink(temp_path)
+        raise
