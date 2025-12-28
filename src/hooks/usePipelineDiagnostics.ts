@@ -16,8 +16,9 @@ export interface ETFResolutionDetail {
   isin: string;
   name: string;
   holdings_count: number;
+  weight_sum?: number;
   status: 'success' | 'partial' | 'failed';
-  source?: string; // e.g., 'amundi_adapter', 'hive', 'cached'
+  source?: string;
 }
 
 export interface DecompositionSummary {
@@ -69,14 +70,7 @@ export interface PipelineHealthReport {
     tier1_failed: number;
   };
   performance: PerformanceMetrics;
-  etf_stats: Array<{
-    ticker: string;
-    holdings_count: number;
-    weight_sum: number;
-    status: string;
-  }>;
   failures: PipelineFailure[];
-  // New fields added by backend upgrade
   decomposition?: DecompositionSummary;
   enrichment?: EnrichmentInfo;
 }

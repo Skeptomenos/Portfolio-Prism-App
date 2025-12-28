@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **ResolutionTable Type Cleanup:**
+  - Added `weight_sum` to `ETFResolutionDetail` type (matches backend output).
+  - Removed dead `etf_stats` legacy field from `PipelineHealthReport`.
+  - Removed legacy fallback and `as any` casts in ResolutionTable.tsx.
+  - Fixed 5 TypeScript errors that were blocking the build.
+
 - **Identity Resolution Phase 6C - UI Integration:**
   - Integrated ResolutionHealthCard, NeedsAttentionSection, and FilterBar into HoldingsView.
   - Added ResolutionStatusBadge to holdings list items and decomposition panel.

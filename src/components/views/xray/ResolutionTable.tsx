@@ -59,8 +59,7 @@ function SourceBadge({ source }: { source?: string }) {
 // =============================================================================
 
 export default function ResolutionTable({ report }: ResolutionTableProps) {
-  // Use decomposition.per_etf from the upgraded backend, fallback to legacy etf_stats
-  const etfRows = report?.decomposition?.per_etf || report?.etf_stats || [];
+  const etfRows = report?.decomposition?.per_etf || [];
 
   if (etfRows.length === 0) {
     return (
@@ -84,12 +83,12 @@ export default function ResolutionTable({ report }: ResolutionTableProps) {
         </thead>
         <tbody>
           {etfRows.map((etf, idx) => (
-            <tr key={etf.isin || (etf as any).ticker || idx}>
+            <tr key={etf.isin || idx}>
               <td className="etf-name-cell">
                 <div className="etf-name" style={{ fontSize: '14px', fontWeight: 500 }}>
-                  {etf.name || (etf as any).ticker || 'Unknown'}
+                  {etf.name || 'Unknown'}
                 </div>
-                {etf.isin && <div className="etf-ticker" style={{ fontSize: '11px', opacity: 0.7 }}>{etf.isin}</div>}
+                <div className="etf-ticker" style={{ fontSize: '11px', opacity: 0.7 }}>{etf.isin}</div>
               </td>
               <td>
                 <StatusBadge status={etf.status} />
@@ -98,7 +97,7 @@ export default function ResolutionTable({ report }: ResolutionTableProps) {
                 <SourceBadge source={etf.source} />
               </td>
               <td className="numeric-cell">{etf.holdings_count.toLocaleString()}</td>
-              <td className="numeric-cell">{(etf as any).weight_sum?.toFixed(1) || '0.0'}%</td>
+              <td className="numeric-cell">{etf.weight_sum?.toFixed(1) ?? '0.0'}%</td>
             </tr>
           ))}
         </tbody>
