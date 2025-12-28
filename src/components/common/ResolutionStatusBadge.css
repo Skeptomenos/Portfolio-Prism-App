@@ -1,0 +1,108 @@
+.resolution-badge-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.resolution-badge-wrapper:focus {
+  outline: 2px solid var(--accent-blue, #3b82f6);
+  outline-offset: 2px;
+  border-radius: 12px;
+}
+
+.resolution-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: default;
+  transition: transform 0.15s ease;
+}
+
+.resolution-badge.compact {
+  padding: 4px 6px;
+}
+
+.resolution-badge:hover {
+  transform: scale(1.05);
+}
+
+.resolution-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) scale(0.95);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 1000;
+
+  min-width: 200px;
+  padding: 14px;
+  background: rgba(15, 20, 32, 0.98);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.resolution-badge-wrapper:hover .resolution-tooltip,
+.resolution-badge-wrapper:focus .resolution-tooltip {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
+  pointer-events: auto;
+}
+
+.resolution-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: rgba(15, 20, 32, 0.98);
+}
+
+.tooltip-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.tooltip-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 10px 0;
+}
+
+.tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.tooltip-row:last-child {
+  margin-bottom: 0;
+}
+
+.tooltip-label {
+  font-size: 12px;
+  color: var(--text-tertiary, #64748b);
+}
+
+.tooltip-value {
+  font-size: 12px;
+  color: var(--text-primary, #f1f5f9);
+  font-weight: 500;
+}
+
+.tooltip-value.mono {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  color: var(--accent-cyan, #06b6d4);
+}

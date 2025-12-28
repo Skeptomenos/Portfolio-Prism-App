@@ -319,3 +319,54 @@ export type TRErrorCode =
   | 'TR_LOGIN_ERROR'
   | 'TR_2FA_ERROR'
   | 'TR_LOGOUT_ERROR';
+
+// =============================================================================
+// X-Ray Resolution Types (Phase 6)
+// =============================================================================
+
+export type ResolutionStatus = 'resolved' | 'unresolved' | 'skipped' | 'unknown';
+
+/**
+ * Known resolution sources from the backend.
+ * Uses intersection with `string` to allow unknown sources while keeping autocomplete.
+ */
+export type ResolutionSource =
+  | 'provider'
+  | 'manual'
+  | 'hive'
+  | 'local_cache'
+  | 'api_wikidata'
+  | 'api_finnhub'
+  | 'api_yfinance'
+  | 'api_openfigi'
+  | 'unknown'
+  | (string & {}); // Allow unknown sources from backend
+
+export interface XRayHolding {
+  stock: string;
+  ticker: string;
+  isin?: string | null;
+  totalValue: number;
+  sector?: string;
+  geography?: string;
+  sources: { etf: string; value: number; weight: number }[];
+  resolutionStatus: ResolutionStatus;
+  resolutionSource?: ResolutionSource;
+  resolutionConfidence: number;
+  resolutionDetail?: string;
+}
+
+export interface ResolutionSummary {
+  total: number;
+  resolved: number;
+  unresolved: number;
+  skipped: number;
+  unknown: number;
+  bySource: Record<string, number>;
+  healthScore: number;
+}
+
+export interface TrueHoldingsResponse {
+  holdings: XRayHolding[];
+  summary: ResolutionSummary;
+}

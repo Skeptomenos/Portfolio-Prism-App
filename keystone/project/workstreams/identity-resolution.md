@@ -232,31 +232,53 @@ Improve ISIN resolution accuracy and efficiency through name/ticker normalizatio
       - Test health score excludes unknown from denominator
 
 #### Phase 6B: Frontend Components
+> **Plan:** [`keystone/plans/identity_resolution_phase6b_components.md`](../../plans/identity_resolution_phase6b_components.md)
 
 - [ ] **IR-6B1:** Define TypeScript types for resolution
     - **Status:** Open
     - **File:** `src/types/index.ts`
-    - **Details:** Add XRayHolding, ResolutionSummary, TrueHoldingsResponse types
+    - **Details:** 
+      - Add `ResolutionStatus` type: 'resolved' | 'unresolved' | 'skipped' | 'unknown'
+      - Add `ResolutionSource` type: 'provider' | 'hive' | 'api_wikidata' | etc.
+      - Add `XRayHolding` interface with resolution fields
+      - Add `ResolutionSummary` interface with health score
+      - Add `TrueHoldingsResponse` interface
 
 - [ ] **IR-6B2:** Create ResolutionStatusBadge component
     - **Status:** Open
-    - **File:** `src/components/common/ResolutionStatusBadge.tsx`
-    - **Details:** Visual indicator with rich tooltip showing source/confidence/original input
+    - **Files:** `src/components/common/ResolutionStatusBadge.tsx` + `.css`
+    - **Details:** 
+      - Visual badge with icon (ShieldCheck, CheckCircle, AlertCircle, etc.)
+      - Color-coded by confidence level (verified/high/medium/unresolved/skipped)
+      - Hover tooltip showing source, confidence %, original ticker, resolved ISIN
+      - Compact mode for list view (icon only)
 
 - [ ] **IR-6B3:** Create ResolutionHealthCard component
     - **Status:** Open
-    - **File:** `src/components/xray/ResolutionHealthCard.tsx`
-    - **Details:** Summary card with health score, stats, source breakdown bar chart
+    - **Files:** `src/components/xray/ResolutionHealthCard.tsx` + `.css`
+    - **Details:** 
+      - Health score percentage with progress bar
+      - Stats grid: total, resolved, unresolved, skipped, unknown
+      - Source breakdown with horizontal bar chart
+      - Uses existing GlassCard component
 
 - [ ] **IR-6B4:** Create NeedsAttentionSection component
     - **Status:** Open
-    - **File:** `src/components/xray/NeedsAttentionSection.tsx`
-    - **Details:** Collapsible section listing unresolved/low-confidence holdings
+    - **Files:** `src/components/xray/NeedsAttentionSection.tsx` + `.css`
+    - **Details:** 
+      - Collapsible section with warning styling
+      - Lists holdings with unresolved or low confidence
+      - Shows first 5, "Show N more" button to expand
+      - Click item to select in main list
 
 - [ ] **IR-6B5:** Create FilterBar component
     - **Status:** Open
-    - **File:** `src/components/xray/FilterBar.tsx`
-    - **Details:** Filter (all/resolved/unresolved) + Sort (value/confidence/name) + Search
+    - **Files:** `src/components/xray/FilterBar.tsx` + `.css`
+    - **Details:** 
+      - Search input with icon
+      - Filter buttons: All | Resolved | Unresolved | Low Confidence
+      - Sort dropdown: Value | Confidence | Name
+      - Results count display
 
 #### Phase 6C: Integration
 
