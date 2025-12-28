@@ -8,7 +8,7 @@ import json
 import re
 import sys
 import time
-from typing import Any
+from typing import Any, Optional
 
 from portfolio_src.headless.responses import success_response, error_response
 from portfolio_src.headless.state import get_auth_manager, get_bridge, get_executor
@@ -18,13 +18,139 @@ from portfolio_src.prism_utils.logging_config import get_logger
 logger = get_logger(__name__)
 
 
-def detect_asset_class(isin: str, name: str) -> AssetClass:
-    """Detect asset class from ISIN and name.
+# =============================================================================
+# Asset Classification
+# =============================================================================
 
-    Uses multiple heuristics:
-    1. Name patterns: "(Acc)", "(Dist)", "ETF", "UCITS", "Index"
-    2. ISIN patterns: Common ETF prefixes
-    3. Crypto patterns: Bitcoin, Ethereum ISINs
+
+def _get_cached_asset_class(isin: str) -> Optional[AssetClass]:
+    """Check local Hive cache for asset classification.
+
+    Args:
+        isin: The ISIN identifier.
+
+    Returns:
+        AssetClass if found in cache, None otherwise.
+    """
+    try:
+        from portfolio_src.data.local_cache import LocalCache
+
+        cache = LocalCache()
+        asset = cache.get_asset(isin)
+        if asset:
+            asset_class_str = asset.asset_class.lower()
+            if asset_class_str in ("equity", "stock"):
+                return AssetClass.STOCK
+            elif asset_class_str == "etf":
+                return AssetClass.ETF
+            elif asset_class_str in ("crypto", "cryptocurrency"):
+                return AssetClass.CRYPTO
+            elif asset_class_str == "bond":
+                return AssetClass.BOND
+            elif asset_class_str == "fund":
+                return AssetClass.FUND
+            return AssetClass.STOCK
+    except Exception as e:
+        logger.debug(f"Cache lookup failed for {isin}: {e}")
+    return None
+
+
+def _query_wikidata_asset_class(isin: str) -> Optional[AssetClass]:
+    """Query Wikidata for asset classification by ISIN.
+
+    Uses SPARQL to query Wikidata's P946 (ISIN) property and checks
+    P31 (instance of) to determine if it's a company (stock) or fund (ETF).
+
+    Args:
+        isin: The ISIN identifier.
+
+    Returns:
+        AssetClass if found in Wikidata, None otherwise.
+    """
+    import urllib.request
+    import urllib.parse
+
+    ETF_ENTITY_TYPES = {
+        "Q215380",  # exchange-traded fund
+        "Q178790",  # mutual fund
+        "Q180490",  # investment fund
+    }
+
+    query = f"""
+    SELECT ?type WHERE {{
+      ?item wdt:P946 "{isin}" .
+      ?item wdt:P31 ?type .
+    }} LIMIT 10
+    """
+
+    url = "https://query.wikidata.org/sparql"
+    params = urllib.parse.urlencode({"query": query, "format": "json"})
+    full_url = f"{url}?{params}"
+
+    try:
+        req = urllib.request.Request(
+            full_url,
+            headers={"User-Agent": "PortfolioPrism/1.0 (asset-classification)"},
+        )
+        with urllib.request.urlopen(req, timeout=5) as response:
+            data = json.loads(response.read().decode("utf-8"))
+
+        bindings = data.get("results", {}).get("bindings", [])
+        if not bindings:
+            logger.debug(f"Wikidata: No results for ISIN {isin}")
+            return None
+
+        for binding in bindings:
+            type_uri = binding.get("type", {}).get("value", "")
+            if "/entity/" in type_uri:
+                q_id = type_uri.split("/entity/")[-1]
+                if q_id in STOCK_ENTITY_TYPES:
+                    logger.info(f"Wikidata: {isin} classified as STOCK (type: {q_id})")
+                    return AssetClass.STOCK
+                if q_id in ETF_ENTITY_TYPES:
+                    logger.info(f"Wikidata: {isin} classified as ETF (type: {q_id})")
+                    return AssetClass.ETF
+
+        logger.debug(f"Wikidata: {isin} found but no definitive type, assuming STOCK")
+        return AssetClass.STOCK
+
+    except Exception as e:
+        logger.debug(f"Wikidata query failed for {isin}: {e}")
+        return None
+
+
+def _cache_asset_class(isin: str, name: str, asset_class: AssetClass) -> None:
+    """Cache asset classification in local Hive cache.
+
+    Args:
+        isin: The ISIN identifier.
+        name: The instrument name.
+        asset_class: The determined asset class.
+    """
+    try:
+        from portfolio_src.data.local_cache import LocalCache
+
+        cache = LocalCache()
+        cache_asset_class = {
+            AssetClass.STOCK: "Equity",
+            AssetClass.ETF: "ETF",
+            AssetClass.CRYPTO: "Crypto",
+            AssetClass.BOND: "Bond",
+            AssetClass.FUND: "Fund",
+            AssetClass.CASH: "Cash",
+            AssetClass.DERIVATIVE: "Derivative",
+        }.get(asset_class, "Equity")
+
+        cache.upsert_asset(isin, name, cache_asset_class, "EUR")
+        logger.debug(f"Cached asset class for {isin}: {cache_asset_class}")
+    except Exception as e:
+        logger.debug(f"Failed to cache asset class for {isin}: {e}")
+
+
+def _detect_by_heuristics(isin: str, name: str) -> AssetClass:
+    """Detect asset class using heuristic rules.
+
+    This is the fallback when cache and external APIs don't have the answer.
 
     Args:
         isin: The ISIN identifier.
@@ -55,7 +181,6 @@ def detect_asset_class(isin: str, name: str) -> AssetClass:
         r"\bNASDAQ\s*100\b",  # NASDAQ trackers
         r"\bSTOXX\b",  # STOXX index
         r"\bFTSE\b",  # FTSE index
-        r"\bDAX\b",  # DAX index
         r"\bCORE\b.*\b(USD|EUR|GBP)\b",  # iShares Core products
         r"\bINDEX\b",  # Index funds
         r"\bTRACKER\b",  # Tracker funds
@@ -64,34 +189,62 @@ def detect_asset_class(isin: str, name: str) -> AssetClass:
         if re.search(pattern, name_upper):
             return AssetClass.ETF
 
-    # ETF detection by ISIN prefix (common ETF issuers)
-    # IE = Ireland (iShares, Vanguard), LU = Luxembourg, DE000A = Germany ETFs
     etf_isin_prefixes = [
-        "IE00B",  # iShares Ireland
-        "IE00BF",  # iShares Ireland
-        "IE00BK",  # iShares Ireland
+        "IE00B",
+        "IE00BF",
+        "IE00BK",
         "IE00BL",  # iShares Ireland
         "IE0031",  # Vanguard Ireland
-        "LU0",  # Luxembourg funds
-        "LU1",  # Luxembourg funds
+        "LU0",
+        "LU1",
         "LU2",  # Luxembourg funds
-        "FR0010",  # Amundi France
+        "FR0010",
         "FR0011",  # Amundi France
-        "DE000A0",  # Xtrackers Germany
-        "DE000A1",  # Xtrackers Germany
-        "DE000A2",  # Xtrackers Germany
+        "DE000A0F",
+        "DE000A0H",  # Xtrackers Germany
     ]
     for prefix in etf_isin_prefixes:
         if isin_upper.startswith(prefix):
             # Double-check it's not a single stock by checking name
-            # Some single stocks also have these prefixes
             if not any(
                 x in name_upper
-                for x in ["AG", "SE", "INC", "CORP", "LTD", "PLC", "GMBH"]
+                for x in ["AG", "SE", "INC", "CORP", "LTD", "PLC", "GMBH", "HOLDING"]
             ):
                 return AssetClass.ETF
 
     return AssetClass.STOCK
+
+
+def detect_asset_class(isin: str, name: str) -> AssetClass:
+    """Detect asset class from ISIN and name.
+
+    Uses a multi-tier approach:
+    1. Check local Hive cache (fast, offline-capable)
+    2. Query Wikidata API (accurate for stocks)
+    3. Fall back to heuristics (pattern matching)
+
+    Results from Wikidata are cached for future lookups.
+
+    Args:
+        isin: The ISIN identifier.
+        name: The instrument name.
+
+    Returns:
+        AssetClass enum value
+    """
+    cached_result = _get_cached_asset_class(isin)
+    if cached_result is not None:
+        logger.debug(f"Asset class for {isin} from cache: {cached_result.value}")
+        return cached_result
+
+    wikidata_result = _query_wikidata_asset_class(isin)
+    if wikidata_result is not None:
+        _cache_asset_class(isin, name, wikidata_result)
+        return wikidata_result
+
+    heuristic_result = _detect_by_heuristics(isin, name)
+    logger.debug(f"Asset class for {isin} from heuristics: {heuristic_result.value}")
+    return heuristic_result
 
 
 def emit_progress(progress: int, message: str, phase: str = "pipeline") -> None:

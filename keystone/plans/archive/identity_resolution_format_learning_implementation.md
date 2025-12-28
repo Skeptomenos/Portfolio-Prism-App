@@ -522,7 +522,7 @@ After implementation, verify:
 
 After collecting data for 2-4 weeks, analyze logs and decide whether to implement adaptive reordering.
 
-See: [`identity_resolution_format_optimization.md`](./identity_resolution_format_optimization.md) (backlog)
+See: [`identity_resolution_format_optimization.md`](identity_resolution_format_optimization.md) (backlog)
 
 **Questions to answer with data:**
 1. Do different formats have significantly different success rates?

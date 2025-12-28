@@ -33,7 +33,7 @@ Improve ISIN resolution accuracy and efficiency through name/ticker normalizatio
 ## 📋 Tasks (Source of Truth)
 
 ### Phase 0: Schema
-> **Plan:** [`keystone/plans/identity_resolution_schema_implementation.md`](../../plans/identity_resolution_schema_implementation.md)
+> **Plan:** [`keystone/plans/archive/identity_resolution_schema_implementation.md`](../../plans/archive/identity_resolution_schema_implementation.md)
 
 - [x] **IR-001:** Add isin_cache table to local SQLite
     - **Status:** Done
@@ -52,7 +52,7 @@ Improve ISIN resolution accuracy and efficiency through name/ticker normalizatio
     - **Commit:** `a44692e`
 
 ### Phase 1: Normalizer
-> **Plan:** [`keystone/plans/identity_resolution_normalizer_implementation.md`](../../plans/identity_resolution_normalizer_implementation.md)
+> **Plan:** [`keystone/plans/archive/identity_resolution_normalizer_implementation.md`](../../plans/archive/identity_resolution_normalizer_implementation.md)
 
 - [x] **IR-101:** Implement NameNormalizer (strip suffixes, generate variants)
     - **Status:** Done
@@ -71,7 +71,7 @@ Improve ISIN resolution accuracy and efficiency through name/ticker normalizatio
     - **Commit:** `fa0a0c8`
 
 ### Phase 2: API Cascade Reorder & Confidence
-> **Plan:** [`keystone/plans/identity_resolution_cascade_implementation.md`](../../plans/identity_resolution_cascade_implementation.md)
+> **Plan:** [`keystone/plans/archive/identity_resolution_cascade_implementation.md`](../../plans/archive/identity_resolution_cascade_implementation.md)
 
 - [x] **IR-201:** Add confidence field to ResolutionResult
     - **Status:** Done
@@ -102,7 +102,7 @@ Improve ISIN resolution accuracy and efficiency through name/ticker normalizatio
     - **Commit:** `a8d095c`
 
 ### Phase 3: Persistent Negative Cache
-> **Plan:** [`keystone/plans/identity_resolution_persistent_cache_implementation.md`](../../plans/identity_resolution_persistent_cache_implementation.md)
+> **Plan:** [`keystone/plans/archive/identity_resolution_persistent_cache_implementation.md`](../../plans/archive/identity_resolution_persistent_cache_implementation.md)
 
 - [x] **IR-301:** Add isin_cache table to LocalCache schema
     - **Status:** Done
@@ -125,7 +125,7 @@ Improve ISIN resolution accuracy and efficiency through name/ticker normalizatio
     - **Commit:** `12de88a`
 
 ### Phase 4: Per-Holding Provenance
-> **Plan:** [`keystone/plans/identity_resolution_provenance_implementation.md`](../../plans/identity_resolution_provenance_implementation.md)
+> **Plan:** [`keystone/plans/archive/identity_resolution_provenance_implementation.md`](../../plans/archive/identity_resolution_provenance_implementation.md)
 
 - [x] **IR-401:** Add resolution_source and resolution_confidence columns to DataFrame
     - **Status:** Done
@@ -148,7 +148,7 @@ Improve ISIN resolution accuracy and efficiency through name/ticker normalizatio
     - **Commit:** `5c4ea19`
 
 ### Phase 5: Format Logging (Observability)
-> **Plan:** [`keystone/plans/identity_resolution_format_learning_implementation.md`](../../plans/identity_resolution_format_learning_implementation.md)
+> **Plan:** [`keystone/plans/archive/identity_resolution_format_learning_implementation.md`](../../plans/archive/identity_resolution_format_learning_implementation.md)
 
 - [x] **IR-501:** Add format detection to TickerParser
     - **Status:** Done
@@ -167,7 +167,7 @@ Improve ISIN resolution accuracy and efficiency through name/ticker normalizatio
     - **Commit:** `70b7292`
 
 ### Phase 5b: Format Optimization (Deferred)
-> **Plan:** [`keystone/plans/identity_resolution_format_optimization.md`](../../plans/identity_resolution_format_optimization.md)
+> **Plan:** [`keystone/plans/archive/identity_resolution_format_optimization.md`](../../plans/archive/identity_resolution_format_optimization.md)
 > **Prerequisite:** Phase 5 complete with 2-4 weeks of data
 
 - [ ] **IR-510:** Add format_learnings aggregate table
@@ -183,8 +183,8 @@ Improve ISIN resolution accuracy and efficiency through name/ticker normalizatio
     - **Details:** Use reordered list for primary_ticker selection
 
 ### Phase 6: UI Integration
-> **Plan:** [`keystone/plans/identity_resolution_ui_integration.md`](../../plans/identity_resolution_ui_integration.md)
-> **Phase 6A Plan:** [`keystone/plans/identity_resolution_phase6a_backend.md`](../../plans/identity_resolution_phase6a_backend.md)
+> **Plan:** [`keystone/plans/archive/identity_resolution_ui_integration.md`](../../plans/archive/identity_resolution_ui_integration.md)
+> **Phase 6A Plan:** [`keystone/plans/archive/identity_resolution_phase6a_backend.md`](../../plans/archive/identity_resolution_phase6a_backend.md)
 
 #### Phase 6A: Backend Data Exposure
 
@@ -211,7 +211,7 @@ Improve ISIN resolution accuracy and efficiency through name/ticker normalizatio
     - **Commit:** `26a9282`
 
 #### Phase 6B: Frontend Components
-> **Plan:** [`keystone/plans/identity_resolution_phase6b_components.md`](../../plans/identity_resolution_phase6b_components.md)
+> **Plan:** [`keystone/plans/archive/identity_resolution_phase6b_components.md`](../../plans/archive/identity_resolution_phase6b_components.md)
 
 - [x] **IR-6B1:** Define TypeScript types for resolution
     - **Status:** Done
@@ -234,7 +234,7 @@ Improve ISIN resolution accuracy and efficiency through name/ticker normalizatio
     - **Commit:** `cb657ac`
 
 #### Phase 6C: Integration
-> **Plan:** [`keystone/plans/identity_resolution_phase6c_integration.md`](../../plans/identity_resolution_phase6c_integration.md)
+> **Plan:** [`keystone/plans/archive/identity_resolution_phase6c_integration.md`](../../plans/archive/identity_resolution_phase6c_integration.md)
 
 - [x] **IR-6C1:** Update IPC types
     - **Status:** Done
