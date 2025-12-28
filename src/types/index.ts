@@ -253,7 +253,7 @@ export interface TauriCommands {
   };
   get_true_holdings: {
     args: Record<string, never>;
-    returns: any;
+    returns: TrueHoldingsResponse;
   };
   get_overlap_analysis: {
     args: Record<string, never>;

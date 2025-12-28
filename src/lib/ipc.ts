@@ -8,7 +8,7 @@ import { invoke, isTauri } from './tauri';
 import type { 
   DashboardData, EngineHealth, Holding, AuthStatus, SessionCheck, 
   AuthResponse, LogoutResponse, PortfolioSyncResult, PositionsResponse,
-  TauriCommands
+  TauriCommands, TrueHoldingsResponse
 } from '../types';
 
 const pendingRequests = new Map<string, Promise<unknown>>();
@@ -271,9 +271,9 @@ export async function uploadHoldings(filePath: string, etfIsin: string): Promise
 }
 
 /**
- * Get decomposed true holdings
+ * Get decomposed true holdings with resolution metadata
  */
-export async function getTrueHoldings(): Promise<any> {
+export async function getTrueHoldings(): Promise<TrueHoldingsResponse> {
   try {
     return await deduplicatedCall('get_true_holdings', () => 
       callCommand('get_true_holdings', {})

@@ -1,3 +1,114 @@
+# Identity Resolution Phase 6C: Integration
+
+> **Goal:** Integrate Phase 6B components into HoldingsView, wire up state management, and connect to the backend API.
+> **Status:** Ready for implementation
+> **Estimated Effort:** ~2-3 hours
+> **Prerequisites:** Phase 6A (backend) and Phase 6B (components) complete
+
+---
+
+## Overview
+
+### What We're Building
+
+Phase 6C integrates the resolution UI components into the existing `HoldingsView.tsx`:
+
+| Task | Description |
+|------|-------------|
+| **6C.1** | Update IPC types for `getTrueHoldings` return type |
+| **6C.2** | Add filter/sort/search state management to HoldingsView |
+| **6C.3** | Integrate ResolutionHealthCard at top of view |
+| **6C.4** | Integrate NeedsAttentionSection below health card |
+| **6C.5** | Replace search bar with FilterBar component |
+| **6C.6** | Add ResolutionStatusBadge to holdings list items |
+| **6C.7** | Add resolution details to decomposition panel |
+
+### Current State
+
+**HoldingsView.tsx** currently:
+- Fetches data via `getTrueHoldings()` (returns `any`)
+- Has basic search filtering
+- Shows holdings list with stock name, ticker, value
+- Shows decomposition panel when a stock is selected
+
+**After Phase 6C:**
+- Typed response with `TrueHoldingsResponse`
+- Full filter/sort/search with FilterBar
+- Resolution health summary at top
+- Needs attention section for problematic holdings
+- Resolution badges on each holding
+- Resolution details in decomposition panel
+
+---
+
+## Task 6C.1: Update IPC Types
+
+**File:** `src/lib/ipc.ts`
+
+**Changes:**
+1. Import `TrueHoldingsResponse` type
+2. Update `getTrueHoldings` return type
+
+```typescript
+// Line 8-12: Add TrueHoldingsResponse to imports
+import type { 
+  DashboardData, EngineHealth, Holding, AuthStatus, SessionCheck, 
+  AuthResponse, LogoutResponse, PortfolioSyncResult, PositionsResponse,
+  TauriCommands, TrueHoldingsResponse
+} from '../types';
+
+// Line 276: Update return type
+export async function getTrueHoldings(): Promise<TrueHoldingsResponse> {
+  try {
+    return await deduplicatedCall('get_true_holdings', () => 
+      callCommand('get_true_holdings', {})
+    );
+  } catch (error) {
+    console.error('[IPC] get_true_holdings failed:', error);
+    throw error;
+  }
+}
+```
+
+---
+
+## Task 6C.2: Update TauriCommands Type
+
+**File:** `src/types/index.ts`
+
+**Changes:** Update the `get_true_holdings` command return type in `TauriCommands`:
+
+```typescript
+// Around line 254-257, change:
+get_true_holdings: {
+  args: Record<string, never>;
+  returns: any;  // OLD
+};
+
+// To:
+get_true_holdings: {
+  args: Record<string, never>;
+  returns: TrueHoldingsResponse;  // NEW
+};
+```
+
+---
+
+## Task 6C.3: Rewrite HoldingsView with Integration
+
+**File:** `src/components/views/HoldingsView.tsx`
+
+This is a significant rewrite. The new component will:
+
+1. Import all Phase 6B components
+2. Add state for filter, sort, search
+3. Compute filtered/sorted holdings
+4. Compute "needs attention" holdings
+5. Render all components in proper layout
+
+### Full Implementation
+
+```tsx
 import { useState, useEffect, useMemo } from 'react';
 import { TrendingUp, Loader2, AlertCircle } from 'lucide-react';
 import GlassCard from '../GlassCard';
@@ -19,18 +130,8 @@ const EMPTY_SUMMARY: ResolutionSummary = {
   skipped: 0,
   unknown: 0,
   bySource: {},
-  healthScore: 1.0,
+  healthScore: 0,
 };
-
-function getHoldingKey(holding: XRayHolding, index: number): string {
-  return holding.isin || `${holding.stock}-${index}`;
-}
-
-function isHoldingSelected(selected: XRayHolding | null, holding: XRayHolding): boolean {
-  if (!selected) return false;
-  if (selected.isin && holding.isin) return selected.isin === holding.isin;
-  return selected.stock === holding.stock && selected.ticker === holding.ticker;
-}
 
 export default function HoldingsView() {
   const [holdings, setHoldings] = useState<XRayHolding[]>([]);
@@ -39,6 +140,7 @@ export default function HoldingsView() {
   const [error, setError] = useState<string | null>(null);
   const [selectedStock, setSelectedStock] = useState<XRayHolding | null>(null);
 
+  // Filter/Sort/Search state
   const [filter, setFilter] = useState<FilterType>('all');
   const [sort, setSort] = useState<SortType>('value');
   const [searchQuery, setSearchQuery] = useState('');
@@ -50,10 +152,9 @@ export default function HoldingsView() {
       setHoldings(res.holdings || []);
       setSummary(res.summary || EMPTY_SUMMARY);
       setError(null);
-    } catch (err: unknown) {
+    } catch (err: any) {
       console.error('Failed to load true holdings', err);
-      const message = err instanceof Error ? err.message : 'Failed to load holdings data';
-      setError(message);
+      setError(err.message || 'Failed to load holdings data');
     } finally {
       setLoading(false);
     }
@@ -63,9 +164,11 @@ export default function HoldingsView() {
     loadData();
   }, []);
 
+  // Compute filtered and sorted holdings
   const filteredHoldings = useMemo(() => {
     let result = [...holdings];
 
+    // Apply search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       result = result.filter(
@@ -76,6 +179,7 @@ export default function HoldingsView() {
       );
     }
 
+    // Apply status filter
     switch (filter) {
       case 'resolved':
         result = result.filter((h) => h.resolutionStatus === 'resolved');
@@ -90,6 +194,7 @@ export default function HoldingsView() {
         break;
     }
 
+    // Apply sort
     switch (sort) {
       case 'value':
         result.sort((a, b) => b.totalValue - a.totalValue);
@@ -105,6 +210,7 @@ export default function HoldingsView() {
     return result;
   }, [holdings, searchQuery, filter, sort]);
 
+  // Compute holdings that need attention (unresolved or low confidence)
   const needsAttentionHoldings = useMemo(() => {
     return holdings
       .filter(
@@ -115,8 +221,10 @@ export default function HoldingsView() {
       .sort((a, b) => b.totalValue - a.totalValue);
   }, [holdings]);
 
+  // Handle clicking a holding in NeedsAttentionSection
   const handleAttentionClick = (holding: XRayHolding) => {
     setSelectedStock(holding);
+    // Clear filters to ensure the holding is visible
     setFilter('all');
     setSearchQuery('');
   };
@@ -158,6 +266,7 @@ export default function HoldingsView() {
 
   return (
     <div className="animate-fade-in">
+      {/* Header */}
       <div style={{ marginBottom: '32px' }}>
         <h2 style={{ fontSize: '28px', fontWeight: '700', marginBottom: '8px' }}>
           True Holdings Explorer
@@ -167,13 +276,16 @@ export default function HoldingsView() {
         </p>
       </div>
 
+      {/* Resolution Health Card */}
       <ResolutionHealthCard summary={summary} />
 
+      {/* Needs Attention Section */}
       <NeedsAttentionSection 
         holdings={needsAttentionHoldings} 
         onHoldingClick={handleAttentionClick}
       />
 
+      {/* Filter Bar */}
       <FilterBar
         filter={filter}
         sort={sort}
@@ -185,17 +297,21 @@ export default function HoldingsView() {
         filteredCount={filteredHoldings.length}
       />
 
+      {/* Holdings List + Decomposition Panel */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+        {/* Holdings List */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '600px', overflowY: 'auto' }}>
           {filteredHoldings.map((holding, index) => (
             <GlassCard
-              key={getHoldingKey(holding, index)}
+              key={holding.isin || `${holding.stock}-${index}`}
               onClick={() => setSelectedStock(holding)}
               style={{
                 padding: '20px',
-                border: isHoldingSelected(selectedStock, holding)
-                  ? '1px solid rgba(59, 130, 246, 0.5)'
-                  : '1px solid rgba(255, 255, 255, 0.1)',
+                cursor: 'pointer',
+                border:
+                  selectedStock?.ticker === holding.ticker
+                    ? '1px solid rgba(59, 130, 246, 0.5)'
+                    : '1px solid rgba(255, 255, 255, 0.1)',
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
@@ -232,8 +348,10 @@ export default function HoldingsView() {
           )}
         </div>
 
+        {/* Decomposition Panel */}
         {selectedStock ? (
           <GlassCard style={{ padding: '24px', height: 'fit-content', position: 'sticky', top: '0' }}>
+            {/* Header with Resolution Badge */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
               <div>
                 <h3 style={{ fontSize: '20px', fontWeight: '700' }}>{selectedStock.stock}</h3>
@@ -250,6 +368,7 @@ export default function HoldingsView() {
               />
             </div>
 
+            {/* Total Value */}
             <div
               className="metric-value"
               style={{
@@ -261,6 +380,7 @@ export default function HoldingsView() {
               €{selectedStock.totalValue.toLocaleString()}
             </div>
 
+            {/* Resolution Details */}
             {selectedStock.isin && (
               <div style={{ 
                 marginBottom: '24px', 
@@ -301,14 +421,15 @@ export default function HoldingsView() {
               </div>
             )}
 
+            {/* Breakdown by Source */}
             <h4 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '16px', color: 'var(--text-secondary)' }}>
               Breakdown by Source
             </h4>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {selectedStock.sources.map((source, index) => (
+              {selectedStock.sources.map((source) => (
                 <div
-                  key={`${source.etf}-${index}`}
+                  key={source.etf}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -338,13 +459,14 @@ export default function HoldingsView() {
               ))}
             </div>
 
+            {/* Visual Flow */}
             <div style={{ marginTop: '24px', padding: '16px', background: 'rgba(59, 130, 246, 0.05)', borderRadius: '8px' }}>
               <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '12px' }}>
-                <TrendingUp size={16} style={{ display: 'inline', marginRight: '6px' }} aria-hidden="true" />
+                <TrendingUp size={16} style={{ display: 'inline', marginRight: '6px' }} />
                 Exposure Flow
               </div>
-              {selectedStock.sources.map((source, index) => (
-                <div key={`flow-${source.etf}-${index}`} style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
+              {selectedStock.sources.map((source) => (
+                <div key={source.etf} style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
                   <span
                     style={{
                       fontSize: '13px',
@@ -383,7 +505,7 @@ export default function HoldingsView() {
             }}
           >
             <div style={{ textAlign: 'center', color: 'var(--text-tertiary)' }}>
-              <AlertCircle size={48} style={{ marginBottom: '16px', opacity: 0.3 }} aria-hidden="true" />
+              <AlertCircle size={48} style={{ marginBottom: '16px', opacity: 0.3 }} />
               <p style={{ fontSize: '14px' }}>Select a stock to see its decomposition</p>
             </div>
           </GlassCard>
@@ -392,3 +514,77 @@ export default function HoldingsView() {
     </div>
   );
 }
+```
+
+---
+
+## Verification Checklist
+
+### Code Changes
+
+- [ ] `src/types/index.ts`: Update `get_true_holdings` return type in TauriCommands
+- [ ] `src/lib/ipc.ts`: Import `TrueHoldingsResponse`, update `getTrueHoldings` return type
+- [ ] `src/components/views/HoldingsView.tsx`: Full rewrite with integration
+
+### Functional Verification
+
+- [ ] Health card displays correct stats from backend
+- [ ] Needs attention section shows unresolved/low-confidence holdings
+- [ ] Filter buttons work (All/Resolved/Unresolved/Low Confidence)
+- [ ] Sort dropdown works (Value/Confidence/Name)
+- [ ] Search filters by stock name, ticker, and ISIN
+- [ ] Resolution badges appear on each holding
+- [ ] Clicking "needs attention" item selects it and clears filters
+- [ ] Decomposition panel shows resolution details
+- [ ] Results count updates correctly
+
+### Build Verification
+
+- [ ] `npm run build` succeeds without TypeScript errors
+- [ ] No console errors in browser
+
+---
+
+## Commit Message
+
+```
+feat: integrate resolution UI into HoldingsView (Phase 6C)
+
+- Update IPC types for TrueHoldingsResponse
+- Add filter/sort/search state management
+- Integrate ResolutionHealthCard with backend summary
+- Integrate NeedsAttentionSection for problematic holdings
+- Replace search bar with FilterBar component
+- Add ResolutionStatusBadge to holdings list items
+- Add resolution details to decomposition panel
+
+Part of Identity Resolution Phase 6 (UI Integration)
+```
+
+---
+
+## Estimated Effort
+
+| Task | Description | Time |
+|------|-------------|------|
+| 6C.1 | Update IPC types | 10 min |
+| 6C.2 | Update TauriCommands type | 5 min |
+| 6C.3 | Rewrite HoldingsView | 60 min |
+| Verify | Build and functional testing | 30 min |
+| **Total** | | **~2 hours** |
+
+---
+
+## Known Limitations
+
+1. **No debouncing on search** - For large holdings lists (1000+), consider adding `useDeferredValue` in a future iteration
+2. **No virtualization** - If performance becomes an issue with many holdings, consider `react-window`
+3. **Tooltip positioning** - May overflow viewport near edges (documented in 6B review)
+
+---
+
+## Next Steps After 6C
+
+1. **Visual testing** - Verify all components render correctly with real data
+2. **Edge cases** - Test with empty data, all resolved, all unresolved
+3. **Phase 6D (optional)** - Add manual resolution actions (upload CSV, ignore list)

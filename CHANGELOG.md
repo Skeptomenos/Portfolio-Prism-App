@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Identity Resolution Phase 6C - UI Integration:**
+  - Integrated ResolutionHealthCard, NeedsAttentionSection, and FilterBar into HoldingsView.
+  - Added ResolutionStatusBadge to holdings list items and decomposition panel.
+  - Added filter/sort/search state management with useMemo for performance.
+  - Updated IPC types: `getTrueHoldings()` now returns typed `TrueHoldingsResponse`.
+  - Added keyboard accessibility to GlassCard (role, tabIndex, onKeyDown for Enter/Space).
+  - Added resolution details section in decomposition panel (ISIN, confidence, source).
+
 - **Identity Resolution Phase 5 - Format Logging (Observability):**
   - Added `detect_format()` to `TickerParser` to classify tickers (bloomberg, reuters, yahoo_dash, numeric, plain).
   - Added `format_logs` table to LocalCache for tracking resolution attempts by format and API source.
