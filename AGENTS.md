@@ -9,8 +9,8 @@ Privacy-first, high-performance desktop portfolio analyzer using the Tauri + Pyt
 ## Tech Stack
 
 - **Shell:** Tauri v2 (Rust) — Native window, OS integration
-- **Frontend:** TypeScript + Vite (loading screen) → Streamlit (main UI)
-- **Engine:** Python (Streamlit sidecar) — Analytics, data processing
+- **Frontend:** TypeScript + React + Vite (main UI)
+- **Engine:** Python (Headless sidecar) — Analytics, data processing
 - **Database:** SQLite (local), Supabase (community "Hive")
 - **Proxy:** Cloudflare Workers (API key protection)
 
@@ -18,18 +18,16 @@ Privacy-first, high-performance desktop portfolio analyzer using the Tauri + Pyt
 
 ```
 .                            # Standard Tauri project layout
-├── src/                     # Frontend (loading screen, TypeScript)
+├── src/                     # Frontend (TypeScript + React)
 ├── src-tauri/               # Rust shell + Python sidecar
 │   ├── python/              # Python source
-│   │   ├── portfolio_src/   # Business logic (from POC)
-│   │   ├── prism_boot.py    # Entry point
-│   │   └── prism.spec       # PyInstaller spec
+│   │   ├── portfolio_src/   # Business logic
+│   │   ├── prism_headless.py # Entry point
+│   │   └── prism_headless.spec # PyInstaller spec
 │   └── src/lib.rs           # Sidecar spawning
 ├── infrastructure/          # Cloudflare Worker
 ├── docs/                    # Architecture & design docs
-├── keystone/               # AI developer framework
-├── legacy/react-prototype/  # React UI for v2 (preserved)
-└── POC/                     # Original Python engine (gitignored)
+└── keystone/               # AI developer framework
 ```
 
 ---

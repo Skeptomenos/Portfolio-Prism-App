@@ -46,7 +46,7 @@ source venv-build/bin/activate  # On Windows: venv-build\Scripts\activate
 pip install -r requirements-build.txt
 
 # Build the Python sidecar binary
-pyinstaller prism.spec
+pyinstaller prism_headless.spec
 mkdir -p ../binaries
 cp dist/prism ../binaries/prism-aarch64-apple-darwin  # Adjust for your platform
 
@@ -88,11 +88,10 @@ The bundle will be in `src-tauri/target/release/bundle/`.
 │   │   ├── portfolio_src/       # Business logic
 │   │   │   ├── adapters/        # ETF provider adapters
 │   │   │   ├── core/            # Analysis engine
-│   │   │   ├── dashboard/       # Streamlit UI
 │   │   │   ├── data/            # Data layer
 │   │   │   └── models/          # Data models
-│   │   ├── prism_boot.py        # Sidecar entry point
-│   │   ├── prism.spec           # PyInstaller configuration
+│   │   ├── prism_headless.py        # Sidecar entry point
+│   │   ├── prism_headless.spec           # PyInstaller configuration
 │   │   └── requirements-build.txt
 │   ├── binaries/                # Built Python binary (gitignored)
 │   ├── icons/                   # Application icons
@@ -112,11 +111,6 @@ The bundle will be in `src-tauri/target/release/bundle/`.
 │   ├── project/                 # Project state
 │   ├── specs/                   # Specifications
 │   └── standards/               # Code standards
-│
-├── legacy/                      # Preserved for future
-│   └── react-prototype/         # React UI (for v2)
-│
-└── POC/                         # Original Python app (gitignored)
 ```
 
 ---
@@ -225,5 +219,4 @@ This project uses the **Keystone** framework for AI-assisted development:
 ## Acknowledgments
 
 - [Tauri](https://tauri.app/) — Desktop app framework
-- [Streamlit](https://streamlit.io/) — Python UI framework
 - [pytr](https://github.com/pytr-org/pytr) — Trade Republic API
