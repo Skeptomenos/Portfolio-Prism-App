@@ -271,8 +271,8 @@ def run_echo_bridge(host: str = "0.0.0.0", port: int = 5001) -> None:
         These are excluded from the PyInstaller build to reduce size.
     """
     if not HAS_HTTP:
-        print("Error: fastapi and uvicorn are required for HTTP mode.")
-        print("Install with: pip install fastapi uvicorn")
+        logger.error("fastapi and uvicorn are required for HTTP mode.")
+        logger.error("Install with: pip install fastapi uvicorn")
         sys.exit(1)
 
     @asynccontextmanager

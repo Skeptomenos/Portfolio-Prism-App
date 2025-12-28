@@ -9,6 +9,7 @@
 | :--- | :--- | :--- | :--- | :--- |
 | `data-engine` | `keystone/project/workstreams/data-engine.md` | `root-session` | `Active` | 2025-12-27 |
 | `identity-resolution` | `keystone/project/workstreams/identity-resolution.md` | `IdentityResolution` | `Active` | 2025-12-27 |
+| `silent-night` | `keystone/project/workstreams/silent-night.md` | `Sisyphus` | `Active` | 2025-12-28 |
 
 ## Archived Workstreams
 

@@ -9,7 +9,7 @@
 // Navigation
 // =============================================================================
 
-export type ViewType = 'dashboard' | 'xray' | 'overlap' | 'holdings' | 'data' | 'health' | 'trade-republic';
+export type ViewType = 'dashboard' | 'xray' | 'holdings' | 'health' | 'trade-republic';
 
 // =============================================================================
 // Engine Status (from Rust/Python sidecar)
@@ -80,16 +80,7 @@ export interface UnderlyingHolding {
   }[];
 }
 
-export interface OverlapData {
-  etfPairs: ETFOverlapPair[];
-}
 
-export interface ETFOverlapPair {
-  etf1: string;
-  etf2: string;
-  overlapPercentage: number;
-  sharedHoldings: number;
-}
 
 // =============================================================================
 // IPC Events (Tauri events from Rust)
@@ -231,6 +222,10 @@ export interface TauriCommands {
     args: Record<string, never>;
     returns: SessionCheck;
   };
+  tr_get_stored_credentials: {
+    args: Record<string, never>;
+    returns: { hasCredentials: boolean; phone: string | null; pin: string | null };
+  };
   tr_login: {
     args: { phone: string; pin: string; remember: boolean };
     returns: AuthResponse;
@@ -254,10 +249,6 @@ export interface TauriCommands {
   get_true_holdings: {
     args: Record<string, never>;
     returns: TrueHoldingsResponse;
-  };
-  get_overlap_analysis: {
-    args: Record<string, never>;
-    returns: any;
   };
   upload_holdings: {
     args: { filePath: string; etfIsin: string };

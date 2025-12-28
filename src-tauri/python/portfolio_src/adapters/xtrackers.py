@@ -122,11 +122,11 @@ if __name__ == "__main__":
     xdem_holdings = adapter.fetch_holdings("IE00BL25JP72")
 
     if not xdem_holdings.empty:
-        print("\n--- Successfully fetched XDEM holdings ---")
-        print(xdem_holdings.head())
+        logger.info("Successfully fetched XDEM holdings")
+        logger.info(f"\n{xdem_holdings.head()}")
 
         # Save to a new CSV for verification
         save_path = os.path.join(OUTPUT_DIR, "XDEM_adapter_output.csv")
         os.makedirs(OUTPUT_DIR, exist_ok=True)
         xdem_holdings.to_csv(save_path, index=False)
-        print(f"\nSaved adapter output to {save_path}")
+        logger.info(f"Saved adapter output to {save_path}")

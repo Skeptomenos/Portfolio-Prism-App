@@ -11,8 +11,7 @@ import {
   getHoldings, 
   syncPortfolio, 
   getEngineHealth,
-  getTrueHoldings,
-  getOverlapAnalysis
+  getTrueHoldings
 } from '../lib/ipc';
 import { useAppStore } from '../store/useAppStore';
 
@@ -62,16 +61,6 @@ export function useXRayData(portfolioId: number) {
   return useQuery({
     queryKey: ['xray', portfolioId],
     queryFn: getTrueHoldings,
-  });
-}
-
-/**
- * Fetch ETF overlap data
- */
-export function useOverlapData(portfolioId: number) {
-  return useQuery({
-    queryKey: ['overlap', portfolioId],
-    queryFn: getOverlapAnalysis,
   });
 }
 

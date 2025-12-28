@@ -1,6 +1,6 @@
 """Holdings and Overlap Analysis Handlers.
 
-Handles ETF holdings upload, true holdings decomposition, and overlap analysis.
+Handles ETF holdings upload, true holdings decomposition, and pipeline reporting.
 """
 
 import json
@@ -218,91 +218,6 @@ def _calculate_summary(holdings: list) -> dict:
         "bySource": by_source,
         "healthScore": round(health_score, 3),
     }
-
-
-def handle_get_overlap_analysis(cmd_id: int, payload: dict[str, Any]) -> dict[str, Any]:
-    """Get ETF overlap analysis matrix.
-
-    Args:
-        cmd_id: IPC command identifier.
-        payload: Command payload (unused).
-
-    Returns:
-        Success response with overlap matrix and shared holdings, or error response.
-    """
-    import numpy as np
-    from portfolio_src.config import HOLDINGS_BREAKDOWN_PATH
-    import pandas as pd
-
-    empty_response = {"etfs": [], "matrix": [], "sharedHoldings": []}
-
-    if not os.path.exists(HOLDINGS_BREAKDOWN_PATH):
-        return success_response(cmd_id, empty_response)
-
-    try:
-        df = pd.read_csv(HOLDINGS_BREAKDOWN_PATH)
-
-        if df.empty:
-            return success_response(cmd_id, empty_response)
-
-        etfs = sorted(df["parent_isin"].unique().tolist())
-
-        if not etfs:
-            return success_response(cmd_id, empty_response)
-
-        # Build overlap matrix
-        n = len(etfs)
-        matrix = np.zeros((n, n))
-
-        pivot_df = df.pivot(
-            index="child_isin", columns="parent_isin", values="weight_percent"
-        ).fillna(0)
-
-        for i in range(n):
-            for j in range(n):
-                if i == j:
-                    matrix[i][j] = 100.0
-                else:
-                    matrix[i][j] = round(
-                        float(np.minimum(pivot_df[etfs[i]], pivot_df[etfs[j]]).sum()), 1
-                    )
-
-        # Find shared holdings (held by multiple ETFs)
-        shared_grouped = df.groupby(["child_isin", "child_name"], as_index=False).agg(
-            {"value_eur": "sum"}
-        )
-
-        shared_holdings = []
-        for _, row in shared_grouped.iterrows():
-            child_isin = str(row["child_isin"])
-            parents = df[df["child_isin"] == child_isin]["parent_isin"].tolist()
-
-            if len(parents) > 1:
-                shared_holdings.append(
-                    {
-                        "stock": str(row["child_name"]),
-                        "etfs": parents,
-                        "totalValue": round(float(row["value_eur"]), 2),
-                    }
-                )
-
-        shared_holdings.sort(key=lambda x: x["totalValue"], reverse=True)
-
-        logger.debug(
-            f"Overlap analysis: {n} ETFs, {len(shared_holdings)} shared holdings"
-        )
-
-        return success_response(
-            cmd_id,
-            {
-                "etfs": etfs,
-                "matrix": matrix.tolist(),
-                "sharedHoldings": shared_holdings[:10],
-            },
-        )
-    except Exception as e:
-        logger.error(f"Failed to get overlap analysis: {e}", exc_info=True)
-        return error_response(cmd_id, "OVERLAP_ERROR", str(e))
 
 
 def handle_get_pipeline_report(cmd_id: int, payload: dict[str, Any]) -> dict[str, Any]:

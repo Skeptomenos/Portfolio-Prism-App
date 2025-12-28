@@ -45,13 +45,10 @@ export function invalidatePortfolioQueries(portfolioId?: number) {
     queryClient.invalidateQueries({ queryKey: ['dashboard', portfolioId] });
     queryClient.invalidateQueries({ queryKey: ['holdings', portfolioId] });
     queryClient.invalidateQueries({ queryKey: ['xray', portfolioId] });
-    queryClient.invalidateQueries({ queryKey: ['overlap', portfolioId] });
   } else {
-    // Invalidate all portfolio queries
     queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     queryClient.invalidateQueries({ queryKey: ['holdings'] });
     queryClient.invalidateQueries({ queryKey: ['xray'] });
-    queryClient.invalidateQueries({ queryKey: ['overlap'] });
   }
 }
 

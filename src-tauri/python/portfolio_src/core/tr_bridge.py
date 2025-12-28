@@ -20,6 +20,9 @@ from portfolio_src.core.tr_protocol import (
     TRResponse,
     TRMethod,
 )
+from portfolio_src.prism_utils.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 class TRBridge:
@@ -83,10 +86,7 @@ class TRBridge:
                 ready_data = json.loads(ready_line.strip())
                 if ready_data.get("status") != "ready":
                     raise RuntimeError(f"Daemon not ready: {ready_data}")
-                print(
-                    f"[TR Bridge] Daemon ready (PID: {ready_data.get('pid')})",
-                    file=sys.stderr,
-                )
+                logger.info(f"Daemon ready (PID: {ready_data.get('pid')})")
             except json.JSONDecodeError:
                 raise RuntimeError(f"Invalid ready signal: {ready_line}")
 
@@ -137,34 +137,23 @@ class TRBridge:
 
         # Try with platform suffix first (production build)
         sidecar_path = base_dir / f"{name}-{suffix}"
-        print(f"[TR Bridge] DEBUG: sys.executable: {sys.executable}", file=sys.stderr)
-        print(f"[TR Bridge] DEBUG: Base dir: {base_dir}", file=sys.stderr)
-        print(
-            f"[TR Bridge] DEBUG: Looking for sidecar at {sidecar_path}", file=sys.stderr
-        )
+        logger.debug(f"sys.executable: {sys.executable}")
+        logger.debug(f"Base dir: {base_dir}")
+        logger.debug(f"Looking for sidecar at {sidecar_path}")
 
         if sidecar_path.exists():
-            print(
-                f"[TR Bridge] DEBUG: Found sidecar at {sidecar_path}", file=sys.stderr
-            )
+            logger.debug(f"Found sidecar at {sidecar_path}")
             return str(sidecar_path)
 
         # Try without suffix (Tauri dev mode)
         sidecar_path_no_suffix = base_dir / name
-        print(
-            f"[TR Bridge] DEBUG: Looking for sidecar at {sidecar_path_no_suffix}",
-            file=sys.stderr,
-        )
+        logger.debug(f"Looking for sidecar at {sidecar_path_no_suffix}")
         if sidecar_path_no_suffix.exists():
-            print(
-                f"[TR Bridge] DEBUG: Found sidecar at {sidecar_path_no_suffix}",
-                file=sys.stderr,
-            )
+            logger.debug(f"Found sidecar at {sidecar_path_no_suffix}")
             return str(sidecar_path_no_suffix)
 
-        print(
-            f"[TR Bridge] ERROR: Sidecar binary not found. Base dir: {base_dir}, Contents: {list(base_dir.iterdir())}",
-            file=sys.stderr,
+        logger.error(
+            f"Sidecar binary not found. Base dir: {base_dir}, Contents: {list(base_dir.iterdir())}"
         )
         raise RuntimeError(
             f"Sidecar binary not found: tried {sidecar_path} and {sidecar_path_no_suffix}"
@@ -180,7 +169,7 @@ class TRBridge:
                 assert self._daemon_process.stderr is not None
                 line = self._daemon_process.stderr.readline()
                 if line:
-                    print(f"[TR Daemon] {line.strip()}", file=sys.stderr)
+                    logger.debug(f"[TR Daemon] {line.strip()}")
         except Exception:
             pass  # Ignore monitoring errors
 
@@ -229,10 +218,7 @@ class TRBridge:
                 try:
                     response_line = self._read_response_with_timeout(timeout=90.0)
                 except RuntimeError as e:
-                    print(
-                        f"[TR Bridge] Protocol desync risk: {e}. Resetting daemon.",
-                        file=sys.stderr,
-                    )
+                    logger.warning(f"Protocol desync risk: {e}. Resetting daemon.")
                     self.shutdown()
                     raise
 

@@ -80,14 +80,14 @@ class ISharesAdapter:
         """
         Interactively prompts the user for the missing Product ID.
         """
-        print(f"\n⚠️  Missing Product ID for iShares ETF: {isin}")
-        print(
-            "   Please visit the iShares website, find the ETF page, and look at the URL."
+        logger.warning(f"Missing Product ID for iShares ETF: {isin}")
+        logger.info(
+            "Please visit the iShares website, find the ETF page, and look at the URL."
         )
-        print(
-            "   Example URL: .../produkte/251882/ishares-msci-world-ucits-etf-acc-fund"
+        logger.info(
+            "Example URL: .../produkte/251882/ishares-msci-world-ucits-etf-acc-fund"
         )
-        print("   The Product ID is the number (e.g., 251882).")
+        logger.info("The Product ID is the number (e.g., 251882).")
 
         while True:
             product_id = input(
@@ -97,7 +97,7 @@ class ISharesAdapter:
                 return None
             if product_id.isdigit():
                 return product_id
-            print("   Invalid input. Please enter a numeric ID.")
+            logger.warning("Invalid input. Please enter a numeric ID.")
 
     @cache_adapter_data(ttl_hours=24)
     def fetch_holdings(self, isin: str) -> pd.DataFrame:

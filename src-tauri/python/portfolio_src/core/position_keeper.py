@@ -1,6 +1,10 @@
 import pandas as pd
 from pathlib import Path
 
+from portfolio_src.prism_utils.logging_config import get_logger
+
+logger = get_logger(__name__)
+
 
 def calculate_positions(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -65,8 +69,8 @@ def main():
     trades_file = script_dir.parent / "output" / "trades.csv"
 
     if not trades_file.exists():
-        print(f"Trades file not found: {trades_file}")
-        print(
+        logger.warning(f"Trades file not found: {trades_file}")
+        logger.info(
             "Please run the pdf_parser.py script first to generate the trades.csv file."
         )
         return
@@ -75,8 +79,8 @@ def main():
 
     positions = calculate_positions(df)
 
-    print("Current Positions:")
-    print(positions)
+    logger.info("Current Positions:")
+    logger.info(f"\n{positions}")
 
 
 if __name__ == "__main__":

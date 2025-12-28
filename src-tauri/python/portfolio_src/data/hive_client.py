@@ -167,7 +167,7 @@ class HiveClient:
             try:
                 self._client = create_client(self.supabase_url, self.supabase_key)
             except Exception as e:
-                print(f"Failed to create Supabase client: {e}")
+                logger.error(f"Failed to create Supabase client: {e}")
                 return None
 
         return self._client
@@ -202,7 +202,7 @@ class HiveClient:
             return True
 
         except Exception as e:
-            print(f"Failed to load cache: {e}")
+            logger.error(f"Failed to load cache: {e}")
             return False
 
     def _save_cache(self) -> bool:
@@ -216,7 +216,7 @@ class HiveClient:
             self.cache_file.write_text(json.dumps(data, indent=2))
             return True
         except Exception as e:
-            print(f"Failed to save cache: {e}")
+            logger.error(f"Failed to save cache: {e}")
             return False
 
     def sync_universe(self, force: bool = False) -> HiveResult:
@@ -392,7 +392,7 @@ class HiveClient:
                 result[asset.isin] = asset
 
         except Exception as e:
-            print(f"Hive batch lookup failed: {e}")
+            logger.error(f"Hive batch lookup failed: {e}")
             # Return placeholder entries for failed lookups
             for isin in uncached_isins:
                 if isin not in result:
@@ -425,7 +425,9 @@ class HiveClient:
         try:
             client = self._get_client()
             if client is None:
-                print("Cannot contribute assets: Supabase client not available")
+                logger.warning(
+                    "Cannot contribute assets: Supabase client not available"
+                )
                 return False
 
             # Transform AssetEntry to dict for upsert
@@ -441,16 +443,20 @@ class HiveClient:
             ]
 
             # Use RPC function for atomic batch upsert
-            response = client.rpc("batch_contribute_assets", {"assets": assets_dict})
+            response = client.rpc(
+                "batch_contribute_assets", {"assets": assets_dict}
+            ).execute()
 
             if response.data and response.data[0].get("success"):
-                print(f"Successfully contributed {len(assets_data)} assets to Hive")
+                logger.info(
+                    f"Successfully contributed {len(assets_data)} assets to Hive"
+                )
                 return True
             else:
-                print(f"Failed to contribute assets: {response.data}")
+                logger.error(f"Failed to contribute assets: {response.data}")
                 return False
         except Exception as e:
-            print(f"Hive batch contribution failed: {e}")
+            logger.error(f"Hive batch contribution failed: {e}")
             return False
 
     def contribute_asset(
@@ -904,16 +910,16 @@ class HiveClient:
             ).execute()
 
             if response.data and response.data[0].get("success"):
-                print(
+                logger.info(
                     f"Successfully contributed {len(holdings_list)} holdings for {etf_isin} to Hive"
                 )
                 return True
             else:
-                print(f"Failed to contribute holdings: {response.data}")
+                logger.error(f"Failed to contribute holdings: {response.data}")
                 return False
 
         except Exception as e:
-            print(f"Hive holdings contribution failed for {etf_isin}: {e}")
+            logger.error(f"Hive holdings contribution failed for {etf_isin}: {e}")
             return False
 
     def get_stats(self) -> Dict[str, Any]:

@@ -2,6 +2,10 @@
 import pandas as pd
 import numpy as np
 
+from portfolio_src.prism_utils.logging_config import get_logger
+
+logger = get_logger(__name__)
+
 
 def validate_final_report(positions_df: pd.DataFrame, report_df: pd.DataFrame) -> bool:
     """
@@ -15,7 +19,7 @@ def validate_final_report(positions_df: pd.DataFrame, report_df: pd.DataFrame) -
     Returns:
         True if all validations pass, False otherwise.
     """
-    print("\n--- Validation: Running final checks on the report ---")
+    logger.info("Validation: Running final checks on the report")
     is_valid = True
 
     # 1. Value Conservation Check
@@ -27,21 +31,21 @@ def validate_final_report(positions_df: pd.DataFrame, report_df: pd.DataFrame) -
     # 2. Cash Drag: Cash components in ETFs often not listed in holdings.
     # 3. Rounding: Weight percentages often truncated to 2 decimals.
     if not np.isclose(initial_total_value, final_total_value, rtol=0.02):
-        print("  - ❌ FAILED: Value Conservation Check")
-        print(f"    - Initial total market value: €{initial_total_value:,.2f}")
-        print(f"    - Final total exposure value: €{final_total_value:,.2f}")
-        print(f"    - Difference: €{final_total_value - initial_total_value:,.2f}")
+        logger.warning("FAILED: Value Conservation Check")
+        logger.warning(f"  Initial total market value: €{initial_total_value:,.2f}")
+        logger.warning(f"  Final total exposure value: €{final_total_value:,.2f}")
+        logger.warning(f"  Difference: €{final_total_value - initial_total_value:,.2f}")
         is_valid = False
     else:
-        print("  - ✅ PASSED: Value Conservation Check (within 2% tolerance)")
+        logger.info("PASSED: Value Conservation Check (within 2% tolerance)")
 
     # 2. No Negative Exposures Check
     if (report_df[["direct", "indirect", "total_exposure"]] < 0).any().any():
-        print("  - ❌ FAILED: Negative Exposures Check")
-        print("    - Found negative values in one of the exposure columns.")
+        logger.warning("FAILED: Negative Exposures Check")
+        logger.warning("  Found negative values in one of the exposure columns.")
         is_valid = False
     else:
-        print("  - ✅ PASSED: No Negative Exposures Check")
+        logger.info("PASSED: No Negative Exposures Check")
 
     # 3. Completeness Check (Direct Holdings Only)
     # We only expect DIRECT holdings (Stocks) to remain as ISIN keys in the final report.
@@ -55,20 +59,20 @@ def validate_final_report(positions_df: pd.DataFrame, report_df: pd.DataFrame) -
         missing_direct = initial_direct_isins - report_isins
 
         if missing_direct:
-            print("  - ❌ FAILED: Completeness Check")
-            print(f"    - Missing Direct Holdings in report: {missing_direct}")
+            logger.warning("FAILED: Completeness Check")
+            logger.warning(f"  Missing Direct Holdings in report: {missing_direct}")
             is_valid = False
         else:
-            print("  - ✅ PASSED: Completeness Check (Direct Holdings verified)")
+            logger.info("PASSED: Completeness Check (Direct Holdings verified)")
     else:
-        print(
-            "  - ⚠️ SKIPPED: Completeness Check (Missing 'asset_type' in positions data)"
+        logger.info(
+            "SKIPPED: Completeness Check (Missing 'asset_type' in positions data)"
         )
 
     if is_valid:
-        print("\n--- ✅ Validation Successful ---")
+        logger.info("Validation Successful")
     else:
-        print("\n--- ❌ Validation Failed ---")
+        logger.warning("Validation Failed")
 
     return is_valid
 
@@ -80,7 +84,7 @@ if __name__ == "__main__":
     )
 
     # Test Case 1: Success
-    print("--- Running Test Case 1: Success ---")
+    logger.info("Running Test Case 1: Success")
     mock_report_success = pd.DataFrame(
         {
             "isin": ["A", "B", "C", "D"],
@@ -105,7 +109,7 @@ if __name__ == "__main__":
     validate_final_report(mock_positions, mock_report_success)
 
     # Test Case 2: Failure
-    print("\n--- Running Test Case 2: Failure (Value Mismatch) ---")
+    logger.info("Running Test Case 2: Failure (Value Mismatch)")
     mock_report_fail = pd.DataFrame(
         {
             "isin": ["A", "B", "C"],

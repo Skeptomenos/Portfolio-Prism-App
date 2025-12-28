@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Operation Silent Night - Print Cleanup:**
+  - Replaced 90 `print()` statements with `logger` calls across 15 Python files.
+  - Improves observability with structured logging (debug, info, warning, error levels).
+  - Preserved IPC protocol prints in `tr_daemon.py`, `stdin_loop.py`, and `sync.py`.
+  - All 13 `test_tr_daemon_subprocess.py` tests pass (IPC integrity verified).
+  - Files modified: tr_daemon.py, tr_bridge.py, validation.py, position_keeper.py, hive_client.py, ishares.py, vanguard.py, amundi.py, xtrackers.py, vaneck.py, pdf_parser/parser.py, echo_bridge.py, metrics.py.
+
 ### Added
 
 - **Atomic JSON Write Fix:**

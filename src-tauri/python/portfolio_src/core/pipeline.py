@@ -695,6 +695,17 @@ class Pipeline:
                             "geography": row.get(
                                 "geography", row.get("Country", "Unknown")
                             ),
+                            "resolution_status": row.get(
+                                "resolution_status", "unknown"
+                            ),
+                            "resolution_source": row.get(
+                                "resolution_source", "unknown"
+                            ),
+                            "resolution_confidence": row.get(
+                                "resolution_confidence", 0.0
+                            ),
+                            "resolution_detail": row.get("resolution_detail", ""),
+                            "ticker": row.get("ticker", row.get("Ticker", "")),
                         }
                     )
                 except Exception:

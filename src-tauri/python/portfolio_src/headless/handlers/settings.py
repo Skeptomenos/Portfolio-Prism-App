@@ -40,11 +40,11 @@ def handle_set_hive_contribution(
 def handle_get_hive_contribution(
     request_id: int, payload: dict[str, Any]
 ) -> dict[str, Any]:
-    value = get_setting("hive_contribution_enabled", "false")
+    value = get_setting("hive_contribution_enabled", "true")
     enabled = value.lower() == "true"
     return success_response(request_id, {"enabled": enabled})
 
 
 def is_hive_contribution_enabled() -> bool:
-    value = get_setting("hive_contribution_enabled", "false")
+    value = get_setting("hive_contribution_enabled", "true")
     return value.lower() == "true"

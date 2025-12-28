@@ -8,6 +8,10 @@ import multiprocessing
 from pdf_parser.utils import parse_description
 from deep_translator import GoogleTranslator
 from tqdm import tqdm
+
+from portfolio_src.prism_utils.logging_config import get_logger
+
+logger = get_logger(__name__)
 # NOTE: database.py was deleted in Phase 11 (legacy SQLite workflow removed)
 # The parse_pdfs_from_folder() function doesn't need database imports.
 # Stubs below are provided for main() which is deprecated but kept for reference.
@@ -303,15 +307,15 @@ def parse_pdfs_from_folder(folder_path: Path) -> pd.DataFrame:
     pdf_files = list(folder_path.glob("*.pdf"))
 
     if not pdf_files:
-        print(f"No PDF files found in {folder_path}")
+        logger.warning(f"No PDF files found in {folder_path}")
         return pd.DataFrame()
 
-    print(f"Found {len(pdf_files)} PDF file(s)")
+    logger.info(f"Found {len(pdf_files)} PDF file(s)")
 
     all_trades_dfs = []
 
     for pdf_file in pdf_files:
-        print(f"Processing: {pdf_file.name}")
+        logger.info(f"Processing: {pdf_file.name}")
 
         # Get page count
         with pdfplumber.open(pdf_file) as pdf:
@@ -330,10 +334,10 @@ def parse_pdfs_from_folder(folder_path: Path) -> pd.DataFrame:
 
     if all_trades_dfs:
         full_trades = pd.concat(all_trades_dfs, ignore_index=True)
-        print(f"Parsed {len(full_trades)} trades from {len(pdf_files)} PDF(s)")
+        logger.info(f"Parsed {len(full_trades)} trades from {len(pdf_files)} PDF(s)")
         return full_trades
     else:
-        print("No trades found in PDFs")
+        logger.warning("No trades found in PDFs")
         return pd.DataFrame()
 
 
@@ -364,20 +368,20 @@ def main():
     num_workers = max(1, int(os.cpu_count() * 0.8))
 
     for i, pdf_file in enumerate(pdf_files, 1):
-        print(f"Processing [{i}/{total_files}]: {pdf_file.name}")
+        logger.info(f"Processing [{i}/{total_files}]: {pdf_file.name}")
 
         # 1. Check Hash
         file_hash = calculate_file_hash(pdf_file)
         if is_file_processed(file_hash):
-            print("  - ✅ File already processed (Hash match). Skipping.")
+            logger.info("File already processed (Hash match). Skipping.")
             continue
 
         # 2. Parallel Parse
         with pdfplumber.open(pdf_file) as pdf:
             num_pages = len(pdf.pages)
 
-        print(
-            f"  - New file detected. Parsing {num_pages} pages with {num_workers} workers..."
+        logger.info(
+            f"New file detected. Parsing {num_pages} pages with {num_workers} workers..."
         )
 
         # Prepare args for map
@@ -414,7 +418,7 @@ def main():
 
             # Insert into DB and get count of NEW items
             new_trades_count = insert_trades_ignore_duplicates(full_transactions)
-            print(f"  - Inserted {new_trades_count} new transactions into Database.")
+            logger.info(f"Inserted {new_trades_count} new transactions into Database.")
 
             # Save CSVs for legacy compatibility / debugging
             full_transactions.to_csv(output_path / "transactions.csv", index=False)
@@ -422,11 +426,11 @@ def main():
         if all_trades_dfs:
             full_trades = pd.concat(all_trades_dfs, ignore_index=True)
             full_trades.to_csv(output_path / "trades.csv", index=False)
-            print(f"  - Generated {len(full_trades)} parsed trades (saved to CSV).")
+            logger.info(f"Generated {len(full_trades)} parsed trades (saved to CSV).")
 
         # 4. Mark Done
         mark_file_processed(file_hash, pdf_file.name)
-        print("  - ✅ File marked as processed.")
+        logger.info("File marked as processed.")
 
 
 if __name__ == "__main__":

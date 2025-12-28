@@ -17,6 +17,10 @@ if str(_python_root) not in sys.path:
     sys.path.insert(0, str(_python_root))
 # === END PATH SETUP ===
 
+from portfolio_src.prism_utils.logging_config import get_logger
+
+logger = get_logger(__name__)
+
 import asyncio
 import json
 import os
@@ -102,7 +106,7 @@ class TRDaemon:
                 }
 
             if self.api.resume_websession():
-                print("[TR Daemon] Session resumed from cookies", file=sys.stderr)
+                logger.info("Session resumed from cookies")
                 self._cached_auth_status = "authenticated"
                 return {
                     "status": "authenticated",
@@ -118,7 +122,7 @@ class TRDaemon:
                     "code": "SESSION_RESTORE_FAILED",
                 }
 
-            print("[TR Daemon] Initiating web login...", file=sys.stderr)
+            logger.info("Initiating web login")
             if hasattr(self.api, "initiate_weblogin"):
                 countdown = self.api.initiate_weblogin()
             elif hasattr(self.api, "inititate_weblogin"):
@@ -175,10 +179,7 @@ class TRDaemon:
             try:
                 await asyncio.wait_for(portfolio_obj.portfolio_loop(), timeout=60.0)
             except asyncio.TimeoutError:
-                print(
-                    "[TR Daemon] Portfolio fetch timed out, resetting API state",
-                    file=sys.stderr,
-                )
+                logger.warning("Portfolio fetch timed out, resetting API state")
                 self.api = None
                 self._cached_auth_status = "idle"
                 return {
@@ -192,7 +193,7 @@ class TRDaemon:
                     x in error_msg
                     for x in ["401", "unauthorized", "session", "expired"]
                 ):
-                    print(f"[TR Daemon] Auth error during fetch: {e}", file=sys.stderr)
+                    logger.error(f"Auth error during fetch: {e}")
                     self.api = None
                     self._cached_auth_status = "idle"
                 return {

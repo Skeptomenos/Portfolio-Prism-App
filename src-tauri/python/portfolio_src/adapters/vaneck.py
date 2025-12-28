@@ -87,16 +87,16 @@ if __name__ == "__main__":
     df = adapter.fetch_holdings("IE000YYE6WK5")
 
     if not df.empty:
-        print("\n--- Standalone test successful ---")
-        print(df.head())
-        print(f"\nTotal rows: {len(df)}")
-        print(f"Total weight: {df['weight_percentage'].sum():.2f}%")
+        logger.info("Standalone test successful")
+        logger.info(f"\n{df.head()}")
+        logger.info(f"Total rows: {len(df)}")
+        logger.info(f"Total weight: {df['weight_percentage'].sum():.2f}%")
         # Save to CSV for inspection
         df.to_csv(
             "data/working/raw_downloads/DFNS_vaneck_direct_download.csv", index=False
         )
-        print(
-            "--- Saved to data/working/raw_downloads/DFNS_vaneck_direct_download.csv ---"
+        logger.info(
+            "Saved to data/working/raw_downloads/DFNS_vaneck_direct_download.csv"
         )
     else:
-        print("\n--- Standalone test failed. ---")
+        logger.warning("Standalone test failed.")

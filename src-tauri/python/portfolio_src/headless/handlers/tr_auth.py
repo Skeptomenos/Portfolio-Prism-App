@@ -109,6 +109,55 @@ async def handle_tr_check_saved_session(
         return error_response(cmd_id, "TR_SESSION_CHECK_ERROR", str(e))
 
 
+async def handle_tr_get_stored_credentials(
+    cmd_id: int, payload: dict[str, Any]
+) -> dict[str, Any]:
+    """Get stored Trade Republic credentials for form pre-fill.
+
+    Returns phone and PIN if "Remember me" was previously checked.
+    Used to pre-fill the login form for returning users.
+
+    Args:
+        cmd_id: IPC command identifier.
+        payload: Command payload (unused).
+
+    Returns:
+        Success response with credentials (or null if none stored).
+    """
+    try:
+        loop = asyncio.get_event_loop()
+        executor = get_executor()
+        auth_manager = get_auth_manager()
+
+        phone, pin = await loop.run_in_executor(
+            executor, auth_manager.get_stored_credentials
+        )
+
+        if phone and pin:
+            masked = f"***{phone[-4:]}" if len(phone) > 4 else "****"
+            logger.info(f"Returning stored credentials for phone ending {masked}")
+            return success_response(
+                cmd_id,
+                {
+                    "hasCredentials": True,
+                    "phone": phone,
+                    "pin": pin,
+                },
+            )
+        else:
+            return success_response(
+                cmd_id,
+                {
+                    "hasCredentials": False,
+                    "phone": None,
+                    "pin": None,
+                },
+            )
+    except Exception as e:
+        logger.error(f"Failed to get stored credentials: {e}", exc_info=True)
+        return error_response(cmd_id, "TR_CREDENTIALS_ERROR", str(e))
+
+
 async def handle_tr_login(cmd_id: int, payload: dict[str, Any]) -> dict[str, Any]:
     """Start Trade Republic login process with phone + PIN.
 

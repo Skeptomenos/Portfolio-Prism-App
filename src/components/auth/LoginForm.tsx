@@ -4,9 +4,9 @@
  * Glassmorphic login form for phone + PIN authentication.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../../store/useAppStore';
-import { trLogin } from '../../lib/ipc';
+import { trLogin, trGetStoredCredentials } from '../../lib/ipc';
 import type { AuthResponse } from '../../types';
 
 const styles = {
@@ -123,8 +123,30 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   const [remember, setRemember] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [credentialsLoaded, setCredentialsLoaded] = useState(false);
   
   const { setAuthState, setAuthError } = useAppStore();
+
+  useEffect(() => {
+    if (credentialsLoaded) return;
+    
+    const loadStoredCredentials = async () => {
+      try {
+        const result = await trGetStoredCredentials();
+        if (result.hasCredentials && result.phone && result.pin) {
+          setPhone(result.phone);
+          setPin(result.pin);
+          setRemember(true);
+        }
+      } catch {
+        // Intentional: graceful degradation
+      } finally {
+        setCredentialsLoaded(true);
+      }
+    };
+    
+    loadStoredCredentials();
+  }, [credentialsLoaded]);
 
   const validatePhone = (phone: string): boolean => {
     const phoneRegex = /^\+49\d{9,15}$/;

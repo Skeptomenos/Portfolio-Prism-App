@@ -19,6 +19,10 @@ import requests
 import pandas as pd
 from typing import Optional, List, Dict, Any
 
+from portfolio_src.prism_utils.logging_config import get_logger
+
+logger = get_logger(__name__)
+
 from portfolio_src.data.caching import cache_adapter_data
 from portfolio_src.data.holdings_cache import ManualUploadRequired
 from portfolio_src.prism_utils.logging_config import get_logger
@@ -551,8 +555,8 @@ if __name__ == "__main__":
     holdings = adapter.fetch_holdings(test_isin)
 
     if not holdings.empty:
-        print(f"\n--- Successfully fetched {len(holdings)} holdings ---")
-        print(holdings.head(10))
-        print(f"\nTotal weight: {holdings['weight_percentage'].sum():.2f}%")
+        logger.info(f"Successfully fetched {len(holdings)} holdings")
+        logger.info(f"\n{holdings.head(10)}")
+        logger.info(f"Total weight: {holdings['weight_percentage'].sum():.2f}%")
     else:
-        print("\n--- Failed to fetch holdings ---")
+        logger.warning("Failed to fetch holdings")

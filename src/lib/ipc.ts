@@ -200,6 +200,22 @@ export async function trCheckSavedSession(): Promise<SessionCheck> {
 }
 
 /**
+ * Get stored Trade Republic credentials for form pre-fill
+ */
+export async function trGetStoredCredentials(): Promise<{
+  hasCredentials: boolean;
+  phone: string | null;
+  pin: string | null;
+}> {
+  try {
+    return await callCommand('tr_get_stored_credentials', {});
+  } catch (error) {
+    console.error('[IPC] tr_get_stored_credentials failed:', error);
+    return { hasCredentials: false, phone: null, pin: null };
+  }
+}
+
+/**
  * Start Trade Republic login process
  */
 export async function trLogin(
@@ -280,20 +296,6 @@ export async function getTrueHoldings(): Promise<TrueHoldingsResponse> {
     );
   } catch (error) {
     console.error('[IPC] get_true_holdings failed:', error);
-    throw error;
-  }
-}
-
-/**
- * Get overlap analysis
- */
-export async function getOverlapAnalysis(): Promise<any> {
-  try {
-    return await deduplicatedCall('get_overlap_analysis', () => 
-      callCommand('get_overlap_analysis', {})
-    );
-  } catch (error) {
-    console.error('[IPC] get_overlap_analysis failed:', error);
     throw error;
   }
 }

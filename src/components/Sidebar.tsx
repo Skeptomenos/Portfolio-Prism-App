@@ -1,4 +1,4 @@
-import { LayoutDashboard, Layers, GitCompare, Database, Settings, Activity, Link, MessageSquare } from 'lucide-react';
+import { LayoutDashboard, Layers, Database, Activity, Link, MessageSquare } from 'lucide-react';
 import { useAppStore, useCurrentView, useAuthState } from '../store/useAppStore';
 import SystemStatus from './SystemStatus';
 import type { ViewType } from '../types';
@@ -7,9 +7,9 @@ const navItems = [
     { id: 'dashboard' as ViewType, icon: LayoutDashboard, label: 'Dashboard' },
     { id: 'trade-republic' as ViewType, icon: Link, label: 'Trade Republic' },
     { id: 'xray' as ViewType, icon: Layers, label: 'X-Ray' },
-    { id: 'overlap' as ViewType, icon: GitCompare, label: 'Overlap' },
+
     { id: 'holdings' as ViewType, icon: Database, label: 'Holdings' },
-    { id: 'data' as ViewType, icon: Settings, label: 'Data' },
+
     { id: 'health' as ViewType, icon: Activity, label: 'Health' },
 ];
 

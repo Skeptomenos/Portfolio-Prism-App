@@ -57,11 +57,11 @@ async def handle_get_recent_reports(
     """
     from portfolio_src.data.database import get_connection
 
-    conn = get_connection()
-    cursor = conn.execute(
-        "SELECT * FROM system_logs WHERE processed = 1 AND level IN ('ERROR', 'CRITICAL') ORDER BY reported_at DESC LIMIT 20"
-    )
-    reports = [dict(row) for row in cursor.fetchall()]
+    with get_connection() as conn:
+        cursor = conn.execute(
+            "SELECT * FROM system_logs WHERE processed = 1 AND level IN ('ERROR', 'CRITICAL') ORDER BY reported_at DESC LIMIT 20"
+        )
+        reports = [dict(row) for row in cursor.fetchall()]
 
     logger.debug(f"Returning {len(reports)} recent reports")
     return success_response(cmd_id, reports)
@@ -81,11 +81,11 @@ async def handle_get_pending_reviews(
     """
     from portfolio_src.data.database import get_connection
 
-    conn = get_connection()
-    cursor = conn.execute(
-        "SELECT * FROM system_logs WHERE processed = 0 AND level IN ('ERROR', 'CRITICAL') ORDER BY timestamp DESC"
-    )
-    pending = [dict(row) for row in cursor.fetchall()]
+    with get_connection() as conn:
+        cursor = conn.execute(
+            "SELECT * FROM system_logs WHERE processed = 0 AND level IN ('ERROR', 'CRITICAL') ORDER BY timestamp DESC"
+        )
+        pending = [dict(row) for row in cursor.fetchall()]
 
     logger.debug(f"Returning {len(pending)} pending reviews")
     return success_response(cmd_id, pending)

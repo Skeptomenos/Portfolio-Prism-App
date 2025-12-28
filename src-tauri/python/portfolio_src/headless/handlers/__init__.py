@@ -14,7 +14,7 @@ Handler Domains:
     - dashboard: Portfolio dashboard data
     - tr_auth: Trade Republic authentication
     - sync: Portfolio synchronization and pipeline
-    - holdings: ETF holdings and overlap analysis
+    - holdings: ETF holdings and true exposure analysis
     - telemetry: Logging and error reporting
 """
 
@@ -29,6 +29,7 @@ from portfolio_src.headless.handlers.dashboard import (
 from portfolio_src.headless.handlers.tr_auth import (
     handle_tr_get_auth_status,
     handle_tr_check_saved_session,
+    handle_tr_get_stored_credentials,
     handle_tr_login,
     handle_tr_submit_2fa,
     handle_tr_logout,
@@ -40,7 +41,6 @@ from portfolio_src.headless.handlers.sync import (
 from portfolio_src.headless.handlers.holdings import (
     handle_upload_holdings,
     handle_get_true_holdings,
-    handle_get_overlap_analysis,
     handle_get_pipeline_report,
 )
 from portfolio_src.headless.handlers.telemetry import (
@@ -70,6 +70,7 @@ HANDLER_REGISTRY: dict[str, HandlerFunc] = {
     # TR Auth
     "tr_get_auth_status": handle_tr_get_auth_status,
     "tr_check_saved_session": handle_tr_check_saved_session,
+    "tr_get_stored_credentials": handle_tr_get_stored_credentials,
     "tr_login": handle_tr_login,
     "tr_submit_2fa": handle_tr_submit_2fa,
     "tr_logout": handle_tr_logout,
@@ -79,7 +80,6 @@ HANDLER_REGISTRY: dict[str, HandlerFunc] = {
     # Holdings
     "upload_holdings": handle_upload_holdings,
     "get_true_holdings": handle_get_true_holdings,
-    "get_overlap_analysis": handle_get_overlap_analysis,
     "get_pipeline_report": handle_get_pipeline_report,
     # Telemetry
     "log_event": handle_log_event,
@@ -102,6 +102,7 @@ __all__ = [
     # TR Auth
     "handle_tr_get_auth_status",
     "handle_tr_check_saved_session",
+    "handle_tr_get_stored_credentials",
     "handle_tr_login",
     "handle_tr_submit_2fa",
     "handle_tr_logout",
@@ -111,7 +112,6 @@ __all__ = [
     # Holdings
     "handle_upload_holdings",
     "handle_get_true_holdings",
-    "handle_get_overlap_analysis",
     "handle_get_pipeline_report",
     # Telemetry
     "handle_log_event",

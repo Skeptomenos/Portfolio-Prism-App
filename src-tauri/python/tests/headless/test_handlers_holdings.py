@@ -1,4 +1,4 @@
-"""Tests for headless/handlers/holdings.py - Holdings and overlap handlers."""
+"""Tests for headless/handlers/holdings.py - Holdings handlers."""
 
 import json
 import os
@@ -10,7 +10,6 @@ import pandas as pd
 from portfolio_src.headless.handlers.holdings import (
     handle_upload_holdings,
     handle_get_true_holdings,
-    handle_get_overlap_analysis,
     handle_get_pipeline_report,
 )
 
@@ -146,77 +145,6 @@ class TestHandleGetTrueHoldings:
         # Apple should have sources from both ETFs
         apple = next(h for h in holdings if h["stock"] == "Apple")
         assert len(apple["sources"]) == 2
-
-
-class TestHandleGetOverlapAnalysis:
-    """Tests for handle_get_overlap_analysis()."""
-
-    def test_returns_empty_when_file_not_exists(self):
-        """Returns empty analysis when breakdown file doesn't exist."""
-        with patch("os.path.exists", return_value=False):
-            result = handle_get_overlap_analysis(1, {})
-
-        assert result["status"] == "success"
-        assert result["data"]["etfs"] == []
-        assert result["data"]["matrix"] == []
-        assert result["data"]["sharedHoldings"] == []
-
-    def test_returns_empty_when_dataframe_empty(self):
-        """Returns empty analysis when breakdown file is empty."""
-        with patch("os.path.exists", return_value=True):
-            with patch("pandas.read_csv", return_value=pd.DataFrame()):
-                result = handle_get_overlap_analysis(1, {})
-
-        assert result["status"] == "success"
-        assert result["data"]["etfs"] == []
-
-    def test_returns_overlap_matrix(self):
-        """Returns overlap matrix for ETFs."""
-        mock_df = pd.DataFrame(
-            {
-                "parent_isin": ["ETF1", "ETF1", "ETF2", "ETF2"],
-                "child_isin": ["STOCK1", "STOCK2", "STOCK1", "STOCK3"],
-                "child_name": ["Apple", "Microsoft", "Apple", "Google"],
-                "value_eur": [100.0, 100.0, 100.0, 100.0],
-                "weight_percent": [50.0, 50.0, 50.0, 50.0],
-            }
-        )
-
-        with patch("os.path.exists", return_value=True):
-            with patch("pandas.read_csv", return_value=mock_df):
-                result = handle_get_overlap_analysis(1, {})
-
-        assert result["status"] == "success"
-        assert len(result["data"]["etfs"]) == 2
-        assert len(result["data"]["matrix"]) == 2
-        assert len(result["data"]["matrix"][0]) == 2
-
-        # Diagonal should be 100%
-        matrix = result["data"]["matrix"]
-        assert matrix[0][0] == 100.0
-        assert matrix[1][1] == 100.0
-
-    def test_identifies_shared_holdings(self):
-        """Identifies holdings shared between multiple ETFs."""
-        mock_df = pd.DataFrame(
-            {
-                "parent_isin": ["ETF1", "ETF2"],
-                "child_isin": ["STOCK1", "STOCK1"],
-                "child_name": ["Apple", "Apple"],
-                "value_eur": [100.0, 150.0],
-                "weight_percent": [50.0, 75.0],
-            }
-        )
-
-        with patch("os.path.exists", return_value=True):
-            with patch("pandas.read_csv", return_value=mock_df):
-                result = handle_get_overlap_analysis(1, {})
-
-        shared = result["data"]["sharedHoldings"]
-        assert len(shared) == 1
-        assert shared[0]["stock"] == "Apple"
-        assert len(shared[0]["etfs"]) == 2
-        assert shared[0]["totalValue"] == 250.0
 
 
 class TestHandleGetPipelineReport:

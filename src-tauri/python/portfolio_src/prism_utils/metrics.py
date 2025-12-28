@@ -3,6 +3,10 @@ import os
 from datetime import datetime
 from collections import defaultdict
 
+from portfolio_src.prism_utils.logging_config import get_logger
+
+logger = get_logger(__name__)
+
 
 class MetricsTracker:
     """
@@ -78,7 +82,7 @@ class MetricsTracker:
             with open(output_path, "w") as f:
                 json.dump(self.metrics, f, indent=4)
         except Exception as e:
-            print(f"Failed to save metrics: {e}")
+            logger.error(f"Failed to save metrics: {e}")
 
 
 # Global instance

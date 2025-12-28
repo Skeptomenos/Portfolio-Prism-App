@@ -23,6 +23,7 @@ class TestHandlerRegistry:
             "get_positions",
             "tr_get_auth_status",
             "tr_check_saved_session",
+            "tr_get_stored_credentials",
             "tr_login",
             "tr_submit_2fa",
             "tr_logout",
@@ -30,7 +31,6 @@ class TestHandlerRegistry:
             "run_pipeline",
             "upload_holdings",
             "get_true_holdings",
-            "get_overlap_analysis",
             "get_pipeline_report",
             "log_event",
             "get_recent_reports",
@@ -41,8 +41,8 @@ class TestHandlerRegistry:
 
         assert set(HANDLER_REGISTRY.keys()) == expected_commands
 
-    def test_registry_has_20_handlers(self):
-        """Should have exactly 20 handlers registered."""
+    def test_registry_has_expected_handler_count(self):
+        """Should have expected number of handlers registered."""
         assert len(HANDLER_REGISTRY) == 20
 
     def test_all_handlers_are_callable(self):

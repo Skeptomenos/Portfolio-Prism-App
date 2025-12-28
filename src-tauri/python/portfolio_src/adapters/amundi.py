@@ -11,6 +11,10 @@ import os
 import pandas as pd
 from typing import Optional
 
+from portfolio_src.prism_utils.logging_config import get_logger
+
+logger = get_logger(__name__)
+
 try:
     from python_calamine.pandas import pandas_monkeypatch
 
@@ -212,14 +216,14 @@ class AmundiAdapter:
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        print("Usage: python amundi.py <isin>", file=sys.stderr)
+        logger.error("Usage: python amundi.py <isin>")
         sys.exit(1)
 
     isin_arg = sys.argv[1]
     adapter = AmundiAdapter()
     holdings = adapter.fetch_holdings(isin_arg)
     if not holdings.empty:
-        print(f"Successfully fetched {len(holdings)} holdings.")
-        print(holdings.head())
+        logger.info(f"Successfully fetched {len(holdings)} holdings.")
+        logger.info(f"\n{holdings.head()}")
     else:
-        print("Failed to fetch holdings.")
+        logger.warning("Failed to fetch holdings.")
