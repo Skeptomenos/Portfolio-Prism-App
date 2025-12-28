@@ -8,7 +8,7 @@ import { invoke, isTauri } from './tauri';
 import type { 
   DashboardData, EngineHealth, Holding, AuthStatus, SessionCheck, 
   AuthResponse, LogoutResponse, PortfolioSyncResult, PositionsResponse,
-  TauriCommands, TrueHoldingsResponse
+  TauriCommands, TrueHoldingsResponse, SystemLogReport
 } from '../types';
 
 const pendingRequests = new Map<string, Promise<unknown>>();
@@ -316,10 +316,7 @@ export async function logEvent(
   }
 }
 
-/**
- * Get recent reported issues
- */
-export async function getRecentReports(): Promise<any[]> {
+export async function getRecentReports(): Promise<SystemLogReport[]> {
   try {
     return await callCommand('get_recent_reports', {});
   } catch (error) {

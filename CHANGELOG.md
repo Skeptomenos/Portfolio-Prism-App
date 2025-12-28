@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **HealthView Null Safety Fix:**
+  - Added `SystemLogReport` type for telemetry data with proper nullable fields.
+  - Fixed crash when `report.category` is null (now displays "UNKNOWN").
+  - Fixed "Invalid Date" when `report.reported_at` is null (now displays "N/A").
+  - Fixed undefined display when `report.component` is null (now displays "unknown").
+  - Updated `getRecentReports()` return type from `any[]` to `SystemLogReport[]`.
+
 - **ResolutionTable Type Cleanup:**
   - Added `weight_sum` to `ETFResolutionDetail` type (matches backend output).
   - Removed dead `etf_stats` legacy field from `PipelineHealthReport`.

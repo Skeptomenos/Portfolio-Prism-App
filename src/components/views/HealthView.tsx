@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AlertCircle, CheckCircle, RefreshCcw, Clock, Upload, Shield, Eye, Send, Trash2, ExternalLink } from 'lucide-react';
 import { getPipelineReport, runPipeline, getRecentReports, getPendingReviews, setHiveContribution, getHiveContribution } from '../../lib/ipc';
+import type { SystemLogReport } from '../../types';
 import { useAppStore, useTelemetryMode, useSetTelemetryMode, useHiveContributionEnabled, useSetHiveContributionEnabled } from '../../store/useAppStore';
 import HoldingsUpload from '../HoldingsUpload';
 
@@ -39,7 +40,7 @@ const HealthView = () => {
     const [health, setHealth] = useState<HealthData | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null); 
-    const [recentReports, setRecentReports] = useState<any[]>([]);
+    const [recentReports, setRecentReports] = useState<SystemLogReport[]>([]);
     const [pendingReviews, setPendingReviews] = useState<any[]>([]);
     const [uploadModal, setUploadModal] = useState<{ isOpen: boolean; isin: string; ticker: string }>({
         isOpen: false,
@@ -270,10 +271,10 @@ const HealthView = () => {
                                 }}>
                                     <div>
                                         <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)' }}>
-                                            {report.category.replace('_', ' ').toUpperCase()}
+                                            {(report.category ?? 'unknown').replace('_', ' ').toUpperCase()}
                                         </div>
                                         <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                                            {new Date(report.reported_at).toLocaleDateString()} • {report.component}
+                                            {report.reported_at ? new Date(report.reported_at).toLocaleDateString() : 'N/A'} • {report.component ?? 'unknown'}
                                         </div>
                                     </div>
                                     <ExternalLink size={14} style={{ color: '#3b82f6', cursor: 'pointer' }} />

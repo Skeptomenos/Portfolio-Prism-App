@@ -275,7 +275,7 @@ export interface TauriCommands {
   };
   get_recent_reports: {
     args: Record<string, never>;
-    returns: any[];
+    returns: SystemLogReport[];
   };
   get_pending_reviews: {
     args: Record<string, never>;
@@ -369,4 +369,23 @@ export interface ResolutionSummary {
 export interface TrueHoldingsResponse {
   holdings: XRayHolding[];
   summary: ResolutionSummary;
+}
+
+// =============================================================================
+// System Logs / Telemetry
+// =============================================================================
+
+export interface SystemLogReport {
+  id: number;
+  session_id: string;
+  timestamp: string;
+  level: 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR' | 'CRITICAL';
+  source: string;
+  component: string | null;
+  category: string | null;
+  message: string;
+  context: string | null;
+  error_hash: string | null;
+  processed: number;
+  reported_at: string | null;
 }
