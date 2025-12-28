@@ -190,107 +190,63 @@ Improve ISIN resolution accuracy and efficiency through name/ticker normalizatio
 
 > **Key Insight:** The `ticker` and `name` columns already contain original values. The resolver doesn't modify the DataFrame. No new `original_ticker`/`original_name` columns needed.
 
-- [ ] **IR-6A1:** Add resolution columns to cols_to_keep
-    - **Status:** Open
-    - **File:** `src-tauri/python/portfolio_src/core/aggregation/__init__.py`
-    - **Details:** 
-      - Add to `cols_to_keep`: `ticker`, `resolution_status`, `resolution_source`, `resolution_confidence`, `resolution_detail`
-      - Note: `resolution_detail` is already set in enrichment.py but was filtered out
+- [x] **IR-6A1:** Add resolution columns to cols_to_keep
+    - **Status:** Done
+    - **Commit:** `26a9282`
 
-- [ ] **IR-6A2:** Add resolution defaults for direct holdings
-    - **Status:** Open
-    - **File:** `src-tauri/python/portfolio_src/core/aggregation/__init__.py`
-    - **Details:** 
-      - Add: `resolution_status="resolved"`, `resolution_source="provider"`, `resolution_confidence=1.0`, `resolution_detail="provider"`
-      - Add `ticker` column from `isin` if not present (direct holdings don't have ticker)
+- [x] **IR-6A2:** Add resolution defaults for direct holdings
+    - **Status:** Done
+    - **Commit:** `26a9282`
 
-- [ ] **IR-6A3:** Update handle_get_true_holdings response
-    - **Status:** Open
-    - **File:** `src-tauri/python/portfolio_src/headless/handlers/holdings.py`
-    - **Details:** 
-      - Add backward compatibility for legacy CSV (add defaults if columns missing)
-      - Include resolution fields: `resolutionStatus`, `resolutionSource`, `resolutionConfidence`, `resolutionDetail`, `ticker`
-      - Add `summary` object with: `total`, `resolved`, `unresolved`, `skipped`, `unknown`, `bySource`, `healthScore`
-      - Fix health formula: `resolved / (resolved + unresolved)` - excludes skipped and unknown
+- [x] **IR-6A3:** Update handle_get_true_holdings response
+    - **Status:** Done
+    - **Commit:** `26a9282`
 
-- [ ] **IR-6A4:** Add helper functions to holdings.py
-    - **Status:** Open
-    - **File:** `src-tauri/python/portfolio_src/headless/handlers/holdings.py`
-    - **Details:** 
-      - Move `import pandas as pd` to module level (required for helpers)
-      - `_safe_str(val)` - Handle None/NaN/string "nan" conversion
-      - `_empty_summary()` - Return empty summary structure (includes `unknown` count)
-      - `_calculate_summary(holdings)` - Calculate resolution stats with correct health formula
+- [x] **IR-6A4:** Add helper functions to holdings.py
+    - **Status:** Done
+    - **Commit:** `26a9282`
 
-- [ ] **IR-6A5:** Add Phase 6A unit tests
-    - **Status:** Open
-    - **File:** `src-tauri/python/tests/test_holdings_resolution.py`
-    - **Details:** 
-      - Test helper functions (including string "nan" handling)
-      - Test handler with resolution data (patch `portfolio_src.config.HOLDINGS_BREAKDOWN_PATH`)
-      - Test legacy CSV compatibility
-      - Test health score excludes unknown from denominator
+- [x] **IR-6A5:** Add Phase 6A unit tests
+    - **Status:** Done
+    - **Commit:** `26a9282`
 
 #### Phase 6B: Frontend Components
 > **Plan:** [`keystone/plans/identity_resolution_phase6b_components.md`](../../plans/identity_resolution_phase6b_components.md)
 
-- [ ] **IR-6B1:** Define TypeScript types for resolution
-    - **Status:** Open
-    - **File:** `src/types/index.ts`
-    - **Details:** 
-      - Add `ResolutionStatus` type: 'resolved' | 'unresolved' | 'skipped' | 'unknown'
-      - Add `ResolutionSource` type: 'provider' | 'hive' | 'api_wikidata' | etc.
-      - Add `XRayHolding` interface with resolution fields
-      - Add `ResolutionSummary` interface with health score
-      - Add `TrueHoldingsResponse` interface
+- [x] **IR-6B1:** Define TypeScript types for resolution
+    - **Status:** Done
+    - **Commit:** `cb657ac`
 
-- [ ] **IR-6B2:** Create ResolutionStatusBadge component
-    - **Status:** Open
-    - **Files:** `src/components/common/ResolutionStatusBadge.tsx` + `.css`
-    - **Details:** 
-      - Visual badge with icon (ShieldCheck, CheckCircle, AlertCircle, etc.)
-      - Color-coded by confidence level (verified/high/medium/unresolved/skipped)
-      - Hover tooltip showing source, confidence %, original ticker, resolved ISIN
-      - Compact mode for list view (icon only)
+- [x] **IR-6B2:** Create ResolutionStatusBadge component
+    - **Status:** Done
+    - **Commit:** `cb657ac`
 
-- [ ] **IR-6B3:** Create ResolutionHealthCard component
-    - **Status:** Open
-    - **Files:** `src/components/xray/ResolutionHealthCard.tsx` + `.css`
-    - **Details:** 
-      - Health score percentage with progress bar
-      - Stats grid: total, resolved, unresolved, skipped, unknown
-      - Source breakdown with horizontal bar chart
-      - Uses existing GlassCard component
+- [x] **IR-6B3:** Create ResolutionHealthCard component
+    - **Status:** Done
+    - **Commit:** `cb657ac`
 
-- [ ] **IR-6B4:** Create NeedsAttentionSection component
-    - **Status:** Open
-    - **Files:** `src/components/xray/NeedsAttentionSection.tsx` + `.css`
-    - **Details:** 
-      - Collapsible section with warning styling
-      - Lists holdings with unresolved or low confidence
-      - Shows first 5, "Show N more" button to expand
-      - Click item to select in main list
+- [x] **IR-6B4:** Create NeedsAttentionSection component
+    - **Status:** Done
+    - **Commit:** `cb657ac`
 
-- [ ] **IR-6B5:** Create FilterBar component
-    - **Status:** Open
-    - **Files:** `src/components/xray/FilterBar.tsx` + `.css`
-    - **Details:** 
-      - Search input with icon
-      - Filter buttons: All | Resolved | Unresolved | Low Confidence
-      - Sort dropdown: Value | Confidence | Name
-      - Results count display
+- [x] **IR-6B5:** Create FilterBar component
+    - **Status:** Done
+    - **Commit:** `cb657ac`
 
 #### Phase 6C: Integration
+> **Plan:** [`keystone/plans/identity_resolution_phase6c_integration.md`](../../plans/identity_resolution_phase6c_integration.md)
 
-- [ ] **IR-6C1:** Update IPC types
-    - **Status:** Open
-    - **File:** `src/lib/ipc.ts`
-    - **Details:** Update getTrueHoldings return type to TrueHoldingsResponse
+- [x] **IR-6C1:** Update IPC types
+    - **Status:** Done
+    - **Commit:** `aa85f21`
 
-- [ ] **IR-6C2:** Integrate all components into HoldingsView
-    - **Status:** Open
-    - **File:** `src/components/views/HoldingsView.tsx`
-    - **Details:** Full X-Ray view integration with all new components
+- [x] **IR-6C2:** Integrate all components into HoldingsView
+    - **Status:** Done
+    - **Commit:** `aa85f21`
+
+- [x] **IR-6C3:** Add keyboard accessibility to GlassCard
+    - **Status:** Done
+    - **Commit:** `aa85f21`
 
 #### Removed Tasks
 
@@ -322,9 +278,12 @@ Improve ISIN resolution accuracy and efficiency through name/ticker normalizatio
 
 ## Active State
 
-> **Current Focus:** Phase 6A - Backend Data Exposure
+> **Current Focus:** Phase 6 Complete - UI Integration Done
 
 ### Iteration Log
+- **2025-12-28:** Completed Phase 6C - Full HoldingsView integration with all components
+- **2025-12-28:** Completed Phase 6B - 5 UI components (ResolutionStatusBadge, ResolutionHealthCard, NeedsAttentionSection, FilterBar, types)
+- **2025-12-28:** Completed Phase 6A - Backend exposes resolution fields in API response
 - **2025-12-28:** Created detailed Phase 6A implementation plan
 - **2025-12-27:** Completed Phase 5 - Format Logging (observability), 14 new tests
 - **2025-12-27:** Completed Phase 4 - Per-holding provenance (resolution_source, resolution_confidence), 18 new tests
@@ -346,7 +305,7 @@ Improve ISIN resolution accuracy and efficiency through name/ticker normalizatio
 
 ## Context for Resume
 
-- **Next Action:** Phase 6A (IR-6A1) - Preserve original input in enrichment.py
-- **State:** Phases 0-5 complete. 160+ tests passing. Format logging active. Phase 6A plan created.
+- **Next Action:** Phase 6D (Manual Resolution Upload) - See backlog
+- **State:** Phases 0-6C complete. 160+ tests passing. UI integration complete.
 - **Branch:** `fix/pipeline-tuning`
-- **Phase 6A Plan:** `keystone/plans/identity_resolution_phase6a_backend.md`
+- **Remaining:** Phase 5b (Format Optimization) deferred pending data collection, Phase 6D (Manual Upload) in backlog
