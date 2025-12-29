@@ -11,6 +11,7 @@ from dataclasses import dataclass
 
 from portfolio_src.core.errors import PipelineError, ErrorPhase, ErrorType, SchemaError
 from portfolio_src.core.utils import get_isin_column, SchemaNormalizer
+from portfolio_src.core.health import health
 from portfolio_src.data.hive_client import get_hive_client, AssetEntry
 from portfolio_src.data.local_cache import get_local_cache
 from portfolio_src.data.enrichment import EnrichmentService
@@ -90,7 +91,23 @@ class HiveEnrichmentService:
                         "geography": "Unknown",
                         "asset_class": asset.asset_class,
                     }
-                    sources[isin] = "hive"
+                    sources[isin] = (
+                        asset.resolution_source
+                        if hasattr(asset, "resolution_source")
+                        else "hive"
+                    )
+
+                    if (
+                        hasattr(asset, "needs_manual_resolution")
+                        and asset.needs_manual_resolution
+                    ):
+                        health.record_failure(
+                            stage="ASSET_CLASSIFICATION",
+                            item=isin,
+                            error=f"Asset class could not be determined for {asset.name}",
+                            fix="Manually classify this asset or wait for community contribution",
+                            severity="LOW",
+                        )
                 else:
                     missing_isins.append(isin)
 

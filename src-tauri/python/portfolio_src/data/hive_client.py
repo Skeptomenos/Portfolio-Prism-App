@@ -61,6 +61,10 @@ class AssetEntry:
     last_updated: Optional[str] = None
     confidence_score: float = 0.0
 
+    # Resolution tracking
+    resolution_source: str = "hive"  # hive, detected, manual, unknown
+    needs_manual_resolution: bool = False
+
     def calculate_confidence(self) -> float:
         """
         Calculate a trust score (0.0 - 1.0) for this asset.
@@ -337,6 +341,42 @@ class HiveClient:
 
         return None
 
+    def _resolve_unknown_asset_class(self, asset: AssetEntry) -> AssetEntry:
+        """Attempt to resolve an asset with Unknown asset_class using detection."""
+        if asset.asset_class != "Unknown":
+            return asset
+
+        try:
+            from portfolio_src.headless.handlers.sync import detect_asset_class
+            from portfolio_src.models import AssetClass
+
+            detected = detect_asset_class(asset.isin, asset.name)
+
+            asset_class_map = {
+                AssetClass.STOCK: "Equity",
+                AssetClass.ETF: "ETF",
+                AssetClass.CRYPTO: "Crypto",
+                AssetClass.BOND: "Bond",
+                AssetClass.FUND: "Fund",
+                AssetClass.CASH: "Cash",
+            }
+
+            resolved_class = asset_class_map.get(detected, "Equity")
+            asset.asset_class = resolved_class
+            asset.resolution_source = "detected"
+            asset.needs_manual_resolution = False
+
+            logger.info(
+                f"Resolved {asset.isin} asset_class: Unknown -> {resolved_class}"
+            )
+            return asset
+
+        except Exception as e:
+            logger.warning(f"Failed to resolve asset_class for {asset.isin}: {e}")
+            asset.resolution_source = "unknown"
+            asset.needs_manual_resolution = True
+            return asset
+
     def batch_lookup(self, isins: List[str]) -> Dict[str, AssetEntry]:
         """
         Batch lookup multiple ISINs from the universe.
@@ -359,21 +399,25 @@ class HiveClient:
         try:
             client = self._get_client()
             if client is None:
-                # Return placeholder entries if client is not available
+                logger.warning("Supabase client unavailable, using local detection")
                 for isin in uncached_isins:
-                    result[isin] = AssetEntry(
+                    asset = AssetEntry(
                         isin=isin,
                         name="Unknown",
                         asset_class="Unknown",
-                        base_currency="Unknown",
+                        base_currency="EUR",
+                        resolution_source="unknown",
+                        needs_manual_resolution=True,
                     )
+                    asset = self._resolve_unknown_asset_class(asset)
+                    result[isin] = asset
                 return result
 
             response = (
                 client.from_("assets").select("*").in_("isin", uncached_isins).execute()
             )
 
-            # Process response and update cache
+            found_isins = set()
             for row in response.data:
                 asset = AssetEntry(
                     isin=row.get("isin", ""),
@@ -386,22 +430,45 @@ class HiveClient:
                     enrichment_status=row.get("enrichment_status", "stub"),
                     last_updated=row.get("updated_at"),
                     contributor_count=row.get("contributor_count", 1),
+                    resolution_source="hive",
                 )
+
+                if asset.asset_class == "Unknown":
+                    asset = self._resolve_unknown_asset_class(asset)
+
                 asset.calculate_confidence()
                 self._universe_cache[asset.isin] = asset
                 result[asset.isin] = asset
+                found_isins.add(asset.isin)
+
+            missing_isins = set(uncached_isins) - found_isins
+            for isin in missing_isins:
+                asset = AssetEntry(
+                    isin=isin,
+                    name="Unknown",
+                    asset_class="Unknown",
+                    base_currency="EUR",
+                    resolution_source="unknown",
+                    needs_manual_resolution=True,
+                )
+                asset = self._resolve_unknown_asset_class(asset)
+                self._universe_cache[isin] = asset
+                result[isin] = asset
 
         except Exception as e:
             logger.error(f"Hive batch lookup failed: {e}")
-            # Return placeholder entries for failed lookups
             for isin in uncached_isins:
                 if isin not in result:
-                    result[isin] = AssetEntry(
+                    asset = AssetEntry(
                         isin=isin,
                         name="Unknown",
                         asset_class="Unknown",
-                        base_currency="Unknown",
+                        base_currency="EUR",
+                        resolution_source="unknown",
+                        needs_manual_resolution=True,
                     )
+                    asset = self._resolve_unknown_asset_class(asset)
+                    result[isin] = asset
 
         return result
 
@@ -430,7 +497,24 @@ class HiveClient:
                 )
                 return False
 
-            # Transform AssetEntry to dict for upsert
+            valid_asset_classes = {"Equity", "ETF", "Cash", "Crypto", "Bond", "Fund"}
+
+            valid_assets = [
+                asset
+                for asset in assets_data
+                if asset.asset_class in valid_asset_classes
+            ]
+
+            if not valid_assets:
+                logger.debug(
+                    "No valid assets to contribute (all have Unknown asset_class)"
+                )
+                return True
+
+            if len(valid_assets) < len(assets_data):
+                skipped = len(assets_data) - len(valid_assets)
+                logger.debug(f"Skipping {skipped} assets with invalid asset_class")
+
             assets_dict = [
                 {
                     "isin": asset.isin,
@@ -439,7 +523,7 @@ class HiveClient:
                     "base_currency": asset.base_currency,
                     "enrichment_status": asset.enrichment_status,
                 }
-                for asset in assets_data
+                for asset in valid_assets
             ]
 
             # Use RPC function for atomic batch upsert
@@ -449,7 +533,7 @@ class HiveClient:
 
             if response.data and response.data[0].get("success"):
                 logger.info(
-                    f"Successfully contributed {len(assets_data)} assets to Hive"
+                    f"Successfully contributed {len(valid_assets)} assets to Hive"
                 )
                 return True
             else:

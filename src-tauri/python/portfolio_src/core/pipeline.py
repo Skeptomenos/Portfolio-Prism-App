@@ -38,10 +38,12 @@ from portfolio_src.config import (
 from portfolio_src.prism_utils.logging_config import get_logger
 from portfolio_src.core.utils import (
     calculate_portfolio_total_value,
+    calculate_position_values,
     get_weight_column,
     get_isin_column,
     get_name_column,
-    get_value_column,
+    get_total_value_column,
+    get_unit_price_column,
     write_json_atomic,
 )
 from portfolio_src.headless.transports.echo_bridge import (
@@ -615,34 +617,17 @@ class Pipeline:
         if not direct_positions.empty:
             isin_col = get_isin_column(direct_positions)
             name_col = get_name_column(direct_positions)
-            value_col = get_value_column(direct_positions)
 
-            for _, row in direct_positions.iterrows():
+            # Calculate ALL values vectorized ONCE (not per row) - fixes #36, #37
+            position_values = calculate_position_values(direct_positions)
+
+            for idx, row in direct_positions.iterrows():
                 try:
                     isin = str(row.get(isin_col, "UNKNOWN")) if isin_col else "UNKNOWN"
                     name = str(row.get(name_col, "Unknown")) if name_col else "Unknown"
 
-                    # Calculate value
-                    if value_col and value_col in direct_positions.columns:
-                        val = row.get(value_col, 0.0)
-                        value = float(val) if pd.notnull(val) else 0.0
-                    elif (
-                        "quantity" in direct_positions.columns
-                        and "current_price" in direct_positions.columns
-                    ):
-                        qty = (
-                            float(row.get("quantity", 0))
-                            if pd.notnull(row.get("quantity"))
-                            else 0.0
-                        )
-                        price = (
-                            float(row.get("current_price", 0))
-                            if pd.notnull(row.get("current_price"))
-                            else 0.0
-                        )
-                        value = qty * price
-                    else:
-                        value = 0.0
+                    # Use pre-computed vectorized value
+                    value = float(position_values.get(idx, 0.0))
 
                     rows.append(
                         {

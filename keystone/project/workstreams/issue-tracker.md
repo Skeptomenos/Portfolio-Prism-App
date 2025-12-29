@@ -38,7 +38,75 @@ Track and resolve GitHub issues from user feedback. This workstream handles bug 
 
 ### Open
 
-*(none)*
+- [x] **GH-034:** [AUTO] PIPELINE General: 10 occurrences
+    - **Status:** Done
+    - **Workstream:** issue-tracker
+    - **GitHub:** #34
+    - **Type:** Auto-telemetry
+    - **Fix:** Deployed `batch_contribute_assets` RPC via migration + improved sentinel.py reporting
+
+- [x] **GH-038:** [AUTO] PIPELINE General: 9 occurrences (follow-up to #34)
+    - **Status:** Done
+    - **Workstream:** issue-tracker
+    - **GitHub:** #38
+    - **Type:** Auto-telemetry
+    - **Fix:** Added missing `error_message` column to contributions table
+
+- [x] **GH-039:** [AUTO] PIPELINE General: 10 occurrences (stale)
+    - **Status:** Done
+    - **Workstream:** issue-tracker
+    - **GitHub:** #39
+    - **Type:** Auto-telemetry
+    - **Fix:** Stale error from before #38 fix
+
+- [x] **GH-040:** [AUTO] PIPELINE General: 10 occurrences (enum cast)
+    - **Status:** Done
+    - **Workstream:** issue-tracker
+    - **GitHub:** #40
+    - **Type:** Auto-telemetry
+    - **Fix:** Added enum cast for `enrichment_status` in batch_contribute_assets RPC
+
+- [x] **GH-041:** [AUTO] PIPELINE General: 10 occurrences (stale)
+    - **Status:** Done
+    - **Workstream:** issue-tracker
+    - **GitHub:** #41
+    - **Type:** Auto-telemetry
+    - **Fix:** Stale error from before #40 fix was deployed
+
+- [x] **GH-042:** [AUTO] PIPELINE General: 10 occurrences (Unknown asset_class)
+    - **Status:** Done
+    - **Workstream:** issue-tracker
+    - **GitHub:** #42
+    - **Type:** Auto-telemetry
+    - **Fix:** Filter out assets with invalid asset_class before contributing + implement eager resolution
+
+- [x] **GH-043:** [AUTO] PIPELINE Crash: 1 occurrences (KeyboardInterrupt)
+    - **Status:** Done
+    - **Workstream:** issue-tracker
+    - **GitHub:** #43
+    - **Type:** Auto-telemetry
+    - **Fix:** Not a bug - user cancelled app
+
+- [x] **GH-035:** [AUTO] PIPELINE Crash: 1 occurrences
+    - **Status:** Done
+    - **Workstream:** issue-tracker
+    - **GitHub:** #35
+    - **Type:** Auto-telemetry
+    - **Fix:** Closed as stale - KeyboardInterrupt from user cancellation, not a bug
+
+- [ ] **GH-036:** Bitcoin miscalculation - shows €74k instead of €17
+    - **Status:** Open
+    - **Workstream:** issue-tracker
+    - **GitHub:** #36
+    - **Type:** Critical Bug
+    - **Note:** True exposure value massively overvalued. Needs RCA.
+
+- [ ] **GH-037:** NVIDIA direct exposure wrong - shows €159 instead of €1679
+    - **Status:** Open
+    - **Workstream:** issue-tracker
+    - **GitHub:** #37
+    - **Type:** Critical Bug
+    - **Note:** Direct holdings value undervalued in true exposure. Related to #31 fix?
 
 ### Done
 
@@ -180,25 +248,48 @@ Track and resolve GitHub issues from user feedback. This workstream handles bug 
 **Scope:** Needs manual fix flow (CSV upload, manual ISIN mapping).
 **Note:** This may need to become a separate workstream if scope is large.
 
+#### GH-034 - Pipeline General Errors (Auto-telemetry) - RESOLVED
+**Problem:** 10 occurrences of Hive batch contribution failed.
+**Root Cause:** `batch_contribute_assets` RPC existed in functions.sql but was never deployed to Supabase.
+**Fix:** Created migration `20251228160000_add_batch_contribute_assets.sql` and deployed via `supabase db push`.
+**Bonus:** Improved sentinel.py GitHub reporting with full messages and preceding warnings.
+
+#### GH-035 - Pipeline Crash (Auto-telemetry)
+**Problem:** ASGI exception in uvicorn.
+**Investigation Needed:** Check full traceback, identify root cause.
+
+#### GH-036 - Bitcoin Value Miscalculation (CRITICAL)
+**Problem:** User's Bitcoin worth €17.18 shows as €74,372.29 in true exposure.
+**ISIN:** XF000BTC0017
+**Hypothesis:** Possibly using BTC price instead of user's actual holding value.
+**RCA Required:** Check how direct holdings value is calculated in pipeline.
+
+#### GH-037 - NVIDIA Direct Exposure Wrong (CRITICAL)
+**Problem:** User's NVDA direct exposure is €1679, but true exposure shows €159.
+**Hypothesis:** Direct holdings being divided instead of added? Or weight calculation wrong?
+**Related:** May be regression from #31 fix.
+**RCA Required:** Check direct holdings aggregation logic in pipeline.py.
+
 ---
 
 ## 🧠 Active State
 
-> **Current Focus:** All issues resolved!
+> **Current Focus:** 2 critical calculation bugs (#36, #37)
 
 ### Session Stats
 
 | Metric | Value |
 |--------|-------|
-| Total Issues Received | 22 |
-| Resolved | 22 |
-| Open | 0 |
-| Resolution Rate | 100% |
+| Total Issues Received | 32 |
+| Resolved | 30 |
+| Open | 2 |
+| Resolution Rate | 94% |
 
 ---
 
 ## 💾 Context for Resume (Handover)
 
-- **Next Action:** All issues resolved - ready for commit
+- **Next Action:** Investigate #36 and #37 - critical calculation bugs
 - **Branch:** `fix/pipeline-tuning`
-- **Note:** All 22 issues resolved, pending commit and push
+- **Commit:** `9476e2c` - Previous batch committed and pushed
+- **Priority:** #36, #37 are CRITICAL - user-facing value miscalculations

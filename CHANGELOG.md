@@ -9,6 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Value Calculation Bug Fix (All 3 Phases) - GitHub Issues #36, #37:**
+  - Fixed critical bug where per-unit prices were displayed as total position values.
+  - Bitcoin: Now shows correct value (17.18) instead of price (74,372).
+  - NVIDIA: Now shows correct value (1,679.41) instead of price (159.84).
+  
+  **Phase 1 - Vectorized Calculation (70% -> 85%):**
+  - Added `get_total_value_column()` and `get_unit_price_column()` with semantic separation.
+  - Added `calculate_position_values()` vectorized function as single source of truth.
+  - Deprecated `get_value_column()` with warning.
+  - Updated `pipeline.py` to use vectorized calculation.
+  - Added 32 unit tests in `tests/test_utils.py`.
+  
+  **Phase 2 - Canonical Position Model (85% -> 90%):**
+  - Added `CanonicalPosition` dataclass with computed `market_value` property.
+  - Added `TradeRepublicAdapter` and `ManualCSVAdapter` for data normalization.
+  - Added 21 unit tests in `tests/test_adapters.py`.
+  
+  **Phase 3 - SQLite Storage (90% -> 95%):**
+  - Added `PipelineDatabase` with GENERATED `market_value` column.
+  - Added `positions`, `holdings_breakdown`, and `pipeline_runs` tables.
+  - Added 7 unit tests in `tests/test_pipeline_db.py`.
+  
+  **Total: 60 new tests, confidence 70% -> 95%.**
+
 - **GitHub Issues #28-#33 Resolution:**
   - #28: Created `batch_contribute_assets` RPC in Supabase to fix duplicate Hive contributions
   - #29: Added "Exposure Distribution" explanation subtitle in HoldingsView

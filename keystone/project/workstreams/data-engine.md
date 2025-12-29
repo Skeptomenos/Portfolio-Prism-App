@@ -16,6 +16,7 @@ Python Backend, SQLite Migration, Data Contracts, and IPC.
 | Workstream | Status | Description |
 |------------|--------|-------------|
 | [`identity-resolution`](./identity-resolution.md) | Active | ISIN resolution optimization (normalization, API cascade, confidence) |
+| [`value-semantics`](./value-semantics.md) | Active | Fix value calculation bugs, semantic separation of price vs value columns |
 
 ## Critical Constraints
 - [ ] Local-first architecture

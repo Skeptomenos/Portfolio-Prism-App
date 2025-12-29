@@ -99,7 +99,7 @@ BEGIN
             asset_record->>'name',
             (asset_record->>'asset_class')::asset_class_type,
             asset_record->>'base_currency',
-            COALESCE(asset_record->>'enrichment_status', 'active'),
+            COALESCE((asset_record->>'enrichment_status')::asset_enrichment_status, 'active'::asset_enrichment_status),
             NOW()
         )
         ON CONFLICT (isin) DO UPDATE
@@ -117,7 +117,7 @@ BEGIN
             base_currency = COALESCE(assets.base_currency, EXCLUDED.base_currency),
             updated_at = NOW(),
             enrichment_status = CASE
-                WHEN assets.enrichment_status = 'stub' THEN EXCLUDED.enrichment_status
+                WHEN assets.enrichment_status = 'stub'::asset_enrichment_status THEN EXCLUDED.enrichment_status
                 ELSE assets.enrichment_status
             END;
         

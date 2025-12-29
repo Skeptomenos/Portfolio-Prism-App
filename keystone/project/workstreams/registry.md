@@ -11,6 +11,7 @@
 | `identity-resolution` | `keystone/project/workstreams/identity-resolution.md` | `IdentityResolution` | `Active` | 2025-12-27 |
 | `silent-night` | `keystone/project/workstreams/silent-night.md` | `Sisyphus` | `Active` | 2025-12-28 |
 | `issue-tracker` | `keystone/project/workstreams/issue-tracker.md` | `Sisyphus` | `Active` | 2025-12-28 |
+| `value-semantics` | `keystone/project/workstreams/value-semantics.md` | `Sisyphus` | `Active` | 2025-12-28 |
 
 ## Archived Workstreams
 

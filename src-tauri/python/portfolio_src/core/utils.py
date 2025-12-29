@@ -16,7 +16,10 @@ logger = get_logger(__name__)
 
 def get_value_column(df: pd.DataFrame) -> Optional[str]:
     """
-    Find the value column name in a DataFrame.
+    DEPRECATED: Use get_total_value_column() or get_unit_price_column().
+
+    This function conflates total value and per-unit price semantics.
+    Keeping for backward compatibility but will be removed in v2.0.
 
     Args:
         df: DataFrame to search
@@ -24,11 +27,128 @@ def get_value_column(df: pd.DataFrame) -> Optional[str]:
     Returns:
         Column name for value, or None if not found
     """
+    import warnings
+
+    warnings.warn(
+        "get_value_column() is deprecated. Use get_total_value_column() "
+        "or get_unit_price_column() instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return get_total_value_column(df)
+
+
+def get_total_value_column(df: pd.DataFrame) -> Optional[str]:
+    """
+    Find column containing TOTAL position value (quantity already factored in).
+
+    Use this when you need the full monetary value of a position.
+    Examples: market_value, net_value, tr_value
+
+    NOT for per-unit prices - use get_unit_price_column() for that.
+
+    NOTE: Call this ONCE per DataFrame, not per row.
+
+    Args:
+        df: DataFrame to search
+
+    Returns:
+        Column name for total value, or None if not found
+    """
     normalized_df = SchemaNormalizer.normalize_columns(df)
-    for col in ["market_value", "price"]:
+    for col in ["market_value", "net_value", "tr_value", "total_value"]:
         if col in normalized_df.columns:
             return col
     return None
+
+
+def get_unit_price_column(df: pd.DataFrame) -> Optional[str]:
+    """
+    Find column containing PER-UNIT price.
+
+    Use this when you need to calculate value as: quantity * price
+    Examples: price, current_price, unit_price
+
+    NOT for total values - use get_total_value_column() for that.
+
+    NOTE: Call this ONCE per DataFrame, not per row.
+
+    Args:
+        df: DataFrame to search
+
+    Returns:
+        Column name for unit price, or None if not found
+    """
+    normalized_df = SchemaNormalizer.normalize_columns(df)
+    # Check both "price" and "current_price" to unify pipeline/aggregator logic
+    for col in ["price", "current_price", "unit_price"]:
+        if col in normalized_df.columns:
+            return col
+    return None
+
+
+def calculate_position_values(df: pd.DataFrame) -> pd.Series:
+    """
+    Calculate total values for ALL positions in a DataFrame (VECTORIZED).
+
+    Priority:
+    1. If market_value column exists -> use it directly
+    2. Else if quantity AND price columns exist -> compute quantity * price
+    3. Else -> return zeros with warning
+
+    This is the SINGLE SOURCE OF TRUTH for position value calculation.
+
+    Args:
+        df: DataFrame with position data
+
+    Returns:
+        pd.Series of total values, indexed same as input DataFrame
+    """
+    if df.empty:
+        return pd.Series(dtype=float)
+
+    normalized_df = SchemaNormalizer.normalize_columns(df)
+
+    value_col = get_total_value_column(df)
+    if value_col and value_col in normalized_df.columns:
+        result = pd.to_numeric(normalized_df[value_col], errors="coerce").fillna(0.0)
+        result.index = df.index
+        return result
+
+    qty_col = "quantity" if "quantity" in normalized_df.columns else None
+    price_col = get_unit_price_column(df)
+
+    if qty_col and price_col and price_col in normalized_df.columns:
+        qty = pd.to_numeric(normalized_df[qty_col], errors="coerce").fillna(0.0)
+        price = pd.to_numeric(normalized_df[price_col], errors="coerce").fillna(0.0)
+
+        neg_qty_count = (qty < 0).sum()
+        if neg_qty_count > 0:
+            logger.warning(
+                f"Found {neg_qty_count} positions with negative quantity (short positions). "
+                f"Values will be negative."
+            )
+
+        if "currency" in normalized_df.columns:
+            non_eur = normalized_df[
+                normalized_df["currency"].fillna("EUR").str.upper() != "EUR"
+            ]
+            if not non_eur.empty:
+                logger.warning(
+                    f"Found {len(non_eur)} positions with non-EUR currency. "
+                    f"Values may be incorrect. Currency conversion not implemented."
+                )
+
+        result = qty * price
+        result.index = df.index
+        return result
+
+    logger.warning(
+        f"Cannot calculate position values. "
+        f"Available columns: {list(df.columns)}. "
+        f"Need market_value OR (quantity + price/current_price)."
+    )
+    return pd.Series(0.0, index=df.index)
 
 
 def get_isin_column(df: pd.DataFrame) -> Optional[str]:

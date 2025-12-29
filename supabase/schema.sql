@@ -135,6 +135,7 @@ CREATE TABLE IF NOT EXISTS contributions (
     target_table VARCHAR(30) NOT NULL, -- e.g., 'assets', 'etf_holdings'
     payload JSONB NOT NULL, -- The raw data submitted
     trust_score DECIMAL(3, 2) NOT NULL DEFAULT 0.0,
+    error_message TEXT, -- Error details when RPC operations fail
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

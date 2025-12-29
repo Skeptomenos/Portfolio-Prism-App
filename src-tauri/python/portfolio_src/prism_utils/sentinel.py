@@ -6,16 +6,38 @@ Batches them by component and category to avoid spam.
 """
 
 import asyncio
-import json
-import logging
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Optional
 
 from portfolio_src.data.database import get_unprocessed_logs, mark_logs_processed
 from portfolio_src.prism_utils.telemetry import get_telemetry
 from portfolio_src.prism_utils.logging_config import get_logger
 
 logger = get_logger(__name__)
+
+TABLE_MSG_LIMIT = 200
+FULL_MSG_THRESHOLD = 300
+PRECEDING_WARNINGS_COUNT = 3
+
+
+def _get_preceding_warnings(
+    all_logs: List[dict], error_log: dict, count: int = 3
+) -> List[dict]:
+    """Find warnings that occurred before an error in the same session."""
+    session_id = error_log.get("session_id")
+    error_ts = error_log.get("timestamp")
+    if not session_id or not error_ts:
+        return []
+
+    preceding = [
+        log
+        for log in all_logs
+        if log.get("session_id") == session_id
+        and log.get("level") == "WARNING"
+        and log.get("timestamp", "") < error_ts
+    ]
+    preceding.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+    return preceding[:count]
 
 
 async def audit_previous_session():
@@ -34,6 +56,8 @@ async def audit_previous_session():
             return
 
         error_logs = [l for l in logs if l["level"] in ("ERROR", "CRITICAL")]
+        warning_logs = [l for l in logs if l["level"] == "WARNING"]
+
         if not error_logs:
             logger.info(f"Echo-Sentinel: Found {len(logs)} logs, but no errors.")
             mark_logs_processed([l["id"] for l in logs])
@@ -79,13 +103,35 @@ async def audit_previous_session():
             for _, log in list(unique_errors.items())[:10]:
                 ts = log["timestamp"]
                 sid = log["session_id"]
-                msg = log["message"][:100]
-                body += f"| {ts} | `{sid}` | {msg} |\n"
+                full_msg = log["message"]
+                table_msg = full_msg[:TABLE_MSG_LIMIT].replace("\n", " ")
+                if len(full_msg) > TABLE_MSG_LIMIT:
+                    table_msg += "..."
+                body += f"| {ts} | `{sid}` | {table_msg} |\n"
 
             if len(unique_errors) > 10:
                 body += (
                     f"\n*...and {len(unique_errors) - 10} more unique error types*\n"
                 )
+
+            body += "\n### Full Error Messages\n\n"
+            for idx, (_, log) in enumerate(list(unique_errors.items())[:5]):
+                full_msg = log["message"]
+                if len(full_msg) > FULL_MSG_THRESHOLD:
+                    body += f"<details><summary>Error {idx + 1}: {full_msg[:80]}...</summary>\n\n"
+                    body += f"```\n{full_msg}\n```\n\n"
+
+                    preceding = _get_preceding_warnings(
+                        warning_logs, log, PRECEDING_WARNINGS_COUNT
+                    )
+                    if preceding:
+                        body += "**Preceding warnings:**\n"
+                        for w in preceding:
+                            w_msg = w["message"][:150].replace("\n", " ")
+                            body += f"- `{w['timestamp']}`: {w_msg}\n"
+                        body += "\n"
+
+                    body += "</details>\n\n"
 
             issue_url = telemetry.report_error(
                 error_type="unexpected_error",
