@@ -24,6 +24,19 @@ from portfolio_src.core.errors import (
     ErrorPhase,
     ErrorType,
 )
+from portfolio_src.core.contracts import (
+    ValidationGates,
+    LoadPhaseOutput,
+    DecomposePhaseOutput,
+    EnrichPhaseOutput,
+    AggregatePhaseOutput,
+    ETFDecomposition,
+    AggregatedExposureRecord,
+    DataQuality,
+    IssueSeverity,
+    dataframe_to_loaded_positions,
+    dataframe_to_holdings,
+)
 from portfolio_src.core.services.decomposer import Decomposer
 from portfolio_src.core.services.enricher import Enricher
 from portfolio_src.core.services.aggregator import Aggregator
@@ -146,6 +159,7 @@ class Pipeline:
         self._decomposer: Optional[Decomposer] = None
         self._enricher: Optional[Enricher] = None
         self._aggregator: Optional[Aggregator] = None
+        self._validation_gates: Optional[ValidationGates] = None
 
     def _init_services(self):
         """Initialize services with their dependencies."""
