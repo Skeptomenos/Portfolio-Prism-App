@@ -3,6 +3,16 @@ Started: Sat Jan 10 2026
 PRD: prd-phase4.json
 ---
 
+## 2026-01-10 23:54 - US-003 (also US-005)
+- Added report_enrichment_gap method to Telemetry class
+- Added List import from typing (US-005 dependency)
+- Files changed: src-tauri/python/portfolio_src/prism_utils/telemetry.py
+- **Learnings for future iterations:**
+  - Use hashlib.md5 for batch rate limiting when dealing with lists
+  - Show sample of first 10 items, then "...and N more" for large lists
+  - Coverage rates use :.0% for title (no decimals), :.1% for body (one decimal)
+---
+
 ## 2026-01-10 23:53 - US-002
 - Added report_weight_validation_failure method to Telemetry class
 - Files changed: src-tauri/python/portfolio_src/prism_utils/telemetry.py

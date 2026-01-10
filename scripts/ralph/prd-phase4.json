@@ -50,7 +50,7 @@
         "Calls self.report_error with error_type='enrichment_gap'"
       ],
       "priority": 3,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-004",
@@ -77,7 +77,7 @@
       "file": "src-tauri/python/portfolio_src/prism_utils/telemetry.py",
       "acceptanceCriteria": ["typing import includes List", "No import errors when loading module"],
       "priority": 5,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-006",

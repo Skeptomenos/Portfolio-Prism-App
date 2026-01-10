@@ -468,6 +468,57 @@ class Telemetry:
             labels=["data-quality", "enrichment", gap_type],
         )
 
+    def report_quality_summary(
+        self,
+        quality: "DataQuality",
+        session_id: str,
+    ) -> Optional[str]:
+        """Report aggregated quality summary for pipeline runs with issues."""
+        from portfolio_src.core.contracts.quality import IssueSeverity
+
+        if quality.is_trustworthy:
+            return None
+
+        severity_counts = quality.issue_count_by_severity
+        critical_count = severity_counts.get("critical", 0)
+        high_count = severity_counts.get("high", 0)
+
+        if critical_count == 0 and high_count == 0:
+            return None
+
+        title = f"Quality issues: {critical_count} critical, {high_count} high"
+
+        issue_codes: dict = {}
+        for issue in quality.issues:
+            if issue.severity in (IssueSeverity.CRITICAL, IssueSeverity.HIGH):
+                issue_codes[issue.code] = issue_codes.get(issue.code, 0) + 1
+
+        code_lines = "\n".join(
+            f"| `{code}` | {count} |" for code, count in sorted(issue_codes.items())
+        )
+
+        body = (
+            f"## Quality Summary\n\n"
+            f"Pipeline run completed with significant quality issues.\n\n"
+            f"| Field | Value |\n"
+            f"|-------|-------|\n"
+            f"| Quality Score | {quality.score:.1%} |\n"
+            f"| Critical Issues | {critical_count} |\n"
+            f"| High Issues | {high_count} |\n"
+            f"| Session ID | `{session_id}` |\n\n"
+            f"### Issues by Code\n"
+            f"| Code | Count |\n"
+            f"|------|-------|\n"
+            f"{code_lines}\n"
+        )
+
+        return self.report_error(
+            error_type="quality_summary",
+            title=title,
+            body=body,
+            labels=["data-quality", "summary"],
+        )
+
     def report_unexpected_error(
         self,
         error: Exception,
