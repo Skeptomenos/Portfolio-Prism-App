@@ -1,0 +1,141 @@
+{
+  "project": "Pipeline Hardening - Phase 4: Telemetry Expansion",
+  "goal": "Auto-report data quality issues to GitHub for community fixes",
+  "branch": "feature/phase4-telemetry-expansion",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Add rate limits for new telemetry error types",
+      "description": "Add weight_validation, enrichment_gap, and quality_summary to RATE_LIMITS dict",
+      "file": "src-tauri/python/portfolio_src/prism_utils/telemetry.py",
+      "acceptanceCriteria": [
+        "RATE_LIMITS includes 'weight_validation': {'per_isin': True, 'max_per_day': 5}",
+        "RATE_LIMITS includes 'enrichment_gap': {'per_isin': True, 'max_per_day': 3}",
+        "RATE_LIMITS includes 'quality_summary': {'per_isin': False, 'max_per_day': 10}",
+        "No syntax errors in file"
+      ],
+      "priority": 1,
+      "passes": false
+    },
+    {
+      "id": "US-002",
+      "title": "Add report_weight_validation_failure method",
+      "description": "Add method to report ETFs with invalid weight sums (not ~100%)",
+      "file": "src-tauri/python/portfolio_src/prism_utils/telemetry.py",
+      "acceptanceCriteria": [
+        "Method signature: report_weight_validation_failure(self, etf_isin: str, weight_sum: float, adapter: str) -> Optional[str]",
+        "Title format: 'Weight validation failed: {etf_isin}'",
+        "Body includes ISIN, weight_sum, expected range (90-110%), adapter name",
+        "Body includes impact description (under/overcounted by X%)",
+        "Body includes requested action steps",
+        "Labels: ['data-quality', 'validation', adapter]",
+        "Calls self.report_error with error_type='weight_validation'"
+      ],
+      "priority": 2,
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Add report_enrichment_gap method",
+      "description": "Add method to report enrichment coverage gaps (missing sector/geography)",
+      "file": "src-tauri/python/portfolio_src/prism_utils/telemetry.py",
+      "acceptanceCriteria": [
+        "Method signature: report_enrichment_gap(self, gap_type: str, affected_isins: List[str], coverage_rate: float) -> Optional[str]",
+        "Title format: 'Enrichment gap: {gap_type} coverage at {coverage_rate:.0%}'",
+        "Body includes gap_type, coverage_rate, count of affected assets",
+        "Body includes sample of first 10 ISINs",
+        "Body includes '...and N more' if more than 10 ISINs",
+        "Uses hash of ISINs for rate limiting (batch_hash)",
+        "Labels: ['data-quality', 'enrichment', gap_type]",
+        "Calls self.report_error with error_type='enrichment_gap'"
+      ],
+      "priority": 3,
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "Add report_quality_summary method",
+      "description": "Add method to report aggregated quality summary for pipeline runs with issues",
+      "file": "src-tauri/python/portfolio_src/prism_utils/telemetry.py",
+      "acceptanceCriteria": [
+        "Method signature: report_quality_summary(self, quality: DataQuality, session_id: str) -> Optional[str]",
+        "Returns None if quality.is_trustworthy (don't report good runs)",
+        "Returns None if no critical or high issues",
+        "Title format: 'Quality issues: {critical} critical, {high} high'",
+        "Body includes quality score, critical count, high count, session_id",
+        "Body groups issues by code with occurrence count",
+        "Labels: ['data-quality', 'summary']",
+        "Calls self.report_error with error_type='quality_summary'"
+      ],
+      "priority": 4,
+      "passes": false
+    },
+    {
+      "id": "US-005",
+      "title": "Add List import for type hints",
+      "description": "Ensure List is imported from typing for the new method signatures",
+      "file": "src-tauri/python/portfolio_src/prism_utils/telemetry.py",
+      "acceptanceCriteria": ["typing import includes List", "No import errors when loading module"],
+      "priority": 5,
+      "passes": false
+    },
+    {
+      "id": "US-006",
+      "title": "Integrate weight validation telemetry in pipeline",
+      "description": "Call report_weight_validation_failure when ValidationGates detects weight issues",
+      "file": "src-tauri/python/portfolio_src/core/pipeline.py",
+      "acceptanceCriteria": [
+        "Import get_telemetry from prism_utils.telemetry",
+        "After decompose phase validation, check for WEIGHT_SUM_LOW or WEIGHT_DECIMAL_FORMAT issues",
+        "For each weight issue, call telemetry.report_weight_validation_failure()",
+        "Pass etf_isin, weight_sum (from issue.actual), and source/adapter name"
+      ],
+      "priority": 6,
+      "passes": false
+    },
+    {
+      "id": "US-007",
+      "title": "Integrate quality summary telemetry in pipeline",
+      "description": "Call report_quality_summary at end of pipeline run",
+      "file": "src-tauri/python/portfolio_src/core/pipeline.py",
+      "acceptanceCriteria": [
+        "At end of run() method, after _write_health_report()",
+        "Get pipeline quality from self._validation_gates.get_pipeline_quality()",
+        "Call telemetry.report_quality_summary(quality, session_id)",
+        "Use self._session_id or generate one if not available"
+      ],
+      "priority": 7,
+      "passes": false
+    },
+    {
+      "id": "US-008",
+      "title": "Add unit tests for new telemetry methods",
+      "description": "Add tests for the three new telemetry methods",
+      "file": "src-tauri/python/tests/test_telemetry.py",
+      "acceptanceCriteria": [
+        "Test report_weight_validation_failure creates correct title and body",
+        "Test report_enrichment_gap handles >10 ISINs correctly",
+        "Test report_quality_summary returns None for trustworthy quality",
+        "Test report_quality_summary returns None when no critical/high issues",
+        "All tests pass with pytest"
+      ],
+      "priority": 8,
+      "passes": false
+    }
+  ],
+  "constraints": [
+    "Do NOT modify any frontend/TypeScript files",
+    "Do NOT modify contracts module (already complete)",
+    "Follow existing telemetry.py patterns for method structure",
+    "Use markdown tables in issue bodies (existing pattern)",
+    "Rate limiting must prevent spam",
+    "Only report significant issues (critical/high severity)"
+  ],
+  "testCommand": "cd /Users/davidhelmus/Repos/portfolio-master/MVP/src-tauri/python && python3 -m pytest tests/ -v --tb=short",
+  "notes": [
+    "DataQuality class is in portfolio_src.core.contracts.quality",
+    "Existing telemetry methods follow a consistent pattern - match it",
+    "The pipeline already has _validation_gates initialized",
+    "Use get_telemetry() singleton, don't create new instances"
+  ]
+}

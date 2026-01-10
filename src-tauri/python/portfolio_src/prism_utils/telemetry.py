@@ -43,6 +43,9 @@ RATE_LIMITS = {
     "isin_not_resolved": {"per_isin": True, "max_per_day": None},
     "unexpected_error": {"per_isin": False, "max_per_day": 50},
     "missing_asset": {"per_isin": True, "max_per_day": None},
+    "weight_validation": {"per_isin": True, "max_per_day": 5},
+    "enrichment_gap": {"per_isin": True, "max_per_day": 3},
+    "quality_summary": {"per_isin": False, "max_per_day": 10},
 }
 
 

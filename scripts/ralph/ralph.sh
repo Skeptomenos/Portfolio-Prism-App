@@ -7,7 +7,7 @@ set -e
 
 MAX_ITERATIONS=${1:-10}
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PRD_FILE="$SCRIPT_DIR/prd.json"
+PRD_FILE="$SCRIPT_DIR/prd-phase4.json"
 PROGRESS_FILE="$SCRIPT_DIR/progress.txt"
 PROMPT_FILE="$SCRIPT_DIR/prompt.md"
 ARCHIVE_DIR="$SCRIPT_DIR/archive"
@@ -104,7 +104,8 @@ for i in $(seq 1 $MAX_ITERATIONS); do
   # Run opencode with the configured agent
   # -f attaches prompt.md, -- separates file args from message
   # Each run is a fresh session (no --continue flag)
-  OUTPUT=$(cd "$SCRIPT_DIR" && opencode run --agent "$AGENT" -f "$PROMPT_FILE" -- "Execute the Ralph agent instructions from the attached prompt.md file. The prd.json and progress.txt files are in the current directory." 2>&1 | tee /dev/stderr) || true
+  PRD_BASENAME=$(basename "$PRD_FILE")
+  OUTPUT=$(cd "$SCRIPT_DIR" && opencode run --agent "$AGENT" -f "$PROMPT_FILE" -- "Execute the Ralph agent instructions from the attached prompt.md file. IMPORTANT: The PRD file is '$PRD_BASENAME' (not prd.json). The progress.txt file is in the current directory." 2>&1 | tee /dev/stderr) || true
   
   # Check for completion signal
   if echo "$OUTPUT" | grep -q "<promise>COMPLETE</promise>"; then
