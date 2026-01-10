@@ -57,3 +57,12 @@
   - Pipeline continues regardless of validation result (non-blocking)
 ---
 
+## 2026-01-10 17:46 - US-006
+- What was implemented: Added _get_etf_value helper method to get ETF market value from positions DataFrame
+- Files changed: src-tauri/python/portfolio_src/core/pipeline.py
+- **Learnings for future iterations:**
+  - Price columns to check in order: current_price, price, tr_price
+  - Value = quantity * price
+  - Returns 0.0 if DataFrame empty, ISIN not found, or no valid price column
+---
+

@@ -241,6 +241,37 @@ class Pipeline:
 
         return LoadPhaseOutput(direct_positions=direct_list, etf_positions=etf_list)
 
+    def _build_decompose_phase_output(
+        self,
+        holdings_map: Dict[str, pd.DataFrame],
+        etf_positions: pd.DataFrame,
+        errors: List[PipelineError],
+    ) -> DecomposePhaseOutput:
+        decompositions = []
+        etf_sources = self._decomposer.get_etf_sources() if self._decomposer else {}
+
+        for isin, holdings_df in holdings_map.items():
+            holdings_list, holdings_issues = dataframe_to_holdings(holdings_df)
+            if self._validation_gates:
+                self._validation_gates._pipeline_quality.issues.extend(
+                    holdings_issues.issues
+                )
+
+            decompositions.append(
+                ETFDecomposition(
+                    etf_isin=isin,
+                    etf_name=self._get_etf_name(etf_positions, isin),
+                    etf_value=self._get_etf_value(etf_positions, isin),
+                    holdings=holdings_list,
+                    source=etf_sources.get(isin, "unknown"),
+                )
+            )
+
+        etfs_failed = sum(1 for e in errors if e.phase == ErrorPhase.ETF_DECOMPOSITION)
+        return DecomposePhaseOutput(
+            decompositions=decompositions, etfs_failed=etfs_failed
+        )
+
     def run(
         self, progress_callback: Optional[Callable[[str, float, str], None]] = None
     ) -> PipelineResult:

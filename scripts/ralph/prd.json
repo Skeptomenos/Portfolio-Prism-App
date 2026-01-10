@@ -85,7 +85,7 @@
         "Typecheck passes"
       ],
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "notes": "Similar pattern to existing _get_etf_name method"
     },
     {
