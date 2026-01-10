@@ -75,3 +75,11 @@
   - etfs_failed count comes from errors with phase == ErrorPhase.ETF_DECOMPOSITION
 ---
 
+## 2026-01-10 17:50 - US-008
+- What was implemented: Added Phase 2 (Decompose) validation call after etf_decomposition phase
+- Files changed: src-tauri/python/portfolio_src/core/pipeline.py
+- **Learnings for future iterations:**
+  - Decompose validation needs holdings_map, etf_positions, and errors list
+  - Validation call pattern is consistent across all phases
+---
+

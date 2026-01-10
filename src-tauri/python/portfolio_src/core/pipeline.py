@@ -272,6 +272,39 @@ class Pipeline:
             decompositions=decompositions, etfs_failed=etfs_failed
         )
 
+    def _build_enrich_phase_output(
+        self,
+        enriched_holdings: Dict[str, pd.DataFrame],
+        direct_positions: pd.DataFrame,
+    ) -> EnrichPhaseOutput:
+        enriched_decompositions = []
+
+        for isin, holdings_df in enriched_holdings.items():
+            holdings_list, holdings_issues = dataframe_to_holdings(holdings_df)
+            if self._validation_gates:
+                self._validation_gates._pipeline_quality.issues.extend(
+                    holdings_issues.issues
+                )
+
+            enriched_decompositions.append(
+                ETFDecomposition(
+                    etf_isin=isin,
+                    etf_name="",
+                    etf_value=0.0,
+                    holdings=holdings_list,
+                    source="enriched",
+                )
+            )
+
+        direct_list, direct_issues = dataframe_to_loaded_positions(direct_positions)
+        if self._validation_gates:
+            self._validation_gates._pipeline_quality.issues.extend(direct_issues.issues)
+
+        return EnrichPhaseOutput(
+            enriched_decompositions=enriched_decompositions,
+            enriched_direct=direct_list,
+        )
+
     def run(
         self, progress_callback: Optional[Callable[[str, float, str], None]] = None
     ) -> PipelineResult:
