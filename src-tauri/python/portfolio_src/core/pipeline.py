@@ -537,6 +537,16 @@ class Pipeline:
             errors.extend(agg_errors)
             monitor.record_phase("aggregation", time.time() - start)
 
+            aggregate_output = self._build_aggregate_phase_output(exposure_df)
+            expected_total = calculate_portfolio_total_value(
+                direct_positions, etf_positions
+            )
+            aggregate_result = self._validation_gates.validate_aggregate_output(
+                aggregate_output, expected_total
+            )
+            if not aggregate_result.passed:
+                self._log_validation_issues(aggregate_result.quality, "AGGREGATION")
+
             # Phase 5: Write reports
             start = time.time()
             progress_callback("Writing reports...", 0.85, "reporting")
