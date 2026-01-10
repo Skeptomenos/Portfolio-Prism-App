@@ -400,6 +400,17 @@ class Pipeline:
             errors.extend(decompose_errors)
             monitor.record_phase("etf_decomposition", time.time() - start)
 
+            decompose_output = self._build_decompose_phase_output(
+                holdings_map, etf_positions, errors
+            )
+            decompose_result = self._validation_gates.validate_decompose_output(
+                decompose_output
+            )
+            if not decompose_result.passed:
+                self._log_validation_issues(
+                    decompose_result.quality, "ETF_DECOMPOSITION"
+                )
+
             # Phase 3: Enrich (via service)
             start = time.time()
             total_to_enrich = total_underlying + len(direct_positions)

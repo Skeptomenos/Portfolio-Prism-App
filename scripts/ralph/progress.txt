@@ -66,3 +66,12 @@
   - Returns 0.0 if DataFrame empty, ISIN not found, or no valid price column
 ---
 
+## 2026-01-10 17:48 - US-007
+- What was implemented: Added _build_decompose_phase_output helper method to convert holdings_map to DecomposePhaseOutput
+- Files changed: src-tauri/python/portfolio_src/core/pipeline.py
+- **Learnings for future iterations:**
+  - ETFDecomposition uses etf_isin, etf_name, etf_value (not isin, name, value)
+  - decomposer.get_etf_sources() returns Dict[str, str] mapping ISIN to source
+  - etfs_failed count comes from errors with phase == ErrorPhase.ETF_DECOMPOSITION
+---
+

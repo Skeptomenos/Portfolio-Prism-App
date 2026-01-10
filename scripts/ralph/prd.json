@@ -101,7 +101,7 @@
         "Typecheck passes"
       ],
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "notes": "Uses _get_etf_name, _get_etf_value, and decomposer.get_etf_sources()"
     },
     {
