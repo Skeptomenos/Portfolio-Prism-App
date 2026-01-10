@@ -116,3 +116,12 @@
   - Validation goes after monitor.record_phase but before Phase 5 (Write reports)
 ---
 
+## 2026-01-10 18:00 - US-013
+- What was implemented: Updated _write_health_report to accept validation_gates parameter and add data_quality section
+- Files changed: src-tauri/python/portfolio_src/core/pipeline.py
+- **Learnings for future iterations:**
+  - data_quality section uses validation_gates.get_summary() if gates exist
+  - Default data_quality: {"quality_score": 1.0, "is_trustworthy": True, "issues": []}
+  - data_quality section goes in health_data dict before write_json_atomic call
+---
+

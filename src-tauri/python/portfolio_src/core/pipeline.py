@@ -610,6 +610,7 @@ class Pipeline:
                     holdings_map,
                     monitor,
                     self._decomposer,
+                    self._validation_gates,
                 )
 
                 report_holdings = locals().get("enriched_holdings") or holdings_map
