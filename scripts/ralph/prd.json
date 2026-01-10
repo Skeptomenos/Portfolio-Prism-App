@@ -56,7 +56,7 @@
         "Typecheck passes"
       ],
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "notes": "Use dataframe_to_loaded_positions from core.contracts.converters"
     },
     {

@@ -304,6 +304,11 @@ class Pipeline:
                 progress_callback(msg, 0.15, "loading")
             monitor.record_phase("data_loading", time.time() - start)
 
+            load_output = self._build_load_phase_output(direct_positions, etf_positions)
+            load_result = self._validation_gates.validate_load_output(load_output)
+            if not load_result.passed:
+                self._log_validation_issues(load_result.quality, "DATA_LOADING")
+
             if direct_positions.empty and etf_positions.empty:
                 errors.append(
                     PipelineError(

@@ -39,3 +39,12 @@
   - Helper methods go between _dump_debug_snapshot and run() method
 ---
 
+## 2026-01-10 17:42 - US-004
+- What was implemented: Added _build_load_phase_output helper method to convert DataFrames to LoadPhaseOutput
+- Files changed: src-tauri/python/portfolio_src/core/pipeline.py
+- **Learnings for future iterations:**
+  - dataframe_to_loaded_positions returns (list, DataQuality) tuple
+  - Conversion issues are merged into self._validation_gates._pipeline_quality.issues
+  - Pattern: check if self._validation_gates exists before accessing its internals
+---
+
