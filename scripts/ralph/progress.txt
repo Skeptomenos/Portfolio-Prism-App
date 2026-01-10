@@ -9,6 +9,11 @@
 - Instance variables for services use Optional[Type] = None pattern
 - Tests run via `uv run pytest tests/` from src-tauri/python directory
 - Pre-existing test failures exist (10 failed) - unrelated to validation gates work
+- ETFDecomposition uses etf_isin, etf_name, etf_value (not isin, name, value)
+- AggregatedExposureRecord uses total_exposure and portfolio_percentage (not value/weight)
+- Validation pattern: build output → validate → log issues if not passed → continue
+- Helper methods go between _dump_debug_snapshot and run() method
+- dataframe_to_loaded_positions and dataframe_to_holdings return (list, DataQuality) tuples
 
 ---
 
@@ -140,5 +145,14 @@
   - Test file created at tests/contracts/test_integration.py
   - Tests verify: gates initialization, get_summary() structure, helper methods
   - Pipeline() can be instantiated without calling run() for unit testing helper methods
+---
+
+## 2026-01-10 18:06 - US-016
+- What was implemented: Verified end-to-end pipeline produces quality report with data_quality section
+- Files changed: None (verification only)
+- **Learnings for future iterations:**
+  - ValidationGates.get_summary() returns: quality_score, is_trustworthy, total_issues, by_severity, by_category, issues
+  - Default values when no issues: quality_score=1.0, is_trustworthy=True, issues=[]
+  - pipeline_health.json is written to ~/Library/Application Support/PortfolioPrism/outputs/
 ---
 
