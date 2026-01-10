@@ -133,3 +133,12 @@
   - self._validation_gates is passed as the last argument
 ---
 
+## 2026-01-10 18:04 - US-015
+- What was implemented: Added integration tests for ValidationGates in Pipeline
+- Files changed: src-tauri/python/tests/contracts/test_integration.py (new file)
+- **Learnings for future iterations:**
+  - Test file created at tests/contracts/test_integration.py
+  - Tests verify: gates initialization, get_summary() structure, helper methods
+  - Pipeline() can be instantiated without calling run() for unit testing helper methods
+---
+

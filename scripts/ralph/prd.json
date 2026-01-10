@@ -220,7 +220,7 @@
         "Typecheck passes"
       ],
       "priority": 15,
-      "passes": false,
+      "passes": true,
       "notes": "Use mocking to prevent actual pipeline execution. Test the helper methods directly."
     },
     {
