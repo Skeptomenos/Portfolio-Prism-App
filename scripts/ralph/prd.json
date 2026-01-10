@@ -205,7 +205,7 @@
         "Existing tests still pass"
       ],
       "priority": 14,
-      "passes": false,
+      "passes": true,
       "notes": "Location: around line 443-450 in pipeline.py finally block"
     },
     {

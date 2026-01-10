@@ -125,3 +125,11 @@
   - data_quality section goes in health_data dict before write_json_atomic call
 ---
 
+## 2026-01-10 18:02 - US-014
+- What was implemented: Updated _write_health_report call site in finally block to pass self._validation_gates
+- Files changed: src-tauri/python/portfolio_src/core/pipeline.py
+- **Learnings for future iterations:**
+  - Call site is in the finally block around line 606
+  - self._validation_gates is passed as the last argument
+---
+
