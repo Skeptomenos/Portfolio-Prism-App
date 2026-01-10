@@ -105,7 +105,7 @@
         "Use self._session_id or generate one if not available"
       ],
       "priority": 7,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-008",
@@ -120,7 +120,7 @@
         "All tests pass with pytest"
       ],
       "priority": 8,
-      "passes": false
+      "passes": true
     }
   ],
   "constraints": [

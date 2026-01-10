@@ -3,6 +3,15 @@ Started: Sat Jan 10 2026
 PRD: prd-phase4.json
 ---
 
+## 2026-01-10 23:57 - US-007
+- Integrated quality summary telemetry at end of pipeline run
+- Files changed: src-tauri/python/portfolio_src/core/pipeline.py
+- **Learnings for future iterations:**
+  - ValidationGates.get_pipeline_quality() returns the DataQuality object
+  - Telemetry singleton has _session_id that can be reused
+  - Quality summary is called in finally block to ensure it runs even on partial failures
+---
+
 ## 2026-01-10 23:56 - US-006
 - Integrated weight validation telemetry in pipeline after decompose phase
 - Files changed: src-tauri/python/portfolio_src/core/pipeline.py
