@@ -87,13 +87,37 @@ pub fn run() {
 
             let data_dir_str = data_dir.to_string_lossy().to_string();
 
-            let (mut rx, child) = app
+            let sidecar_result = app
                 .shell()
                 .sidecar("prism-headless")
-                .expect("failed to create sidecar")
-                .env("PRISM_DATA_DIR", &data_dir_str)
-                .spawn()
-                .expect("failed to spawn sidecar");
+                .map_err(|e| format!("Failed to create sidecar: {}", e))
+                .and_then(|cmd| {
+                    cmd.env("PRISM_DATA_DIR", &data_dir_str)
+                        .spawn()
+                        .map_err(|e| format!("Failed to spawn sidecar: {}", e))
+                });
+
+            let (mut rx, child) = match sidecar_result {
+                Ok(result) => result,
+                Err(msg) => {
+                    eprintln!("Sidecar spawn failed: {}", msg);
+                    #[cfg(target_os = "macos")]
+                    {
+                        use std::process::Command;
+                        let dialog_msg = format!(
+                            "Portfolio Prism failed to start the analytics engine.\n\nError: {}\n\nPlease try restarting the application. If the problem persists, reinstall the app.",
+                            msg
+                        );
+                        let _ = Command::new("osascript")
+                            .args(["-e", &format!(
+                                "display dialog \"{}\" buttons {{\"Quit\"}} default button \"Quit\" with icon stop with title \"Portfolio Prism - Engine Error\"",
+                                dialog_msg
+                            )])
+                            .output();
+                    }
+                    std::process::exit(1);
+                }
+            };
 
             // Set the child process for stdin writing
             let engine_clone = engine.clone();

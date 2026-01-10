@@ -1,0 +1,571 @@
+{
+  "name": "Release Readiness - Quality & Developer Experience",
+  "description": "Portfolio Prism has achieved exceptional code quality (9.2/10) with a mature architecture and 160+ Python tests. This initiative addresses the biggest gaps: zero frontend tests, no linting configuration, and minor UX polish items before public release.",
+  "version": "1.0.0",
+  "created": "2026-01-10",
+  "target_completion": "2026-02-07",
+  "constraints": {
+    "platform": "macOS only",
+    "executor": "AI agents via Ralph/Keystone",
+    "context_budget": "~160k tokens per phase"
+  },
+  "phases": [
+    {
+      "id": "phase-1",
+      "name": "Testing Infrastructure",
+      "description": "Initialize Vitest, create test utilities and mocks, validate with smoke test",
+      "duration_days": "3-4",
+      "token_estimate": "80k",
+      "dependencies": [],
+      "tasks": [
+        {
+          "id": "US-101",
+          "title": "Initialize Vitest Configuration",
+          "description": "As a developer, I need Vitest configured so I can write and run frontend tests.",
+          "acceptance_criteria": [
+            "Install vitest, @testing-library/react, @testing-library/jest-dom, jsdom",
+            "Create vitest.config.ts with React plugin and jsdom environment",
+            "Add test and test:coverage scripts to package.json",
+            "Create src/test/setup.ts with jest-dom matchers",
+            "Verify npm run test executes successfully (even with 0 tests)",
+            "Typecheck passes"
+          ],
+          "files_to_create": ["vitest.config.ts", "src/test/setup.ts"],
+          "files_to_modify": ["package.json"]
+        },
+        {
+          "id": "US-102",
+          "title": "Create Test Utilities and Mocks",
+          "description": "As a developer, I need shared test utilities so tests are consistent and DRY.",
+          "acceptance_criteria": [
+            "Create src/test/utils.tsx with custom render function (wraps providers)",
+            "Create src/test/mocks/tauri.ts mocking @tauri-apps/api invoke/listen",
+            "Create src/test/mocks/ipc.ts mocking all IPC functions with realistic data",
+            "Create src/test/mocks/store.ts for Zustand store mocking",
+            "Add MSW (Mock Service Worker) for Echo-Bridge HTTP mocking",
+            "Document mock usage in src/test/README.md",
+            "Typecheck passes"
+          ],
+          "files_to_create": [
+            "src/test/utils.tsx",
+            "src/test/mocks/tauri.ts",
+            "src/test/mocks/ipc.ts",
+            "src/test/mocks/store.ts",
+            "src/test/mocks/handlers.ts",
+            "src/test/README.md"
+          ],
+          "files_to_modify": ["package.json"]
+        },
+        {
+          "id": "US-103",
+          "title": "Add First Smoke Test",
+          "description": "As a developer, I need a working smoke test to validate the testing setup.",
+          "acceptance_criteria": [
+            "Create src/App.test.tsx that renders App without crashing",
+            "Test verifies Sidebar is present",
+            "Test verifies ErrorBoundary wraps content",
+            "npm run test passes",
+            "npm run test:coverage generates report",
+            "Typecheck passes"
+          ],
+          "files_to_create": ["src/App.test.tsx"],
+          "files_to_modify": []
+        }
+      ],
+      "functional_requirements": [
+        "FR-101: Vitest must use jsdom environment for DOM testing",
+        "FR-102: Test utilities must wrap components with QueryClientProvider and Zustand store",
+        "FR-103: Tauri mocks must simulate both connected and disconnected engine states",
+        "FR-104: Coverage reports must be generated in coverage/ directory"
+      ],
+      "non_goals": [
+        "No E2E tests yet (Phase 3)",
+        "No visual regression testing",
+        "No performance benchmarks"
+      ]
+    },
+    {
+      "id": "phase-2",
+      "name": "Component & Integration Tests",
+      "description": "Test all UI components, auth flow, IPC layer, state management, and view components",
+      "duration_days": "5-6",
+      "token_estimate": "120k",
+      "dependencies": ["phase-1"],
+      "tasks": [
+        {
+          "id": "US-201",
+          "title": "Test Core UI Components",
+          "description": "As a developer, I need tests for shared UI components to prevent regressions.",
+          "acceptance_criteria": [
+            "Test GlassCard - renders children, handles click, keyboard accessibility",
+            "Test MetricCard - displays value, label, trend indicator",
+            "Test Modal - opens/closes, traps focus, handles escape key",
+            "Test Toast - renders message, auto-dismisses, manual dismiss works",
+            "Test ErrorBoundary - catches errors, displays fallback UI",
+            "All tests pass with npm run test",
+            "Typecheck passes"
+          ],
+          "files_to_create": [
+            "src/components/GlassCard.test.tsx",
+            "src/components/MetricCard.test.tsx",
+            "src/components/ui/Modal.test.tsx",
+            "src/components/ui/Toast.test.tsx",
+            "src/components/common/ErrorBoundary.test.tsx"
+          ],
+          "files_to_modify": []
+        },
+        {
+          "id": "US-202",
+          "title": "Test Authentication Flow Components",
+          "description": "As a developer, I need tests for the Trade Republic auth flow to ensure login works.",
+          "acceptance_criteria": [
+            "Test LoginForm - validates phone/PIN input, submits correctly",
+            "Test TwoFactorModal - accepts 4-digit code, handles countdown",
+            "Test SessionRestorePrompt - shows saved phone, restore/logout options",
+            "Test auth state transitions: idle -> waiting_2fa -> authenticated",
+            "Test error states: invalid credentials, expired 2FA, network error",
+            "All tests pass",
+            "Typecheck passes"
+          ],
+          "files_to_create": [
+            "src/components/auth/LoginForm.test.tsx",
+            "src/components/auth/TwoFactorModal.test.tsx",
+            "src/components/auth/SessionRestorePrompt.test.tsx"
+          ],
+          "files_to_modify": []
+        },
+        {
+          "id": "US-203",
+          "title": "Test IPC Layer",
+          "description": "As a developer, I need tests for the IPC layer to ensure Tauri communication works.",
+          "acceptance_criteria": [
+            "Test ipc.ts - all exported functions call correct Tauri commands",
+            "Test request deduplication - concurrent calls return same promise",
+            "Test error handling - backend errors propagate correctly",
+            "Test browser fallback - Echo-Bridge HTTP calls work when not in Tauri",
+            "Test tauri.ts - isTauri() detection works correctly",
+            "Mock both success and error responses",
+            "All tests pass",
+            "Typecheck passes"
+          ],
+          "files_to_create": ["src/lib/ipc.test.ts", "src/lib/tauri.test.ts"],
+          "files_to_modify": []
+        },
+        {
+          "id": "US-204",
+          "title": "Test State Management",
+          "description": "As a developer, I need tests for Zustand store to ensure state logic is correct.",
+          "acceptance_criteria": [
+            "Test useAppStore - all actions update state correctly",
+            "Test navigation: setCurrentView changes view",
+            "Test auth flow: setAuthState, setAuthError, setSavedPhone",
+            "Test sync flow: startSync, completeSync, failSync",
+            "Test toast management: addToast, dismissToast, auto-dismiss",
+            "Test selectors return correct slices",
+            "All tests pass",
+            "Typecheck passes"
+          ],
+          "files_to_create": ["src/store/useAppStore.test.ts"],
+          "files_to_modify": []
+        },
+        {
+          "id": "US-205",
+          "title": "Test React Query Hooks",
+          "description": "As a developer, I need tests for data fetching hooks to ensure caching works.",
+          "acceptance_criteria": [
+            "Test useEngineHealth - fetches health, refetches on interval",
+            "Test useDashboardData - fetches dashboard, caches by portfolioId",
+            "Test useXRayData - fetches true holdings",
+            "Test useSyncPortfolio - mutation triggers sync, invalidates queries",
+            "Test loading/error/success states",
+            "All tests pass",
+            "Typecheck passes"
+          ],
+          "files_to_create": ["src/hooks/usePortfolioData.test.ts"],
+          "files_to_modify": []
+        },
+        {
+          "id": "US-206",
+          "title": "Test View Components",
+          "description": "As a developer, I need tests for main view components to ensure pages render correctly.",
+          "acceptance_criteria": [
+            "Test Dashboard - renders metrics, charts, top holdings",
+            "Test HoldingsView - renders table, filters, resolution badges",
+            "Test XRayView - renders pipeline stepper, resolution table",
+            "Test HealthView - renders system logs, telemetry",
+            "Test TradeRepublicView - renders auth form or authenticated state",
+            "Test empty states and loading states",
+            "All tests pass",
+            "Typecheck passes",
+            "Verify in browser using browser tools"
+          ],
+          "files_to_create": [
+            "src/components/views/Dashboard.test.tsx",
+            "src/components/views/HoldingsView.test.tsx",
+            "src/components/views/XRayView.test.tsx",
+            "src/components/views/HealthView.test.tsx",
+            "src/components/views/TradeRepublicView.test.tsx"
+          ],
+          "files_to_modify": []
+        }
+      ],
+      "functional_requirements": [
+        "FR-201: Each component test file must be co-located with component",
+        "FR-202: Tests must not depend on network calls (all mocked)",
+        "FR-203: Tests must cover both happy path and error states",
+        "FR-204: Coverage target: 80% for src/components/, src/lib/, src/store/, src/hooks/"
+      ],
+      "non_goals": [
+        "No testing of Python backend (already covered)",
+        "No testing of Rust shell",
+        "No snapshot testing (prefer explicit assertions)"
+      ]
+    },
+    {
+      "id": "phase-3",
+      "name": "E2E Testing with Playwright",
+      "description": "Initialize Playwright and create E2E tests for authentication, dashboard, and X-Ray views",
+      "duration_days": "3-4",
+      "token_estimate": "100k",
+      "dependencies": ["phase-2"],
+      "tasks": [
+        {
+          "id": "US-301",
+          "title": "Initialize Playwright Configuration",
+          "description": "As a developer, I need Playwright configured for E2E testing against the dev server.",
+          "acceptance_criteria": [
+            "Install @playwright/test",
+            "Create playwright.config.ts targeting localhost:1420",
+            "Configure for Chromium only (WebKit matches Tauri's WebView)",
+            "Add test:e2e script to package.json",
+            "Create e2e/ directory structure",
+            "Verify Playwright can launch and navigate to dev server",
+            "Typecheck passes"
+          ],
+          "files_to_create": ["playwright.config.ts", "e2e/.gitkeep"],
+          "files_to_modify": ["package.json"]
+        },
+        {
+          "id": "US-302",
+          "title": "E2E Test Authentication Flow",
+          "description": "As a user, I need the login flow to work end-to-end in the browser.",
+          "acceptance_criteria": [
+            "Test: Navigate to app, see login form",
+            "Test: Enter phone/PIN, submit, see 2FA modal",
+            "Test: Enter 2FA code, see authenticated dashboard",
+            "Test: Logout returns to login form",
+            "Test: Invalid credentials show error message",
+            "Tests run against Echo-Bridge (Python in HTTP mode)",
+            "All E2E tests pass",
+            "Verify in browser using browser tools"
+          ],
+          "files_to_create": ["e2e/auth.spec.ts"],
+          "files_to_modify": []
+        },
+        {
+          "id": "US-303",
+          "title": "E2E Test Dashboard Interactions",
+          "description": "As a user, I need dashboard interactions to work end-to-end.",
+          "acceptance_criteria": [
+            "Test: Dashboard loads with metrics and charts",
+            "Test: Click on holding navigates to details",
+            "Test: Sync button triggers sync and shows progress",
+            "Test: Navigation between views works (sidebar clicks)",
+            "Test: Toast notifications appear and dismiss",
+            "All E2E tests pass",
+            "Verify in browser using browser tools"
+          ],
+          "files_to_create": ["e2e/dashboard.spec.ts"],
+          "files_to_modify": []
+        },
+        {
+          "id": "US-304",
+          "title": "E2E Test X-Ray View",
+          "description": "As a user, I need the X-Ray analysis view to work end-to-end.",
+          "acceptance_criteria": [
+            "Test: X-Ray view loads with resolution table",
+            "Test: Filter by resolution status works",
+            "Test: Search filters holdings correctly",
+            "Test: Sort by column works",
+            "Test: Resolution badges show correct status/color",
+            "All E2E tests pass",
+            "Verify in browser using browser tools"
+          ],
+          "files_to_create": ["e2e/xray.spec.ts"],
+          "files_to_modify": []
+        }
+      ],
+      "functional_requirements": [
+        "FR-301: E2E tests must run against npm run dev:browser (Echo-Bridge mode)",
+        "FR-302: Tests must be independent (no shared state between tests)",
+        "FR-303: Tests must include visual assertions (element visibility, text content)",
+        "FR-304: CI must run E2E tests in headless mode"
+      ],
+      "non_goals": [
+        "No testing inside Tauri shell (browser-only E2E)",
+        "No mobile viewport testing",
+        "No accessibility audits (future phase)"
+      ]
+    },
+    {
+      "id": "phase-4",
+      "name": "Developer Experience Tooling",
+      "description": "Configure ESLint, Prettier, Git hooks, and update CI workflow",
+      "duration_days": "2-3",
+      "token_estimate": "60k",
+      "dependencies": ["phase-1"],
+      "tasks": [
+        {
+          "id": "US-401",
+          "title": "Configure ESLint",
+          "description": "As a developer, I need ESLint configured to catch code quality issues.",
+          "acceptance_criteria": [
+            "Install eslint, @typescript-eslint/*, eslint-plugin-react, eslint-plugin-react-hooks",
+            "Create .eslintrc.cjs with TypeScript and React rules",
+            "Enable strict rules: no-explicit-any, no-unused-vars, react-hooks/exhaustive-deps",
+            "Add lint and lint:fix scripts to package.json",
+            "Fix all existing lint errors (should be minimal given clean codebase)",
+            "npm run lint passes with 0 errors",
+            "Typecheck passes"
+          ],
+          "files_to_create": [".eslintrc.cjs"],
+          "files_to_modify": ["package.json"]
+        },
+        {
+          "id": "US-402",
+          "title": "Configure Prettier",
+          "description": "As a developer, I need Prettier configured for consistent code formatting.",
+          "acceptance_criteria": [
+            "Install prettier, eslint-config-prettier",
+            "Create .prettierrc with project conventions (single quotes, no semi, etc.)",
+            "Create .prettierignore excluding dist, node_modules, coverage",
+            "Add format and format:check scripts to package.json",
+            "Format entire codebase with Prettier",
+            "npm run format:check passes",
+            "Typecheck passes"
+          ],
+          "files_to_create": [".prettierrc", ".prettierignore"],
+          "files_to_modify": ["package.json"]
+        },
+        {
+          "id": "US-403",
+          "title": "Configure Git Hooks with Husky",
+          "description": "As a developer, I need Git hooks to enforce quality before commits.",
+          "acceptance_criteria": [
+            "Install husky, lint-staged",
+            "Initialize husky with npx husky init",
+            "Create pre-commit hook running lint-staged",
+            "Configure lint-staged to run ESLint + Prettier on staged files",
+            "Create pre-push hook running npm run test",
+            "Verify hooks trigger on commit/push",
+            "Document hook behavior in README"
+          ],
+          "files_to_create": [".husky/pre-commit", ".husky/pre-push", ".lintstagedrc.json"],
+          "files_to_modify": ["package.json", "README.md"]
+        },
+        {
+          "id": "US-404",
+          "title": "Update CI Workflow",
+          "description": "As a developer, I need CI to run all quality checks.",
+          "acceptance_criteria": [
+            "Update .github/workflows/release.yml to run lint, format:check, test, test:e2e",
+            "Add separate ci.yml workflow for PRs (not just tags)",
+            "CI fails if any check fails",
+            "CI uploads coverage report as artifact",
+            "CI runs E2E tests in headless mode",
+            "All CI checks pass on current codebase"
+          ],
+          "files_to_create": [".github/workflows/ci.yml"],
+          "files_to_modify": [".github/workflows/release.yml"]
+        }
+      ],
+      "functional_requirements": [
+        "FR-401: ESLint must extend recommended configs for TypeScript and React",
+        "FR-402: Prettier must be integrated with ESLint (no conflicts)",
+        "FR-403: Git hooks must not block commits for warnings (only errors)",
+        "FR-404: CI must complete in under 10 minutes"
+      ],
+      "non_goals": [
+        "No Rust linting (rustfmt/clippy already standard)",
+        "No Python linting changes (existing setup sufficient)",
+        "No commit message linting (conventional commits)"
+      ]
+    },
+    {
+      "id": "phase-5",
+      "name": "UX Polish & Hardening",
+      "description": "Graceful error handling, Cargo optimizations, styling standardization, loading skeletons, and error states",
+      "duration_days": "3-4",
+      "token_estimate": "80k",
+      "dependencies": ["phase-2"],
+      "tasks": [
+        {
+          "id": "US-501",
+          "title": "Graceful Sidecar Spawn Error Handling",
+          "description": "As a user, I need a friendly error dialog if the Python engine fails to start.",
+          "acceptance_criteria": [
+            "Replace expect() in lib.rs sidecar spawn with match + error handling",
+            "On spawn failure, show native macOS dialog with error message",
+            "Dialog offers Retry and Quit options",
+            "Log spawn failure to console with full error details",
+            "App exits gracefully if user chooses Quit",
+            "Typecheck passes (Rust)",
+            "Test manually by renaming sidecar binary"
+          ],
+          "files_to_create": [],
+          "files_to_modify": ["src-tauri/src/lib.rs"]
+        },
+        {
+          "id": "US-502",
+          "title": "Add Cargo Release Profile",
+          "description": "As a developer, I need optimized release builds for smaller binary size.",
+          "acceptance_criteria": [
+            "Add [profile.release] section to Cargo.toml",
+            "Enable LTO: lto = true",
+            "Set codegen-units = 1 for better optimization",
+            "Set panic = abort to reduce binary size",
+            "Set strip = true to remove debug symbols",
+            "Verify release build completes successfully",
+            "Compare binary size before/after (document reduction)"
+          ],
+          "files_to_create": [],
+          "files_to_modify": ["src-tauri/Cargo.toml"]
+        },
+        {
+          "id": "US-503",
+          "title": "Standardize Styling to Tailwind",
+          "description": "As a developer, I need consistent styling approach across all components.",
+          "acceptance_criteria": [
+            "Audit App.tsx for inline styles, migrate to Tailwind classes",
+            "Audit Dashboard.tsx for inline styles, migrate to Tailwind classes",
+            "Audit Sidebar.tsx for inline styles, migrate to Tailwind classes",
+            "Ensure no style={{}} props remain in core layout components",
+            "Verify visual appearance unchanged after migration",
+            "Typecheck passes",
+            "Verify in browser using browser tools"
+          ],
+          "files_to_create": [],
+          "files_to_modify": [
+            "src/App.tsx",
+            "src/components/views/Dashboard.tsx",
+            "src/components/Sidebar.tsx"
+          ]
+        },
+        {
+          "id": "US-504",
+          "title": "Add Loading Skeletons",
+          "description": "As a user, I need visual feedback while data is loading.",
+          "acceptance_criteria": [
+            "Create Skeleton component with pulse animation",
+            "Add skeleton to Dashboard while loading",
+            "Add skeleton to HoldingsView table while loading",
+            "Add skeleton to XRayView while loading",
+            "Skeletons match approximate layout of loaded content",
+            "Typecheck passes",
+            "Verify in browser using browser tools"
+          ],
+          "files_to_create": ["src/components/ui/Skeleton.tsx"],
+          "files_to_modify": [
+            "src/components/views/Dashboard.tsx",
+            "src/components/views/HoldingsView.tsx",
+            "src/components/views/XRayView.tsx"
+          ]
+        },
+        {
+          "id": "US-505",
+          "title": "Improve Error States",
+          "description": "As a user, I need clear error messages when things go wrong.",
+          "acceptance_criteria": [
+            "Create ErrorState component with icon, message, retry button",
+            "Replace generic error text in Dashboard with ErrorState",
+            "Replace generic error text in HoldingsView with ErrorState",
+            "Replace generic error text in XRayView with ErrorState",
+            "ErrorState includes Contact Support link to feedback dialog",
+            "Typecheck passes",
+            "Verify in browser using browser tools"
+          ],
+          "files_to_create": ["src/components/common/ErrorState.tsx"],
+          "files_to_modify": [
+            "src/components/views/Dashboard.tsx",
+            "src/components/views/HoldingsView.tsx",
+            "src/components/views/XRayView.tsx"
+          ]
+        }
+      ],
+      "functional_requirements": [
+        "FR-501: Native dialogs must use osascript on macOS (existing pattern)",
+        "FR-502: Tailwind migration must not change visual appearance",
+        "FR-503: Skeleton components must use Tailwind's animate-pulse",
+        "FR-504: Error states must offer actionable next steps"
+      ],
+      "non_goals": [
+        "No dark mode implementation",
+        "No accessibility audit (WCAG compliance)",
+        "No internationalization (i18n)"
+      ]
+    }
+  ],
+  "success_metrics": [
+    {
+      "metric": "Frontend test coverage",
+      "target": ">80%",
+      "measurement": "npm run test:coverage"
+    },
+    {
+      "metric": "E2E test pass rate",
+      "target": "100%",
+      "measurement": "Playwright report"
+    },
+    {
+      "metric": "Lint errors",
+      "target": "0",
+      "measurement": "npm run lint"
+    },
+    {
+      "metric": "Format violations",
+      "target": "0",
+      "measurement": "npm run format:check"
+    },
+    {
+      "metric": "CI pipeline duration",
+      "target": "<10 minutes",
+      "measurement": "GitHub Actions timing"
+    },
+    {
+      "metric": "Release binary size reduction",
+      "target": "<15MB",
+      "measurement": "Before/after comparison"
+    },
+    {
+      "metric": "Inline styles remaining",
+      "target": "0 in core layout",
+      "measurement": "Manual audit"
+    }
+  ],
+  "open_questions": [
+    "Test data fixtures: Should we use the existing mock data from commands.rs or create separate fixtures?",
+    "E2E authentication: How to handle Trade Republic 2FA in E2E tests? (Mock the entire auth flow?)",
+    "Coverage thresholds: Should CI fail if coverage drops below 80%?",
+    "Playwright browsers: Test only Chromium (matches WebKit) or add Firefox/Safari?"
+  ],
+  "dependencies_to_add": {
+    "devDependencies": {
+      "vitest": "^2.0.0",
+      "@testing-library/react": "^16.0.0",
+      "@testing-library/jest-dom": "^6.0.0",
+      "@testing-library/user-event": "^14.0.0",
+      "jsdom": "^24.0.0",
+      "msw": "^2.0.0",
+      "@playwright/test": "^1.45.0",
+      "eslint": "^9.0.0",
+      "@typescript-eslint/eslint-plugin": "^7.0.0",
+      "@typescript-eslint/parser": "^7.0.0",
+      "eslint-plugin-react": "^7.35.0",
+      "eslint-plugin-react-hooks": "^4.6.0",
+      "eslint-config-prettier": "^9.0.0",
+      "prettier": "^3.3.0",
+      "husky": "^9.0.0",
+      "lint-staged": "^15.0.0"
+    }
+  }
+}

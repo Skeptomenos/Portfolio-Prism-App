@@ -94,21 +94,21 @@ Track and resolve GitHub issues from user feedback. This workstream handles bug 
     - **Type:** Auto-telemetry
     - **Fix:** Closed as stale - KeyboardInterrupt from user cancellation, not a bug
 
-- [ ] **GH-036:** Bitcoin miscalculation - shows €74k instead of €17
-    - **Status:** Open
+### Done
+
+- [x] **GH-036:** Bitcoin miscalculation - shows €74k instead of €17
+    - **Status:** Done
     - **Workstream:** issue-tracker
     - **GitHub:** #36
     - **Type:** Critical Bug
-    - **Note:** True exposure value massively overvalued. Needs RCA.
+    - **Fix:** 3-layer defense: vectorized calculation + CanonicalPosition model + SQLite GENERATED column. Was using unit price instead of total value.
 
-- [ ] **GH-037:** NVIDIA direct exposure wrong - shows €159 instead of €1679
-    - **Status:** Open
+- [x] **GH-037:** NVIDIA direct exposure wrong - shows €159 instead of €1679
+    - **Status:** Done
     - **Workstream:** issue-tracker
     - **GitHub:** #37
     - **Type:** Critical Bug
-    - **Note:** Direct holdings value undervalued in true exposure. Related to #31 fix?
-
-### Done
+    - **Fix:** Same root cause as #36. Vectorized `calculate_position_values()` now single source of truth. 60 new tests added.
 
 - [x] **GH-028:** Hive log shows same contributions every pipeline run.
     - **Status:** Done
@@ -274,22 +274,22 @@ Track and resolve GitHub issues from user feedback. This workstream handles bug 
 
 ## 🧠 Active State
 
-> **Current Focus:** 2 critical calculation bugs (#36, #37)
+> **Current Focus:** All issues resolved! Workstream complete.
 
 ### Session Stats
 
 | Metric | Value |
 |--------|-------|
 | Total Issues Received | 32 |
-| Resolved | 30 |
-| Open | 2 |
-| Resolution Rate | 94% |
+| Resolved | 32 |
+| Open | 0 |
+| Resolution Rate | 100% |
 
 ---
 
 ## 💾 Context for Resume (Handover)
 
-- **Next Action:** Investigate #36 and #37 - critical calculation bugs
-- **Branch:** `fix/pipeline-tuning`
-- **Commit:** `9476e2c` - Previous batch committed and pushed
-- **Priority:** #36, #37 are CRITICAL - user-facing value miscalculations
+- **Next Action:** None - all issues resolved
+- **Branch:** `main`
+- **Commit:** `4d2c872` - Value calculation bug fix (#36, #37)
+- **Status:** Workstream complete - no open issues

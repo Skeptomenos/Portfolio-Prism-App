@@ -28,3 +28,9 @@ log = "0.4"
 env_logger = "0.10"
 fs2 = "0.4"
 
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+opt-level = "z"
