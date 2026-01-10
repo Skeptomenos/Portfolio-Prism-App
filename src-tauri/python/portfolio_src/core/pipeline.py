@@ -240,6 +240,7 @@ class Pipeline:
         warnings = []
         harvested_count = 0
         monitor = PipelineMonitor()
+        self._validation_gates = ValidationGates()
 
         # Initialize containers for finally block
         holdings_map = {}

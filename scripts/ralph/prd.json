@@ -14,7 +14,7 @@
         "Existing tests still pass"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "File: src-tauri/python/portfolio_src/core/pipeline.py. Import: ValidationGates, LoadPhaseOutput, DecomposePhaseOutput, EnrichPhaseOutput, AggregatePhaseOutput, ETFDecomposition, dataframe_to_loaded_positions, dataframe_to_holdings, IssueSeverity"
     },
     {

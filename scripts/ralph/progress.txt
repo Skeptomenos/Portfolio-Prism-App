@@ -3,5 +3,21 @@
 # Branch: ralph/validation-gates-integration
 # Started: 2026-01-10
 
+## Codebase Patterns
+- Import ValidationGates and related types from `portfolio_src.core.contracts`
+- Pipeline services are initialized lazily in `_init_services()` method
+- Instance variables for services use Optional[Type] = None pattern
+- Tests run via `uv run pytest tests/` from src-tauri/python directory
+- Pre-existing test failures exist (10 failed) - unrelated to validation gates work
+
+---
+
+## 2026-01-10 17:35 - US-001
+- What was implemented: Added ValidationGates import and instance variable to Pipeline class
+- Files changed: src-tauri/python/portfolio_src/core/pipeline.py
+- **Learnings for future iterations:**
+  - The contracts module exports all needed types from `portfolio_src.core.contracts`
+  - Import includes: ValidationGates, LoadPhaseOutput, DecomposePhaseOutput, EnrichPhaseOutput, AggregatePhaseOutput, ETFDecomposition, AggregatedExposureRecord, DataQuality, IssueSeverity, dataframe_to_loaded_positions, dataframe_to_holdings
+  - Pre-existing type errors exist in _write_breakdown_report (line ~644) - not related to this work
 ---
 
