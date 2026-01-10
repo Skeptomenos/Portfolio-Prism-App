@@ -30,3 +30,12 @@
   - Pre-existing test failure in test_handlers_telemetry.py - unrelated to validation gates work
 ---
 
+## 2026-01-10 17:40 - US-003
+- What was implemented: Added _log_validation_issues helper method to Pipeline class
+- Files changed: src-tauri/python/portfolio_src/core/pipeline.py
+- **Learnings for future iterations:**
+  - Method logs issues based on IssueSeverity: CRITICAL→error, HIGH→warning, MEDIUM→info, LOW→debug
+  - Log format: '[{phase}] {issue.code}: {issue.message}'
+  - Helper methods go between _dump_debug_snapshot and run() method
+---
+

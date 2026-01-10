@@ -229,6 +229,18 @@ class Pipeline:
             else:  # LOW
                 logger.debug(message)
 
+    def _build_load_phase_output(
+        self, direct_positions: pd.DataFrame, etf_positions: pd.DataFrame
+    ) -> LoadPhaseOutput:
+        direct_list, direct_issues = dataframe_to_loaded_positions(direct_positions)
+        etf_list, etf_issues = dataframe_to_loaded_positions(etf_positions)
+
+        if self._validation_gates:
+            self._validation_gates._pipeline_quality.issues.extend(direct_issues.issues)
+            self._validation_gates._pipeline_quality.issues.extend(etf_issues.issues)
+
+        return LoadPhaseOutput(direct_positions=direct_list, etf_positions=etf_list)
+
     def run(
         self, progress_callback: Optional[Callable[[str, float, str], None]] = None
     ) -> PipelineResult:
