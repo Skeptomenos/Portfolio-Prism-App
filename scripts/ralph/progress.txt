@@ -2,3 +2,12 @@
 Started: Sat Jan 10 2026
 PRD: prd-phase4.json
 ---
+
+## 2026-01-10 23:52 - US-001
+- Added rate limits for weight_validation, enrichment_gap, and quality_summary to RATE_LIMITS dict
+- Files changed: src-tauri/python/portfolio_src/prism_utils/telemetry.py
+- **Learnings for future iterations:**
+  - RATE_LIMITS dict follows pattern: {"per_isin": bool, "max_per_day": int|None}
+  - per_isin=True means rate limit is per ISIN, False means global
+  - max_per_day=None means "once ever" (no daily reset)
+---

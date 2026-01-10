@@ -15,7 +15,7 @@
         "No syntax errors in file"
       ],
       "priority": 1,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-002",

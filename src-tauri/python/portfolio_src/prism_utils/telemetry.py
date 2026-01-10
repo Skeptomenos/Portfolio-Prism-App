@@ -390,6 +390,46 @@ class Telemetry:
             labels=["data", "asset-universe"],
         )
 
+    def report_weight_validation_failure(
+        self,
+        etf_isin: str,
+        weight_sum: float,
+        adapter: str,
+    ) -> Optional[str]:
+        """Report an ETF with invalid weight sum (not ~100%)."""
+        title = f"Weight validation failed: {etf_isin}"
+
+        deviation = weight_sum - 100.0
+        if deviation > 0:
+            impact = f"overcounted by {deviation:.1f}%"
+        else:
+            impact = f"undercounted by {abs(deviation):.1f}%"
+
+        body = (
+            f"## Weight Validation Failed\n\n"
+            f"ETF holdings weights do not sum to approximately 100%.\n\n"
+            f"| Field | Value |\n"
+            f"|-------|-------|\n"
+            f"| ISIN | `{etf_isin}` |\n"
+            f"| Weight Sum | {weight_sum:.2f}% |\n"
+            f"| Expected Range | 90-110% |\n"
+            f"| Adapter | {adapter} |\n\n"
+            f"### Impact\n"
+            f"Portfolio allocation is {impact}.\n\n"
+            f"### Requested Action\n"
+            f"1. Verify the adapter is parsing weights correctly\n"
+            f"2. Check if the ETF provider changed their data format\n"
+            f"3. Update the adapter if needed\n"
+        )
+
+        return self.report_error(
+            error_type="weight_validation",
+            title=title,
+            body=body,
+            isin=etf_isin,
+            labels=["data-quality", "validation", adapter],
+        )
+
     def report_unexpected_error(
         self,
         error: Exception,
