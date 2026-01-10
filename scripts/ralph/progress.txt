@@ -3,6 +3,16 @@ Started: Sat Jan 10 2026
 PRD: prd-phase4.json
 ---
 
+## 2026-01-10 23:56 - US-006
+- Integrated weight validation telemetry in pipeline after decompose phase
+- Files changed: src-tauri/python/portfolio_src/core/pipeline.py
+- **Learnings for future iterations:**
+  - ValidationIssue.actual contains the weight sum as a string (e.g., "85.5%")
+  - Need to strip "%" and convert to float for telemetry
+  - ETF sources are available from decomposer.get_etf_sources()
+  - Weight issue codes: WEIGHT_SUM_LOW, WEIGHT_SUM_VERY_LOW, WEIGHT_SUM_HIGH, WEIGHT_DECIMAL_FORMAT
+---
+
 ## 2026-01-10 23:55 - US-004
 - Added report_quality_summary method to Telemetry class
 - Files changed: src-tauri/python/portfolio_src/prism_utils/telemetry.py

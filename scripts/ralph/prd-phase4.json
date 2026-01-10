@@ -91,7 +91,7 @@
         "Pass etf_isin, weight_sum (from issue.actual), and source/adapter name"
       ],
       "priority": 6,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-007",

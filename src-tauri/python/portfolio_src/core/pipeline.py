@@ -636,6 +636,12 @@ class Pipeline:
                     self._validation_gates,
                 )
 
+                if self._validation_gates:
+                    pipeline_quality = self._validation_gates.get_pipeline_quality()
+                    telemetry = get_telemetry()
+                    session_id = telemetry._session_id
+                    telemetry.report_quality_summary(pipeline_quality, session_id)
+
                 report_holdings = locals().get("enriched_holdings") or holdings_map
 
                 self._write_breakdown_report(
