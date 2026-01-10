@@ -216,6 +216,19 @@ class Pipeline:
         except Exception as e:
             logger.warning(f"[DEBUG] Failed to write snapshot for {phase}: {e}")
 
+    def _log_validation_issues(self, quality: DataQuality, phase: str) -> None:
+        """Log validation issues at appropriate severity levels."""
+        for issue in quality.issues:
+            message = f"[{phase}] {issue.code}: {issue.message}"
+            if issue.severity == IssueSeverity.CRITICAL:
+                logger.error(message)
+            elif issue.severity == IssueSeverity.HIGH:
+                logger.warning(message)
+            elif issue.severity == IssueSeverity.MEDIUM:
+                logger.info(message)
+            else:  # LOW
+                logger.debug(message)
+
     def run(
         self, progress_callback: Optional[Callable[[str, float, str], None]] = None
     ) -> PipelineResult:

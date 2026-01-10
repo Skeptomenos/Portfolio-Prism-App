@@ -21,3 +21,12 @@
   - Pre-existing type errors exist in _write_breakdown_report (line ~644) - not related to this work
 ---
 
+## 2026-01-10 17:38 - US-002
+- What was implemented: Added ValidationGates initialization in Pipeline.run() method after PipelineMonitor creation
+- Files changed: src-tauri/python/portfolio_src/core/pipeline.py
+- **Learnings for future iterations:**
+  - ValidationGates is initialized fresh for each pipeline run (not in __init__)
+  - Location: line 243 in run() method, after `monitor = PipelineMonitor()`
+  - Pre-existing test failure in test_handlers_telemetry.py - unrelated to validation gates work
+---
+
