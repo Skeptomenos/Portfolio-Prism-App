@@ -1,0 +1,242 @@
+{
+  "project": "Portfolio Prism",
+  "branchName": "ralph/validation-gates-integration",
+  "description": "Phase 2: Validation Gates Integration - Wire the contracts package into the live pipeline to validate data at each phase boundary and include quality summary in pipeline_health.json",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Add ValidationGates import and instance variable to Pipeline class",
+      "description": "As a developer, I need the Pipeline class to have access to ValidationGates for data validation.",
+      "acceptanceCriteria": [
+        "Add import statement for ValidationGates and related types from core.contracts at top of pipeline.py",
+        "Add self._validation_gates: Optional[ValidationGates] = None in Pipeline.__init__",
+        "Typecheck passes",
+        "Existing tests still pass"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "File: src-tauri/python/portfolio_src/core/pipeline.py. Import: ValidationGates, LoadPhaseOutput, DecomposePhaseOutput, EnrichPhaseOutput, AggregatePhaseOutput, ETFDecomposition, dataframe_to_loaded_positions, dataframe_to_holdings, IssueSeverity"
+    },
+    {
+      "id": "US-002",
+      "title": "Initialize ValidationGates at pipeline run start",
+      "description": "As a developer, I need ValidationGates to be created fresh for each pipeline run.",
+      "acceptanceCriteria": [
+        "In Pipeline.run() method, after 'monitor = PipelineMonitor()' line, add: self._validation_gates = ValidationGates()",
+        "Typecheck passes",
+        "Existing tests still pass"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "Location: around line 228 in pipeline.py, inside the run() method after monitor initialization"
+    },
+    {
+      "id": "US-003",
+      "title": "Add _log_validation_issues helper method",
+      "description": "As a developer, I need a helper to log validation issues at appropriate severity levels.",
+      "acceptanceCriteria": [
+        "Add _log_validation_issues(self, quality: DataQuality, phase: str) method to Pipeline class",
+        "Method logs CRITICAL issues as error, HIGH as warning, MEDIUM as info, LOW as debug",
+        "Log format: '[{phase}] {issue.code}: {issue.message}'",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "Import DataQuality and IssueSeverity from core.contracts. Use existing logger instance."
+    },
+    {
+      "id": "US-004",
+      "title": "Add _build_load_phase_output helper method",
+      "description": "As a developer, I need to convert DataFrames to LoadPhaseOutput for validation.",
+      "acceptanceCriteria": [
+        "Add _build_load_phase_output(self, direct_positions: pd.DataFrame, etf_positions: pd.DataFrame) -> LoadPhaseOutput method",
+        "Method uses dataframe_to_loaded_positions converter for both DataFrames",
+        "Conversion issues are merged into self._validation_gates._pipeline_quality",
+        "Returns LoadPhaseOutput with direct_positions and etf_positions lists",
+        "Typecheck passes"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": "Use dataframe_to_loaded_positions from core.contracts.converters"
+    },
+    {
+      "id": "US-005",
+      "title": "Add Phase 1 (Load) validation call",
+      "description": "As a developer, I need to validate the load phase output after data loading completes.",
+      "acceptanceCriteria": [
+        "After monitor.record_phase('data_loading', ...) in run(), call _build_load_phase_output",
+        "Call self._validation_gates.validate_load_output(load_output)",
+        "If result.passed is False, call self._log_validation_issues(result.quality, 'DATA_LOADING')",
+        "Pipeline continues regardless of validation result",
+        "Typecheck passes"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": "Location: after line 265 in pipeline.py"
+    },
+    {
+      "id": "US-006",
+      "title": "Add _get_etf_value helper method",
+      "description": "As a developer, I need to get ETF market value from positions DataFrame.",
+      "acceptanceCriteria": [
+        "Add _get_etf_value(self, etf_positions: pd.DataFrame, isin: str) -> float method",
+        "Returns 0.0 if DataFrame is empty or ISIN not found",
+        "Calculates value as quantity * price (checking current_price, price, tr_price columns)",
+        "Typecheck passes"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": "Similar pattern to existing _get_etf_name method"
+    },
+    {
+      "id": "US-007",
+      "title": "Add _build_decompose_phase_output helper method",
+      "description": "As a developer, I need to convert holdings_map to DecomposePhaseOutput for validation.",
+      "acceptanceCriteria": [
+        "Add _build_decompose_phase_output(self, holdings_map, etf_positions, errors) -> DecomposePhaseOutput method",
+        "Iterates holdings_map, converts each DataFrame using dataframe_to_holdings",
+        "Creates ETFDecomposition for each ETF with isin, name, value, holdings, source",
+        "Merges conversion issues into pipeline quality",
+        "Returns DecomposePhaseOutput with decompositions list and etfs_failed count",
+        "Typecheck passes"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": "Uses _get_etf_name, _get_etf_value, and decomposer.get_etf_sources()"
+    },
+    {
+      "id": "US-008",
+      "title": "Add Phase 2 (Decompose) validation call",
+      "description": "As a developer, I need to validate the decompose phase output after ETF decomposition completes.",
+      "acceptanceCriteria": [
+        "After monitor.record_phase('etf_decomposition', ...) in run(), call _build_decompose_phase_output",
+        "Call self._validation_gates.validate_decompose_output(decompose_output)",
+        "If result.passed is False, call self._log_validation_issues(result.quality, 'ETF_DECOMPOSITION')",
+        "Pipeline continues regardless of validation result",
+        "Typecheck passes"
+      ],
+      "priority": 8,
+      "passes": false,
+      "notes": "Location: after line 325 in pipeline.py"
+    },
+    {
+      "id": "US-009",
+      "title": "Add _build_enrich_phase_output helper method",
+      "description": "As a developer, I need to convert enriched data to EnrichPhaseOutput for validation.",
+      "acceptanceCriteria": [
+        "Add _build_enrich_phase_output(self, enriched_holdings, direct_positions) -> EnrichPhaseOutput method",
+        "Converts enriched_holdings using dataframe_to_holdings for each ETF",
+        "Converts direct_positions using dataframe_to_loaded_positions",
+        "Merges conversion issues into pipeline quality",
+        "Returns EnrichPhaseOutput with enriched_decompositions and enriched_direct",
+        "Typecheck passes"
+      ],
+      "priority": 9,
+      "passes": false,
+      "notes": "ETFDecomposition for enrichment can have empty etf_name and 0.0 etf_value"
+    },
+    {
+      "id": "US-010",
+      "title": "Add Phase 3 (Enrich) validation call",
+      "description": "As a developer, I need to validate the enrich phase output after enrichment completes.",
+      "acceptanceCriteria": [
+        "After monitor.record_phase('enrichment', ...) in run(), call _build_enrich_phase_output",
+        "Call self._validation_gates.validate_enrich_output(enrich_output)",
+        "If result.passed is False, call self._log_validation_issues(result.quality, 'ENRICHMENT')",
+        "Pipeline continues regardless of validation result",
+        "Typecheck passes"
+      ],
+      "priority": 10,
+      "passes": false,
+      "notes": "Location: after line 362 in pipeline.py"
+    },
+    {
+      "id": "US-011",
+      "title": "Add _build_aggregate_phase_output helper method",
+      "description": "As a developer, I need to convert exposure DataFrame to AggregatePhaseOutput for validation.",
+      "acceptanceCriteria": [
+        "Add _build_aggregate_phase_output(self, exposure_df: pd.DataFrame) -> AggregatePhaseOutput method",
+        "Iterates exposure_df rows, creates AggregatedExposureRecord for each",
+        "Handles conversion errors gracefully with logger.warning",
+        "Returns AggregatePhaseOutput with exposures list and total_portfolio_value",
+        "Typecheck passes"
+      ],
+      "priority": 11,
+      "passes": false,
+      "notes": "Import AggregatedExposureRecord from core.contracts"
+    },
+    {
+      "id": "US-012",
+      "title": "Add Phase 4 (Aggregate) validation call",
+      "description": "As a developer, I need to validate the aggregate phase output after aggregation completes.",
+      "acceptanceCriteria": [
+        "After monitor.record_phase('aggregation', ...) in run(), call _build_aggregate_phase_output",
+        "Calculate expected_total using calculate_portfolio_total_value(direct_positions, etf_positions)",
+        "Call self._validation_gates.validate_aggregate_output(aggregate_output, expected_total)",
+        "If result.passed is False, call self._log_validation_issues(result.quality, 'AGGREGATION')",
+        "Pipeline continues regardless of validation result",
+        "Typecheck passes"
+      ],
+      "priority": 12,
+      "passes": false,
+      "notes": "Location: after line 385 in pipeline.py"
+    },
+    {
+      "id": "US-013",
+      "title": "Update _write_health_report to accept validation_gates parameter",
+      "description": "As a developer, I need the health report to include validation quality data.",
+      "acceptanceCriteria": [
+        "Add validation_gates: Optional[ValidationGates] = None parameter to _write_health_report signature",
+        "Add data_quality section to health_data dict using validation_gates.get_summary() if gates exist",
+        "If validation_gates is None, add default data_quality with score 1.0 and empty issues",
+        "Typecheck passes"
+      ],
+      "priority": 13,
+      "passes": false,
+      "notes": "data_quality section goes before write_json_atomic call"
+    },
+    {
+      "id": "US-014",
+      "title": "Update _write_health_report call site to pass validation_gates",
+      "description": "As a developer, I need the health report call to include the validation gates instance.",
+      "acceptanceCriteria": [
+        "In run() finally block, update _write_health_report call to pass self._validation_gates as last argument",
+        "Typecheck passes",
+        "Existing tests still pass"
+      ],
+      "priority": 14,
+      "passes": false,
+      "notes": "Location: around line 443-450 in pipeline.py finally block"
+    },
+    {
+      "id": "US-015",
+      "title": "Add integration test for ValidationGates in Pipeline",
+      "description": "As a developer, I need tests to verify the validation integration works correctly.",
+      "acceptanceCriteria": [
+        "Create tests/contracts/test_integration.py with TestPipelineValidationIntegration class",
+        "Add test_gates_initialized_on_run: verify _validation_gates is not None after run()",
+        "Add test_quality_in_health_report: verify gates.get_summary() returns expected structure",
+        "All tests pass",
+        "Typecheck passes"
+      ],
+      "priority": 15,
+      "passes": false,
+      "notes": "Use mocking to prevent actual pipeline execution. Test the helper methods directly."
+    },
+    {
+      "id": "US-016",
+      "title": "Verify end-to-end pipeline produces quality report",
+      "description": "As a developer, I need to verify the full pipeline produces a health report with data_quality section.",
+      "acceptanceCriteria": [
+        "Run pipeline manually or via test",
+        "Read pipeline_health.json output file",
+        "Verify 'data_quality' key exists in JSON",
+        "Verify data_quality has 'quality_score', 'is_trustworthy', 'issues' keys",
+        "All existing tests still pass"
+      ],
+      "priority": 16,
+      "passes": false,
+      "notes": "This is a manual verification step. Check outputs/pipeline_health.json after running the pipeline."
+    }
+  ]
+}
