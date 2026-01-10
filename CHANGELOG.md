@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Phase 1 Pipeline Contracts - Data Validation at Phase Boundaries:**
+  - Created `portfolio_src/core/contracts/` package as single source of truth for pipeline data validation.
+  - **quality.py**: `DataQuality` score tracking with severity-based penalties (CRITICAL=0.25, HIGH=0.10, MEDIUM=0.03, LOW=0.01). Score starts at 1.0, trustworthy threshold >= 0.95.
+  - **schemas.py**: Pydantic models for all 4 pipeline phases - `LoadedPosition`, `HoldingRecord`, `ETFDecomposition`, `EnrichedHolding`, `AggregatedExposureRecord` with computed fields and ISIN validation.
+  - **validation.py**: Phase-specific validation functions that return issues without raising exceptions. Detects weight format errors, resolution rate issues, enrichment coverage gaps, and aggregation mismatches.
+  - **gates.py**: `ValidationGates` orchestrator that accumulates quality across pipeline phases and provides JSON-serializable summaries.
+  - **converters.py**: DataFrame↔Pydantic bidirectional conversion with column alias mapping for Trade Republic compatibility.
+  - **Test suite**: 111 tests with 99% coverage across `test_schemas.py`, `test_quality.py`, `test_validation.py`, `test_gates.py`, `test_converters.py`, and `test_smoke.py`.
+  - **Test factories**: `tests/contracts/factories.py` with `make_loaded_position`, `make_holding_record`, `make_etf_decomposition`, etc.
+
 ### Fixed
 
 - **Value Calculation Bug Fix (All 3 Phases) - GitHub Issues #36, #37:**

@@ -1,0 +1,452 @@
+{
+  "project": "Portfolio Prism",
+  "branchName": "ralph/phase1-pipeline-contracts",
+  "description": "Phase 1 Pipeline Contracts - Define explicit schemas and validation rules for pipeline phase boundaries. Creates the contracts package (core/contracts/) as the single source of truth for data validation.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Create quality.py with DataQuality tracking",
+      "description": "As a developer, I need a quality tracking system that propagates scores through the pipeline so users can see data reliability.",
+      "acceptanceCriteria": [
+        "Create file: src-tauri/python/portfolio_src/core/contracts/quality.py",
+        "Implement IssueSeverity enum: CRITICAL, HIGH, MEDIUM, LOW (inherits str, Enum)",
+        "Implement IssueCategory enum: SCHEMA, WEIGHT, RESOLUTION, ENRICHMENT, CURRENCY, VALUE",
+        "Implement ValidationIssue dataclass with fields: severity, category, code, message, fix_hint, item, phase, timestamp, expected, actual",
+        "ValidationIssue has to_dict() and to_telemetry() methods",
+        "Implement DataQuality dataclass with score=1.0, issues list",
+        "DataQuality.PENALTIES dict: CRITICAL=0.25, HIGH=0.10, MEDIUM=0.03, LOW=0.01",
+        "DataQuality.add_issue() degrades score by penalty amount",
+        "DataQuality.score never goes below 0.0",
+        "DataQuality.is_trustworthy property returns True if score >= 0.95",
+        "DataQuality.has_critical_issues property returns True if any CRITICAL issues",
+        "DataQuality.merge() combines issues and recalculates score",
+        "DataQuality.to_summary() returns JSON-serializable dict",
+        "DataQuality.to_user_message() returns human-friendly status",
+        "All classes have full type hints and docstrings",
+        "Typecheck passes: cd src-tauri/python && python -m mypy portfolio_src/core/contracts/quality.py"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-002",
+      "title": "Create contracts package __init__.py",
+      "description": "As a developer, I need the contracts package initialized with clean exports.",
+      "acceptanceCriteria": [
+        "Create file: src-tauri/python/portfolio_src/core/contracts/__init__.py",
+        "Import and export: IssueSeverity, IssueCategory, ValidationIssue, DataQuality from quality",
+        "Define __all__ list with all exports",
+        "Package import works: python -c 'from portfolio_src.core.contracts import DataQuality'",
+        "No circular imports",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-003",
+      "title": "Create schemas.py with enums and base types",
+      "description": "As a developer, I need enum types for asset classes and resolution status used across all phase schemas.",
+      "acceptanceCriteria": [
+        "Create file: src-tauri/python/portfolio_src/core/contracts/schemas.py",
+        "Implement AssetClass enum (str, Enum): STOCK, ETF, BOND, CASH, CRYPTO, DERIVATIVE, UNKNOWN",
+        "Implement ResolutionStatus enum (str, Enum): RESOLVED, UNRESOLVED, SKIPPED",
+        "Enums are JSON-serializable (inherit from str, Enum)",
+        "Add module docstring explaining these are validation schemas",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-004",
+      "title": "Add Load phase schemas to schemas.py",
+      "description": "As a developer, I need Pydantic models for the Load phase output.",
+      "acceptanceCriteria": [
+        "Add LoadedPosition(BaseModel) with fields: isin (12 chars, pattern validated), name (min_length=1), quantity, current_price (Optional, ge=0), cost_basis (Optional, ge=0), asset_class (default UNKNOWN), symbol, sector, region, currency (default EUR)",
+        "LoadedPosition has field_validator to normalize asset_class (case-insensitive, None/empty -> UNKNOWN)",
+        "LoadedPosition has market_value property: quantity * (current_price or cost_basis or 0.0)",
+        "Add LoadPhaseOutput(BaseModel) with: direct_positions, etf_positions lists, total_positions, total_value (computed in model_post_init)",
+        "Invalid ISIN raises ValidationError",
+        "Empty name raises ValidationError",
+        "Typecheck passes"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-005",
+      "title": "Add Decompose phase schemas to schemas.py",
+      "description": "As a developer, I need Pydantic models for the Decompose phase output.",
+      "acceptanceCriteria": [
+        "Add HoldingRecord(BaseModel) with: ticker, raw_ticker, name (min_length=1), weight_percentage (ge=0, le=150), isin (Optional), resolution_status (default UNRESOLVED), resolution_source, resolution_confidence (ge=0, le=1, default 0.0), resolution_detail",
+        "HoldingRecord has field_validator to normalize weight (None -> 0.0)",
+        "Add ETFDecomposition(BaseModel) with: etf_isin (12 chars), etf_name, etf_value (ge=0), holdings list, source, weight_sum, holdings_count, resolved_count, unresolved_count (computed in model_post_init)",
+        "Add DecomposePhaseOutput(BaseModel) with: decompositions list, etfs_processed, etfs_failed, total_holdings (computed)",
+        "Weight percentage allows 0-150 for leveraged ETFs",
+        "Typecheck passes"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-006",
+      "title": "Add Enrich phase schemas to schemas.py",
+      "description": "As a developer, I need Pydantic models for the Enrich phase output.",
+      "acceptanceCriteria": [
+        "Add EnrichedHolding(HoldingRecord) inheriting all HoldingRecord fields",
+        "EnrichedHolding adds: sector (default 'Unknown'), geography (default 'Unknown'), asset_class (default STOCK), enrichment_source",
+        "Add EnrichPhaseOutput(BaseModel) with: enriched_decompositions, enriched_direct, total_enriched, hive_hits, api_calls, enrichment_failures",
+        "Default values are 'Unknown' not None for display purposes",
+        "Typecheck passes"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-007",
+      "title": "Add Aggregate phase schemas to schemas.py",
+      "description": "As a developer, I need Pydantic models for the Aggregate phase output.",
+      "acceptanceCriteria": [
+        "Add AggregatedExposureRecord(BaseModel) with: isin (can be ISIN or 'UNRESOLVED:...' pattern), name, sector, geography, asset_class, total_exposure (ge=0), portfolio_percentage (ge=0, le=200), direct_exposure, indirect_exposure, source_count, resolution_confidence, resolution_source",
+        "Add AggregatePhaseOutput(BaseModel) with: exposures list, total_portfolio_value (ge=0), unique_securities, resolved_securities, unresolved_securities (computed in model_post_init)",
+        "portfolio_percentage allows up to 200% for leveraged portfolios",
+        "Computed counts correctly identify UNRESOLVED: pattern",
+        "Typecheck passes"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-008",
+      "title": "Update __init__.py with schema exports",
+      "description": "As a developer, I need all schema classes exported from the contracts package.",
+      "acceptanceCriteria": [
+        "Add imports from schemas: AssetClass, ResolutionStatus, LoadedPosition, LoadPhaseOutput, HoldingRecord, ETFDecomposition, DecomposePhaseOutput, EnrichedHolding, EnrichPhaseOutput, AggregatedExposureRecord, AggregatePhaseOutput",
+        "Update __all__ to include all schema exports",
+        "All schema classes importable: python -c 'from portfolio_src.core.contracts import LoadedPosition, ETFDecomposition'",
+        "No circular imports",
+        "Typecheck passes"
+      ],
+      "priority": 8,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-009",
+      "title": "Create validation.py with Load phase validation",
+      "description": "As a developer, I need validation functions for the Load phase that return issues without raising exceptions.",
+      "acceptanceCriteria": [
+        "Create file: src-tauri/python/portfolio_src/core/contracts/validation.py",
+        "Implement validate_loaded_positions(positions, phase) -> List[ValidationIssue]",
+        "Empty list returns HIGH issue with code NO_POSITIONS",
+        "Zero/negative market_value returns MEDIUM issue ZERO_VALUE_POSITIONS",
+        "Unknown asset_class returns LOW issue UNKNOWN_ASSET_CLASS",
+        "Non-EUR currency returns HIGH issue NON_EUR_CURRENCY",
+        "Implement validate_load_phase_output(output) wrapper that validates both position lists",
+        "All issues have appropriate fix_hint",
+        "Functions never raise exceptions, only return issues",
+        "Typecheck passes"
+      ],
+      "priority": 9,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-010",
+      "title": "Add Decompose phase validation to validation.py",
+      "description": "As a developer, I need validation functions for the Decompose phase.",
+      "acceptanceCriteria": [
+        "Implement validate_holdings_weights(decomposition, phase) -> List[ValidationIssue]",
+        "No holdings returns HIGH issue NO_HOLDINGS",
+        "Weight sum 0.5-1.5 returns CRITICAL issue WEIGHT_DECIMAL_FORMAT (likely decimal format error)",
+        "Weight sum < 50 returns CRITICAL issue WEIGHT_SUM_VERY_LOW",
+        "Weight sum 50-90 returns HIGH issue WEIGHT_SUM_LOW",
+        "Weight sum > 110 returns MEDIUM issue WEIGHT_SUM_HIGH",
+        "Negative weights returns MEDIUM issue NEGATIVE_WEIGHTS",
+        "Implement validate_resolution_rate(decomposition, min_rate=0.80, phase) -> List[ValidationIssue]",
+        "Resolution rate < 50% returns HIGH issue LOW_RESOLUTION_RATE",
+        "Resolution rate < min_rate returns MEDIUM issue MODERATE_RESOLUTION_RATE",
+        "Implement validate_decompose_phase_output(output) wrapper",
+        "All issues include etf_isin as item field",
+        "Typecheck passes"
+      ],
+      "priority": 10,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-011",
+      "title": "Add Enrich phase validation to validation.py",
+      "description": "As a developer, I need validation functions for the Enrich phase.",
+      "acceptanceCriteria": [
+        "Implement validate_enrichment_coverage(holdings, etf_isin, phase) -> List[ValidationIssue]",
+        "Sector coverage < 50% returns MEDIUM issue LOW_SECTOR_COVERAGE",
+        "Geography coverage < 50% returns MEDIUM issue LOW_GEOGRAPHY_COVERAGE",
+        "Use getattr(h, 'sector', 'Unknown') to handle both HoldingRecord and EnrichedHolding",
+        "Implement validate_enrich_phase_output(output) wrapper",
+        "Empty holdings list returns no issues (already caught in decompose phase)",
+        "Typecheck passes"
+      ],
+      "priority": 11,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-012",
+      "title": "Add Aggregate phase validation to validation.py",
+      "description": "As a developer, I need validation functions for the Aggregate phase.",
+      "acceptanceCriteria": [
+        "Implement validate_aggregation_totals(calculated_total, expected_total, tolerance=0.01, phase) -> List[ValidationIssue]",
+        "Expected total <= 0 returns CRITICAL issue ZERO_PORTFOLIO_VALUE",
+        "Difference > 10% returns CRITICAL issue TOTAL_MISMATCH_LARGE",
+        "Difference > tolerance returns HIGH issue TOTAL_MISMATCH",
+        "Implement validate_percentage_sum(exposures, phase) -> List[ValidationIssue]",
+        "Sum < 95% returns HIGH issue PERCENTAGE_SUM_LOW",
+        "Sum > 105% returns MEDIUM issue PERCENTAGE_SUM_HIGH",
+        "Implement validate_aggregate_phase_output(output, expected_total) wrapper",
+        "Issues include expected/actual values",
+        "Typecheck passes"
+      ],
+      "priority": 12,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-013",
+      "title": "Update __init__.py with validation exports",
+      "description": "As a developer, I need all validation functions exported from the contracts package.",
+      "acceptanceCriteria": [
+        "Add imports from validation: validate_loaded_positions, validate_load_phase_output, validate_holdings_weights, validate_resolution_rate, validate_decompose_phase_output, validate_enrichment_coverage, validate_enrich_phase_output, validate_aggregation_totals, validate_percentage_sum, validate_aggregate_phase_output",
+        "Update __all__ to include all validation exports",
+        "All validation functions importable from package root",
+        "No circular imports",
+        "Typecheck passes"
+      ],
+      "priority": 13,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-014",
+      "title": "Create gates.py with ValidationGates class",
+      "description": "As a developer, I need a ValidationGates class to orchestrate validation at phase boundaries.",
+      "acceptanceCriteria": [
+        "Create file: src-tauri/python/portfolio_src/core/contracts/gates.py",
+        "Implement GateResult dataclass with: passed (bool), quality (DataQuality), data (Any)",
+        "Implement ValidationGates class with pipeline_quality state",
+        "ValidationGates.__init__() initializes fresh DataQuality",
+        "Implement validate_load_output(output) -> GateResult",
+        "Implement validate_decompose_output(output) -> GateResult",
+        "Implement validate_enrich_output(output) -> GateResult",
+        "Implement validate_aggregate_output(output, expected_total) -> GateResult",
+        "Each gate: creates DataQuality, runs validation, adds issues, merges to pipeline_quality, returns GateResult",
+        "GateResult.passed is False only for CRITICAL issues",
+        "Implement get_pipeline_quality() -> DataQuality",
+        "Implement get_summary() -> dict (JSON-serializable with quality_score, is_trustworthy, total_issues, by_severity, by_category, issues)",
+        "Implement reset() to clear accumulated state",
+        "Typecheck passes"
+      ],
+      "priority": 14,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-015",
+      "title": "Update __init__.py with gates exports",
+      "description": "As a developer, I need gates classes exported from the contracts package.",
+      "acceptanceCriteria": [
+        "Add imports from gates: GateResult, ValidationGates",
+        "Update __all__ to include gates exports",
+        "Classes importable: python -c 'from portfolio_src.core.contracts import ValidationGates, GateResult'",
+        "No circular imports",
+        "Typecheck passes"
+      ],
+      "priority": 15,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-016",
+      "title": "Create converters.py for DataFrame/Pydantic conversion",
+      "description": "As a developer, I need utilities to convert between pandas DataFrames and Pydantic models.",
+      "acceptanceCriteria": [
+        "Create file: src-tauri/python/portfolio_src/core/contracts/converters.py",
+        "Implement dataframe_to_loaded_positions(df, phase) -> Tuple[List[LoadedPosition], DataQuality]",
+        "Column mapping is case-insensitive: isin/ISIN, name/Name, quantity/Quantity/qty, current_price/price/tr_price, cost_basis/avg_cost/averageBuyIn, asset_type/asset_class, symbol/ticker",
+        "Implement dataframe_to_holdings(df, phase) -> Tuple[List[HoldingRecord], DataQuality]",
+        "Column mapping: ticker/Ticker, name/Name/holding_name, weight/weight_percentage/Weight, isin/ISIN",
+        "Implement loaded_positions_to_dataframe(positions) -> pd.DataFrame",
+        "Implement holdings_to_dataframe(holdings) -> pd.DataFrame",
+        "Implement safe_convert_row(row, model_class, phase) -> Tuple[Optional[T], Optional[ValidationIssue]]",
+        "Missing required columns create SCHEMA issues with code CONVERSION_ERROR",
+        "Invalid values create appropriate issues, not exceptions",
+        "Valid rows are converted correctly",
+        "Typecheck passes"
+      ],
+      "priority": 16,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-017",
+      "title": "Update __init__.py with converter exports (final)",
+      "description": "As a developer, I need all converter functions exported from the contracts package.",
+      "acceptanceCriteria": [
+        "Add imports from converters: dataframe_to_loaded_positions, dataframe_to_holdings, loaded_positions_to_dataframe, holdings_to_dataframe, safe_convert_row",
+        "Update __all__ to include all converter exports",
+        "All converter functions importable from package root",
+        "No circular imports",
+        "Full package import works: python -c 'from portfolio_src.core.contracts import *'",
+        "Typecheck passes"
+      ],
+      "priority": 17,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-018",
+      "title": "Create test package with factories",
+      "description": "As a developer, I need test fixture factories to create valid test objects.",
+      "acceptanceCriteria": [
+        "Create file: src-tauri/python/tests/contracts/__init__.py (empty)",
+        "Create file: src-tauri/python/tests/contracts/factories.py",
+        "Implement make_loaded_position(**overrides) with sensible defaults (isin=US0378331005, name=Apple Inc, quantity=10.0, current_price=150.0, asset_class=STOCK, currency=EUR)",
+        "Implement make_holding_record(**overrides) with defaults (name=Test Holding, weight_percentage=5.0, ticker=TEST, resolution_status=UNRESOLVED)",
+        "Implement make_etf_decomposition(holdings_count=3, weight_sum=100.0, **overrides) that creates ETF with distributed holdings",
+        "Implement make_aggregated_exposure(**overrides) with defaults",
+        "Implement make_validation_issue(**overrides) with defaults",
+        "Implement make_load_phase_output(direct_count=2, etf_count=1)",
+        "Implement make_decompose_phase_output(etf_count=2, holdings_per_etf=3)",
+        "All factories create valid objects by default",
+        "Overrides work correctly",
+        "Typecheck passes"
+      ],
+      "priority": 18,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-019",
+      "title": "Create test_schemas.py",
+      "description": "As a developer, I need tests for all schema validation rules.",
+      "acceptanceCriteria": [
+        "Create file: src-tauri/python/tests/contracts/test_schemas.py",
+        "TestLoadedPosition: test_valid_position, test_invalid_isin_too_short, test_invalid_isin_wrong_format, test_empty_name, test_asset_class_normalization_lowercase, test_asset_class_normalization_none, test_market_value_calculation, test_market_value_fallback_to_cost_basis, test_market_value_fallback_to_zero",
+        "TestHoldingRecord: test_valid_holding, test_weight_percentage_bounds, test_weight_percentage_negative_fails, test_optional_isin, test_isin_validation_when_present",
+        "TestETFDecomposition: test_valid_decomposition, test_weight_sum_calculation, test_holdings_count_calculation, test_resolved_count_calculation, test_empty_holdings_valid",
+        "TestAggregatedExposureRecord: test_valid_record, test_portfolio_percentage_allows_leverage, test_unresolved_pattern",
+        "All tests pass: cd src-tauri/python && python -m pytest tests/contracts/test_schemas.py -v",
+        "Typecheck passes"
+      ],
+      "priority": 19,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-020",
+      "title": "Create test_quality.py",
+      "description": "As a developer, I need tests for quality score tracking and issue management.",
+      "acceptanceCriteria": [
+        "Create file: src-tauri/python/tests/contracts/test_quality.py",
+        "TestValidationIssue: test_to_dict, test_to_telemetry, test_timestamp_default",
+        "TestDataQuality: test_initial_score (1.0), test_is_trustworthy_initial (True), test_critical_issue_penalty (0.25), test_high_issue_penalty (0.10), test_medium_issue_penalty (0.03), test_low_issue_penalty (0.01), test_score_never_below_zero, test_is_trustworthy_threshold (False below 0.95), test_has_critical_issues, test_merge_combines_issues, test_merge_recalculates_score, test_issue_count_by_severity, test_issue_count_by_category, test_get_issues_for_phase, test_to_summary, test_to_user_message_trustworthy, test_to_user_message_critical, test_to_user_message_high",
+        "All tests pass: cd src-tauri/python && python -m pytest tests/contracts/test_quality.py -v",
+        "Typecheck passes"
+      ],
+      "priority": 20,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-021",
+      "title": "Create test_validation.py",
+      "description": "As a developer, I need tests for all validation functions.",
+      "acceptanceCriteria": [
+        "Create file: src-tauri/python/tests/contracts/test_validation.py",
+        "TestValidateLoadedPositions: test_empty_list, test_valid_positions, test_zero_value_positions, test_unknown_asset_class, test_non_eur_currency, test_multiple_issues",
+        "TestValidateHoldingsWeights: test_valid_weights, test_no_holdings, test_decimal_format_detected, test_very_low_sum, test_low_sum, test_high_sum, test_negative_weights, test_boundary_90, test_boundary_110",
+        "TestValidateResolutionRate: test_high_resolution, test_low_resolution, test_moderate_resolution, test_custom_min_rate",
+        "TestValidateEnrichmentCoverage: test_good_coverage, test_low_sector_coverage, test_low_geography_coverage, test_empty_holdings",
+        "TestValidateAggregationTotals: test_matching_totals, test_zero_expected, test_large_mismatch, test_small_mismatch, test_custom_tolerance",
+        "TestValidatePercentageSum: test_valid_sum, test_low_sum, test_high_sum, test_empty_exposures",
+        "All tests pass: cd src-tauri/python && python -m pytest tests/contracts/test_validation.py -v",
+        "Typecheck passes"
+      ],
+      "priority": 21,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-022",
+      "title": "Create test_gates.py",
+      "description": "As a developer, I need tests for gate orchestration.",
+      "acceptanceCriteria": [
+        "Create file: src-tauri/python/tests/contracts/test_gates.py",
+        "TestGateResult: test_passed_true, test_passed_false, test_data_passthrough",
+        "TestValidationGates: test_initial_state, test_validate_load_output_valid, test_validate_load_output_with_issues, test_validate_decompose_output, test_validate_enrich_output, test_validate_aggregate_output, test_pipeline_quality_accumulates, test_get_summary_format, test_reset",
+        "All tests pass: cd src-tauri/python && python -m pytest tests/contracts/test_gates.py -v",
+        "Typecheck passes"
+      ],
+      "priority": 22,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-023",
+      "title": "Create test_converters.py",
+      "description": "As a developer, I need tests for DataFrame/Pydantic conversion.",
+      "acceptanceCriteria": [
+        "Create file: src-tauri/python/tests/contracts/test_converters.py",
+        "TestDataframeToLoadedPositions: test_valid_dataframe, test_column_name_normalization, test_column_name_mapping, test_missing_required_column, test_invalid_row_skipped, test_empty_dataframe",
+        "TestDataframeToHoldings: test_valid_dataframe, test_weight_column_aliases",
+        "TestLoadedPositionsToDataframe: test_round_trip, test_empty_list",
+        "TestSafeConvertRow: test_valid_row, test_invalid_row",
+        "All tests pass: cd src-tauri/python && python -m pytest tests/contracts/test_converters.py -v",
+        "Typecheck passes"
+      ],
+      "priority": 23,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-024",
+      "title": "Run full test suite with coverage",
+      "description": "As a developer, I need to verify all tests pass with 100% coverage on the contracts package.",
+      "acceptanceCriteria": [
+        "Run: cd src-tauri/python && python -m pytest tests/contracts/ -v --cov=portfolio_src.core.contracts --cov-report=term-missing",
+        "All tests pass (exit code 0)",
+        "Coverage is 100% on portfolio_src/core/contracts/ package",
+        "No import errors",
+        "No circular dependencies",
+        "Typecheck passes on entire package: python -m mypy portfolio_src/core/contracts/"
+      ],
+      "priority": 24,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-025",
+      "title": "Integration smoke test",
+      "description": "As a developer, I need to verify contracts work with existing pipeline code.",
+      "acceptanceCriteria": [
+        "Create and run smoke test script that: imports all contracts, creates DataFrame with test data, converts to LoadedPosition list, creates LoadPhaseOutput, runs through ValidationGates, gets summary",
+        "Smoke test runs without errors",
+        "Contracts work with real DataFrame data",
+        "Gates produce expected output format",
+        "Print confirmation: 'Smoke test passed!'",
+        "Typecheck passes"
+      ],
+      "priority": 25,
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}
