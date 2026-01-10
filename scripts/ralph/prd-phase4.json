@@ -68,7 +68,7 @@
         "Calls self.report_error with error_type='quality_summary'"
       ],
       "priority": 4,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-005",

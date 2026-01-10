@@ -49,6 +49,7 @@ from portfolio_src.config import (
     DATA_DIR,
 )
 from portfolio_src.prism_utils.logging_config import get_logger
+from portfolio_src.prism_utils.telemetry import get_telemetry
 from portfolio_src.core.utils import (
     calculate_portfolio_total_value,
     calculate_position_values,
@@ -469,6 +470,28 @@ class Pipeline:
                 self._log_validation_issues(
                     decompose_result.quality, "ETF_DECOMPOSITION"
                 )
+
+            etf_sources = self._decomposer.get_etf_sources() if self._decomposer else {}
+            weight_issue_codes = {
+                "WEIGHT_SUM_LOW",
+                "WEIGHT_SUM_VERY_LOW",
+                "WEIGHT_SUM_HIGH",
+                "WEIGHT_DECIMAL_FORMAT",
+            }
+            telemetry = get_telemetry()
+            for issue in decompose_result.quality.issues:
+                if issue.code in weight_issue_codes and issue.actual:
+                    weight_str = issue.actual.replace("%", "").strip()
+                    try:
+                        weight_sum = float(weight_str)
+                    except ValueError:
+                        continue
+                    adapter = etf_sources.get(issue.item, "unknown")
+                    telemetry.report_weight_validation_failure(
+                        etf_isin=issue.item,
+                        weight_sum=weight_sum,
+                        adapter=adapter,
+                    )
 
             # Phase 3: Enrich (via service)
             start = time.time()
