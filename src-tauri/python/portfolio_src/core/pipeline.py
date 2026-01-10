@@ -481,6 +481,13 @@ class Pipeline:
             )
             monitor.record_phase("enrichment", time.time() - start)
 
+            enrich_output = self._build_enrich_phase_output(
+                enriched_holdings, direct_positions
+            )
+            enrich_result = self._validation_gates.validate_enrich_output(enrich_output)
+            if not enrich_result.passed:
+                self._log_validation_issues(enrich_result.quality, "ENRICHMENT")
+
             enrichment_sources = self._enricher.get_sources()
             for isin, source in enrichment_sources.items():
                 monitor.record_enrichment(isin, source)

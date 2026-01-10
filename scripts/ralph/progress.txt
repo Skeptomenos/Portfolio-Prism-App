@@ -83,3 +83,12 @@
   - Validation call pattern is consistent across all phases
 ---
 
+## 2026-01-10 17:52 - US-009
+- What was implemented: Added _build_enrich_phase_output helper method to convert enriched data to EnrichPhaseOutput
+- Files changed: src-tauri/python/portfolio_src/core/pipeline.py
+- **Learnings for future iterations:**
+  - For enrichment phase, ETFDecomposition uses empty etf_name and 0.0 etf_value (per PRD notes)
+  - enriched_direct uses dataframe_to_loaded_positions converter
+  - source is set to "enriched" for enrichment phase decompositions
+---
+

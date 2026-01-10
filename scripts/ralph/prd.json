@@ -132,7 +132,7 @@
         "Typecheck passes"
       ],
       "priority": 9,
-      "passes": false,
+      "passes": true,
       "notes": "ETFDecomposition for enrichment can have empty etf_name and 0.0 etf_value"
     },
     {
