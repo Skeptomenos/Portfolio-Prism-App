@@ -687,6 +687,7 @@ class Pipeline:
         holdings_map,
         monitor: PipelineMonitor,
         decomposer: Optional[Decomposer] = None,
+        validation_gates: Optional[ValidationGates] = None,
     ):
         """Write rich pipeline health report for UI with provenance data."""
         from datetime import datetime
@@ -752,6 +753,9 @@ class Pipeline:
                 }
                 for e in errors
             ],
+            "data_quality": validation_gates.get_summary()
+            if validation_gates
+            else {"quality_score": 1.0, "is_trustworthy": True, "issues": []},
         }
 
         write_json_atomic(PIPELINE_HEALTH_PATH, health_data)
