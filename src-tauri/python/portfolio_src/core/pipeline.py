@@ -651,6 +651,19 @@ class Pipeline:
             return "Unknown ETF"
         return str(match.iloc[0].get(name_col, "Unknown ETF"))
 
+    def _get_etf_value(self, etf_positions: pd.DataFrame, isin: str) -> float:
+        if etf_positions.empty:
+            return 0.0
+        match = etf_positions[etf_positions["isin"] == isin]
+        if match.empty:
+            return 0.0
+        row = match.iloc[0]
+        quantity = float(row.get("quantity", 0) or 0)
+        for price_col in ["current_price", "price", "tr_price"]:
+            if price_col in row and row[price_col] is not None:
+                return quantity * float(row[price_col])
+        return 0.0
+
     def _write_breakdown_report(self, direct_positions, etf_positions, holdings_map):
         """Write detailed holdings breakdown for UI exploration.
 
