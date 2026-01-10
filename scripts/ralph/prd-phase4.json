@@ -32,7 +32,7 @@
         "Calls self.report_error with error_type='weight_validation'"
       ],
       "priority": 2,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-003",

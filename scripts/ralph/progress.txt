@@ -3,6 +3,15 @@ Started: Sat Jan 10 2026
 PRD: prd-phase4.json
 ---
 
+## 2026-01-10 23:53 - US-002
+- Added report_weight_validation_failure method to Telemetry class
+- Files changed: src-tauri/python/portfolio_src/prism_utils/telemetry.py
+- **Learnings for future iterations:**
+  - Follow existing method patterns: docstring, title, body with markdown table, labels, return report_error()
+  - Labels should include the adapter name as a dynamic label
+  - Impact descriptions help users understand severity
+---
+
 ## 2026-01-10 23:52 - US-001
 - Added rate limits for weight_validation, enrichment_gap, and quality_summary to RATE_LIMITS dict
 - Files changed: src-tauri/python/portfolio_src/prism_utils/telemetry.py

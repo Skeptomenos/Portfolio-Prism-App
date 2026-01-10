@@ -19,7 +19,7 @@ import os
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 from urllib.request import urlopen, Request
 from urllib.error import HTTPError, URLError
 
@@ -428,6 +428,44 @@ class Telemetry:
             body=body,
             isin=etf_isin,
             labels=["data-quality", "validation", adapter],
+        )
+
+    def report_enrichment_gap(
+        self,
+        gap_type: str,
+        affected_isins: List[str],
+        coverage_rate: float,
+    ) -> Optional[str]:
+        """Report enrichment coverage gaps (missing sector/geography)."""
+        title = f"Enrichment gap: {gap_type} coverage at {coverage_rate:.0%}"
+
+        batch_hash = hashlib.md5(",".join(sorted(affected_isins)).encode()).hexdigest()[
+            :8
+        ]
+
+        sample_isins = affected_isins[:10]
+        isin_list = "\n".join(f"- `{isin}`" for isin in sample_isins)
+
+        body = (
+            f"## Enrichment Gap\n\n"
+            f"Missing {gap_type} data for a significant number of assets.\n\n"
+            f"| Field | Value |\n"
+            f"|-------|-------|\n"
+            f"| Gap Type | {gap_type} |\n"
+            f"| Coverage Rate | {coverage_rate:.1%} |\n"
+            f"| Affected Assets | {len(affected_isins)} |\n\n"
+            f"### Sample ISINs\n{isin_list}\n"
+        )
+
+        if len(affected_isins) > 10:
+            body += f"\n...and {len(affected_isins) - 10} more\n"
+
+        return self.report_error(
+            error_type="enrichment_gap",
+            title=title,
+            body=body,
+            isin=batch_hash,
+            labels=["data-quality", "enrichment", gap_type],
         )
 
     def report_unexpected_error(
