@@ -92,3 +92,10 @@
   - source is set to "enriched" for enrichment phase decompositions
 ---
 
+## 2026-01-10 17:54 - US-010
+- What was implemented: Added Phase 3 (Enrich) validation call after enrichment phase
+- Files changed: src-tauri/python/portfolio_src/core/pipeline.py
+- **Learnings for future iterations:**
+  - Enrich validation goes after monitor.record_phase but before enrichment_sources tracking
+---
+

@@ -305,6 +305,32 @@ class Pipeline:
             enriched_direct=direct_list,
         )
 
+    def _build_aggregate_phase_output(
+        self, exposure_df: pd.DataFrame
+    ) -> AggregatePhaseOutput:
+        exposures = []
+        total_value = 0.0
+
+        for _, row in exposure_df.iterrows():
+            try:
+                exposure_value = float(row.get("total_exposure", 0) or 0)
+                record = AggregatedExposureRecord(
+                    isin=str(row.get("isin", "")),
+                    name=str(row.get("name", "")),
+                    sector=str(row.get("sector", "Unknown")),
+                    geography=str(row.get("geography", "Unknown")),
+                    total_exposure=exposure_value,
+                    portfolio_percentage=float(row.get("portfolio_percentage", 0) or 0),
+                )
+                exposures.append(record)
+                total_value += exposure_value
+            except Exception as e:
+                logger.warning(f"Failed to convert exposure row: {e}")
+
+        return AggregatePhaseOutput(
+            exposures=exposures, total_portfolio_value=total_value
+        )
+
     def run(
         self, progress_callback: Optional[Callable[[str, float, str], None]] = None
     ) -> PipelineResult:
