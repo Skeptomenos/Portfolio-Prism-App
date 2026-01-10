@@ -1,0 +1,141 @@
+{
+  "project": "Pipeline Hardening - Phase 3: Quality Propagation",
+  "goal": "Display data_quality section in Health tab UI",
+  "branch": "feature/phase3-quality-ui",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Add DataQuality TypeScript interfaces to HealthView",
+      "description": "Add DataQualityIssue and DataQuality interfaces, extend HealthData to include optional data_quality field",
+      "file": "src/components/views/HealthView.tsx",
+      "acceptanceCriteria": [
+        "DataQualityIssue interface with severity, category, code, message, fix_hint, item, phase, timestamp?, expected?, actual?",
+        "DataQuality interface with quality_score, is_trustworthy, total_issues, issues array",
+        "HealthData interface includes data_quality?: DataQuality",
+        "TypeScript compiles without errors"
+      ],
+      "priority": 1,
+      "passes": false
+    },
+    {
+      "id": "US-002",
+      "title": "Add getSeverityColor helper function",
+      "description": "Create helper function that returns color scheme based on severity level",
+      "file": "src/components/views/HealthView.tsx",
+      "acceptanceCriteria": [
+        "Function getSeverityColor(severity: string) returns { bg, border, text }",
+        "critical: red (#ef4444)",
+        "high: orange (#f59e0b)",
+        "medium: blue (#3b82f6)",
+        "low: gray (#9ca3af)",
+        "Default fallback for unknown severity"
+      ],
+      "priority": 2,
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Add Data Quality status card to grid",
+      "description": "Add fifth StatusCard showing quality score percentage with appropriate color coding",
+      "file": "src/components/views/HealthView.tsx",
+      "location": "Status Cards grid section (~line 320-346)",
+      "acceptanceCriteria": [
+        "StatusCard with label 'Data Quality'",
+        "Value shows percentage (e.g., '87%') or 'N/A' if undefined",
+        "Icon is CheckCircle if trustworthy, AlertCircle if not",
+        "Color is green if trustworthy, orange if score > 0.7, red otherwise",
+        "No crash when data_quality is undefined"
+      ],
+      "priority": 3,
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "Create QualityIssueCard inline component",
+      "description": "Create component to render a single data quality issue with severity badge, message, and fix hint",
+      "file": "src/components/views/HealthView.tsx",
+      "acceptanceCriteria": [
+        "Renders severity badge with appropriate color",
+        "Shows issue code and message",
+        "Shows affected item and phase",
+        "Shows fix_hint in button-like style",
+        "Uses getSeverityColor for styling"
+      ],
+      "priority": 4,
+      "passes": false
+    },
+    {
+      "id": "US-005",
+      "title": "Create DataQualitySection component",
+      "description": "Create section component with header, score badge, user message, and issue list grouped by severity",
+      "file": "src/components/views/HealthView.tsx",
+      "acceptanceCriteria": [
+        "Header shows 'Data Quality' with score badge",
+        "User message based on is_trustworthy and issue counts",
+        "Issues grouped by severity (critical first, then high, medium, low)",
+        "Uses QualityIssueCard for each issue",
+        "Matches existing HealthView styling (glass card, rounded corners)"
+      ],
+      "priority": 5,
+      "passes": false
+    },
+    {
+      "id": "US-006",
+      "title": "Add empty state for DataQualitySection",
+      "description": "Show positive empty state when no quality issues exist",
+      "file": "src/components/views/HealthView.tsx",
+      "acceptanceCriteria": [
+        "Shows green CheckCircle icon",
+        "Message: 'No data quality issues detected'",
+        "Centered layout with padding",
+        "Renders when data_quality.total_issues === 0 or data_quality is undefined"
+      ],
+      "priority": 6,
+      "passes": false
+    },
+    {
+      "id": "US-007",
+      "title": "Integrate DataQualitySection into HealthView",
+      "description": "Add DataQualitySection to HealthView after Active Issues section",
+      "file": "src/components/views/HealthView.tsx",
+      "location": "After Active Issues section (~line 384)",
+      "acceptanceCriteria": [
+        "DataQualitySection renders in correct position",
+        "Section only renders when health data is loaded",
+        "No layout issues with existing sections",
+        "Graceful handling when data_quality is undefined"
+      ],
+      "priority": 7,
+      "passes": false
+    },
+    {
+      "id": "US-008",
+      "title": "Verify TypeScript compilation and no runtime errors",
+      "description": "Ensure all changes compile and don't cause runtime crashes",
+      "file": "src/components/views/HealthView.tsx",
+      "acceptanceCriteria": [
+        "npx tsc --noEmit passes without errors in HealthView.tsx",
+        "npm run dev:browser starts without errors",
+        "Health tab loads without crashing",
+        "Console shows no TypeScript or React errors"
+      ],
+      "priority": 8,
+      "passes": false
+    }
+  ],
+  "constraints": [
+    "Do NOT modify any Python files",
+    "Do NOT modify any files outside src/components/views/HealthView.tsx",
+    "Match existing HealthView styling patterns",
+    "Use inline styles consistent with existing code (not Tailwind classes)",
+    "data_quality field is OPTIONAL - handle undefined gracefully",
+    "Do NOT add new npm dependencies"
+  ],
+  "testCommand": "cd /Users/davidhelmus/Repos/portfolio-master/MVP && npx tsc --noEmit --skipLibCheck && npm run dev:browser",
+  "notes": [
+    "The data_quality section is already written to pipeline_health.json by Phase 2",
+    "Login issues may prevent live testing - use browser dev mode with mock data if needed",
+    "Existing StatusCard component is defined inline in HealthView.tsx",
+    "Use lucide-react icons (already imported: AlertCircle, CheckCircle, etc.)"
+  ]
+}
