@@ -1348,5 +1348,65 @@ class TestUS009AtomicCSVWrites:
                 direct, etfs = pipeline._load_portfolio()
                 pipeline._write_breakdown_report(direct, etfs, {})
 
-        # write_csv_atomic should have been called for breakdown report
         assert len(write_calls) >= 1, "write_csv_atomic was not called"
+
+
+class TestUS010ConfigurablePortfolioId:
+    """US-010: Make portfolio_id configurable."""
+
+    def test_pipeline_accepts_portfolio_id_parameter(self):
+        """Test that Pipeline.__init__ accepts portfolio_id parameter."""
+        from portfolio_src.core.pipeline import Pipeline
+
+        pipeline = Pipeline(portfolio_id=42)
+        assert pipeline._portfolio_id == 42
+
+    def test_pipeline_uses_default_portfolio_id(self):
+        """Test that Pipeline uses default portfolio_id=1 when not specified."""
+        from portfolio_src.core.pipeline import Pipeline
+
+        pipeline = Pipeline()
+        assert pipeline._portfolio_id == 1
+
+    def test_load_portfolio_uses_configured_portfolio_id(self):
+        """Test that _load_portfolio uses self._portfolio_id in get_positions call."""
+        from portfolio_src.core.pipeline import Pipeline
+
+        positions = [
+            {
+                "isin": "US0378331005",
+                "asset_class": "Stock",
+                "quantity": 10,
+                "price": 100.0,
+            },
+        ]
+
+        pipeline = Pipeline(portfolio_id=99)
+
+        with patch(
+            "portfolio_src.data.database.get_positions", return_value=positions
+        ) as mock_get:
+            pipeline._load_portfolio()
+            mock_get.assert_called_once_with(portfolio_id=99)
+
+    def test_existing_tests_use_default_portfolio_id(self):
+        """Test that existing code without portfolio_id still works."""
+        from portfolio_src.core.pipeline import Pipeline
+
+        positions = [
+            {
+                "isin": "US0378331005",
+                "asset_class": "Stock",
+                "quantity": 10,
+                "price": 100.0,
+            },
+        ]
+
+        pipeline = Pipeline()
+
+        with patch(
+            "portfolio_src.data.database.get_positions", return_value=positions
+        ) as mock_get:
+            direct, etfs = pipeline._load_portfolio()
+            mock_get.assert_called_once_with(portfolio_id=1)
+            assert len(direct) == 1

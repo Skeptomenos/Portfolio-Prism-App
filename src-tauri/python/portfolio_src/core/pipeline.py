@@ -137,13 +137,19 @@ class Pipeline:
     - Writes outputs
     """
 
-    def __init__(self, data_dir: Optional[Path] = None, debug: bool = False):
+    def __init__(
+        self,
+        data_dir: Optional[Path] = None,
+        debug: bool = False,
+        portfolio_id: int = 1,
+    ):
         """
         Initialize the pipeline.
 
         Args:
             data_dir: Optional override for data directory
             debug: Enable debug mode (writes intermediate snapshots)
+            portfolio_id: Portfolio ID to load positions from (default: 1)
         """
         # Dev-only: load .env if not in production
         if not os.getenv("PRISM_DATA_DIR"):
@@ -156,6 +162,7 @@ class Pipeline:
 
         self.data_dir = data_dir or DATA_DIR
         self.debug = debug or os.getenv("DEBUG_PIPELINE", "false").lower() == "true"
+        self._portfolio_id = portfolio_id
 
         # Services are initialized lazily when run() is called
         self._decomposer: Optional[Decomposer] = None
@@ -657,7 +664,7 @@ class Pipeline:
     def _load_portfolio(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
         from portfolio_src.data.database import get_positions
 
-        positions = get_positions(portfolio_id=1)
+        positions = get_positions(portfolio_id=self._portfolio_id)
         if not positions:
             return pd.DataFrame(), pd.DataFrame()
 
