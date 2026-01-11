@@ -3,6 +3,40 @@ Started: Sun Jan 11 2026
 PRD: prd-phase5.json
 ---
 
+## 2026-01-11 10:35 - US-001
+- Implemented defensive NaN handling in asset_class split
+- Files changed:
+  - `portfolio_src/core/pipeline.py` - Added `.fillna('').str.upper()` pattern
+  - `tests/test_phase5_bugfixes.py` - New test file for Phase 5 bug fixes
+- **Learnings for future iterations:**
+  - Modern pandas handles None gracefully in `.str.upper()`, but explicit `.fillna('')` is more defensive
+  - Pre-existing test failures exist on main (10+ tests) - these are unrelated to Phase 5 changes
+  - Patch database functions at `portfolio_src.data.database.get_positions`, not at pipeline module level
+---
+
+## 2026-01-11 10:40 - US-002
+- Implemented weight format auto-detection in decomposer
+- Files changed:
+  - `portfolio_src/core/services/decomposer.py` - Added `_normalize_weight_format()` helper function
+  - `tests/test_phase5_bugfixes.py` - Added 4 tests for weight format detection
+- **Learnings for future iterations:**
+  - Weight columns can be named: weight, Weight, weight_pct, Weight_Pct
+  - Detection heuristic: if max(weights) <= 1.0 AND sum(weights) <= 2.0, it's decimal format
+  - Normalization happens in `_get_holdings()` after fetching, before ISIN resolution
+---
+
+## 2026-01-11 10:41 - US-003
+- Made Hive contribution asynchronous using daemon thread
+- Files changed:
+  - `portfolio_src/core/services/decomposer.py` - Added `_contribute_to_hive_async()` helper, replaced sync call
+  - `tests/test_phase5_bugfixes.py` - Added 3 tests for async Hive contribution
+- **Learnings for future iterations:**
+  - Use `threading.Thread(target=fn, daemon=True)` for fire-and-forget operations
+  - Daemon threads don't block process exit
+  - Mock `get_hive_client` at module level: `portfolio_src.core.services.decomposer.get_hive_client`
+  - Time-based tests: use `time.sleep()` in mock side_effect to simulate slow operations
+---
+
 ## Codebase Patterns
 - Import ValidationGates and related types from `portfolio_src.core.contracts`
 - Pipeline services are initialized lazily in `_init_services()` method

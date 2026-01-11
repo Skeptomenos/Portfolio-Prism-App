@@ -1,6 +1,7 @@
 # core/services/decomposer.py
 from typing import Dict, List, Tuple, Optional, Any, Callable, TYPE_CHECKING
 import pandas as pd
+import threading
 
 from portfolio_src.core.errors import PipelineError, ErrorPhase, ErrorType
 from portfolio_src.core.utils import get_isin_column, SchemaNormalizer
@@ -12,6 +13,23 @@ if TYPE_CHECKING:
     from portfolio_src.data.resolution import ISINResolver
 
 logger = get_logger(__name__)
+
+
+def _contribute_to_hive_async(isin: str, holdings: pd.DataFrame) -> None:
+    """Fire-and-forget Hive contribution using daemon thread."""
+
+    def _do_contribute():
+        try:
+            hive_client = get_hive_client()
+            if hive_client.is_configured:
+                hive_client.contribute_etf_holdings(isin, holdings)
+                logger.debug(f"Async Hive contribution completed for {isin}")
+        except Exception as e:
+            logger.debug(f"Async Hive contribution failed for {isin}: {e}")
+
+    thread = threading.Thread(target=_do_contribute, daemon=True)
+    thread.start()
+    logger.debug(f"Started async Hive contribution for {isin}")
 
 
 def _normalize_weight_format(holdings: pd.DataFrame, etf_isin: str) -> pd.DataFrame:
@@ -230,12 +248,7 @@ class Decomposer:
                     except Exception as e:
                         logger.warning(f"Failed to cache result for {isin}: {e}")
 
-                    try:
-                        hive_client = get_hive_client()
-                        if hive_client.is_configured:
-                            hive_client.contribute_etf_holdings(isin, adapter_holdings)
-                    except Exception as e:
-                        logger.debug(f"Failed to contribute discovery to Hive: {e}")
+                    _contribute_to_hive_async(isin, adapter_holdings)
 
                     holdings = adapter_holdings
                     adapter_name = type(adapter).__name__.lower().replace("adapter", "")

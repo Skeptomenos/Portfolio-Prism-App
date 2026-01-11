@@ -16,7 +16,7 @@
         "Existing tests still pass"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "Bug location: lines 665-666. Pattern: df['asset_class'].str.upper() fails on NaN"
     },
     {
@@ -32,7 +32,7 @@
         "Existing weight validation still works after normalization"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "Detection heuristic: if max weight <= 1.0 and sum <= 2.0, it's decimal format"
     },
     {
@@ -48,7 +48,7 @@
         "Add helper function _contribute_to_hive_async()"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "Bug location: lines 197-202. Fire-and-forget pattern with daemon thread"
     },
     {

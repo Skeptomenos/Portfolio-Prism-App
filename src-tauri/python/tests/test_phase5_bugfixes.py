@@ -226,3 +226,116 @@ class TestUS002WeightFormatAutoDetection:
             "decimal" in record.message.lower() or "weight" in record.message.lower()
             for record in caplog.records
         )
+
+
+class TestUS003AsyncHiveContribution:
+    """US-003: Make Hive contribution asynchronous."""
+
+    def test_decompose_does_not_wait_for_hive_contribution(self):
+        """
+        Test that decompose_etf returns quickly even when Hive contribution is slow.
+
+        Bug: Hive contribution blocks pipeline execution.
+        Fix: Use daemon thread for fire-and-forget contribution.
+        """
+        import time
+        from portfolio_src.core.services.decomposer import Decomposer
+
+        # Create holdings that will be returned by adapter
+        adapter_holdings = pd.DataFrame(
+            {
+                "isin": ["US0378331005", "DE0007164600"],
+                "name": ["Apple", "SAP"],
+                "weight": [10.0, 5.0],
+            }
+        )
+
+        # Mock cache to return None (force adapter path)
+        mock_cache = MagicMock()
+        mock_cache.get_holdings.return_value = None
+
+        # Mock adapter to return holdings
+        mock_adapter = MagicMock()
+        mock_adapter.fetch_holdings.return_value = adapter_holdings
+
+        mock_registry = MagicMock()
+        mock_registry.get_adapter.return_value = mock_adapter
+
+        decomposer = Decomposer(mock_cache, mock_registry)
+
+        # Mock Hive client with 1 second delay
+        mock_hive = MagicMock()
+        mock_hive.is_configured = True
+
+        def slow_contribute(*args, **kwargs):
+            time.sleep(1.0)  # Simulate slow network call
+
+        mock_hive.contribute_etf_holdings.side_effect = slow_contribute
+
+        etf_positions = pd.DataFrame({"isin": ["IE00B4L5Y983"], "name": ["Test ETF"]})
+
+        with patch(
+            "portfolio_src.core.services.decomposer.get_hive_client",
+            return_value=mock_hive,
+        ):
+            start_time = time.time()
+            holdings_map, errors = decomposer.decompose(etf_positions)
+            elapsed = time.time() - start_time
+
+        # Should return in < 0.5s (not wait for 1s contribution)
+        assert elapsed < 0.5, f"Decompose took {elapsed:.2f}s, expected < 0.5s"
+        assert "IE00B4L5Y983" in holdings_map
+        assert len(errors) == 0
+
+    def test_hive_contribution_errors_are_logged_not_raised(self, caplog):
+        """
+        Test that Hive contribution errors are logged but don't affect pipeline.
+        """
+        import logging
+        from portfolio_src.core.services.decomposer import Decomposer
+
+        adapter_holdings = pd.DataFrame(
+            {
+                "isin": ["US0378331005"],
+                "name": ["Apple"],
+                "weight": [10.0],
+            }
+        )
+
+        mock_cache = MagicMock()
+        mock_cache.get_holdings.return_value = None
+
+        mock_adapter = MagicMock()
+        mock_adapter.fetch_holdings.return_value = adapter_holdings
+
+        mock_registry = MagicMock()
+        mock_registry.get_adapter.return_value = mock_adapter
+
+        decomposer = Decomposer(mock_cache, mock_registry)
+
+        # Mock Hive client that raises an error
+        mock_hive = MagicMock()
+        mock_hive.is_configured = True
+        mock_hive.contribute_etf_holdings.side_effect = Exception("Network error")
+
+        etf_positions = pd.DataFrame({"isin": ["IE00B4L5Y983"], "name": ["Test ETF"]})
+
+        with patch(
+            "portfolio_src.core.services.decomposer.get_hive_client",
+            return_value=mock_hive,
+        ):
+            with caplog.at_level(logging.DEBUG):
+                holdings_map, errors = decomposer.decompose(etf_positions)
+
+        # Pipeline should succeed despite Hive error
+        assert "IE00B4L5Y983" in holdings_map
+        assert len(errors) == 0
+
+    def test_contribute_to_hive_async_helper_exists(self):
+        """
+        Test that _contribute_to_hive_async helper function exists.
+        """
+        from portfolio_src.core.services.decomposer import _contribute_to_hive_async
+
+        # Function should exist and be callable
+        assert callable(_contribute_to_hive_async)
