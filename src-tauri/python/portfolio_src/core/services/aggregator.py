@@ -113,6 +113,9 @@ class Aggregator:
 
             combined = pd.concat(all_exposures, ignore_index=True)
 
+            # Sort by confidence before groupby so 'first' picks highest confidence
+            combined = self._sort_by_confidence(combined)
+
             agg_dict: Dict[str, Any] = {
                 "name": "first",
                 "sector": "first",
@@ -238,6 +241,14 @@ class Aggregator:
             )
             df["total_exposure"] = 0.0
 
+        if "resolution_confidence" in direct_positions.columns:
+            df["resolution_confidence"] = direct_positions[
+                "resolution_confidence"
+            ].values
+
+        if "resolution_source" in direct_positions.columns:
+            df["resolution_source"] = direct_positions["resolution_source"].values
+
         return df
 
     def _process_etf_positions(
@@ -306,18 +317,23 @@ class Aggregator:
                     else "Unknown"
                 )
 
-                # Calculate exposure: etf_value * (weight / 100)
                 if weight_col:
-                    # Use getattr to bypass static analysis for fillna
                     numeric_weights = pd.to_numeric(
                         cast(Any, norm_holdings[weight_col]), errors="coerce"
                     )
                     weights = getattr(numeric_weights, "fillna")(0.0)
                     df["total_exposure"] = etf_value * (cast(Any, weights) / 100.0)
                 else:
-                    # Equal weight fallback
                     count = len(norm_holdings)
                     df["total_exposure"] = etf_value / count if count > 0 else 0.0
+
+                if "resolution_confidence" in norm_holdings.columns:
+                    df["resolution_confidence"] = norm_holdings[
+                        "resolution_confidence"
+                    ].values
+
+                if "resolution_source" in norm_holdings.columns:
+                    df["resolution_source"] = norm_holdings["resolution_source"].values
 
                 all_etf_exposures.append(df)
             else:
@@ -342,3 +358,40 @@ class Aggregator:
             return pd.DataFrame()
 
         return pd.concat(all_etf_exposures, ignore_index=True)
+
+    def _sort_by_confidence(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Sort DataFrame so highest confidence rows come first per ISIN.
+
+        When confidence is equal, prefer non-'Unknown' values.
+        This ensures 'first' aggregation picks the best data source.
+        """
+        if df.empty:
+            return df
+
+        if "resolution_confidence" not in df.columns:
+            return df
+
+        df = df.copy()
+
+        confidence_sort_key = df["resolution_confidence"].fillna(0.0)
+        df["_conf_sort"] = confidence_sort_key
+
+        unknown_penalty = (
+            (df["name"].fillna("").astype(str) == "Unknown").astype(int)
+            + (df["sector"].fillna("").astype(str) == "Unknown").astype(int)
+            + (df["geography"].fillna("").astype(str) == "Unknown").astype(int)
+        )
+        df["_unknown_count"] = unknown_penalty
+
+        df = df.sort_values(
+            ["_conf_sort", "_unknown_count"],
+            ascending=[False, True],
+        )
+
+        df = df.drop(columns=["_conf_sort", "_unknown_count"])
+
+        logger.debug(
+            f"Sorted {len(df)} rows by confidence for highest-quality aggregation"
+        )
+
+        return df

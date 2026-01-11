@@ -339,3 +339,170 @@ class TestUS003AsyncHiveContribution:
 
         # Function should exist and be callable
         assert callable(_contribute_to_hive_async)
+
+
+class TestUS004HighestConfidenceAggregation:
+    """US-004: Fix first-wins aggregation to use highest confidence."""
+
+    def test_aggregation_uses_highest_confidence_source(self):
+        """
+        Test that name/sector/geography come from the highest confidence source.
+
+        Bug: groupby().agg('first') picks arbitrary first row.
+        Fix: Sort by confidence descending before groupby so 'first' picks highest.
+        """
+        from portfolio_src.core.services.aggregator import Aggregator
+
+        # Create direct positions with same ISIN from different sources
+        # with different confidence scores
+        direct_positions = pd.DataFrame(
+            {
+                "isin": ["US0378331005", "US0378331005"],
+                "name": ["Apple Low Conf", "Apple High Conf"],
+                "sector": ["Tech Low", "Technology"],
+                "geography": ["US Low", "United States"],
+                "market_value": [1000.0, 500.0],
+                "resolution_confidence": [
+                    0.5,
+                    0.95,
+                ],  # Second row has higher confidence
+                "resolution_source": ["source_low", "source_high"],
+            }
+        )
+
+        aggregator = Aggregator()
+        result, errors = aggregator.aggregate(
+            direct_positions=direct_positions,
+            etf_positions=pd.DataFrame(),
+            holdings_map={},
+        )
+
+        assert len(errors) == 0
+        assert len(result) == 1  # Should aggregate to single ISIN
+
+        row = result.iloc[0]
+        # Should use values from highest confidence source (0.95)
+        assert row["name"] == "Apple High Conf"
+        assert row["sector"] == "Technology"
+        assert row["geography"] == "United States"
+        # Exposure should be summed
+        assert row["total_exposure"] == pytest.approx(1500.0, rel=0.01)
+
+    def test_aggregation_prefers_non_unknown_when_confidence_equal(self):
+        """
+        Test that when confidence is equal, non-'Unknown' values are preferred.
+        """
+        from portfolio_src.core.services.aggregator import Aggregator
+
+        # Same confidence, but one has 'Unknown' values
+        direct_positions = pd.DataFrame(
+            {
+                "isin": ["US0378331005", "US0378331005"],
+                "name": ["Unknown", "Apple Inc"],
+                "sector": ["Unknown", "Technology"],
+                "geography": ["Unknown", "United States"],
+                "market_value": [1000.0, 500.0],
+                "resolution_confidence": [0.8, 0.8],  # Equal confidence
+                "resolution_source": ["source_a", "source_b"],
+            }
+        )
+
+        aggregator = Aggregator()
+        result, errors = aggregator.aggregate(
+            direct_positions=direct_positions,
+            etf_positions=pd.DataFrame(),
+            holdings_map={},
+        )
+
+        assert len(errors) == 0
+        assert len(result) == 1
+
+        row = result.iloc[0]
+        # Should prefer non-Unknown values
+        assert row["name"] == "Apple Inc"
+        assert row["sector"] == "Technology"
+        assert row["geography"] == "United States"
+
+    def test_aggregation_without_confidence_column_still_works(self):
+        """
+        Test that aggregation still works when resolution_confidence column is missing.
+        """
+        from portfolio_src.core.services.aggregator import Aggregator
+
+        # No confidence column - should fall back to original behavior
+        direct_positions = pd.DataFrame(
+            {
+                "isin": ["US0378331005", "DE0007164600"],
+                "name": ["Apple", "SAP"],
+                "sector": ["Technology", "Technology"],
+                "geography": ["United States", "Germany"],
+                "market_value": [1000.0, 500.0],
+            }
+        )
+
+        aggregator = Aggregator()
+        result, errors = aggregator.aggregate(
+            direct_positions=direct_positions,
+            etf_positions=pd.DataFrame(),
+            holdings_map={},
+        )
+
+        assert len(errors) == 0
+        assert len(result) == 2  # Two different ISINs
+
+    def test_aggregation_with_etf_holdings_uses_highest_confidence(self):
+        """
+        Test that ETF holdings also use highest confidence for aggregation.
+        """
+        from portfolio_src.core.services.aggregator import Aggregator
+
+        # Direct position with low confidence
+        direct_positions = pd.DataFrame(
+            {
+                "isin": ["US0378331005"],
+                "name": ["Apple Low"],
+                "sector": ["Tech"],
+                "geography": ["US"],
+                "market_value": [1000.0],
+                "resolution_confidence": [0.3],
+            }
+        )
+
+        # ETF positions
+        etf_positions = pd.DataFrame(
+            {
+                "isin": ["IE00B4L5Y983"],
+                "name": ["Test ETF"],
+                "market_value": [5000.0],
+            }
+        )
+
+        # ETF holdings with same ISIN but higher confidence
+        etf_holdings = pd.DataFrame(
+            {
+                "isin": ["US0378331005"],
+                "name": ["Apple Inc"],
+                "sector": ["Technology"],
+                "geography": ["United States"],
+                "weight": [10.0],
+                "resolution_confidence": [0.95],
+            }
+        )
+
+        holdings_map = {"IE00B4L5Y983": etf_holdings}
+
+        aggregator = Aggregator()
+        result, errors = aggregator.aggregate(
+            direct_positions=direct_positions,
+            etf_positions=etf_positions,
+            holdings_map=holdings_map,
+        )
+
+        assert len(errors) == 0
+
+        # Find the Apple row
+        apple_row = result[result["isin"] == "US0378331005"].iloc[0]
+        # Should use values from ETF holdings (higher confidence)
+        assert apple_row["name"] == "Apple Inc"
+        assert apple_row["sector"] == "Technology"
+        assert apple_row["geography"] == "United States"
