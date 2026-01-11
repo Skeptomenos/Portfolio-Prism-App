@@ -14,6 +14,42 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
+def _normalize_weight_format(holdings: pd.DataFrame, etf_isin: str) -> pd.DataFrame:
+    """
+    Auto-detect and normalize weight format from decimal (0.05) to percentage (5.0).
+
+    Detection heuristic: if max(weights) <= 1.0 AND sum(weights) <= 2.0,
+    it's decimal format and should be multiplied by 100.
+    """
+    weight_col = None
+    for col in ["weight", "Weight", "weight_pct", "Weight_Pct"]:
+        if col in holdings.columns:
+            weight_col = col
+            break
+
+    if weight_col is None:
+        return holdings
+
+    weights = pd.to_numeric(holdings[weight_col], errors="coerce").fillna(0.0)
+
+    if weights.empty:
+        return holdings
+
+    max_weight = weights.max()
+    sum_weight = weights.sum()
+
+    if max_weight <= 1.0 and sum_weight <= 2.0:
+        logger.info(
+            f"Detected decimal weight format for {etf_isin} "
+            f"(max={max_weight:.4f}, sum={sum_weight:.4f}). Converting to percentage."
+        )
+        holdings = holdings.copy()
+        holdings[weight_col] = weights * 100
+        return holdings
+
+    return holdings
+
+
 class Decomposer:
     """Decomposes ETFs into underlying holdings. UI-agnostic."""
 
@@ -232,6 +268,7 @@ class Decomposer:
                 )
 
         if holdings is not None and not holdings.empty:
+            holdings = _normalize_weight_format(holdings, isin)
             holdings, resolution_stats = self._resolve_holdings_isins(holdings, isin)
             self._resolution_stats[isin] = resolution_stats
 
