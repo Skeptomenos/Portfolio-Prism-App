@@ -1,0 +1,239 @@
+{
+  "project": "Pipeline Hardening - Phase 5: Bug Fixes",
+  "goal": "Fix 12 identified calculation and reliability bugs with test-first approach",
+  "branch": "feature/phase5-bug-fixes",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Fix NaN handling in asset_class split",
+      "description": "Pipeline crashes when asset_class column contains NaN values. Fix by using fillna before string operations.",
+      "file": "src-tauri/python/portfolio_src/core/pipeline.py",
+      "acceptanceCriteria": [
+        "Add test that passes DataFrame with NaN asset_class values",
+        "Test verifies no AttributeError is raised",
+        "Fix uses .fillna('').str.upper() pattern",
+        "Positions with NaN asset_class are treated as direct holdings (not ETFs)",
+        "Existing tests still pass"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "Bug location: lines 665-666. Pattern: df['asset_class'].str.upper() fails on NaN"
+    },
+    {
+      "id": "US-002",
+      "title": "Add weight format auto-detection in decomposer",
+      "description": "Some adapters return weights as decimals (0.05) instead of percentages (5.0). Auto-detect and normalize.",
+      "file": "src-tauri/python/portfolio_src/core/services/decomposer.py",
+      "acceptanceCriteria": [
+        "Add test with holdings where max weight < 1.0 (decimal format)",
+        "Add test with holdings where weights sum to ~1.0 (decimal format)",
+        "Implement auto-detection: if max(weights) <= 1.0 AND sum(weights) <= 2.0, multiply by 100",
+        "Log when format conversion is applied",
+        "Existing weight validation still works after normalization"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "Detection heuristic: if max weight <= 1.0 and sum <= 2.0, it's decimal format"
+    },
+    {
+      "id": "US-003",
+      "title": "Make Hive contribution asynchronous",
+      "description": "Hive contribution blocks pipeline execution. Make it fire-and-forget using daemon thread.",
+      "file": "src-tauri/python/portfolio_src/core/services/decomposer.py",
+      "acceptanceCriteria": [
+        "Add test that mocks hive_client.contribute_etf_holdings with 1s delay",
+        "Test verifies decompose_etf returns in < 0.1s (doesn't wait for contribution)",
+        "Use threading.Thread with daemon=True",
+        "Contribution errors are logged but don't affect pipeline",
+        "Add helper function _contribute_to_hive_async()"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "Bug location: lines 197-202. Fire-and-forget pattern with daemon thread"
+    },
+    {
+      "id": "US-004",
+      "title": "Fix first-wins aggregation to use highest confidence",
+      "description": "Aggregator uses 'first' for name/sector/geography which may pick low-confidence data. Use highest confidence source.",
+      "file": "src-tauri/python/portfolio_src/core/services/aggregator.py",
+      "acceptanceCriteria": [
+        "Add test with same ISIN from multiple sources with different confidence scores",
+        "Test verifies name/sector/geography come from highest confidence source",
+        "Modify aggregation to sort by confidence before groupby",
+        "If confidence is equal, prefer non-'Unknown' values",
+        "Existing aggregation tests still pass"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": "Bug location: lines 117-119. Current: 'first' wins. Fix: highest confidence wins"
+    },
+    {
+      "id": "US-005",
+      "title": "Verify and fix vectorized value calculation",
+      "description": "Code claims vectorized calculation but still uses iterrows. Verify the fix is complete.",
+      "file": "src-tauri/python/portfolio_src/core/pipeline.py",
+      "acceptanceCriteria": [
+        "Add test with 1000+ positions to verify performance",
+        "Verify calculate_position_values is called once, not per-row",
+        "Verify position_values dict is used in loop (not recalculated)",
+        "Add comment explaining the vectorized approach",
+        "No per-row value calculation in the loop"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": "Bug location: lines 831-840. Verify existing fix is complete"
+    },
+    {
+      "id": "US-006",
+      "title": "Add ISIN deduplication before enrichment",
+      "description": "Same ISIN can appear multiple times from different ETFs. Deduplicate before enrichment to avoid redundant API calls.",
+      "file": "src-tauri/python/portfolio_src/core/services/decomposer.py",
+      "acceptanceCriteria": [
+        "Add test with holdings_map containing duplicate ISINs across ETFs",
+        "Test verifies enrichment is called once per unique ISIN",
+        "Implement deduplication in decompose_all or before enrichment",
+        "Preserve all occurrences in final output (just dedupe for enrichment)",
+        "Log count of unique ISINs vs total"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": "Optimization: collect unique ISINs, enrich once, map back to all occurrences"
+    },
+    {
+      "id": "US-007",
+      "title": "Add division by zero protection in aggregator",
+      "description": "Portfolio percentage calculation can divide by zero if total_value is 0. Add explicit protection.",
+      "file": "src-tauri/python/portfolio_src/core/services/aggregator.py",
+      "acceptanceCriteria": [
+        "Add test with total_value = 0",
+        "Test verifies no ZeroDivisionError is raised",
+        "Test verifies portfolio_percentage is 0.0 when total_value is 0",
+        "Verify existing check on line 140-143 is sufficient",
+        "Add explicit else clause that sets to 0.0 (not relies on ternary)"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": "Bug location: lines 140-143. May already be fixed, verify and add test"
+    },
+    {
+      "id": "US-008",
+      "title": "Fix inconsistent value calculation logic",
+      "description": "Value calculation uses different logic in different places. Consolidate to single source of truth.",
+      "file": "src-tauri/python/portfolio_src/core/pipeline.py",
+      "acceptanceCriteria": [
+        "Identify all places where position value is calculated",
+        "Add test that verifies same position gives same value everywhere",
+        "Create or use existing calculate_position_value() helper",
+        "All value calculations use the same helper",
+        "Document the canonical value calculation formula"
+      ],
+      "priority": 8,
+      "passes": false,
+      "notes": "Trace value calculation through pipeline, ensure consistency"
+    },
+    {
+      "id": "US-009",
+      "title": "Make CSV writes atomic",
+      "description": "CSV writes can leave partial files on crash. Use atomic write pattern (temp file + rename).",
+      "file": "src-tauri/python/portfolio_src/core/pipeline.py",
+      "acceptanceCriteria": [
+        "Add test that verifies atomic write behavior",
+        "Create write_csv_atomic() helper function",
+        "Pattern: write to .tmp file, then os.replace() to final path",
+        "Apply to all .to_csv() calls in pipeline.py",
+        "Existing CSV output tests still pass"
+      ],
+      "priority": 9,
+      "passes": false,
+      "notes": "Locations: lines 196, 210, 688, 698, 978. Use same pattern as write_json_atomic"
+    },
+    {
+      "id": "US-010",
+      "title": "Make portfolio_id configurable",
+      "description": "portfolio_id is hardcoded to 1. Make it a parameter for multi-portfolio support.",
+      "file": "src-tauri/python/portfolio_src/core/pipeline.py",
+      "acceptanceCriteria": [
+        "Add portfolio_id parameter to Pipeline.__init__ with default=1",
+        "Store as self._portfolio_id instance variable",
+        "Use self._portfolio_id in get_positions() call",
+        "Add test that passes custom portfolio_id",
+        "Existing tests still pass (use default)"
+      ],
+      "priority": 10,
+      "passes": false,
+      "notes": "Bug location: line 659. Simple parameter addition"
+    },
+    {
+      "id": "US-011",
+      "title": "Flag negative weights instead of silent clipping",
+      "description": "iShares adapter silently clips negative weights to 0. Flag these as data quality issues instead.",
+      "file": "src-tauri/python/portfolio_src/adapters/ishares.py",
+      "acceptanceCriteria": [
+        "Add test with holdings containing negative weights",
+        "Test verifies negative weights are logged as warnings",
+        "Keep the clipping behavior (negative weights become 0)",
+        "Add logging: 'Clipped N negative weights to 0 for {isin}'",
+        "Consider adding to DataQuality issues if validation_gates available"
+      ],
+      "priority": 11,
+      "passes": false,
+      "notes": "Bug location: lines 207-208. Don't remove clipping, just add visibility"
+    },
+    {
+      "id": "US-012",
+      "title": "Add rate limiting for batch enrichment API calls",
+      "description": "Enricher makes rapid API calls without throttling. Add rate limiting to prevent API bans.",
+      "file": "src-tauri/python/portfolio_src/core/services/enricher.py",
+      "acceptanceCriteria": [
+        "Add test that verifies delay between API calls",
+        "Add ENRICHMENT_RATE_LIMIT_MS constant (default: 100ms)",
+        "Add time.sleep() between batch API calls",
+        "Log when rate limiting is applied",
+        "Make rate limit configurable via environment variable"
+      ],
+      "priority": 12,
+      "passes": false,
+      "notes": "Add throttling to prevent hitting API rate limits"
+    }
+  ],
+  "constraints": [
+    "Each fix MUST have a failing test written FIRST (TDD approach)",
+    "Do NOT modify frontend/TypeScript files",
+    "Do NOT modify contracts module (already complete from Phase 1)",
+    "Do NOT implement currency conversion (deferred to separate feature)",
+    "Do NOT implement geography API integration (deferred)",
+    "Do NOT refactor sector/asset_class separation (deferred)",
+    "Preserve backward compatibility - existing tests must pass",
+    "Log all fixes with appropriate log level (debug/info/warning)"
+  ],
+  "testCommand": "cd /Users/davidhelmus/Repos/portfolio-master/MVP/src-tauri/python && python3 -m pytest tests/ -v --tb=short -x",
+  "notes": [
+    "Pre-existing type errors in pandas stubs are expected - ignore them",
+    "Use existing patterns from codebase (check progress.txt Codebase Patterns)",
+    "write_json_atomic already exists in core/utils.py - use as reference for CSV",
+    "ValidationGates is already integrated from Phase 2",
+    "Run pytest with -x flag to stop on first failure"
+  ],
+  "deferred": [
+    {
+      "id": "BUG-003",
+      "title": "Geography always 'Unknown'",
+      "reason": "Requires external API research and integration"
+    },
+    {
+      "id": "BUG-008",
+      "title": "Sector/asset_class conflation",
+      "reason": "Needs behavior verification and data flow visualization first"
+    },
+    {
+      "id": "BUG-009",
+      "title": "Currency conversion",
+      "reason": "Requires live exchange rate API - separate feature"
+    },
+    {
+      "id": "BUG-015",
+      "title": "Tier naming confusion",
+      "reason": "Referenced file does not exist - outdated issue"
+    }
+  ]
+}

@@ -1,60 +1,18 @@
-# Ralph Progress Log - Phase 4: Telemetry Expansion
-Started: Sat Jan 10 2026
-PRD: prd-phase4.json
+# Ralph Progress Log - Phase 5: Bug Fixes
+Started: Sun Jan 11 2026
+PRD: prd-phase5.json
 ---
 
-## 2026-01-10 23:57 - US-007
-- Integrated quality summary telemetry at end of pipeline run
-- Files changed: src-tauri/python/portfolio_src/core/pipeline.py
-- **Learnings for future iterations:**
-  - ValidationGates.get_pipeline_quality() returns the DataQuality object
-  - Telemetry singleton has _session_id that can be reused
-  - Quality summary is called in finally block to ensure it runs even on partial failures
----
+## Codebase Patterns
+- Import ValidationGates and related types from `portfolio_src.core.contracts`
+- Pipeline services are initialized lazily in `_init_services()` method
+- Instance variables for services use Optional[Type] = None pattern
+- Tests run via `python3 -m pytest tests/ -v` from src-tauri/python directory
+- Pre-existing type errors exist (pandas stubs) - ignore them
+- Use write_json_atomic from core/utils.py as reference for atomic writes
+- Telemetry singleton accessed via get_telemetry()
+- TDD approach: write failing test FIRST, then implement fix
+- ValidationGates.get_pipeline_quality() returns the DataQuality object
+- ValidationIssue.actual contains values as strings (e.g., "85.5%")
 
-## 2026-01-10 23:56 - US-006
-- Integrated weight validation telemetry in pipeline after decompose phase
-- Files changed: src-tauri/python/portfolio_src/core/pipeline.py
-- **Learnings for future iterations:**
-  - ValidationIssue.actual contains the weight sum as a string (e.g., "85.5%")
-  - Need to strip "%" and convert to float for telemetry
-  - ETF sources are available from decomposer.get_etf_sources()
-  - Weight issue codes: WEIGHT_SUM_LOW, WEIGHT_SUM_VERY_LOW, WEIGHT_SUM_HIGH, WEIGHT_DECIMAL_FORMAT
----
-
-## 2026-01-10 23:55 - US-004
-- Added report_quality_summary method to Telemetry class
-- Files changed: src-tauri/python/portfolio_src/prism_utils/telemetry.py
-- **Learnings for future iterations:**
-  - Use string annotation "DataQuality" for forward references to avoid circular imports
-  - Import IssueSeverity inside the method to avoid circular import at module level
-  - Group issues by code using a simple dict counter pattern
----
-
-## 2026-01-10 23:54 - US-003 (also US-005)
-- Added report_enrichment_gap method to Telemetry class
-- Added List import from typing (US-005 dependency)
-- Files changed: src-tauri/python/portfolio_src/prism_utils/telemetry.py
-- **Learnings for future iterations:**
-  - Use hashlib.md5 for batch rate limiting when dealing with lists
-  - Show sample of first 10 items, then "...and N more" for large lists
-  - Coverage rates use :.0% for title (no decimals), :.1% for body (one decimal)
----
-
-## 2026-01-10 23:53 - US-002
-- Added report_weight_validation_failure method to Telemetry class
-- Files changed: src-tauri/python/portfolio_src/prism_utils/telemetry.py
-- **Learnings for future iterations:**
-  - Follow existing method patterns: docstring, title, body with markdown table, labels, return report_error()
-  - Labels should include the adapter name as a dynamic label
-  - Impact descriptions help users understand severity
----
-
-## 2026-01-10 23:52 - US-001
-- Added rate limits for weight_validation, enrichment_gap, and quality_summary to RATE_LIMITS dict
-- Files changed: src-tauri/python/portfolio_src/prism_utils/telemetry.py
-- **Learnings for future iterations:**
-  - RATE_LIMITS dict follows pattern: {"per_isin": bool, "max_per_day": int|None}
-  - per_isin=True means rate limit is per ISIN, False means global
-  - max_per_day=None means "once ever" (no daily reset)
 ---
