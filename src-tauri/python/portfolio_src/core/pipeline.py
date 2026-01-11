@@ -662,8 +662,9 @@ class Pipeline:
 
         df = pd.DataFrame(positions)
 
-        direct = cast(pd.DataFrame, df[df["asset_class"].str.upper() != "ETF"].copy())
-        etfs = cast(pd.DataFrame, df[df["asset_class"].str.upper() == "ETF"].copy())
+        asset_class_upper = df["asset_class"].fillna("").str.upper()
+        direct = cast(pd.DataFrame, df[asset_class_upper != "ETF"].copy())
+        etfs = cast(pd.DataFrame, df[asset_class_upper == "ETF"].copy())
 
         return direct, etfs
 
