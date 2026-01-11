@@ -988,3 +988,209 @@ class TestUS007DivisionByZeroProtection:
         assert len(result) == 3
         # All should have portfolio_percentage = 0.0
         assert all(result["portfolio_percentage"] == 0.0)
+
+
+class TestUS008ConsistentValueCalculation:
+    """US-008: Fix inconsistent value calculation logic."""
+
+    def test_etf_value_calculation_uses_canonical_helper(self):
+        """
+        Test that ETF value calculation in _write_breakdown_report uses
+        calculate_position_values() instead of manual iteration.
+
+        Bug: ETF values are calculated manually with iterrows() instead of
+        using the canonical calculate_position_values() helper.
+        Fix: Use calculate_position_values() for ETF positions too.
+        """
+        from portfolio_src.core.pipeline import Pipeline
+        from portfolio_src.core.utils import calculate_position_values
+
+        # Create positions
+        positions = [
+            {
+                "isin": "US0378331005",
+                "asset_class": "Stock",
+                "quantity": 10,
+                "price": 100.0,
+                "name": "Apple",
+            },
+            {
+                "isin": "IE00B4L5Y983",
+                "asset_class": "ETF",
+                "quantity": 5,
+                "price": 200.0,
+                "name": "Test ETF",
+            },
+        ]
+
+        pipeline = Pipeline()
+        call_count = 0
+        original_fn = calculate_position_values
+
+        def counting_wrapper(df):
+            nonlocal call_count
+            call_count += 1
+            return original_fn(df)
+
+        with patch("portfolio_src.data.database.get_positions", return_value=positions):
+            with patch(
+                "portfolio_src.core.pipeline.calculate_position_values",
+                side_effect=counting_wrapper,
+            ):
+                direct, etfs = pipeline._load_portfolio()
+                call_count = 0  # Reset after load
+                # Create mock holdings_map
+                holdings_map = {
+                    "IE00B4L5Y983": pd.DataFrame(
+                        {
+                            "isin": ["US0001"],
+                            "name": ["Holding 1"],
+                            "weight": [10.0],
+                        }
+                    )
+                }
+                pipeline._write_breakdown_report(direct, etfs, holdings_map)
+
+        # Should call calculate_position_values TWICE:
+        # once for direct positions, once for ETF positions
+        assert call_count == 2, (
+            f"calculate_position_values called {call_count} times, expected 2 "
+            f"(once for direct, once for ETF)"
+        )
+
+    def test_same_position_gives_same_value_in_direct_and_etf_context(self):
+        """
+        Test that the same position data gives the same value whether
+        it's treated as a direct holding or an ETF.
+
+        This verifies value calculation consistency across the pipeline.
+        """
+        from portfolio_src.core.utils import calculate_position_values
+
+        # Same data, different context
+        position_data = {
+            "isin": ["US0378331005"],
+            "name": ["Apple"],
+            "quantity": [10],
+            "current_price": [150.0],
+        }
+
+        # As direct position
+        direct_df = pd.DataFrame(position_data)
+        direct_values = calculate_position_values(direct_df)
+
+        # As ETF position (same columns)
+        etf_df = pd.DataFrame(position_data)
+        etf_values = calculate_position_values(etf_df)
+
+        # Values should be identical
+        assert direct_values.iloc[0] == etf_values.iloc[0]
+        assert direct_values.iloc[0] == pytest.approx(1500.0, rel=0.01)
+
+    def test_value_calculation_with_market_value_column(self):
+        """
+        Test that when market_value column exists, it's used directly
+        (not recalculated from quantity * price).
+        """
+        from portfolio_src.core.utils import calculate_position_values
+
+        df = pd.DataFrame(
+            {
+                "isin": ["US0378331005"],
+                "name": ["Apple"],
+                "quantity": [10],
+                "current_price": [150.0],
+                "market_value": [2000.0],  # Different from qty * price
+            }
+        )
+
+        values = calculate_position_values(df)
+        # Should use market_value, not quantity * price
+        assert values.iloc[0] == pytest.approx(2000.0, rel=0.01)
+
+    def test_value_calculation_fallback_to_quantity_times_price(self):
+        """
+        Test that when market_value is missing, quantity * price is used.
+        """
+        from portfolio_src.core.utils import calculate_position_values
+
+        df = pd.DataFrame(
+            {
+                "isin": ["US0378331005"],
+                "name": ["Apple"],
+                "quantity": [10],
+                "current_price": [150.0],
+                # No market_value column
+            }
+        )
+
+        values = calculate_position_values(df)
+        # Should calculate as quantity * price
+        assert values.iloc[0] == pytest.approx(1500.0, rel=0.01)
+
+    def test_etf_breakdown_uses_consistent_values(self):
+        """
+        Test that ETF values in breakdown report match calculate_position_values output.
+        """
+        from portfolio_src.core.pipeline import Pipeline
+        from portfolio_src.core.utils import calculate_position_values
+        import tempfile
+        import os
+
+        positions = [
+            {
+                "isin": "IE00B4L5Y983",
+                "asset_class": "ETF",
+                "quantity": 5,
+                "current_price": 200.0,
+                "name": "Test ETF",
+            },
+        ]
+
+        pipeline = Pipeline()
+
+        with patch("portfolio_src.data.database.get_positions", return_value=positions):
+            direct, etfs = pipeline._load_portfolio()
+
+            # Calculate expected ETF value using canonical helper
+            expected_value = calculate_position_values(etfs).iloc[0]
+
+            # Create holdings map
+            holdings_map = {
+                "IE00B4L5Y983": pd.DataFrame(
+                    {
+                        "isin": ["US0001"],
+                        "name": ["Holding 1"],
+                        "weight": [50.0],  # 50% of ETF value
+                    }
+                )
+            }
+
+            # Write breakdown report
+            with tempfile.TemporaryDirectory() as tmpdir:
+                # Patch the output path
+                from portfolio_src.core import pipeline as pipeline_module
+
+                original_path = pipeline_module.HOLDINGS_BREAKDOWN_PATH
+                test_path = os.path.join(tmpdir, "breakdown.csv")
+                pipeline_module.HOLDINGS_BREAKDOWN_PATH = type(original_path)(test_path)
+
+                try:
+                    pipeline._write_breakdown_report(direct, etfs, holdings_map)
+
+                    # Read the output
+                    result_df = pd.read_csv(test_path)
+
+                    # Find the holding row
+                    holding_row = result_df[result_df["child_isin"] == "US0001"].iloc[0]
+
+                    # Value should be 50% of ETF value
+                    expected_holding_value = expected_value * 0.5
+                    assert holding_row["value_eur"] == pytest.approx(
+                        expected_holding_value, rel=0.01
+                    ), (
+                        f"Holding value {holding_row['value_eur']} != expected "
+                        f"{expected_holding_value} (50% of ETF value {expected_value})"
+                    )
+                finally:
+                    pipeline_module.HOLDINGS_BREAKDOWN_PATH = original_path

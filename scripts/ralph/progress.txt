@@ -60,8 +60,44 @@ PRD: prd-phase5.json
   - The method is `_write_breakdown_report`, not `_write_holdings_breakdown`
 ---
 
+## 2026-01-11 10:54 - US-006
+- Implemented ISIN deduplication before enrichment to avoid redundant API calls
+- Files changed:
+  - `portfolio_src/core/services/enricher.py` - Refactored `enrich()` to collect unique ISINs first, call enrichment once, then apply to all holdings
+  - `tests/test_phase5_bugfixes.py` - Added 4 tests for ISIN deduplication
+- **Learnings for future iterations:**
+  - Enrichment happens in `Enricher.enrich()`, not in decomposer
+  - Use `_collect_unique_isins()` helper to gather all unique ISINs from holdings_map
+  - Use `_apply_enrichment_data()` helper to apply pre-fetched data to each DataFrame
+  - Log format: "Enrichment: N unique ISINs from M total holdings"
+---
+
+## 2026-01-11 10:58 - US-007
+- Added division by zero protection in aggregator with explicit if/else clause
+- Files changed:
+  - `portfolio_src/core/services/aggregator.py` - Replaced ternary with explicit if/else for portfolio_percentage calculation
+  - `tests/test_phase5_bugfixes.py` - Added 4 tests for zero total_value scenarios
+- **Learnings for future iterations:**
+  - The existing ternary expression was functionally correct, but explicit if/else is clearer
+  - When total_value <= 0, portfolio_percentage is set to 0.0 (scalar broadcasts to all rows)
+  - Pre-existing pandas stub type errors are expected and should be ignored
+---
+
+## 2026-01-11 11:02 - US-008
+- Fixed inconsistent value calculation logic - ETF values now use canonical helper
+- Files changed:
+  - `portfolio_src/core/pipeline.py` - Refactored ETF value calculation in `_write_breakdown_report()` to use `calculate_position_values()` instead of manual iterrows()
+  - `tests/test_phase5_bugfixes.py` - Added 5 tests for consistent value calculation
+- **Learnings for future iterations:**
+  - `calculate_position_values()` in core/utils.py is the SINGLE SOURCE OF TRUTH for position value calculation
+  - Formula priority: 1) market_value column if exists, 2) quantity * price, 3) zeros with warning
+  - Both direct positions AND ETF positions should use this helper for consistency
+  - The helper returns a pd.Series indexed same as input DataFrame, use `.get(idx, 0.0)` to lookup values
+---
+
 ## Codebase Patterns
 - Import ValidationGates and related types from `portfolio_src.core.contracts`
+- Enricher.enrich() collects unique ISINs first, enriches once, then applies to all holdings
 - Pipeline services are initialized lazily in `_init_services()` method
 - Instance variables for services use Optional[Type] = None pattern
 - Tests run via `python3 -m pytest tests/ -v` from src-tauri/python directory

@@ -87,7 +87,7 @@
       "id": "US-006",
       "title": "Add ISIN deduplication before enrichment",
       "description": "Same ISIN can appear multiple times from different ETFs. Deduplicate before enrichment to avoid redundant API calls.",
-      "file": "src-tauri/python/portfolio_src/core/services/decomposer.py",
+      "file": "src-tauri/python/portfolio_src/core/services/enricher.py",
       "acceptanceCriteria": [
         "Add test with holdings_map containing duplicate ISINs across ETFs",
         "Test verifies enrichment is called once per unique ISIN",
@@ -96,7 +96,7 @@
         "Log count of unique ISINs vs total"
       ],
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "notes": "Optimization: collect unique ISINs, enrich once, map back to all occurrences"
     },
     {
@@ -112,7 +112,7 @@
         "Add explicit else clause that sets to 0.0 (not relies on ternary)"
       ],
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "notes": "Bug location: lines 140-143. May already be fixed, verify and add test"
     },
     {
@@ -128,7 +128,7 @@
         "Document the canonical value calculation formula"
       ],
       "priority": 8,
-      "passes": false,
+      "passes": true,
       "notes": "Trace value calculation through pipeline, ensure consistency"
     },
     {

@@ -869,49 +869,16 @@ class Pipeline:
             logger.info(f"Added {len(rows)} direct holdings to breakdown report")
 
         # Step 2: Add indirect holdings from ETFs
-        # We need ETF values to calculate proportional value of holdings
-        # Map ISIN -> Market Value
-        etf_values = {}
+        # Use canonical calculate_position_values() for consistency (US-008)
+        etf_values: Dict[str, float] = {}
         if not etf_positions.empty:
-            # Check for explicit value column
-            val_col = None
-            for col in ["tr_value", "NetValue", "market_value", "net_value", "value"]:
-                if col in etf_positions.columns:
-                    val_col = col
-                    break
-
-            if val_col:
-                for _, row in etf_positions.iterrows():
-                    val = row[val_col]
-                    etf_values[str(row["isin"])] = (
-                        float(val) if pd.notnull(val) else 0.0
+            etf_position_values = calculate_position_values(etf_positions)
+            isin_col = get_isin_column(etf_positions)
+            if isin_col:
+                for idx, row in etf_positions.iterrows():
+                    etf_values[str(row[isin_col])] = float(
+                        etf_position_values.get(idx, 0.0)
                     )
-            else:
-                # Fallback: Calculate from quantity * price
-                # We know standard columns from database are 'quantity', 'current_price', 'cost_basis'
-                qty_col = "quantity" if "quantity" in etf_positions.columns else None
-                price_col = (
-                    "current_price"
-                    if "current_price" in etf_positions.columns
-                    else None
-                )
-                cost_col = (
-                    "cost_basis" if "cost_basis" in etf_positions.columns else None
-                )
-
-                if qty_col:
-                    logger.info(
-                        "Calculating ETF values from quantity * price (missing market_value column)"
-                    )
-                    for _, row in etf_positions.iterrows():
-                        qty = float(row[qty_col]) if pd.notnull(row[qty_col]) else 0.0
-                        price = 0.0
-                        if price_col and pd.notnull(row[price_col]):
-                            price = float(row[price_col])
-                        elif cost_col and pd.notnull(row[cost_col]):
-                            price = float(row[cost_col])
-
-                        etf_values[str(row["isin"])] = qty * price
 
         # Map ISIN -> Name (Fix 25)
         etf_names = {}
