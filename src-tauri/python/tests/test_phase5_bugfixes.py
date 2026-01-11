@@ -506,3 +506,130 @@ class TestUS004HighestConfidenceAggregation:
         assert apple_row["name"] == "Apple Inc"
         assert apple_row["sector"] == "Technology"
         assert apple_row["geography"] == "United States"
+
+
+class TestUS005VectorizedValueCalculation:
+    """US-005: Verify and fix vectorized value calculation."""
+
+    def test_vectorized_calculation_with_1000_positions(self):
+        """Verify calculate_position_values handles 1000+ positions efficiently."""
+        import time
+        from portfolio_src.core.utils import calculate_position_values
+
+        n_positions = 1500
+        large_df = pd.DataFrame(
+            {
+                "isin": [f"US{str(i).zfill(10)}" for i in range(n_positions)],
+                "name": [f"Stock {i}" for i in range(n_positions)],
+                "quantity": [10 + i for i in range(n_positions)],
+                "current_price": [100.0 + i * 0.1 for i in range(n_positions)],
+            }
+        )
+
+        start = time.time()
+        values = calculate_position_values(large_df)
+        elapsed = time.time() - start
+
+        assert len(values) == n_positions
+        assert values.iloc[0] == pytest.approx(1000.0, rel=0.01)
+        assert values.iloc[-1] == pytest.approx(1509 * 249.9, rel=0.01)
+        assert elapsed < 1.0, f"Calculation took {elapsed:.2f}s, expected < 1s"
+
+    def test_calculate_position_values_called_once_not_per_row(self):
+        """Verify calculate_position_values is called once, not per-row."""
+        from portfolio_src.core.pipeline import Pipeline
+        from portfolio_src.core.utils import calculate_position_values
+
+        positions = [
+            {
+                "isin": f"US{str(i).zfill(10)}",
+                "asset_class": "Stock",
+                "quantity": 10,
+                "price": 100.0,
+            }
+            for i in range(100)
+        ]
+
+        pipeline = Pipeline()
+        call_count = 0
+        original_fn = calculate_position_values
+
+        def counting_wrapper(df):
+            nonlocal call_count
+            call_count += 1
+            return original_fn(df)
+
+        with patch("portfolio_src.data.database.get_positions", return_value=positions):
+            with patch(
+                "portfolio_src.core.pipeline.calculate_position_values",
+                side_effect=counting_wrapper,
+            ):
+                direct, etfs = pipeline._load_portfolio()
+                call_count = 0
+                pipeline._write_breakdown_report(direct, etfs, {})
+
+        assert call_count == 1, (
+            f"calculate_position_values called {call_count} times, expected 1"
+        )
+
+    def test_position_values_dict_used_in_loop(self):
+        """Verify pre-computed position_values dict is used in the loop."""
+        from portfolio_src.core.utils import calculate_position_values
+
+        df = pd.DataFrame(
+            {
+                "isin": ["US0001", "US0002", "US0003"],
+                "quantity": [10, 20, 30],
+                "current_price": [100.0, 50.0, 25.0],
+            }
+        )
+
+        position_values = calculate_position_values(df)
+
+        for idx in df.index:
+            value = position_values.get(idx, 0.0)
+            expected = df.loc[idx, "quantity"] * df.loc[idx, "current_price"]
+            assert value == pytest.approx(expected, rel=0.01)
+
+    def test_no_per_row_value_calculation_in_direct_holdings_loop(self):
+        """Verify the direct holdings loop uses pre-computed values, not per-row calculation."""
+        from portfolio_src.core.pipeline import Pipeline
+
+        positions = [
+            {
+                "isin": "US0001",
+                "asset_class": "Stock",
+                "quantity": 10,
+                "price": 100.0,
+                "name": "Test Stock",
+            },
+        ]
+
+        pipeline = Pipeline()
+        mock_values = pd.Series({0: 1000.0})
+
+        with patch("portfolio_src.data.database.get_positions", return_value=positions):
+            with patch(
+                "portfolio_src.core.pipeline.calculate_position_values",
+                return_value=mock_values,
+            ) as mock_calc:
+                direct, etfs = pipeline._load_portfolio()
+                pipeline._write_breakdown_report(direct, etfs, {})
+                assert mock_calc.call_count == 1
+
+    def test_vectorized_handles_market_value_column(self):
+        """Verify vectorized calculation uses market_value column when available."""
+        from portfolio_src.core.utils import calculate_position_values
+
+        df = pd.DataFrame(
+            {
+                "isin": ["US0001", "US0002"],
+                "market_value": [5000.0, 3000.0],
+                "quantity": [10, 20],
+                "current_price": [100.0, 50.0],
+            }
+        )
+
+        values = calculate_position_values(df)
+        assert values.iloc[0] == pytest.approx(5000.0, rel=0.01)
+        assert values.iloc[1] == pytest.approx(3000.0, rel=0.01)

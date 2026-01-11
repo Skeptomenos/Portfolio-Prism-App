@@ -37,6 +37,29 @@ PRD: prd-phase5.json
   - Time-based tests: use `time.sleep()` in mock side_effect to simulate slow operations
 ---
 
+## 2026-01-11 10:45 - US-004
+- Fixed first-wins aggregation to use highest confidence source
+- Files changed:
+  - `portfolio_src/core/services/aggregator.py` - Added `_sort_by_confidence()` method, preserved resolution_confidence in _process_direct_positions and _process_etf_positions
+  - `tests/test_phase5_bugfixes.py` - Added 4 tests for highest confidence aggregation
+- **Learnings for future iterations:**
+  - Sort by confidence BEFORE groupby so 'first' picks highest confidence row
+  - When confidence is equal, prefer non-'Unknown' values using unknown_penalty sort key
+  - Must preserve resolution_confidence column through _process_direct_positions and _process_etf_positions
+  - Pre-existing pandas stub type errors are expected and should be ignored
+---
+
+## 2026-01-11 10:50 - US-005
+- Verified and tested vectorized value calculation
+- Files changed:
+  - `tests/test_phase5_bugfixes.py` - Added 5 tests for vectorized value calculation
+- **Learnings for future iterations:**
+  - `calculate_position_values()` in core/utils.py is the single source of truth for position value calculation
+  - The function is called ONCE before the loop, and values are looked up by index in the loop
+  - Comment on line 832 of pipeline.py explains the vectorized approach: "Calculate ALL values vectorized ONCE (not per row)"
+  - The method is `_write_breakdown_report`, not `_write_holdings_breakdown`
+---
+
 ## Codebase Patterns
 - Import ValidationGates and related types from `portfolio_src.core.contracts`
 - Pipeline services are initialized lazily in `_init_services()` method

@@ -64,7 +64,7 @@
         "Existing aggregation tests still pass"
       ],
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "notes": "Bug location: lines 117-119. Current: 'first' wins. Fix: highest confidence wins"
     },
     {
@@ -80,7 +80,7 @@
         "No per-row value calculation in the loop"
       ],
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "notes": "Bug location: lines 831-840. Verify existing fix is complete"
     },
     {
