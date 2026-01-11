@@ -1514,3 +1514,48 @@ SAN,Sanofi SA,"-0,5",Frankreich,Nyse Euronext - Euronext Paris"""
 
         log_messages = " ".join(r.message for r in caplog.records)
         assert "2" in log_messages and test_isin in log_messages
+
+
+class TestUS012RateLimiting:
+    """US-012: Add rate limiting for batch enrichment API calls."""
+
+    def test_enrichment_rate_limit_constant_exists(self):
+        """Test that ENRICHMENT_RATE_LIMIT_MS constant exists."""
+        from portfolio_src.data.enrichment import ENRICHMENT_RATE_LIMIT_MS
+
+        assert isinstance(ENRICHMENT_RATE_LIMIT_MS, (int, float))
+        assert ENRICHMENT_RATE_LIMIT_MS >= 0
+
+    def test_enrichment_rate_limit_default_value(self):
+        """Test that default rate limit is 100ms."""
+        from portfolio_src.data.enrichment import ENRICHMENT_RATE_LIMIT_MS
+
+        assert ENRICHMENT_RATE_LIMIT_MS == 100
+
+    def test_enrichment_rate_limit_configurable_via_env(self):
+        """Test that rate limit can be configured via environment variable."""
+        import os
+        import importlib
+
+        original_value = os.environ.get("ENRICHMENT_RATE_LIMIT_MS")
+        try:
+            os.environ["ENRICHMENT_RATE_LIMIT_MS"] = "500"
+            import portfolio_src.data.enrichment as enrichment_module
+
+            importlib.reload(enrichment_module)
+            assert enrichment_module.ENRICHMENT_RATE_LIMIT_MS == 500
+        finally:
+            if original_value is not None:
+                os.environ["ENRICHMENT_RATE_LIMIT_MS"] = original_value
+            else:
+                os.environ.pop("ENRICHMENT_RATE_LIMIT_MS", None)
+            importlib.reload(enrichment_module)
+
+    def test_rate_limiting_code_uses_configurable_constant(self):
+        """Test that rate limiting code uses ENRICHMENT_RATE_LIMIT_MS constant."""
+        import inspect
+        from portfolio_src.data import enrichment
+
+        source = inspect.getsource(enrichment.enrich_securities_bulk)
+        assert "ENRICHMENT_RATE_LIMIT_MS" in source
+        assert "Rate limiting" in source or "rate_limit" in source

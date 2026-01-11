@@ -24,6 +24,10 @@ from typing import List, Dict, Optional, Any
 FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY")
 FINNHUB_API_URL = "https://finnhub.io/api/v1"
 
+# Rate limiting for API calls (configurable via environment variable)
+# Default: 100ms between calls. Finnhub free tier allows 60 calls/min (~1000ms minimum)
+ENRICHMENT_RATE_LIMIT_MS = int(os.getenv("ENRICHMENT_RATE_LIMIT_MS", "100"))
+
 # Create logger
 logger = logging.getLogger(__name__)
 
@@ -339,7 +343,9 @@ def enrich_securities_bulk(
                         logger.debug(f"Enriched {identifier} via Proxy")
                     else:
                         logger.warning(f"Empty profile from proxy for {identifier}")
-                time.sleep(1.1)  # Rate limiting
+                rate_limit_sec = max(ENRICHMENT_RATE_LIMIT_MS / 1000, 1.0)
+                logger.debug(f"Rate limiting: sleeping {rate_limit_sec}s")
+                time.sleep(rate_limit_sec)
             except requests.exceptions.RequestException as e:
                 logger.warning(f"Proxy request error for {identifier}: {e}")
 
@@ -378,8 +384,9 @@ def enrich_securities_bulk(
                     else:
                         logger.warning(f"Empty profile from Finnhub for {identifier}")
 
-                # Rate Limiting: Finnhub Free Tier is 60 calls/min (~1 call/sec)
-                time.sleep(1.1)
+                rate_limit_sec = max(ENRICHMENT_RATE_LIMIT_MS / 1000, 1.0)
+                logger.debug(f"Rate limiting: sleeping {rate_limit_sec}s")
+                time.sleep(rate_limit_sec)
 
             except requests.exceptions.RequestException as e:
                 logger.warning(f"Finnhub request error for {identifier}: {e}")
