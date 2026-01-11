@@ -430,3 +430,40 @@ def write_json_atomic(path, data: dict) -> None:
         if os.path.exists(temp_path):
             os.unlink(temp_path)
         raise
+
+
+def write_csv_atomic(path, df: pd.DataFrame, **kwargs) -> None:
+    """
+    Write CSV file atomically using temp file + rename.
+
+    This prevents file corruption if the process is interrupted mid-write.
+    The original file remains untouched until the new data is fully written.
+
+    Args:
+        path: Target file path
+        df: DataFrame to write
+        **kwargs: Additional arguments passed to DataFrame.to_csv()
+    """
+    import tempfile
+    import os
+    from pathlib import Path
+
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    if "index" not in kwargs:
+        kwargs["index"] = False
+
+    fd, temp_path = tempfile.mkstemp(dir=path.parent, suffix=".csv.tmp")
+    try:
+        with os.fdopen(fd, "w", newline="") as f:
+            df.to_csv(f, **kwargs)
+            f.flush()
+            os.fsync(f.fileno())
+
+        os.replace(temp_path, path)
+        logger.debug(f"Wrote CSV atomically: {path}")
+    except Exception:
+        if os.path.exists(temp_path):
+            os.unlink(temp_path)
+        raise

@@ -1194,3 +1194,159 @@ class TestUS008ConsistentValueCalculation:
                     )
                 finally:
                     pipeline_module.HOLDINGS_BREAKDOWN_PATH = original_path
+
+
+class TestUS009AtomicCSVWrites:
+    """US-009: Make CSV writes atomic."""
+
+    def test_write_csv_atomic_helper_exists(self):
+        """
+        Test that write_csv_atomic helper function exists in utils.
+        """
+        from portfolio_src.core.utils import write_csv_atomic
+
+        # Function should exist and be callable
+        assert callable(write_csv_atomic)
+
+    def test_write_csv_atomic_creates_file(self):
+        """
+        Test that write_csv_atomic creates the CSV file correctly.
+        """
+        import tempfile
+        import os
+        from portfolio_src.core.utils import write_csv_atomic
+
+        df = pd.DataFrame(
+            {
+                "isin": ["US0378331005", "DE0007164600"],
+                "name": ["Apple", "SAP"],
+                "value": [1000.0, 500.0],
+            }
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "test.csv")
+            write_csv_atomic(path, df)
+
+            # File should exist
+            assert os.path.exists(path)
+
+            # Content should be correct
+            result = pd.read_csv(path)
+            assert len(result) == 2
+            assert list(result.columns) == ["isin", "name", "value"]
+            assert result.iloc[0]["isin"] == "US0378331005"
+
+    def test_write_csv_atomic_uses_temp_file_and_rename(self):
+        """
+        Test that write_csv_atomic uses temp file + rename pattern.
+
+        This is the key atomic behavior: write to temp file, then rename.
+        If the process crashes mid-write, the original file is untouched.
+        """
+        import tempfile
+        import os
+        from unittest.mock import patch, MagicMock
+        from portfolio_src.core.utils import write_csv_atomic
+
+        df = pd.DataFrame({"isin": ["US0378331005"], "name": ["Apple"]})
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "test.csv")
+
+            # Track os.replace calls
+            replace_calls = []
+            original_replace = os.replace
+
+            def tracking_replace(src, dst):
+                replace_calls.append((src, dst))
+                return original_replace(src, dst)
+
+            with patch("os.replace", side_effect=tracking_replace):
+                write_csv_atomic(path, df)
+
+            assert len(replace_calls) == 1
+            src, dst = replace_calls[0]
+            assert ".tmp" in str(src) or "tmp" in str(src).lower()
+            assert str(dst) == path
+
+    def test_write_csv_atomic_no_partial_file_on_error(self):
+        """
+        Test that if write fails, no partial file is left behind.
+        """
+        import tempfile
+        import os
+        from portfolio_src.core.utils import write_csv_atomic
+
+        # Create a DataFrame that will fail to write (mock the to_csv to raise)
+        df = pd.DataFrame({"isin": ["US0378331005"], "name": ["Apple"]})
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "test.csv")
+
+            # Mock DataFrame.to_csv to raise an error
+            with patch.object(pd.DataFrame, "to_csv", side_effect=IOError("Disk full")):
+                with pytest.raises(IOError):
+                    write_csv_atomic(path, df)
+
+            # No file should exist (neither final nor temp)
+            assert not os.path.exists(path)
+            # No temp files should be left
+            files_in_dir = os.listdir(tmpdir)
+            assert len(files_in_dir) == 0, f"Temp files left behind: {files_in_dir}"
+
+    def test_write_csv_atomic_creates_parent_directories(self):
+        """
+        Test that write_csv_atomic creates parent directories if they don't exist.
+        """
+        import tempfile
+        import os
+        from portfolio_src.core.utils import write_csv_atomic
+
+        df = pd.DataFrame({"isin": ["US0378331005"], "name": ["Apple"]})
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Nested path that doesn't exist
+            path = os.path.join(tmpdir, "nested", "dir", "test.csv")
+            write_csv_atomic(path, df)
+
+            # File should exist
+            assert os.path.exists(path)
+
+    def test_pipeline_uses_write_csv_atomic(self):
+        """
+        Test that pipeline.py uses write_csv_atomic for CSV writes.
+
+        This verifies the fix is applied to the actual pipeline code.
+        """
+        from portfolio_src.core.utils import write_csv_atomic
+        from portfolio_src.core.pipeline import Pipeline
+
+        positions = [
+            {
+                "isin": "US0378331005",
+                "asset_class": "Stock",
+                "quantity": 10,
+                "price": 100.0,
+                "name": "Apple",
+            },
+        ]
+
+        pipeline = Pipeline()
+        write_calls = []
+
+        def tracking_write(path, df, **kwargs):
+            write_calls.append(str(path))
+            # Actually write the file
+            df.to_csv(path, index=False)
+
+        with patch("portfolio_src.data.database.get_positions", return_value=positions):
+            with patch(
+                "portfolio_src.core.pipeline.write_csv_atomic",
+                side_effect=tracking_write,
+            ):
+                direct, etfs = pipeline._load_portfolio()
+                pipeline._write_breakdown_report(direct, etfs, {})
+
+        # write_csv_atomic should have been called for breakdown report
+        assert len(write_calls) >= 1, "write_csv_atomic was not called"

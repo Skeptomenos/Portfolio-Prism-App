@@ -59,6 +59,7 @@ from portfolio_src.core.utils import (
     get_total_value_column,
     get_unit_price_column,
     write_json_atomic,
+    write_csv_atomic,
 )
 from portfolio_src.headless.transports.echo_bridge import (
     broadcast_summary,
@@ -193,7 +194,7 @@ class Pipeline:
 
             if isinstance(data, pd.DataFrame):
                 path = debug_dir / f"{phase}.csv"
-                data.to_csv(path, index=False)
+                write_csv_atomic(path, data)
                 logger.info(f"[DEBUG] Wrote snapshot: {path}")
             elif isinstance(data, dict):
                 # Handle dict of DataFrames (holdings_map)
@@ -207,7 +208,7 @@ class Pipeline:
 
                     if all_holdings:
                         path = debug_dir / f"{phase}.csv"
-                        pd.concat(all_holdings).to_csv(path, index=False)
+                        write_csv_atomic(path, pd.concat(all_holdings))
                         logger.info(f"[DEBUG] Wrote snapshot: {path}")
                 else:
                     path = debug_dir / f"{phase}.json"
@@ -686,7 +687,7 @@ class Pipeline:
         TRUE_EXPOSURE_REPORT.parent.mkdir(parents=True, exist_ok=True)
 
         # Write True Exposure Report
-        exposure_df.to_csv(TRUE_EXPOSURE_REPORT, index=False)
+        write_csv_atomic(TRUE_EXPOSURE_REPORT, exposure_df)
         logger.info(f"Wrote exposure report to {TRUE_EXPOSURE_REPORT}")
 
         # Write Direct Holdings Report (Direct + ETFs)
@@ -696,7 +697,7 @@ class Pipeline:
             direct_holdings = pd.concat(
                 [direct_positions, etf_positions], ignore_index=True
             )
-            direct_holdings.to_csv(DIRECT_HOLDINGS_REPORT, index=False)
+            write_csv_atomic(DIRECT_HOLDINGS_REPORT, direct_holdings)
             logger.info(f"Wrote direct holdings report to {DIRECT_HOLDINGS_REPORT}")
         except Exception as e:
             logger.error(f"Failed to write direct holdings report: {e}")
@@ -942,8 +943,7 @@ class Pipeline:
                     continue
 
         df = pd.DataFrame(rows)
-        HOLDINGS_BREAKDOWN_PATH.parent.mkdir(parents=True, exist_ok=True)
-        df.to_csv(HOLDINGS_BREAKDOWN_PATH, index=False)
+        write_csv_atomic(HOLDINGS_BREAKDOWN_PATH, df)
         logger.info(f"Wrote holdings breakdown to {HOLDINGS_BREAKDOWN_PATH}")
 
     def _build_summary(
