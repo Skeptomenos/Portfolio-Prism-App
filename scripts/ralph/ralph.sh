@@ -1,11 +1,13 @@
 #!/bin/bash
 # Ralph Wiggum for OpenCode - Long-running AI agent loop
 # Usage: ./ralph.sh [max_iterations]
+#        If max_iterations is omitted, runs until completion (no limit)
 # Adapted from https://github.com/snarktank/ralph for use with OpenCode
 
 set -e
 
-MAX_ITERATIONS=${1:-10}
+# If no argument provided, run indefinitely (use very high number)
+MAX_ITERATIONS=${1:-999999}
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PRD_FILE="$SCRIPT_DIR/prd-phase5.json"
 PROGRESS_FILE="$SCRIPT_DIR/progress.txt"
@@ -77,7 +79,11 @@ fi
 
 AGENT="${RALPH_AGENT:-Sisyphus}"
 
-echo "Starting Ralph (OpenCode) - Max iterations: $MAX_ITERATIONS"
+if [ "$MAX_ITERATIONS" -eq 999999 ]; then
+  echo "Starting Ralph (OpenCode) - Running until completion"
+else
+  echo "Starting Ralph (OpenCode) - Max iterations: $MAX_ITERATIONS"
+fi
 echo "Agent: $AGENT"
 echo "PRD: $PRD_FILE"
 echo "Prompt: $PROMPT_FILE"
@@ -86,7 +92,11 @@ echo ""
 for i in $(seq 1 $MAX_ITERATIONS); do
   echo ""
   echo "═══════════════════════════════════════════════════════"
-  echo "  Ralph Iteration $i of $MAX_ITERATIONS (Agent: $AGENT)"
+  if [ "$MAX_ITERATIONS" -eq 999999 ]; then
+    echo "  Ralph Iteration $i (Agent: $AGENT)"
+  else
+    echo "  Ralph Iteration $i of $MAX_ITERATIONS (Agent: $AGENT)"
+  fi
   echo "═══════════════════════════════════════════════════════"
   
   # Verify agent identity on first iteration
@@ -112,7 +122,7 @@ for i in $(seq 1 $MAX_ITERATIONS); do
     echo ""
     echo "═══════════════════════════════════════════════════════"
     echo "  Ralph completed all tasks!"
-    echo "  Completed at iteration $i of $MAX_ITERATIONS"
+    echo "  Completed at iteration $i"
     echo "═══════════════════════════════════════════════════════"
     exit 0
   fi
