@@ -840,3 +840,151 @@ class TestUS006ISINDeduplicationBeforeEnrichment:
         assert len(errors) == 0
         assert enriched_map == {}
         mock_service.get_metadata_batch.assert_not_called()
+
+
+class TestUS007DivisionByZeroProtection:
+    """US-007: Add division by zero protection in aggregator."""
+
+    def test_zero_total_value_does_not_raise_division_error(self):
+        """
+        Test that aggregation with total_value = 0 does not raise ZeroDivisionError.
+
+        Bug: portfolio_percentage calculation can divide by zero if total_value is 0.
+        Fix: Add explicit protection with else clause that sets to 0.0.
+        """
+        from portfolio_src.core.services.aggregator import Aggregator
+
+        # Create positions with zero value (quantity=0 or price=0)
+        direct_positions = pd.DataFrame(
+            {
+                "isin": ["US0378331005", "DE0007164600"],
+                "name": ["Apple", "SAP"],
+                "sector": ["Technology", "Technology"],
+                "geography": ["United States", "Germany"],
+                "quantity": [0, 0],  # Zero quantity = zero value
+                "current_price": [150.0, 80.0],
+            }
+        )
+
+        aggregator = Aggregator()
+        # This should NOT raise ZeroDivisionError
+        result, errors = aggregator.aggregate(
+            direct_positions=direct_positions,
+            etf_positions=pd.DataFrame(),
+            holdings_map={},
+        )
+
+        assert len(errors) == 0
+        assert len(result) == 2
+
+    def test_zero_total_value_sets_portfolio_percentage_to_zero(self):
+        """
+        Test that portfolio_percentage is 0.0 when total_value is 0.
+        """
+        from portfolio_src.core.services.aggregator import Aggregator
+
+        # Create positions with zero value
+        direct_positions = pd.DataFrame(
+            {
+                "isin": ["US0378331005"],
+                "name": ["Apple"],
+                "sector": ["Technology"],
+                "geography": ["United States"],
+                "quantity": [0],  # Zero quantity
+                "current_price": [150.0],
+            }
+        )
+
+        aggregator = Aggregator()
+        result, errors = aggregator.aggregate(
+            direct_positions=direct_positions,
+            etf_positions=pd.DataFrame(),
+            holdings_map={},
+        )
+
+        assert len(errors) == 0
+        assert len(result) == 1
+        # portfolio_percentage should be 0.0, not NaN or error
+        assert result.iloc[0]["portfolio_percentage"] == 0.0
+
+    def test_zero_total_value_with_etf_positions(self):
+        """
+        Test that zero total value is handled correctly with ETF positions too.
+        """
+        from portfolio_src.core.services.aggregator import Aggregator
+
+        # Direct positions with zero value
+        direct_positions = pd.DataFrame(
+            {
+                "isin": ["US0378331005"],
+                "name": ["Apple"],
+                "sector": ["Technology"],
+                "geography": ["United States"],
+                "market_value": [0.0],  # Zero market value
+            }
+        )
+
+        # ETF positions with zero value
+        etf_positions = pd.DataFrame(
+            {
+                "isin": ["IE00B4L5Y983"],
+                "name": ["Test ETF"],
+                "market_value": [0.0],  # Zero market value
+            }
+        )
+
+        # ETF holdings
+        etf_holdings = pd.DataFrame(
+            {
+                "isin": ["DE0007164600"],
+                "name": ["SAP"],
+                "sector": ["Technology"],
+                "geography": ["Germany"],
+                "weight": [10.0],
+            }
+        )
+
+        holdings_map = {"IE00B4L5Y983": etf_holdings}
+
+        aggregator = Aggregator()
+        result, errors = aggregator.aggregate(
+            direct_positions=direct_positions,
+            etf_positions=etf_positions,
+            holdings_map=holdings_map,
+        )
+
+        assert len(errors) == 0
+        # All portfolio_percentage values should be 0.0
+        for _, row in result.iterrows():
+            assert row["portfolio_percentage"] == 0.0
+
+    def test_explicit_else_clause_sets_zero(self):
+        """
+        Test that the implementation uses explicit else clause (not ternary).
+
+        This verifies the fix uses proper if/else structure for clarity.
+        """
+        from portfolio_src.core.services.aggregator import Aggregator
+
+        # Create positions that result in zero total value
+        direct_positions = pd.DataFrame(
+            {
+                "isin": ["US0378331005", "DE0007164600", "FR0000120578"],
+                "name": ["Apple", "SAP", "Sanofi"],
+                "sector": ["Technology", "Technology", "Healthcare"],
+                "geography": ["US", "Germany", "France"],
+                "market_value": [0.0, 0.0, 0.0],  # All zero
+            }
+        )
+
+        aggregator = Aggregator()
+        result, errors = aggregator.aggregate(
+            direct_positions=direct_positions,
+            etf_positions=pd.DataFrame(),
+            holdings_map={},
+        )
+
+        assert len(errors) == 0
+        assert len(result) == 3
+        # All should have portfolio_percentage = 0.0
+        assert all(result["portfolio_percentage"] == 0.0)

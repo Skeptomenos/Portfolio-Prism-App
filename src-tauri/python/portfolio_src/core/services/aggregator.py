@@ -140,11 +140,12 @@ class Aggregator:
                     else:
                         source_map[isin] = None
                 aggregated["resolution_source"] = aggregated["isin"].map(source_map)
-            aggregated["portfolio_percentage"] = (
-                (aggregated["total_exposure"] / total_value * 100)
-                if total_value > 0
-                else 0.0
-            )
+            if total_value > 0:
+                aggregated["portfolio_percentage"] = (
+                    aggregated["total_exposure"] / total_value * 100
+                )
+            else:
+                aggregated["portfolio_percentage"] = 0.0
 
             # Sort by exposure
             aggregated = aggregated.sort_values("total_exposure", ascending=False)
