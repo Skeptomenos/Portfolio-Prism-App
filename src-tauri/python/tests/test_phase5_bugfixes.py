@@ -633,3 +633,210 @@ class TestUS005VectorizedValueCalculation:
         values = calculate_position_values(df)
         assert values.iloc[0] == pytest.approx(5000.0, rel=0.01)
         assert values.iloc[1] == pytest.approx(3000.0, rel=0.01)
+
+
+class TestUS006ISINDeduplicationBeforeEnrichment:
+    """US-006: Add ISIN deduplication before enrichment."""
+
+    def test_enrichment_called_once_per_unique_isin(self):
+        """
+        Test that enrichment is called once per unique ISIN, not per occurrence.
+
+        Bug: Same ISIN appearing in multiple ETFs causes redundant API calls.
+        Fix: Collect unique ISINs, enrich once, map back to all occurrences.
+        """
+        from portfolio_src.core.services.enricher import Enricher
+
+        # Create holdings_map with duplicate ISINs across ETFs
+        holdings_etf1 = pd.DataFrame(
+            {
+                "isin": ["US0378331005", "DE0007164600", "FR0000120578"],
+                "name": ["Apple", "SAP", "Sanofi"],
+                "weight": [10.0, 5.0, 3.0],
+            }
+        )
+        holdings_etf2 = pd.DataFrame(
+            {
+                "isin": [
+                    "US0378331005",
+                    "GB00B03MLX29",
+                    "FR0000120578",
+                ],  # Apple and Sanofi duplicated
+                "name": ["Apple", "Royal Dutch Shell", "Sanofi"],
+                "weight": [8.0, 6.0, 4.0],
+            }
+        )
+        holdings_map = {"IE00B4L5Y983": holdings_etf1, "IE00B4L5YC18": holdings_etf2}
+
+        # Mock enrichment service to track calls
+        mock_service = MagicMock()
+        mock_service.get_metadata_batch.return_value = MagicMock(
+            data={
+                "US0378331005": {
+                    "name": "Apple Inc",
+                    "sector": "Technology",
+                    "geography": "US",
+                    "asset_class": "Equity",
+                },
+                "DE0007164600": {
+                    "name": "SAP SE",
+                    "sector": "Technology",
+                    "geography": "Germany",
+                    "asset_class": "Equity",
+                },
+                "FR0000120578": {
+                    "name": "Sanofi SA",
+                    "sector": "Healthcare",
+                    "geography": "France",
+                    "asset_class": "Equity",
+                },
+                "GB00B03MLX29": {
+                    "name": "Shell plc",
+                    "sector": "Energy",
+                    "geography": "UK",
+                    "asset_class": "Equity",
+                },
+            },
+            sources={
+                "US0378331005": "hive",
+                "DE0007164600": "hive",
+                "FR0000120578": "hive",
+                "GB00B03MLX29": "hive",
+            },
+            contributions=[],
+        )
+
+        enricher = Enricher(enrichment_service=mock_service)
+        enriched_map, errors = enricher.enrich(holdings_map)
+
+        # Should call get_metadata_batch ONCE with all unique ISINs
+        assert mock_service.get_metadata_batch.call_count == 1
+        called_isins = mock_service.get_metadata_batch.call_args[0][0]
+        # Should have 4 unique ISINs, not 6 total
+        assert len(called_isins) == 4
+        assert set(called_isins) == {
+            "US0378331005",
+            "DE0007164600",
+            "FR0000120578",
+            "GB00B03MLX29",
+        }
+
+    def test_all_occurrences_receive_enrichment_data(self):
+        """
+        Test that all occurrences of a duplicated ISIN receive the enrichment data.
+        """
+        from portfolio_src.core.services.enricher import Enricher
+
+        # Same ISIN in both ETFs
+        holdings_etf1 = pd.DataFrame(
+            {
+                "isin": ["US0378331005"],
+                "name": ["Apple"],
+                "weight": [10.0],
+            }
+        )
+        holdings_etf2 = pd.DataFrame(
+            {
+                "isin": ["US0378331005"],
+                "name": ["Apple"],
+                "weight": [8.0],
+            }
+        )
+        holdings_map = {"ETF1": holdings_etf1, "ETF2": holdings_etf2}
+
+        mock_service = MagicMock()
+        mock_service.get_metadata_batch.return_value = MagicMock(
+            data={
+                "US0378331005": {
+                    "name": "Apple Inc",
+                    "sector": "Technology",
+                    "geography": "United States",
+                    "asset_class": "Equity",
+                },
+            },
+            sources={"US0378331005": "hive"},
+            contributions=[],
+        )
+
+        enricher = Enricher(enrichment_service=mock_service)
+        enriched_map, errors = enricher.enrich(holdings_map)
+
+        # Both ETFs should have enriched data
+        assert len(errors) == 0
+        assert "ETF1" in enriched_map
+        assert "ETF2" in enriched_map
+        assert enriched_map["ETF1"].iloc[0]["sector"] == "Technology"
+        assert enriched_map["ETF2"].iloc[0]["sector"] == "Technology"
+        assert enriched_map["ETF1"].iloc[0]["geography"] == "United States"
+        assert enriched_map["ETF2"].iloc[0]["geography"] == "United States"
+
+    def test_unique_isin_count_is_logged(self, caplog):
+        """
+        Test that the count of unique ISINs vs total is logged.
+        """
+        import logging
+        from portfolio_src.core.services.enricher import Enricher
+
+        holdings_etf1 = pd.DataFrame(
+            {
+                "isin": ["US0378331005", "DE0007164600"],
+                "name": ["Apple", "SAP"],
+                "weight": [10.0, 5.0],
+            }
+        )
+        holdings_etf2 = pd.DataFrame(
+            {
+                "isin": ["US0378331005"],  # Duplicate
+                "name": ["Apple"],
+                "weight": [8.0],
+            }
+        )
+        holdings_map = {"ETF1": holdings_etf1, "ETF2": holdings_etf2}
+
+        mock_service = MagicMock()
+        mock_service.get_metadata_batch.return_value = MagicMock(
+            data={
+                "US0378331005": {
+                    "name": "Apple Inc",
+                    "sector": "Technology",
+                    "geography": "US",
+                    "asset_class": "Equity",
+                },
+                "DE0007164600": {
+                    "name": "SAP SE",
+                    "sector": "Technology",
+                    "geography": "Germany",
+                    "asset_class": "Equity",
+                },
+            },
+            sources={},
+            contributions=[],
+        )
+
+        enricher = Enricher(enrichment_service=mock_service)
+
+        with caplog.at_level(logging.INFO):
+            enricher.enrich(holdings_map)
+
+        # Should log unique vs total count
+        log_messages = [record.message for record in caplog.records]
+        assert any(
+            ("unique" in msg.lower() and "isin" in msg.lower())
+            or ("2" in msg and "3" in msg)  # 2 unique out of 3 total
+            for msg in log_messages
+        ), f"Expected log about unique ISINs, got: {log_messages}"
+
+    def test_empty_holdings_map_does_not_call_enrichment(self):
+        """
+        Test that empty holdings_map doesn't call enrichment service.
+        """
+        from portfolio_src.core.services.enricher import Enricher
+
+        mock_service = MagicMock()
+        enricher = Enricher(enrichment_service=mock_service)
+
+        enriched_map, errors = enricher.enrich({})
+
+        assert len(errors) == 0
+        assert enriched_map == {}
+        mock_service.get_metadata_batch.assert_not_called()

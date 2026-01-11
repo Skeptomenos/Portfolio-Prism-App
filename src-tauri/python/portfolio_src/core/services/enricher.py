@@ -182,10 +182,28 @@ class Enricher:
             )
             return {}, errors
 
+        if not holdings_map:
+            return {}, errors
+
         total_etfs = len(holdings_map)
         total_securities = sum(len(h) for h in holdings_map.values())
-        processed_securities = 0
 
+        all_unique_isins = self._collect_unique_isins(holdings_map)
+        logger.info(
+            f"Enrichment: {len(all_unique_isins)} unique ISINs from {total_securities} total holdings"
+        )
+
+        enrichment_data: Dict[str, Dict[str, Any]] = {}
+        if self.enrichment_service and all_unique_isins:
+            try:
+                result = self.enrichment_service.get_metadata_batch(all_unique_isins)
+                enrichment_data = result.data
+                self._contributions.extend(result.contributions)
+                self._sources.update(result.sources)
+            except Exception as e:
+                logger.warning(f"Batch enrichment failed: {e}")
+
+        processed_securities = 0
         for idx, (etf_isin, holdings) in enumerate(holdings_map.items()):
             if progress_callback:
                 progress_callback(
@@ -196,7 +214,7 @@ class Enricher:
                 )
 
             try:
-                enriched = self._enrich_holdings(holdings)
+                enriched = self._apply_enrichment_data(holdings, enrichment_data)
                 enriched_map[etf_isin] = enriched
                 processed_securities += len(holdings)
                 logger.debug(f"Enriched {etf_isin}: {len(enriched)} holdings")
@@ -217,6 +235,53 @@ class Enricher:
             f"Enrichment complete: {len(enriched_map)} ETFs processed, {len(errors)} errors"
         )
         return enriched_map, errors
+
+    def _collect_unique_isins(self, holdings_map: Dict[str, pd.DataFrame]) -> List[str]:
+        """Collect all unique ISINs from all holdings DataFrames."""
+        all_isins: set = set()
+        for holdings in holdings_map.values():
+            normalized = SchemaNormalizer.normalize_columns(holdings)
+            if "isin" in normalized.columns:
+                isins = normalized["isin"].dropna().unique().tolist()
+                all_isins.update(isins)
+        return list(all_isins)
+
+    def _apply_enrichment_data(
+        self, holdings: pd.DataFrame, enrichment_data: Dict[str, Dict[str, Any]]
+    ) -> pd.DataFrame:
+        """Apply pre-fetched enrichment data to a holdings DataFrame."""
+        normalized = SchemaNormalizer.normalize_columns(holdings)
+
+        try:
+            SchemaNormalizer.validate_schema(normalized, ["isin"], "enricher")
+        except SchemaError as e:
+            logger.error(f"Schema validation failed in enricher: {e}")
+            raise e
+
+        enriched = normalized.copy()
+
+        if "sector" not in enriched.columns:
+            enriched["sector"] = "Unknown"
+        if "geography" not in enriched.columns:
+            enriched["geography"] = "Unknown"
+        if "asset_class" not in enriched.columns:
+            enriched["asset_class"] = "Equity"
+
+        for idx, row in enriched.iterrows():
+            isin = row.get("isin")
+            if isin and isin in enrichment_data:
+                meta = enrichment_data[isin]
+                enriched.at[idx, "sector"] = meta.get(
+                    "sector", enriched.at[idx, "sector"]
+                )
+                enriched.at[idx, "geography"] = meta.get(
+                    "geography", enriched.at[idx, "geography"]
+                )
+                enriched.at[idx, "asset_class"] = meta.get(
+                    "asset_class", enriched.at[idx, "asset_class"]
+                )
+
+        return enriched
 
     def enrich_positions(
         self, positions: pd.DataFrame
