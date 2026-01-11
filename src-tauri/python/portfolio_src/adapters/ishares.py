@@ -204,6 +204,14 @@ class ISharesAdapter:
                 holdings_df["weight_percentage"].str.replace(",", ".").astype(float)
             )
 
+            # Count and log negative weights before clipping
+            negative_weights_mask = holdings_df["weight_percentage"] < 0
+            negative_count = negative_weights_mask.sum()
+            if negative_count > 0:
+                logger.warning(
+                    f"Clipped {negative_count} negative weight(s) to 0 for {isin}"
+                )
+
             # Clip negative weights to 0.0
             holdings_df["weight_percentage"] = holdings_df["weight_percentage"].clip(
                 lower=0.0

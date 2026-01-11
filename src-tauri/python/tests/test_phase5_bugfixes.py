@@ -1410,3 +1410,107 @@ class TestUS010ConfigurablePortfolioId:
             direct, etfs = pipeline._load_portfolio()
             mock_get.assert_called_once_with(portfolio_id=1)
             assert len(direct) == 1
+
+
+class TestUS011FlagNegativeWeights:
+    """US-011: Flag negative weights instead of silent clipping."""
+
+    def test_negative_weights_are_logged_as_warnings(self, caplog):
+        """Test that negative weights are logged when clipped."""
+        import logging
+        import uuid
+        from portfolio_src.adapters.ishares import ISharesAdapter
+
+        adapter = ISharesAdapter()
+        test_isin = f"TESTNEG{uuid.uuid4().hex[:6].upper()}"
+        adapter.config[test_isin] = {
+            "product_id": "123456",
+            "region": "de",
+            "user_type": "privatanleger",
+        }
+
+        csv_with_negative_weights = """Header Row 1
+Header Row 2
+Emittententicker,Name,Gewichtung (%),Standort,Börse
+AAPL,Apple Inc,"10,5",Vereinigte Staaten,NASDAQ
+SAP,SAP SE,"-2,5",Deutschland,Xetra
+SAN,Sanofi SA,"-0,5",Frankreich,Nyse Euronext - Euronext Paris
+MSFT,Microsoft Corp,"5,0",Vereinigte Staaten,NASDAQ"""
+
+        with patch("portfolio_src.adapters.ishares.requests.get") as mock_get:
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.text = csv_with_negative_weights
+            mock_get.return_value = mock_response
+
+            with caplog.at_level(logging.WARNING):
+                result = adapter.fetch_holdings(test_isin)
+
+        assert any("clipped" in record.message.lower() for record in caplog.records), (
+            f"Expected warning about clipped weights, got: {[r.message for r in caplog.records]}"
+        )
+
+    def test_negative_weights_are_clipped_to_zero(self):
+        """Test that negative weights are still clipped to 0 (behavior preserved)."""
+        import uuid
+        from portfolio_src.adapters.ishares import ISharesAdapter
+
+        adapter = ISharesAdapter()
+        test_isin = f"TESTNEG{uuid.uuid4().hex[:6].upper()}"
+        adapter.config[test_isin] = {
+            "product_id": "123456",
+            "region": "de",
+            "user_type": "privatanleger",
+        }
+
+        csv_with_negative_weights = """Header Row 1
+Header Row 2
+Emittententicker,Name,Gewichtung (%),Standort,Börse
+AAPL,Apple Inc,"10,5",Vereinigte Staaten,NASDAQ
+SAP,SAP SE,"-2,5",Deutschland,Xetra"""
+
+        with patch("portfolio_src.adapters.ishares.requests.get") as mock_get:
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.text = csv_with_negative_weights
+            mock_get.return_value = mock_response
+
+            result = adapter.fetch_holdings(test_isin)
+
+        assert result is not None
+        sap_row = result[result["ticker"] == "SAP.DE"]
+        assert len(sap_row) == 1
+        assert sap_row.iloc[0]["weight_percentage"] == 0.0
+
+    def test_log_message_includes_count_and_isin(self, caplog):
+        """Test that log message includes count of clipped weights and ETF ISIN."""
+        import logging
+        import uuid
+        from portfolio_src.adapters.ishares import ISharesAdapter
+
+        adapter = ISharesAdapter()
+        test_isin = f"TESTNEG{uuid.uuid4().hex[:6].upper()}"
+        adapter.config[test_isin] = {
+            "product_id": "123456",
+            "region": "de",
+            "user_type": "privatanleger",
+        }
+
+        csv_with_negative_weights = """Header Row 1
+Header Row 2
+Emittententicker,Name,Gewichtung (%),Standort,Börse
+AAPL,Apple Inc,"10,5",Vereinigte Staaten,NASDAQ
+SAP,SAP SE,"-2,5",Deutschland,Xetra
+SAN,Sanofi SA,"-0,5",Frankreich,Nyse Euronext - Euronext Paris"""
+
+        with patch("portfolio_src.adapters.ishares.requests.get") as mock_get:
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.text = csv_with_negative_weights
+            mock_get.return_value = mock_response
+
+            with caplog.at_level(logging.WARNING):
+                result = adapter.fetch_holdings(test_isin)
+
+        log_messages = " ".join(r.message for r in caplog.records)
+        assert "2" in log_messages and test_isin in log_messages
