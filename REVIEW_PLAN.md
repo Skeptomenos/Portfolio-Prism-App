@@ -8,8 +8,8 @@
 | **Branch** | main |
 | **Base** | main |
 | **Total Files** | 42 |
-| **Reviewed** | 17 |
-| **Findings** | 98 (0 critical, 4 high) |
+| **Reviewed** | 18 |
+| **Findings** | 107 (0 critical, 5 high) |
 | **Status** | In Progress |
 
 ## Project Context
@@ -47,7 +47,7 @@
 | [x] | `src-tauri/python/portfolio_src/headless/dispatcher.py` | Command routing, validation | 2 Medium, 2 Low, 1 Info |
 | [x] | `src-tauri/python/portfolio_src/headless/state.py` | Singleton state, lazy init | 2 Medium, 2 Low, 1 Info |
 | [x] | `src-tauri/python/portfolio_src/core/pipeline.py` | Data processing pipeline, error handling | 2 Medium, 3 Low, 2 Info |
-| [ ] | `src/lib/ipc.ts` | Frontend IPC layer, command validation | - |
+| [x] | `src/lib/ipc.ts` | Frontend IPC layer, command validation | 1 High, 3 Medium, 3 Low, 2 Info |
 | [ ] | `src/lib/tauri.ts` | Tauri API wrappers, fallback logic | - |
 | [ ] | `src/hooks/usePortfolioData.ts` | Data fetching, cache invalidation | - |
 | [ ] | `src/store/useAppStore.ts` | Zustand state, auth state management | - |
@@ -105,7 +105,7 @@ From AGENTS.md and project context:
 - `resolution.py:476-498` has fallback to direct Finnhub API bypassing proxy (violates design intent)
 - `proxy_client.py` lacks input validation on symbol parameters
 - No retry logic for transient network failures in proxy client
-- **[HIGH] `ipc.ts:68-72` logs entire payload on errors, including credentials for `tr_login`** - affects LoginForm.tsx, TwoFactorModal.tsx, and any auth-related IPC calls
+- **[HIGH] `ipc.ts:67-72` logs entire payload on errors, including credentials for `tr_login`** - affects LoginForm.tsx, TwoFactorModal.tsx, and any auth-related IPC calls. Scrubber module exists but not used for error context.
 
 ## Approval Criteria
 
@@ -139,3 +139,4 @@ From AGENTS.md and project context:
 | 2026-01-18 | `src-tauri/python/portfolio_src/headless/dispatcher.py` | Automated | PASSED (2M, 2L, 1I) |
 | 2026-01-18 | `src-tauri/python/portfolio_src/headless/state.py` | Automated | PASSED (2M, 2L, 1I) |
 | 2026-01-18 | `src-tauri/python/portfolio_src/core/pipeline.py` | Automated | PASSED (2M, 3L, 2I) |
+| 2026-01-18 | `src/lib/ipc.ts` | Automated | NEEDS_ACTION (1H, 3M, 3L, 2I) |
