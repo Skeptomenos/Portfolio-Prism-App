@@ -8,8 +8,8 @@
 | **Branch** | main |
 | **Base** | main |
 | **Total Files** | 42 |
-| **Reviewed** | 11 |
-| **Findings** | 65 (0 critical, 4 high) |
+| **Reviewed** | 12 |
+| **Findings** | 69 (0 critical, 4 high) |
 | **Status** | In Progress |
 
 ## Project Context
@@ -41,7 +41,7 @@
 
 | Status | File | Focus Areas | Findings |
 |--------|------|-------------|----------|
-| [ ] | `src-tauri/src/lib.rs` | Sidecar spawning, event handling, single-instance | - |
+| [x] | `src-tauri/src/lib.rs` | Sidecar spawning, event handling, single-instance | 1 Medium, 2 Low, 1 Info |
 | [ ] | `src-tauri/src/python_engine.rs` | IPC protocol, command timeouts, error handling | - |
 | [ ] | `src-tauri/python/prism_headless.py` | Entry point, IPC loop, error handling | - |
 | [ ] | `src-tauri/python/portfolio_src/headless/dispatcher.py` | Command routing, validation | - |
@@ -133,3 +133,4 @@ From AGENTS.md and project context:
 | 2026-01-18 | `src/components/auth/LoginForm.tsx` | Automated | NEEDS_ACTION (1H*, 2M, 2L, 1I) |
 | 2026-01-18 | `src/components/auth/TwoFactorModal.tsx` | Automated | NEEDS_ACTION (1H*, 2M, 2L, 1I) |
 | 2026-01-18 | `src/lib/scrubber.ts` | Automated | PASSED (3M, 2L, 2I) |
+| 2026-01-18 | `src-tauri/src/lib.rs` | Automated | PASSED (1M, 2L, 1I) |
