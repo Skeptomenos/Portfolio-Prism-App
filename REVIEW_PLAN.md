@@ -8,8 +8,8 @@
 | **Branch** | main |
 | **Base** | main |
 | **Total Files** | 42 |
-| **Reviewed** | 16 |
-| **Findings** | 91 (0 critical, 4 high) |
+| **Reviewed** | 17 |
+| **Findings** | 98 (0 critical, 4 high) |
 | **Status** | In Progress |
 
 ## Project Context
@@ -46,7 +46,7 @@
 | [x] | `src-tauri/python/prism_headless.py` | Entry point, IPC loop, error handling | 2 Medium, 3 Low, 2 Info |
 | [x] | `src-tauri/python/portfolio_src/headless/dispatcher.py` | Command routing, validation | 2 Medium, 2 Low, 1 Info |
 | [x] | `src-tauri/python/portfolio_src/headless/state.py` | Singleton state, lazy init | 2 Medium, 2 Low, 1 Info |
-| [ ] | `src-tauri/python/portfolio_src/core/pipeline.py` | Data processing pipeline, error handling | - |
+| [x] | `src-tauri/python/portfolio_src/core/pipeline.py` | Data processing pipeline, error handling | 2 Medium, 3 Low, 2 Info |
 | [ ] | `src/lib/ipc.ts` | Frontend IPC layer, command validation | - |
 | [ ] | `src/lib/tauri.ts` | Tauri API wrappers, fallback logic | - |
 | [ ] | `src/hooks/usePortfolioData.ts` | Data fetching, cache invalidation | - |
@@ -138,3 +138,4 @@ From AGENTS.md and project context:
 | 2026-01-18 | `src-tauri/python/prism_headless.py` | Automated | PASSED (2M, 3L, 2I) |
 | 2026-01-18 | `src-tauri/python/portfolio_src/headless/dispatcher.py` | Automated | PASSED (2M, 2L, 1I) |
 | 2026-01-18 | `src-tauri/python/portfolio_src/headless/state.py` | Automated | PASSED (2M, 2L, 1I) |
+| 2026-01-18 | `src-tauri/python/portfolio_src/core/pipeline.py` | Automated | PASSED (2M, 3L, 2I) |
