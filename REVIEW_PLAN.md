@@ -8,8 +8,8 @@
 | **Branch** | main |
 | **Base** | main |
 | **Total Files** | 42 |
-| **Reviewed** | 4 |
-| **Findings** | 18 (0 critical, 1 high) |
+| **Reviewed** | 5 |
+| **Findings** | 25 (0 critical, 1 high) |
 | **Status** | In Progress |
 
 ## Project Context
@@ -29,7 +29,7 @@
 | [x] | `src-tauri/python/portfolio_src/core/tr_bridge.py` | Trade Republic API integration, auth state | 2 Medium, 1 Low |
 | [x] | `src-tauri/python/portfolio_src/core/tr_protocol.py` | WebSocket auth protocol, session tokens | 3 Medium, 2 Low, 1 Info |
 | [x] | `src-tauri/python/portfolio_src/data/hive_client.py` | Supabase auth, API key handling | 3 Medium, 2 Low, 1 Info |
-| [ ] | `src-tauri/python/portfolio_src/data/proxy_client.py` | API proxy calls, secret injection | - |
+| [x] | `src-tauri/python/portfolio_src/data/proxy_client.py` | API proxy calls, secret injection | 2 Medium, 3 Low, 1 Info |
 | [ ] | `infrastructure/cloudflare/worker.js` | Rate limiting, CORS, API key injection, input validation | - |
 | [ ] | `src-tauri/src/commands.rs` | IPC command validation, file path handling | - |
 | [ ] | `src-tauri/capabilities/default.json` | Tauri security permissions | - |
@@ -100,6 +100,12 @@ From AGENTS.md and project context:
 - Rate limiting uses in-memory store (resets on worker restart)
 - Single-instance lock file prevents multiple app instances
 
+**Found during review:**
+
+- `resolution.py:476-498` has fallback to direct Finnhub API bypassing proxy (violates design intent)
+- `proxy_client.py` lacks input validation on symbol parameters
+- No retry logic for transient network failures in proxy client
+
 ## Approval Criteria
 
 - [ ] No critical severity findings
@@ -119,3 +125,4 @@ From AGENTS.md and project context:
 | 2026-01-18 | `src-tauri/python/portfolio_src/core/tr_bridge.py` | Automated | PASSED (2M, 1L) |
 | 2026-01-18 | `src-tauri/python/portfolio_src/core/tr_protocol.py` | Automated | PASSED (3M, 2L, 1I) |
 | 2026-01-18 | `src-tauri/python/portfolio_src/data/hive_client.py` | Automated | PASSED (3M, 2L, 1I) |
+| 2026-01-18 | `src-tauri/python/portfolio_src/data/proxy_client.py` | Automated | PASSED (2M, 3L, 1I) |
