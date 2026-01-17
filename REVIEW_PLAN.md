@@ -8,8 +8,8 @@
 | **Branch** | main |
 | **Base** | main |
 | **Total Files** | 42 |
-| **Reviewed** | 1 |
-| **Findings** | 3 (0 critical, 1 high) |
+| **Reviewed** | 2 |
+| **Findings** | 6 (0 critical, 1 high) |
 | **Status** | In Progress |
 
 ## Project Context
@@ -26,7 +26,7 @@
 | Status | File | Focus Areas | Findings |
 |--------|------|-------------|----------|
 | [x] | `src-tauri/python/portfolio_src/headless/handlers/tr_auth.py` | Credential handling, session management, 2FA flow | 1 High, 1 Medium, 1 Low |
-| [ ] | `src-tauri/python/portfolio_src/core/tr_bridge.py` | Trade Republic API integration, auth state | - |
+| [x] | `src-tauri/python/portfolio_src/core/tr_bridge.py` | Trade Republic API integration, auth state | 2 Medium, 1 Low |
 | [ ] | `src-tauri/python/portfolio_src/core/tr_protocol.py` | WebSocket auth protocol, session tokens | - |
 | [ ] | `src-tauri/python/portfolio_src/data/hive_client.py` | Supabase auth, API key handling | - |
 | [ ] | `src-tauri/python/portfolio_src/data/proxy_client.py` | API proxy calls, secret injection | - |
@@ -116,3 +116,4 @@ From AGENTS.md and project context:
 | Date | File | Reviewer | Result |
 |------|------|----------|--------|
 | 2026-01-18 | `src-tauri/python/portfolio_src/headless/handlers/tr_auth.py` | Automated | NEEDS_ACTION (1H, 1M, 1L) |
+| 2026-01-18 | `src-tauri/python/portfolio_src/core/tr_bridge.py` | Automated | PASSED (2M, 1L) |
