@@ -8,8 +8,8 @@
 | **Branch** | main |
 | **Base** | main |
 | **Total Files** | 42 |
-| **Reviewed** | 7 |
-| **Findings** | 41 (0 critical, 2 high) |
+| **Reviewed** | 8 |
+| **Findings** | 46 (0 critical, 2 high) |
 | **Status** | In Progress |
 
 ## Project Context
@@ -32,7 +32,7 @@
 | [x] | `src-tauri/python/portfolio_src/data/proxy_client.py` | API proxy calls, secret injection | 2 Medium, 3 Low, 1 Info |
 | [x] | `infrastructure/cloudflare/worker.js` | Rate limiting, CORS, API key injection, input validation | 1 High, 3 Medium, 3 Low, 2 Info |
 | [x] | `src-tauri/src/commands.rs` | IPC command validation, file path handling | 3 Medium, 2 Low, 2 Info |
-| [ ] | `src-tauri/capabilities/default.json` | Tauri security permissions | - |
+| [x] | `src-tauri/capabilities/default.json` | Tauri security permissions | 2 Medium, 2 Low, 1 Info |
 | [ ] | `src/components/auth/LoginForm.tsx` | Credential input, phone/PIN handling | - |
 | [ ] | `src/components/auth/TwoFactorModal.tsx` | 2FA code entry, timing attacks | - |
 | [ ] | `src/lib/scrubber.ts` | PII scrubbing for error reports | - |
@@ -128,3 +128,4 @@ From AGENTS.md and project context:
 | 2026-01-18 | `src-tauri/python/portfolio_src/data/proxy_client.py` | Automated | PASSED (2M, 3L, 1I) |
 | 2026-01-18 | `infrastructure/cloudflare/worker.js` | Automated | NEEDS_ACTION (1H, 3M, 3L, 2I) |
 | 2026-01-18 | `src-tauri/src/commands.rs` | Automated | PASSED (3M, 2L, 2I) |
+| 2026-01-18 | `src-tauri/capabilities/default.json` | Automated | PASSED (2M, 2L, 1I) |
