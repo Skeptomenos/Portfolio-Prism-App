@@ -8,8 +8,8 @@
 | **Branch** | main |
 | **Base** | main |
 | **Total Files** | 42 |
-| **Reviewed** | 10 |
-| **Findings** | 58 (0 critical, 4 high) |
+| **Reviewed** | 11 |
+| **Findings** | 65 (0 critical, 4 high) |
 | **Status** | In Progress |
 
 ## Project Context
@@ -35,7 +35,7 @@
 | [x] | `src-tauri/capabilities/default.json` | Tauri security permissions | 2 Medium, 2 Low, 1 Info |
 | [x] | `src/components/auth/LoginForm.tsx` | Credential input, phone/PIN handling | 1 High*, 2 Medium, 2 Low, 1 Info |
 | [x] | `src/components/auth/TwoFactorModal.tsx` | 2FA code entry, timing attacks | 1 High*, 2 Medium, 2 Low, 1 Info |
-| [ ] | `src/lib/scrubber.ts` | PII scrubbing for error reports | - |
+| [x] | `src/lib/scrubber.ts` | PII scrubbing for error reports | 3 Medium, 2 Low, 2 Info |
 
 ### Priority 1 - Core Logic (Business Logic, APIs, IPC)
 
@@ -132,3 +132,4 @@ From AGENTS.md and project context:
 | 2026-01-18 | `src-tauri/capabilities/default.json` | Automated | PASSED (2M, 2L, 1I) |
 | 2026-01-18 | `src/components/auth/LoginForm.tsx` | Automated | NEEDS_ACTION (1H*, 2M, 2L, 1I) |
 | 2026-01-18 | `src/components/auth/TwoFactorModal.tsx` | Automated | NEEDS_ACTION (1H*, 2M, 2L, 1I) |
+| 2026-01-18 | `src/lib/scrubber.ts` | Automated | PASSED (3M, 2L, 2I) |
