@@ -8,8 +8,8 @@
 | **Branch** | main |
 | **Base** | main |
 | **Total Files** | 42 |
-| **Reviewed** | 8 |
-| **Findings** | 46 (0 critical, 2 high) |
+| **Reviewed** | 9 |
+| **Findings** | 52 (0 critical, 3 high) |
 | **Status** | In Progress |
 
 ## Project Context
@@ -33,7 +33,7 @@
 | [x] | `infrastructure/cloudflare/worker.js` | Rate limiting, CORS, API key injection, input validation | 1 High, 3 Medium, 3 Low, 2 Info |
 | [x] | `src-tauri/src/commands.rs` | IPC command validation, file path handling | 3 Medium, 2 Low, 2 Info |
 | [x] | `src-tauri/capabilities/default.json` | Tauri security permissions | 2 Medium, 2 Low, 1 Info |
-| [ ] | `src/components/auth/LoginForm.tsx` | Credential input, phone/PIN handling | - |
+| [x] | `src/components/auth/LoginForm.tsx` | Credential input, phone/PIN handling | 1 High*, 2 Medium, 2 Low, 1 Info |
 | [ ] | `src/components/auth/TwoFactorModal.tsx` | 2FA code entry, timing attacks | - |
 | [ ] | `src/lib/scrubber.ts` | PII scrubbing for error reports | - |
 
@@ -105,6 +105,7 @@ From AGENTS.md and project context:
 - `resolution.py:476-498` has fallback to direct Finnhub API bypassing proxy (violates design intent)
 - `proxy_client.py` lacks input validation on symbol parameters
 - No retry logic for transient network failures in proxy client
+- **[HIGH] `ipc.ts:68-72` logs entire payload on errors, including credentials for `tr_login`** - affects LoginForm.tsx, TwoFactorModal.tsx, and any auth-related IPC calls
 
 ## Approval Criteria
 
@@ -129,3 +130,4 @@ From AGENTS.md and project context:
 | 2026-01-18 | `infrastructure/cloudflare/worker.js` | Automated | NEEDS_ACTION (1H, 3M, 3L, 2I) |
 | 2026-01-18 | `src-tauri/src/commands.rs` | Automated | PASSED (3M, 2L, 2I) |
 | 2026-01-18 | `src-tauri/capabilities/default.json` | Automated | PASSED (2M, 2L, 1I) |
+| 2026-01-18 | `src/components/auth/LoginForm.tsx` | Automated | NEEDS_ACTION (1H*, 2M, 2L, 1I) |
