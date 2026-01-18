@@ -290,9 +290,14 @@ export const useAppStore = create<AppStore>()(
         )
 
         // Auto-dismiss after duration
+        // Guard: Check if toast still exists to avoid unnecessary state updates
+        // when toast was manually dismissed before timeout
         if (duration > 0) {
           setTimeout(() => {
-            get().dismissToast(id)
+            const exists = get().toasts.some((t) => t.id === id)
+            if (exists) {
+              get().dismissToast(id)
+            }
           }, duration)
         }
       },
