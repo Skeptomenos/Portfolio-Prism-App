@@ -74,7 +74,7 @@ Create shared validator, then apply to all entry points.
 | Task | File | Issue | Est. | Status |
 |------|------|-------|------|--------|
 | 2.1.1 | `src-tauri/src/commands.rs` | Add ISIN format validation (12 chars, 2-letter prefix, checksum) + file path validation | 25m | **DONE** (v0.2.0) |
-| 2.1.2 | `src-tauri/python/portfolio_src/adapters/xtrackers.py` | Add ISIN input validation | 10m | |
+| 2.1.2 | `src-tauri/python/portfolio_src/adapters/xtrackers.py` | Add ISIN input validation | 10m | **DONE** (v0.2.1) |
 | 2.1.3 | `src-tauri/python/portfolio_src/adapters/vanguard.py` | Add ISIN input validation | 10m | |
 | 2.1.4 | `src-tauri/python/portfolio_src/adapters/ishares.py` | Add ISIN input validation + **fix undefined `ISHARES_CONFIG_PATH` bug** | 20m | |
 | 2.1.5 | `src-tauri/python/portfolio_src/data/proxy_client.py` | Add symbol/query input validation | 15m | |

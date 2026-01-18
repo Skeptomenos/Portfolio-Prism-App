@@ -5,6 +5,7 @@ import pandas as pd
 import io
 from portfolio_src.data.caching import cache_adapter_data
 from portfolio_src.prism_utils.logging_config import get_logger
+from portfolio_src.prism_utils.isin_validator import is_valid_isin
 
 logger = get_logger(__name__)
 
@@ -34,6 +35,11 @@ class XtrackersAdapter:
         Returns:
             A pandas DataFrame containing the ETF holdings, or an empty DataFrame if fetching fails.
         """
+        # Validate ISIN format before making any requests
+        if not is_valid_isin(isin):
+            logger.warning(f"Invalid ISIN format: {isin}. Skipping fetch.")
+            return pd.DataFrame()
+
         logger.info(f"--- Fetching holdings for {isin} ---")
 
         # Construct the URL based on the discovered API pattern
