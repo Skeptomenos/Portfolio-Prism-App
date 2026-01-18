@@ -157,10 +157,10 @@ describe('usePortfolioData hooks', () => {
   })
 
   describe('useXRayData', () => {
-    it('fetches true holdings data', async () => {
+    it('fetches true holdings data (global, not per-portfolio)', async () => {
       vi.mocked(ipc.getTrueHoldings).mockResolvedValue(mockTrueHoldingsResponse)
 
-      const { result } = renderHook(() => useXRayData(1), { wrapper: createWrapper() })
+      const { result } = renderHook(() => useXRayData(), { wrapper: createWrapper() })
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true)
@@ -173,7 +173,7 @@ describe('usePortfolioData hooks', () => {
     it('handles error state', async () => {
       vi.mocked(ipc.getTrueHoldings).mockRejectedValue(new Error('Failed to load'))
 
-      const { result } = renderHook(() => useXRayData(1), { wrapper: createWrapper() })
+      const { result } = renderHook(() => useXRayData(), { wrapper: createWrapper() })
 
       await waitFor(() => {
         expect(result.current.isError).toBe(true)
