@@ -15,6 +15,12 @@ use tokio::time::{timeout, Duration};
 /// Timeout for command responses
 const COMMAND_TIMEOUT_SECS: u64 = 30;
 
+/// Maximum payload size in bytes (10MB)
+const MAX_PAYLOAD_SIZE: usize = 10 * 1024 * 1024;
+
+/// Maximum command name length
+const MAX_COMMAND_LEN: usize = 64;
+
 /// Ready signal from Python engine
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReadySignal {
@@ -92,11 +98,52 @@ impl PythonEngine {
     }
 
     /// Send a command to the Python engine
+    ///
+    /// # Validation
+    /// - Command must be 1-64 lowercase chars (letters, digits, underscores)
+    /// - Command must start with a lowercase letter
+    /// - Payload must serialize to <= 10MB JSON
     pub async fn send_command(
         &self,
         command: &str,
         payload: Value,
     ) -> Result<EngineResponse, String> {
+        // === Command name validation ===
+        if command.is_empty() || command.len() > MAX_COMMAND_LEN {
+            return Err(format!(
+                "Invalid command name length: {} (must be 1-{} chars)",
+                command.len(),
+                MAX_COMMAND_LEN
+            ));
+        }
+        if !command
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+        {
+            return Err(
+                "Invalid command name format: must be lowercase alphanumeric with underscores"
+                    .to_string(),
+            );
+        }
+        if !command
+            .chars()
+            .next()
+            .map_or(false, |c| c.is_ascii_lowercase())
+        {
+            return Err("Command must start with lowercase letter".to_string());
+        }
+
+        // === Payload size validation ===
+        let payload_str = serde_json::to_string(&payload)
+            .map_err(|e| format!("Failed to serialize payload: {}", e))?;
+        if payload_str.len() > MAX_PAYLOAD_SIZE {
+            return Err(format!(
+                "Payload too large: {} bytes (max {} bytes)",
+                payload_str.len(),
+                MAX_PAYLOAD_SIZE
+            ));
+        }
+
         // Check if connected
         if !self.is_connected().await {
             return Err("Python engine not connected".to_string());

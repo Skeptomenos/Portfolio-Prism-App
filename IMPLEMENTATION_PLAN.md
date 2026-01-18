@@ -82,7 +82,7 @@ Create shared validator, then apply to all entry points.
 | 2.1.7 | `src-tauri/python/portfolio_src/data/caching.py` | Add ISIN validation to cache decorator | 15m | **DONE** (v0.2.6) |
 | 2.1.8 | `src-tauri/python/portfolio_src/headless/handlers/tr_auth.py` | Validate `PRISM_DATA_DIR` and cookie file paths (prevent path traversal/symlink attacks) | 15m | **DONE** (v0.2.7) |
 | 2.1.9 | `src-tauri/python/portfolio_src/headless/dispatcher.py` | Add IPC payload structure validation (command, id, payload types) | 15m | **DONE** (v0.2.8) |
-| 2.1.10 | `src-tauri/src/python_engine.rs` | Add payload validation for Python engine IPC (moved from Phase 6) | 15m | |
+| 2.1.10 | `src-tauri/src/python_engine.rs` | Add payload validation for Python engine IPC (moved from Phase 6) | 15m | **DONE** (v0.2.9) |
 
 **Note:** Task 2.1.4 includes a **bug fix** - `ISHARES_CONFIG_PATH` is undefined in ishares.py.
 
