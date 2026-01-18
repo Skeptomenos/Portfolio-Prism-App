@@ -129,7 +129,7 @@ Create shared validator, then apply to all entry points.
 | Task | File | Issue | Est. |
 |------|------|-------|------|
 | 4.2.1 | `src-tauri/tauri.conf.json` | Remove unsafe CSP directives for production | 20m | **DONE** (v0.4.3) |
-| 4.2.2 | `src-tauri/capabilities/default.json` | Add explicit sidecar scoping, harden CSP | 20m |
+| 4.2.2 | `src-tauri/capabilities/default.json` | Add explicit sidecar scoping, harden CSP | 20m | **DONE** (v0.4.4) |
 | 4.2.3 | `infrastructure/cloudflare/wrangler.toml` | Harden observability, enable KV rate limiting | 15m |
 | 4.2.4 | `infrastructure/cloudflare/worker.js` | Add feedback payload size validation (max 10KB) | 10m |
 | 4.2.5 | `infrastructure/cloudflare/worker.js` | Implement environment-based CORS (dev vs prod origins) | 15m |

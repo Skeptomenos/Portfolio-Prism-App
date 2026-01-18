@@ -1,15 +1,25 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capability for the main window",
-  "windows": [
-    "main"
-  ],
+  "description": "Default capability for the main window. Shell permissions are scoped to whitelisted sidecars only (prism-headless, tr-daemon) to prevent arbitrary command execution.",
+  "windows": ["main"],
   "permissions": [
     "core:default",
     "shell:default",
-    "shell:allow-spawn",
-    "shell:allow-execute",
+    {
+      "identifier": "shell:allow-spawn",
+      "allow": [
+        { "sidecar": true, "name": "prism-headless" },
+        { "sidecar": true, "name": "tr-daemon" }
+      ]
+    },
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        { "sidecar": true, "name": "prism-headless" },
+        { "sidecar": true, "name": "tr-daemon" }
+      ]
+    },
     "shell:allow-kill",
     "shell:allow-stdin-write"
   ]
