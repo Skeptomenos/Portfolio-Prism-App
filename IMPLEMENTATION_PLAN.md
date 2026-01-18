@@ -77,7 +77,7 @@ Create shared validator, then apply to all entry points.
 | 2.1.2 | `src-tauri/python/portfolio_src/adapters/xtrackers.py` | Add ISIN input validation | 10m | **DONE** (v0.2.1) |
 | 2.1.3 | `src-tauri/python/portfolio_src/adapters/vanguard.py` | Add ISIN input validation | 10m | **DONE** (v0.2.2) |
 | 2.1.4 | `src-tauri/python/portfolio_src/adapters/ishares.py` | Add ISIN input validation + **fix undefined `ISHARES_CONFIG_PATH` bug** | 20m | **DONE** (v0.2.3) |
-| 2.1.5 | `src-tauri/python/portfolio_src/data/proxy_client.py` | Add symbol/query input validation | 15m | |
+| 2.1.5 | `src-tauri/python/portfolio_src/data/proxy_client.py` | Add symbol/query input validation | 15m | **DONE** (v0.2.4) |
 | 2.1.6 | `src-tauri/python/portfolio_src/data/hive_client.py` | Add ISIN input validation | 10m | |
 | 2.1.7 | `src-tauri/python/portfolio_src/data/caching.py` | Add ISIN validation to cache decorator | 15m | |
 | 2.1.8 | `src-tauri/python/portfolio_src/headless/handlers/tr_auth.py` | Validate `PRISM_DATA_DIR` and cookie file paths (prevent path traversal/symlink attacks) | 15m | |

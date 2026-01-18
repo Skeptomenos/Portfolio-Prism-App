@@ -10,10 +10,69 @@ This replaces direct API calls in resolution.py and enrichment.py.
 """
 
 import os
+import re
+import logging
 import requests
 from typing import Optional, Dict, Any
 from dataclasses import dataclass
 from enum import Enum
+
+logger = logging.getLogger(__name__)
+
+
+# === Input Validation ===
+# Prevents injection attacks (path traversal, SQL injection) and resource abuse
+
+# Stock symbols: alphanumeric + common separators (., -, :), max 20 chars
+# Examples: AAPL, BRK.B, SHOP.TO, NYSE:GME
+SYMBOL_PATTERN = re.compile(r"^[A-Z0-9][A-Z0-9.\-:]{0,19}$", re.IGNORECASE)
+
+# Search queries: alphanumeric + spaces and common punctuation, max 100 chars
+# Reject dangerous patterns: path traversal, null bytes, control chars
+QUERY_MAX_LENGTH = 100
+DANGEROUS_PATTERNS = re.compile(r"[<>\"';`\\]|\.\./|%00|%0[ad]", re.IGNORECASE)
+
+
+def is_valid_symbol(symbol: Optional[str]) -> bool:
+    """
+    Validate stock symbol format.
+
+    Accepts uppercase/lowercase alphanumeric with ., -, : separators.
+    Max 20 characters, must start with alphanumeric.
+
+    Args:
+        symbol: Stock symbol to validate (e.g., "AAPL", "BRK.B")
+
+    Returns:
+        True if valid format, False otherwise
+    """
+    if not symbol or not isinstance(symbol, str):
+        return False
+    return bool(SYMBOL_PATTERN.match(symbol))
+
+
+def is_valid_query(query: Optional[str]) -> bool:
+    """
+    Validate search query for safety and length.
+
+    Rejects:
+    - Empty/None inputs
+    - Queries over 100 characters
+    - Dangerous patterns (path traversal, null bytes, injection chars)
+
+    Args:
+        query: Search query to validate
+
+    Returns:
+        True if safe query, False otherwise
+    """
+    if not query or not isinstance(query, str):
+        return False
+    if len(query) > QUERY_MAX_LENGTH:
+        return False
+    if DANGEROUS_PATTERNS.search(query):
+        return False
+    return True
 
 
 class ProxyEndpoint(Enum):
@@ -142,6 +201,14 @@ class ProxyClient:
         Returns:
             ProxyResponse with company profile data
         """
+        if not is_valid_symbol(symbol):
+            logger.warning(f"Invalid symbol format rejected: {symbol!r}")
+            return ProxyResponse(
+                success=False,
+                data=None,
+                error="Invalid symbol format",
+                status_code=400,
+            )
         return self._request(ProxyEndpoint.FINNHUB_PROFILE, payload={"symbol": symbol})
 
     def get_quote(self, symbol: str) -> ProxyResponse:
@@ -154,6 +221,14 @@ class ProxyClient:
         Returns:
             ProxyResponse with quote data (c=current, h=high, l=low, o=open, pc=previous close)
         """
+        if not is_valid_symbol(symbol):
+            logger.warning(f"Invalid symbol format rejected: {symbol!r}")
+            return ProxyResponse(
+                success=False,
+                data=None,
+                error="Invalid symbol format",
+                status_code=400,
+            )
         return self._request(ProxyEndpoint.FINNHUB_QUOTE, payload={"symbol": symbol})
 
     def search_symbol(self, query: str) -> ProxyResponse:
@@ -166,6 +241,14 @@ class ProxyClient:
         Returns:
             ProxyResponse with list of matching symbols
         """
+        if not is_valid_query(query):
+            logger.warning(f"Invalid search query rejected: {query!r}")
+            return ProxyResponse(
+                success=False,
+                data=None,
+                error="Invalid search query",
+                status_code=400,
+            )
         return self._request(ProxyEndpoint.FINNHUB_SEARCH, payload={"q": query})
 
     # === Feedback API ===
