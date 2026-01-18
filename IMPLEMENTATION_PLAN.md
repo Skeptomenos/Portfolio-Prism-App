@@ -209,9 +209,9 @@ Create shared validator, then apply to all entry points.
 
 **Goal:** Add tests for uncovered security-sensitive code.
 
-| Task | File | Issue | Est. |
-|------|------|-------|------|
-| 8.1 | `src/components/feedback/FeedbackDialog.tsx` | Add test coverage | 30m |
+| Task | File | Issue | Est. | Status |
+|------|------|-------|------|--------|
+| 8.1 | `src/components/feedback/FeedbackDialog.tsx` | Add test coverage | 30m | **DONE** (v0.8.0) |
 | 8.2 | `src-tauri/python/portfolio_src/data/tr_sync.py` | Add unit tests + replace manual CSV escaping with stdlib | 30m |
 | 8.3 | `src/lib/scrubber.ts` | Align hash algorithm with backend (SHA-256) | 15m |
 | 8.4 | `src/lib/api/feedback.ts` | Scrub PII from payload + add request timeout | 20m |
