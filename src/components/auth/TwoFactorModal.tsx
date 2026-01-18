@@ -5,7 +5,7 @@
  * Features countdown timer and auto-submit on 4 digits.
  */
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Modal } from '../ui/Modal'
 import { useAppStore } from '../../store/useAppStore'
 import { trSubmit2FA } from '../../lib/ipc'
@@ -131,6 +131,8 @@ export const TwoFactorModal: React.FC<TwoFactorModalProps> = ({
   const [error, setError] = useState<string | null>(null)
 
   const inputRefs = useRef<(HTMLInputElement | null)[]>([])
+  // Guard against double-submission in React StrictMode or rapid state changes
+  const isSubmittingRef = useRef(false)
   const { setAuthState, addToast } = useAppStore()
 
   // Reset state when modal opens
@@ -154,14 +156,6 @@ export const TwoFactorModal: React.FC<TwoFactorModalProps> = ({
 
     return () => clearInterval(timer)
   }, [isOpen, countdown, isLoading])
-
-  // Auto-submit when all digits entered
-  useEffect(() => {
-    const fullCode = code.join('')
-    if (fullCode.length === 4 && !isLoading) {
-      handleVerify()
-    }
-  }, [code])
 
   const handleInputChange = (index: number, value: string) => {
     const digit = value.replace(/\D/g, '').slice(0, 1)
@@ -197,7 +191,7 @@ export const TwoFactorModal: React.FC<TwoFactorModalProps> = ({
     inputRefs.current[focusIndex]?.focus()
   }
 
-  const handleVerify = async () => {
+  const handleVerify = useCallback(async () => {
     const fullCode = code.join('')
     if (fullCode.length !== 4) {
       setError('Please enter all 4 digits')
@@ -231,7 +225,19 @@ export const TwoFactorModal: React.FC<TwoFactorModalProps> = ({
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [code, setAuthState, addToast, onSuccess])
+
+  // Auto-submit when all digits entered
+  // Uses isSubmittingRef to prevent double-submission in React StrictMode
+  useEffect(() => {
+    const fullCode = code.join('')
+    if (fullCode.length === 4 && !isLoading && !isSubmittingRef.current) {
+      isSubmittingRef.current = true
+      handleVerify().finally(() => {
+        isSubmittingRef.current = false
+      })
+    }
+  }, [code, isLoading, handleVerify])
 
   const handleResend = async () => {
     // SECURITY: Credentials handled by parent via callback - not exposed in props

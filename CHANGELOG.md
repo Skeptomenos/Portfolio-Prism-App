@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Fix useEffect race condition in TwoFactorModal (Task 5.3.3):**
+  - Wrapped `handleVerify` in `useCallback` with proper dependency array (`code`, `setAuthState`, `addToast`, `onSuccess`).
+  - Added `isSubmittingRef` guard to prevent double-submission in React StrictMode.
+  - Moved auto-submit useEffect after handleVerify definition to resolve declaration order.
+  - Updated useEffect dependencies to include `isLoading` and `handleVerify`.
+  - Prevents race condition where rapid state changes could trigger multiple API calls.
+
 ### Security
 
 - **Feedback payload size validation (Task 4.2.4):**
