@@ -99,7 +99,8 @@ export default function Dashboard() {
     )
   }
 
-  const sparklineData = dashboardData.history.map((h) => h.value)
+  // Null safety: backend could return undefined for history array
+  const sparklineData = dashboardData.history?.map((h) => h.value) ?? []
 
   return (
     <div className="animate-fade-in">

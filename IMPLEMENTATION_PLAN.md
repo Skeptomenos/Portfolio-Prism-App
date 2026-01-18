@@ -230,7 +230,7 @@ Create shared validator, then apply to all entry points.
 | 9.1 | `src/components/views/Dashboard.tsx` | Extract DashboardSkeleton component | 15m | **DONE** (v0.9.0) |
 | 9.2 | `src/components/views/Dashboard.tsx` | Extract TopHoldingsCard component | 15m | **DONE** (v0.9.1) |
 | 9.3 | `src/components/views/Dashboard.tsx` | Extract TrueExposureCard component | 15m | **DONE** (v0.9.2) |
-| 9.4 | `src/components/views/Dashboard.tsx` | Null safety for history array | 10m |
+| 9.4 | `src/components/views/Dashboard.tsx` | Null safety for history array | 10m | **DONE** (v0.9.3) |
 
 ---
 
