@@ -9,7 +9,7 @@
 | **Base** | main |
 | **Total Files** | 42 |
 | **Reviewed** | 42 |
-| **Findings** | 263 (0 critical, 5 high) |
+| **Findings** | 272 (0 critical, 5 high) |
 | **Status** | In Progress |
 
 ## Project Context
@@ -87,7 +87,7 @@
 | [x] | `.env.example` | Environment variables, secrets | 1M, 3L, 2I |
 | [x] | `package.json` | Dependency security | 2M, 3L, 2I |
 | [x] | `src-tauri/Cargo.toml` | Rust dependency security | 2M, 4L, 3I |
-| [ ] | `src-tauri/python/pyproject.toml` | Python dependency security | - |
+| [x] | `src-tauri/python/pyproject.toml` | Python dependency security | 2M, 4L, 3I |
 
 ## Known Concerns
 
@@ -164,3 +164,4 @@ From AGENTS.md and project context:
 | 2026-01-18 | `.env.example` | Automated | PASSED (1M, 3L, 2I) |
 | 2026-01-18 | `package.json` | Automated | PASSED (2M, 3L, 2I) |
 | 2026-01-18 | `src-tauri/Cargo.toml` | Automated | PASSED (2M, 4L, 3I) |
+| 2026-01-18 | `src-tauri/python/pyproject.toml` | Automated | PASSED (2M, 4L, 3I) |
