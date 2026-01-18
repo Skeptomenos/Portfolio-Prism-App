@@ -22,15 +22,21 @@ if getattr(sys, "frozen", False):
         os.environ["SSL_CERT_FILE"] = certifi.where()
         os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
     except ImportError:
-        pass
+        # Log to stderr since logger not yet available
+        sys.stderr.write(
+            "[PrismHeadless] Warning: certifi not available, SSL certificates may not work\n"
+        )
 
 # Configure stdout line buffering
 try:
     reconfig = getattr(sys.stdout, "reconfigure", None)
     if reconfig:
         reconfig(line_buffering=True)
-except Exception:
-    pass
+except Exception as e:
+    # Log to stderr since logger not yet available
+    sys.stderr.write(
+        f"[PrismHeadless] Warning: Failed to configure stdout line buffering: {e}\n"
+    )
 
 # Install global exception handler
 from portfolio_src.prism_utils.logging_config import get_logger
@@ -57,7 +63,9 @@ def main():
         "--http", action="store_true", help="Start HTTP server (Echo-Bridge)"
     )
     parser.add_argument("--port", type=int, default=5001, help="HTTP server port")
-    parser.add_argument("--host", type=str, default="0.0.0.0", help="HTTP server host")
+    parser.add_argument(
+        "--host", type=str, default="127.0.0.1", help="HTTP server host"
+    )
     args = parser.parse_args()
 
     # Import headless package

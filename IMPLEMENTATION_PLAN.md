@@ -185,7 +185,7 @@ Create shared validator, then apply to all entry points.
 | Task | File | Issue | Est. | Status |
 |------|------|-------|------|--------|
 | 6.1 | `.env.example` | Document Echo Bridge token requirement + runtime warning | 10m | **DONE** (v0.6.0) |
-| 6.2 | `src-tauri/python/prism_headless.py` | Change default host 0.0.0.0 → 127.0.0.1 + log silent exceptions | 15m |
+| 6.2 | `src-tauri/python/prism_headless.py` | Change default host 0.0.0.0 → 127.0.0.1 + log silent exceptions | 15m | **DONE** (v0.6.1) |
 | 6.3 | `src-tauri/python/portfolio_src/core/tr_bridge.py` | Document credential transmission security model | 10m |
 | 6.4 | `src-tauri/src/python_engine.rs` | Document race condition safety invariants (payload validation moved to 2.1.10) | 10m |
 | 6.5 | `src-tauri/python/portfolio_src/data/hive_client.py` | Improve fallback logging | 10m |
