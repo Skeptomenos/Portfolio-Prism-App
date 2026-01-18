@@ -196,6 +196,10 @@ class HiveClient:
             cached_at = data.get("cached_at")
             if cached_at:
                 cached_time = datetime.fromisoformat(cached_at)
+                # Ensure both are timezone-naive for comparison
+                # (cache file may contain tz-aware timestamps from older versions)
+                if cached_time.tzinfo is not None:
+                    cached_time = cached_time.replace(tzinfo=None)
                 if datetime.now() - cached_time > timedelta(hours=self.CACHE_TTL_HOURS):
                     return False  # Cache expired
 
