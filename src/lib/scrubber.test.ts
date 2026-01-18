@@ -148,6 +148,14 @@ describe('scrubText', () => {
       const result = scrubText('US0378331005')
       expect(result).toMatch(/\[ASSET_HASH_[a-f0-9]+\]/)
     })
+
+    it('produces hashes consistent with backend SHA-256', () => {
+      // These hashes are verified against Python hashlib.sha256().hexdigest()[:8]
+      // Backend: src-tauri/python/portfolio_src/core/reporter.py:hash_isin()
+      expect(scrubText('IE00B4L5Y983')).toBe('[ASSET_HASH_29afbf2a]')
+      expect(scrubText('US0378331005')).toBe('[ASSET_HASH_47bde9c3]')
+      expect(scrubText('DE000A0H08M3')).toBe('[ASSET_HASH_45f301a0]')
+    })
   })
 
   describe('ReDoS protection', () => {
