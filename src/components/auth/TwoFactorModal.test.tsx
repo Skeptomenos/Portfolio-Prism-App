@@ -140,7 +140,8 @@ describe('TwoFactorModal', () => {
     fireEvent.change(inputs[3], { target: { value: '4' } })
 
     await waitFor(() => {
-      expect(screen.getByText('Invalid code')).toBeInTheDocument()
+      // Error message now includes remaining attempts for rate limiting feedback
+      expect(screen.getByText(/Invalid code/)).toBeInTheDocument()
     })
   })
 
@@ -182,5 +183,140 @@ describe('TwoFactorModal', () => {
     fireEvent.change(inputs[1], { target: { value: '2' } })
 
     expect(screen.getByText('Verify')).toBeDisabled()
+  })
+
+  describe('Rate Limiting', () => {
+    it('shows remaining attempts after failed verification', async () => {
+      const mockSubmit = vi.mocked(ipc.trSubmit2FA)
+      mockSubmit.mockResolvedValue({ authState: 'error', message: 'Invalid code' })
+
+      render(<TwoFactorModal {...defaultProps} />)
+      const inputs = screen.getAllByRole('textbox')
+
+      // First failed attempt
+      fireEvent.change(inputs[0], { target: { value: '1' } })
+      fireEvent.change(inputs[1], { target: { value: '2' } })
+      fireEvent.change(inputs[2], { target: { value: '3' } })
+      fireEvent.change(inputs[3], { target: { value: '4' } })
+
+      await waitFor(() => {
+        expect(screen.getByText(/4 attempts left/)).toBeInTheDocument()
+      })
+    })
+
+    it('shows lockout message after 5 failed attempts', async () => {
+      const mockSubmit = vi.mocked(ipc.trSubmit2FA)
+      mockSubmit.mockResolvedValue({ authState: 'error', message: 'Invalid code' })
+
+      render(<TwoFactorModal {...defaultProps} />)
+      const inputs = screen.getAllByRole('textbox')
+
+      // Simulate 5 failed attempts
+      for (let i = 0; i < 5; i++) {
+        fireEvent.change(inputs[0], { target: { value: '1' } })
+        fireEvent.change(inputs[1], { target: { value: '2' } })
+        fireEvent.change(inputs[2], { target: { value: '3' } })
+        fireEvent.change(inputs[3], { target: { value: '4' } })
+
+        await waitFor(() => {
+          expect(mockSubmit).toHaveBeenCalledTimes(i + 1)
+        })
+
+        // Wait for loading to finish and code to be cleared before next attempt
+        await waitFor(() => {
+          // Inputs are cleared after failed attempt
+          expect(inputs[0]).toHaveValue('')
+        })
+
+        // Re-query inputs after state update for next iteration
+        if (i < 4) {
+          const newInputs = screen.getAllByRole('textbox')
+          inputs[0] = newInputs[0]
+          inputs[1] = newInputs[1]
+          inputs[2] = newInputs[2]
+          inputs[3] = newInputs[3]
+        }
+      }
+
+      // After 5 failed attempts, should show lockout message
+      await waitFor(() => {
+        expect(screen.getByText(/Too many attempts/)).toBeInTheDocument()
+      })
+    })
+
+    it('resets attempt counter on successful verification', async () => {
+      const mockSubmit = vi.mocked(ipc.trSubmit2FA)
+
+      // First call fails, second succeeds
+      mockSubmit
+        .mockResolvedValueOnce({ authState: 'error', message: 'Invalid code' })
+        .mockResolvedValueOnce({ authState: 'authenticated', message: 'Success' })
+
+      render(<TwoFactorModal {...defaultProps} />)
+      const inputs = screen.getAllByRole('textbox')
+
+      // First attempt fails
+      fireEvent.change(inputs[0], { target: { value: '1' } })
+      fireEvent.change(inputs[1], { target: { value: '2' } })
+      fireEvent.change(inputs[2], { target: { value: '3' } })
+      fireEvent.change(inputs[3], { target: { value: '4' } })
+
+      await waitFor(() => {
+        expect(screen.getByText(/4 attempts left/)).toBeInTheDocument()
+      })
+
+      // Wait for inputs to be cleared
+      await waitFor(() => {
+        expect(inputs[0]).toHaveValue('')
+      })
+
+      // Second attempt succeeds - get fresh input references
+      const newInputs = screen.getAllByRole('textbox')
+      fireEvent.change(newInputs[0], { target: { value: '5' } })
+      fireEvent.change(newInputs[1], { target: { value: '6' } })
+      fireEvent.change(newInputs[2], { target: { value: '7' } })
+      fireEvent.change(newInputs[3], { target: { value: '8' } })
+
+      await waitFor(() => {
+        expect(defaultProps.onSuccess).toHaveBeenCalled()
+      })
+    })
+
+    it('blocks verification attempts during lockout period', async () => {
+      const mockSubmit = vi.mocked(ipc.trSubmit2FA)
+      mockSubmit.mockResolvedValue({ authState: 'error', message: 'Invalid code' })
+
+      render(<TwoFactorModal {...defaultProps} />)
+
+      // Simulate 5 failed attempts to trigger lockout
+      for (let i = 0; i < 5; i++) {
+        const inputs = screen.getAllByRole('textbox')
+        fireEvent.change(inputs[0], { target: { value: '1' } })
+        fireEvent.change(inputs[1], { target: { value: '2' } })
+        fireEvent.change(inputs[2], { target: { value: '3' } })
+        fireEvent.change(inputs[3], { target: { value: '4' } })
+
+        await waitFor(() => {
+          expect(inputs[0]).toHaveValue('')
+        })
+      }
+
+      // Clear mock to track new calls
+      mockSubmit.mockClear()
+
+      // Try to verify during lockout
+      const inputs = screen.getAllByRole('textbox')
+      fireEvent.change(inputs[0], { target: { value: '9' } })
+      fireEvent.change(inputs[1], { target: { value: '9' } })
+      fireEvent.change(inputs[2], { target: { value: '9' } })
+      fireEvent.change(inputs[3], { target: { value: '9' } })
+
+      // Wait a bit and verify no API call was made
+      await new Promise((r) => setTimeout(r, 100))
+      expect(mockSubmit).not.toHaveBeenCalled()
+
+      // Should still show lockout message
+      expect(screen.getByText(/Too many attempts/)).toBeInTheDocument()
+    })
   })
 })

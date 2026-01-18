@@ -118,6 +118,10 @@ interface TwoFactorModalProps {
   initialCountdown?: number
 }
 
+// Rate limiting constants for brute-force protection
+const MAX_ATTEMPTS = 5
+const LOCKOUT_MS = 60000 // 1 minute lockout after max attempts
+
 export const TwoFactorModal: React.FC<TwoFactorModalProps> = ({
   isOpen,
   onClose,
@@ -129,6 +133,10 @@ export const TwoFactorModal: React.FC<TwoFactorModalProps> = ({
   const [countdown, setCountdown] = useState(initialCountdown)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Rate limiting state for brute-force protection
+  const [attempts, setAttempts] = useState(0)
+  const [lockedUntil, setLockedUntil] = useState<number | null>(null)
 
   const inputRefs = useRef<(HTMLInputElement | null)[]>([])
   // Guard against double-submission in React StrictMode or rapid state changes
@@ -142,9 +150,32 @@ export const TwoFactorModal: React.FC<TwoFactorModalProps> = ({
       setCountdown(initialCountdown)
       setError(null)
       setIsLoading(false)
+      // Note: We intentionally do NOT reset attempts/lockedUntil here
+      // Rate limiting persists across modal open/close to prevent abuse
       setTimeout(() => inputRefs.current[0]?.focus(), 100)
     }
   }, [isOpen, initialCountdown])
+
+  // Lockout countdown effect - updates error message every second during lockout
+  useEffect(() => {
+    if (!lockedUntil || Date.now() >= lockedUntil) return
+
+    const updateLockoutMessage = () => {
+      const remainingSeconds = Math.ceil((lockedUntil - Date.now()) / 1000)
+      if (remainingSeconds > 0) {
+        setError(`Too many attempts. Please wait ${remainingSeconds}s`)
+      } else {
+        setLockedUntil(null)
+        setAttempts(0)
+        setError(null)
+      }
+    }
+
+    updateLockoutMessage()
+    const timer = setInterval(updateLockoutMessage, 1000)
+
+    return () => clearInterval(timer)
+  }, [lockedUntil])
 
   // Countdown timer
   useEffect(() => {
@@ -192,6 +223,13 @@ export const TwoFactorModal: React.FC<TwoFactorModalProps> = ({
   }
 
   const handleVerify = useCallback(async () => {
+    // Rate limiting check - prevent rapid brute-force attempts
+    if (lockedUntil && Date.now() < lockedUntil) {
+      const remainingSeconds = Math.ceil((lockedUntil - Date.now()) / 1000)
+      setError(`Too many attempts. Please wait ${remainingSeconds}s`)
+      return
+    }
+
     const fullCode = code.join('')
     if (fullCode.length !== 4) {
       setError('Please enter all 4 digits')
@@ -205,6 +243,9 @@ export const TwoFactorModal: React.FC<TwoFactorModalProps> = ({
       const response = await trSubmit2FA(fullCode)
 
       if (response.authState === 'authenticated') {
+        // Reset rate limiting on successful verification
+        setAttempts(0)
+        setLockedUntil(null)
         setAuthState('authenticated')
         addToast({
           type: 'success',
@@ -213,19 +254,45 @@ export const TwoFactorModal: React.FC<TwoFactorModalProps> = ({
         })
         onSuccess()
       } else {
-        setError(response.message || 'Verification failed')
+        // Increment failed attempts and check for lockout
+        const newAttempts = attempts + 1
+        setAttempts(newAttempts)
+
+        if (newAttempts >= MAX_ATTEMPTS) {
+          const lockoutEnd = Date.now() + LOCKOUT_MS
+          setLockedUntil(lockoutEnd)
+          setError(`Too many attempts. Please wait ${Math.ceil(LOCKOUT_MS / 1000)}s`)
+        } else {
+          const remaining = MAX_ATTEMPTS - newAttempts
+          setError(
+            `${response.message || 'Invalid code'} (${remaining} attempt${remaining === 1 ? '' : 's'} left)`
+          )
+        }
+
         setCode(['', '', '', ''])
         inputRefs.current[0]?.focus()
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Verification failed'
-      setError(message)
+      // Increment failed attempts on exception too
+      const newAttempts = attempts + 1
+      setAttempts(newAttempts)
+
+      if (newAttempts >= MAX_ATTEMPTS) {
+        const lockoutEnd = Date.now() + LOCKOUT_MS
+        setLockedUntil(lockoutEnd)
+        setError(`Too many attempts. Please wait ${Math.ceil(LOCKOUT_MS / 1000)}s`)
+      } else {
+        const message = err instanceof Error ? err.message : 'Verification failed'
+        const remaining = MAX_ATTEMPTS - newAttempts
+        setError(`${message} (${remaining} attempt${remaining === 1 ? '' : 's'} left)`)
+      }
+
       setCode(['', '', '', ''])
       inputRefs.current[0]?.focus()
     } finally {
       setIsLoading(false)
     }
-  }, [code, setAuthState, addToast, onSuccess])
+  }, [code, setAuthState, addToast, onSuccess, attempts, lockedUntil])
 
   // Auto-submit when all digits entered
   // Uses isSubmittingRef to prevent double-submission in React StrictMode
