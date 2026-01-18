@@ -8,8 +8,8 @@
 | **Branch** | main |
 | **Base** | main |
 | **Total Files** | 42 |
-| **Reviewed** | 38 |
-| **Findings** | 235 (0 critical, 5 high) |
+| **Reviewed** | 39 |
+| **Findings** | 241 (0 critical, 5 high) |
 | **Status** | In Progress |
 
 ## Project Context
@@ -83,7 +83,7 @@
 |--------|------|-------------|----------|
 | [x] | `src-tauri/tauri.conf.json` | CSP headers, permissions, bundled binaries | 2M, 3L, 2I |
 | [x] | `infrastructure/cloudflare/wrangler.toml` | Worker config, secrets | 2M, 3L, 2I |
-| [ ] | `vite.config.ts` | Build config, env exposure | - |
+| [x] | `vite.config.ts` | Build config, env exposure | 2M, 2L, 2I |
 | [ ] | `.env.example` | Environment variables, secrets | - |
 | [ ] | `package.json` | Dependency security | - |
 | [ ] | `src-tauri/Cargo.toml` | Rust dependency security | - |
@@ -160,3 +160,4 @@ From AGENTS.md and project context:
 | 2026-01-18 | `src/components/feedback/FeedbackDialog.tsx` | Automated | PASSED (2M, 2L, 2I) |
 | 2026-01-18 | `src-tauri/tauri.conf.json` | Automated | PASSED (2M, 3L, 2I) |
 | 2026-01-18 | `infrastructure/cloudflare/wrangler.toml` | Automated | PASSED (2M, 3L, 2I) |
+| 2026-01-18 | `vite.config.ts` | Automated | PASSED (2M, 2L, 2I) |
