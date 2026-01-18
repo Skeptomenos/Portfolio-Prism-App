@@ -8,8 +8,8 @@
 | **Branch** | main |
 | **Base** | main |
 | **Total Files** | 42 |
-| **Reviewed** | 28 |
-| **Findings** | 178 (0 critical, 5 high) |
+| **Reviewed** | 29 |
+| **Findings** | 183 (0 critical, 5 high) |
 | **Status** | In Progress |
 
 ## Project Context
@@ -68,7 +68,7 @@
 
 | Status | File | Focus Areas | Findings |
 |--------|------|-------------|----------|
-| [ ] | `src/App.tsx` | Root component, routing, session check | - |
+| [x] | `src/App.tsx` | Root component, routing, session check | 1M, 2L, 2I |
 | [ ] | `src/main.tsx` | Entry point, error boundaries | - |
 | [ ] | `src/components/views/Dashboard.tsx` | Data display, XSS prevention | - |
 | [ ] | `src/components/views/TradeRepublicView.tsx` | Auth flow UI, state handling | - |
@@ -150,3 +150,4 @@ From AGENTS.md and project context:
 | 2026-01-18 | `src-tauri/python/portfolio_src/adapters/vanguard.py` | Automated | PASSED (2M, 4L, 2I) |
 | 2026-01-18 | `src-tauri/python/portfolio_src/adapters/xtrackers.py` | Automated | PASSED (2M, 4L, 2I) |
 | 2026-01-18 | `src/lib/api/feedback.ts` | Automated | PASSED (2M, 3L, 2I) |
+| 2026-01-18 | `src/App.tsx` | Automated | PASSED (1M, 2L, 2I) |
