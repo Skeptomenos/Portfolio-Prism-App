@@ -54,7 +54,7 @@ This plan consolidates **40+ code review findings** into a prioritized implement
 | 1.2.2 | `src-tauri/python/portfolio_src/data/proxy_client.py` | Remove direct Finnhub API fallback (security bypass) | 20m | **DONE** (already clean - no fallback exists) |
 | 1.2.2b | `src-tauri/python/portfolio_src/data/resolution.py` | Remove direct Finnhub API fallback (lines 36-37, 476-498) | 15m | **DONE** (v0.1.6) |
 | 1.2.3 | `src-tauri/python/portfolio_src/data/enrichment.py` | Remove direct Finnhub API fallback (lines 352-392) - same issue as proxy_client | 20m | **DONE** (v0.1.5) |
-| 1.2.4 | `src-tauri/python/portfolio_src/core/security_mapper.py` | Verify OPENFIGI_API_KEY usage - ensure proxied or remove | 15m | |
+| 1.2.4 | `src-tauri/python/portfolio_src/core/security_mapper.py` | Verify OPENFIGI_API_KEY usage - ensure proxied or remove | 15m | **DONE** (v0.1.7) - Removed unused file with direct API key violation |
 
 **Verification:**
 - [ ] Test Finnhub endpoint with malicious inputs (SQL injection, path traversal)
