@@ -219,8 +219,7 @@ class Pipeline:
                         logger.info(f"[DEBUG] Wrote snapshot: {path}")
                 else:
                     path = debug_dir / f"{phase}.json"
-                    with open(path, "w") as f:
-                        json.dump(data, f, indent=2, default=str)
+                    write_json_atomic(path, data, default=str)
                     logger.info(f"[DEBUG] Wrote snapshot: {path}")
         except Exception as e:
             logger.warning(f"[DEBUG] Failed to write snapshot for {phase}: {e}")
@@ -647,7 +646,7 @@ class Pipeline:
                 if self._validation_gates:
                     pipeline_quality = self._validation_gates.get_pipeline_quality()
                     telemetry = get_telemetry()
-                    session_id = telemetry._session_id
+                    session_id = telemetry.get_session_id()
                     telemetry.report_quality_summary(pipeline_quality, session_id)
 
                 report_holdings = locals().get("enriched_holdings") or holdings_map

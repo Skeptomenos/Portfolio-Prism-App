@@ -133,7 +133,7 @@ Create shared validator, then apply to all entry points.
 | 4.2.3 | `infrastructure/cloudflare/wrangler.toml` | Harden observability, enable KV rate limiting | 15m | **DONE** (v0.4.5) |
 | 4.2.4 | `infrastructure/cloudflare/worker.js` | Add feedback payload size validation (max 10KB) | 10m | **DONE** (v0.4.6) |
 | 4.2.5 | `infrastructure/cloudflare/worker.js` | Implement environment-based CORS (dev vs prod origins) | 15m | **DONE** (v0.4.7) |
-| 4.2.6 | `infrastructure/cloudflare/worker.js` | Migrate rate limiting from in-memory to KV-based | 20m |
+| 4.2.6 | `infrastructure/cloudflare/worker.js` | Migrate rate limiting from in-memory to KV-based | 20m | **DONE** (v0.4.5 - commit 290b4b0) |
 
 **Verification:**
 - [ ] `cargo deny check` passes
@@ -151,8 +151,8 @@ Create shared validator, then apply to all entry points.
 
 | Task | File | Issue | Est. |
 |------|------|-------|------|
-| 5.1.1 | `src-tauri/python/portfolio_src/core/pipeline.py` | Use atomic write for debug JSON snapshots | 15m |
-| 5.1.2 | `src-tauri/python/portfolio_src/core/pipeline.py` | Fix private attribute access in telemetry | 10m |
+| 5.1.1 | `src-tauri/python/portfolio_src/core/pipeline.py` | Use atomic write for debug JSON snapshots | 15m | **DONE** |
+| 5.1.2 | `src-tauri/python/portfolio_src/core/pipeline.py` | Fix private attribute access in telemetry | 10m | **DONE** |
 | 5.1.3 | `src-tauri/python/portfolio_src/headless/state.py` | Thread-safe singleton (double-checked locking) | 20m |
 | 5.1.4 | `src-tauri/python/portfolio_src/data/database.py` | Propagate migration failures (don't swallow) | 15m |
 | 5.1.5 | `src-tauri/python/portfolio_src/data/hive_client.py` | Fix cache expiry timezone handling | 15m |

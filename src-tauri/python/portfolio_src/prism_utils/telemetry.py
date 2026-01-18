@@ -76,6 +76,10 @@ class Telemetry:
         elif not self.github_token:
             logger.debug("No GitHub token available, telemetry reports will be cached")
 
+    def get_session_id(self) -> str:
+        """Return the current session ID."""
+        return self._session_id
+
     def _load_state(self) -> dict:
         """Load telemetry state from disk."""
         if TELEMETRY_STATE_FILE.exists():

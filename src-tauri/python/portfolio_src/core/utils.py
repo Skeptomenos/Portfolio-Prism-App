@@ -403,12 +403,17 @@ def calculate_portfolio_total_value(
     return float(direct_value + etf_value)
 
 
-def write_json_atomic(path, data: dict) -> None:
+def write_json_atomic(path, data: dict, default=None) -> None:
     """
     Write JSON file atomically using temp file + rename.
 
     This prevents file corruption if the process is interrupted mid-write.
     The original file remains untouched until the new data is fully written.
+
+    Args:
+        path: Target file path
+        data: Dictionary to serialize as JSON
+        default: Function for non-serializable types (e.g., default=str for datetime)
     """
     import tempfile
     import os
@@ -421,7 +426,7 @@ def write_json_atomic(path, data: dict) -> None:
     fd, temp_path = tempfile.mkstemp(dir=path.parent, suffix=".json.tmp")
     try:
         with os.fdopen(fd, "w") as f:
-            json.dump(data, f, indent=2)
+            json.dump(data, f, indent=2, default=default)
             f.flush()
             os.fsync(f.fileno())
 
