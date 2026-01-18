@@ -165,13 +165,13 @@ Create shared validator, then apply to all entry points.
 |------|------|-------|------|--------|
 | 5.2.1 | `src-tauri/python/portfolio_src/headless/state.py` | Remove/integrate unused get_pipeline() | 10m | **DONE** (v0.5.5) |
 | 5.2.2 | `src-tauri/python/portfolio_src/data/database.py` | Remove unused connection cache | 10m | **DONE** (v0.5.6) |
-| 5.2.3 | `src-tauri/python/portfolio_src/adapters/vanguard.py` | Remove duplicate logger assignment | 5m |
+| 5.2.3 | `src-tauri/python/portfolio_src/adapters/vanguard.py` | Remove duplicate logger assignment | 5m | **DONE** (already clean) |
 
 ### 5.3 Timer & Resource Cleanup
 
 | Task | File | Issue | Est. |
 |------|------|-------|------|
-| 5.3.1 | `src/store/useAppStore.ts` | Timer cleanup for notification auto-dismiss | 15m |
+| 5.3.1 | `src/store/useAppStore.ts` | Timer cleanup for notification auto-dismiss | 15m | **DONE** (v0.5.7) |
 | 5.3.2 | `src/store/useAppStore.ts` | Timer cleanup for toast auto-dismiss | 15m |
 | 5.3.3 | `src/components/auth/TwoFactorModal.tsx` | Fix useEffect race condition | 20m |
 | 5.3.4 | `src/components/views/TradeRepublicView.tsx` | Add credential cleanup on unmount | 15m |

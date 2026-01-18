@@ -1,17 +1,17 @@
 /**
  * Global App State Store (Zustand)
- * 
+ *
  * Manages UI state that needs to be shared across components:
  * - Navigation (current view)
  * - Engine status (connection, sync progress)
  * - Notifications
- * 
+ *
  * For async data (portfolio, holdings), use TanStack Query instead.
  */
 
-import { create } from 'zustand';
-import { devtools } from 'zustand/middleware';
-import type { ViewType, EngineStatus, SyncProgress, Notification, AuthState, Toast } from '../types';
+import { create } from 'zustand'
+import { devtools } from 'zustand/middleware'
+import type { ViewType, EngineStatus, SyncProgress, Notification, AuthState, Toast } from '../types'
 
 // =============================================================================
 // State Interface
@@ -19,98 +19,98 @@ import type { ViewType, EngineStatus, SyncProgress, Notification, AuthState, Toa
 
 interface AppState {
   // Navigation
-  currentView: ViewType;
-  
+  currentView: ViewType
+
   // Engine Status
-  engineStatus: EngineStatus;
-  syncProgress: SyncProgress | null;
-  lastSyncTime: Date | null;
-  
+  engineStatus: EngineStatus
+  syncProgress: SyncProgress | null
+  lastSyncTime: Date | null
+
   // Notifications
-  notifications: Notification[];
-  
+  notifications: Notification[]
+
   // Portfolio Context
-  activePortfolioId: number;
-  
+  activePortfolioId: number
+
   // Auth State
-  authState: AuthState;
-  isAuthPanelOpen: boolean;
-  authError: string | null;
-  savedPhone: string | null;
-  rememberMe: boolean;
-  
+  authState: AuthState
+  isAuthPanelOpen: boolean
+  authError: string | null
+  savedPhone: string | null
+  rememberMe: boolean
+
   // Toast Notifications
-  toasts: Toast[];
-  
+  toasts: Toast[]
+
   // Editing state (for unsaved changes warning)
-  hasUnsavedChanges: boolean;
-  
+  hasUnsavedChanges: boolean
+
   // Pipeline
-  lastPipelineRun: number | null;
+  lastPipelineRun: number | null
 
   // Telemetry
-  telemetryMode: 'auto' | 'review' | 'off';
-  sessionId: string | null;
-  
+  telemetryMode: 'auto' | 'review' | 'off'
+  sessionId: string | null
+
   // Hive Community Contribution
-  hiveContributionEnabled: boolean;
-  
+  hiveContributionEnabled: boolean
+
   // Feedback Dialog
-  isFeedbackOpen: boolean;
+  isFeedbackOpen: boolean
 }
 
 interface AppActions {
   // Navigation
-  setCurrentView: (view: ViewType) => void;
-  
+  setCurrentView: (view: ViewType) => void
+
   // Engine Status
-  setEngineStatus: (status: EngineStatus) => void;
-  setSyncProgress: (progress: SyncProgress | null) => void;
-  setLastSyncTime: (time: Date | null) => void;
-  setLastPipelineRun: (timestamp: number | null) => void;
-  
+  setEngineStatus: (status: EngineStatus) => void
+  setSyncProgress: (progress: SyncProgress | null) => void
+  setLastSyncTime: (time: Date | null) => void
+  setLastPipelineRun: (timestamp: number | null) => void
+
   // Telemetry
-  setTelemetryMode: (mode: 'auto' | 'review' | 'off') => void;
-  setSessionId: (id: string) => void;
-  
+  setTelemetryMode: (mode: 'auto' | 'review' | 'off') => void
+  setSessionId: (id: string) => void
+
   // Hive
-  setHiveContributionEnabled: (enabled: boolean) => void;
-  
+  setHiveContributionEnabled: (enabled: boolean) => void
+
   // Feedback Actions
-  openFeedback: () => void;
-  closeFeedback: () => void;
-  
+  openFeedback: () => void
+  closeFeedback: () => void
+
   // Notifications
-  addNotification: (notification: Omit<Notification, 'id'>) => void;
-  dismissNotification: (id: string) => void;
-  clearNotifications: () => void;
-  
+  addNotification: (notification: Omit<Notification, 'id'>) => void
+  dismissNotification: (id: string) => void
+  clearNotifications: () => void
+
   // Portfolio
-  setActivePortfolioId: (id: number) => void;
-  
+  setActivePortfolioId: (id: number) => void
+
   // Auth Actions
-  openAuthPanel: () => void;
-  closeAuthPanel: () => void;
-  setAuthState: (state: AuthState) => void;
-  setAuthError: (error: string | null) => void;
-  setSavedPhone: (phone: string | null) => void;
-  setRememberMe: (remember: boolean) => void;
-  
+  openAuthPanel: () => void
+  closeAuthPanel: () => void
+  setAuthState: (state: AuthState) => void
+  setAuthError: (error: string | null) => void
+  setSavedPhone: (phone: string | null) => void
+  setRememberMe: (remember: boolean) => void
+
   // Compound Actions
-  startSync: () => void;
-  completeSync: () => void;
-  failSync: (error: string) => void;
-  
+  startSync: () => void
+  completeSync: () => void
+  failSync: (error: string) => void
+
   // Toast Actions
-  addToast: (toast: Omit<Toast, 'id'>) => void;
-  dismissToast: (id: string) => void;
-  clearToasts: () => void;
-  
+  addToast: (toast: Omit<Toast, 'id'>) => void
+  dismissToast: (id: string) => void
+  clearToasts: () => void
+
   // Editing state
-  setHasUnsavedChanges: (hasChanges: boolean) => void;
+  setHasUnsavedChanges: (hasChanges: boolean) => void
 }
 
-type AppStore = AppState & AppActions;
+type AppStore = AppState & AppActions
 
 // =============================================================================
 // Initial State
@@ -123,33 +123,33 @@ const initialState: AppState = {
   lastSyncTime: null,
   notifications: [],
   activePortfolioId: 1, // Default portfolio
-  
+
   // Auth State
   authState: 'idle',
   isAuthPanelOpen: false,
   authError: null,
   savedPhone: null,
   rememberMe: false,
-  
+
   // Toast Notifications
   toasts: [],
-  
+
   // Editing state
   hasUnsavedChanges: false,
-  
+
   // Pipeline
   lastPipelineRun: null,
 
   // Telemetry
   telemetryMode: 'auto',
   sessionId: null,
-  
+
   // Hive Community Contribution
   hiveContributionEnabled: false,
-  
+
   // Feedback Dialog
   isFeedbackOpen: false,
-};
+}
 
 // =============================================================================
 // Store Implementation
@@ -165,19 +165,21 @@ export const useAppStore = create<AppStore>()(
 
       // Engine Status
       setEngineStatus: (status) => set({ engineStatus: status }, false, 'setEngineStatus'),
-      
+
       setSyncProgress: (progress) => set({ syncProgress: progress }, false, 'setSyncProgress'),
-      
+
       setLastSyncTime: (time) => set({ lastSyncTime: time }, false, 'setLastSyncTime'),
 
-      setLastPipelineRun: (timestamp) => set({ lastPipelineRun: timestamp }, false, 'setLastPipelineRun'),
+      setLastPipelineRun: (timestamp) =>
+        set({ lastPipelineRun: timestamp }, false, 'setLastPipelineRun'),
 
       // Telemetry
       setTelemetryMode: (mode) => set({ telemetryMode: mode }, false, 'setTelemetryMode'),
       setSessionId: (id) => set({ sessionId: id }, false, 'setSessionId'),
 
       // Hive
-      setHiveContributionEnabled: (enabled) => set({ hiveContributionEnabled: enabled }, false, 'setHiveContributionEnabled'),
+      setHiveContributionEnabled: (enabled) =>
+        set({ hiveContributionEnabled: enabled }, false, 'setHiveContributionEnabled'),
 
       // Feedback Actions
       openFeedback: () => set({ isFeedbackOpen: true }, false, 'openFeedback'),
@@ -185,23 +187,28 @@ export const useAppStore = create<AppStore>()(
 
       // Notifications
       addNotification: (notification) => {
-        const id = `notification-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const id = `notification-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
         set(
           (state) => ({
             notifications: [...state.notifications, { ...notification, id }],
           }),
           false,
           'addNotification'
-        );
-        
+        )
+
         // Auto-dismiss if duration is set
+        // Guard: Check if notification still exists to avoid unnecessary state updates
+        // when notification was manually dismissed before timeout
         if (notification.duration) {
           setTimeout(() => {
-            get().dismissNotification(id);
-          }, notification.duration);
+            const exists = get().notifications.some((n) => n.id === id)
+            if (exists) {
+              get().dismissNotification(id)
+            }
+          }, notification.duration)
         }
       },
-      
+
       dismissNotification: (id) =>
         set(
           (state) => ({
@@ -210,7 +217,7 @@ export const useAppStore = create<AppStore>()(
           false,
           'dismissNotification'
         ),
-      
+
       clearNotifications: () => set({ notifications: [] }, false, 'clearNotifications'),
 
       // Portfolio
@@ -218,18 +225,23 @@ export const useAppStore = create<AppStore>()(
 
       // Auth Actions
       openAuthPanel: () => set({ isAuthPanelOpen: true }, false, 'openAuthPanel'),
-      
-      closeAuthPanel: () => set({ 
-        isAuthPanelOpen: false, 
-        authError: null 
-      }, false, 'closeAuthPanel'),
-      
+
+      closeAuthPanel: () =>
+        set(
+          {
+            isAuthPanelOpen: false,
+            authError: null,
+          },
+          false,
+          'closeAuthPanel'
+        ),
+
       setAuthState: (state) => set({ authState: state }, false, 'setAuthState'),
-      
+
       setAuthError: (error) => set({ authError: error }, false, 'setAuthError'),
-      
+
       setSavedPhone: (phone) => set({ savedPhone: phone }, false, 'setSavedPhone'),
-      
+
       setRememberMe: (remember) => set({ rememberMe: remember }, false, 'setRememberMe'),
 
       // Compound Actions
@@ -266,25 +278,25 @@ export const useAppStore = create<AppStore>()(
 
       // Toast Actions
       addToast: (toast) => {
-        const id = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        const duration = toast.duration ?? 4000;
-        
+        const id = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+        const duration = toast.duration ?? 4000
+
         set(
           (state) => ({
             toasts: [...state.toasts, { ...toast, id }],
           }),
           false,
           'addToast'
-        );
-        
+        )
+
         // Auto-dismiss after duration
         if (duration > 0) {
           setTimeout(() => {
-            get().dismissToast(id);
-          }, duration);
+            get().dismissToast(id)
+          }, duration)
         }
       },
-      
+
       dismissToast: (id) =>
         set(
           (state) => ({
@@ -293,55 +305,57 @@ export const useAppStore = create<AppStore>()(
           false,
           'dismissToast'
         ),
-      
+
       clearToasts: () => set({ toasts: [] }, false, 'clearToasts'),
-      
+
       // Editing state
-      setHasUnsavedChanges: (hasChanges) => 
+      setHasUnsavedChanges: (hasChanges) =>
         set({ hasUnsavedChanges: hasChanges }, false, 'setHasUnsavedChanges'),
     }),
     { name: 'AppStore' }
   )
-);
+)
 
 // =============================================================================
 // Selector Hooks (for optimized re-renders)
 // =============================================================================
 
-export const useCurrentView = () => useAppStore((state) => state.currentView);
-export const useEngineStatus = () => useAppStore((state) => state.engineStatus);
-export const useSyncProgress = () => useAppStore((state) => state.syncProgress);
-export const useNotifications = () => useAppStore((state) => state.notifications);
-export const useActivePortfolioId = () => useAppStore((state) => state.activePortfolioId);
+export const useCurrentView = () => useAppStore((state) => state.currentView)
+export const useEngineStatus = () => useAppStore((state) => state.engineStatus)
+export const useSyncProgress = () => useAppStore((state) => state.syncProgress)
+export const useNotifications = () => useAppStore((state) => state.notifications)
+export const useActivePortfolioId = () => useAppStore((state) => state.activePortfolioId)
 
 // Auth selectors
-export const useAuthState = () => useAppStore((state) => state.authState);
-export const useIsAuthPanelOpen = () => useAppStore((state) => state.isAuthPanelOpen);
-export const useAuthError = () => useAppStore((state) => state.authError);
-export const useSavedPhone = () => useAppStore((state) => state.savedPhone);
-export const useRememberMe = () => useAppStore((state) => state.rememberMe);
+export const useAuthState = () => useAppStore((state) => state.authState)
+export const useIsAuthPanelOpen = () => useAppStore((state) => state.isAuthPanelOpen)
+export const useAuthError = () => useAppStore((state) => state.authError)
+export const useSavedPhone = () => useAppStore((state) => state.savedPhone)
+export const useRememberMe = () => useAppStore((state) => state.rememberMe)
 
 // Auth actions
-export const useOpenAuthPanel = () => useAppStore((state) => state.openAuthPanel);
-export const useCloseAuthPanel = () => useAppStore((state) => state.closeAuthPanel);
-export const useSetAuthState = () => useAppStore((state) => state.setAuthState);
+export const useOpenAuthPanel = () => useAppStore((state) => state.openAuthPanel)
+export const useCloseAuthPanel = () => useAppStore((state) => state.closeAuthPanel)
+export const useSetAuthState = () => useAppStore((state) => state.setAuthState)
 
 // Toast selectors and actions
-export const useToasts = () => useAppStore((state) => state.toasts);
-export const useAddToast = () => useAppStore((state) => state.addToast);
-export const useDismissToast = () => useAppStore((state) => state.dismissToast);
+export const useToasts = () => useAppStore((state) => state.toasts)
+export const useAddToast = () => useAppStore((state) => state.addToast)
+export const useDismissToast = () => useAppStore((state) => state.dismissToast)
 
 // Telemetry
-export const useTelemetryMode = () => useAppStore((state) => state.telemetryMode);
-export const useSetTelemetryMode = () => useAppStore((state) => state.setTelemetryMode);
-export const useSessionId = () => useAppStore((state) => state.sessionId);
-export const useSetSessionId = () => useAppStore((state) => state.setSessionId);
+export const useTelemetryMode = () => useAppStore((state) => state.telemetryMode)
+export const useSetTelemetryMode = () => useAppStore((state) => state.setTelemetryMode)
+export const useSessionId = () => useAppStore((state) => state.sessionId)
+export const useSetSessionId = () => useAppStore((state) => state.setSessionId)
 
 // Hive
-export const useHiveContributionEnabled = () => useAppStore((state) => state.hiveContributionEnabled);
-export const useSetHiveContributionEnabled = () => useAppStore((state) => state.setHiveContributionEnabled);
+export const useHiveContributionEnabled = () =>
+  useAppStore((state) => state.hiveContributionEnabled)
+export const useSetHiveContributionEnabled = () =>
+  useAppStore((state) => state.setHiveContributionEnabled)
 
 // Feedback selectors and actions
-export const useIsFeedbackOpen = () => useAppStore((state) => state.isFeedbackOpen);
-export const useOpenFeedback = () => useAppStore((state) => state.openFeedback);
-export const useCloseFeedback = () => useAppStore((state) => state.closeFeedback);
+export const useIsFeedbackOpen = () => useAppStore((state) => state.isFeedbackOpen)
+export const useOpenFeedback = () => useAppStore((state) => state.openFeedback)
+export const useCloseFeedback = () => useAppStore((state) => state.closeFeedback)
