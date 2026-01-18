@@ -174,7 +174,7 @@ Create shared validator, then apply to all entry points.
 | 5.3.1 | `src/store/useAppStore.ts` | Timer cleanup for notification auto-dismiss | 15m | **DONE** (v0.5.7) |
 | 5.3.2 | `src/store/useAppStore.ts` | Timer cleanup for toast auto-dismiss | 15m | **DONE** (v0.5.8) |
 | 5.3.3 | `src/components/auth/TwoFactorModal.tsx` | Fix useEffect race condition | 20m | **DONE** (v0.5.9) |
-| 5.3.4 | `src/components/views/TradeRepublicView.tsx` | Add credential cleanup on unmount | 15m |
+| 5.3.4 | `src/components/views/TradeRepublicView.tsx` | Add credential cleanup on unmount | 15m | **DONE** (v0.5.10) |
 
 ---
 

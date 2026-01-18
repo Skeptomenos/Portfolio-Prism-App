@@ -234,6 +234,16 @@ export const TradeRepublicView: React.FC = () => {
     }
   }, [positionsData])
 
+  // SECURITY: Clear credentials on unmount to prevent memory retention
+  // Credentials should never persist in component state after navigation
+  useEffect(() => {
+    return () => {
+      // Clear any stored credentials when component unmounts
+      setLoginCredentials(null)
+      setAuthResponse(null)
+    }
+  }, [])
+
   useEffect(() => {
     const loadSessionData = async () => {
       if (authState === 'idle') {
