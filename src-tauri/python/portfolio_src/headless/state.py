@@ -8,8 +8,13 @@ Provides lazy-initialized singleton instances for shared resources:
 
 These singletons are initialized on first access to avoid import-time side effects.
 The executor is pre-configured with max_workers=2 to respect API rate limits (REQ-010).
+
+Thread Safety:
+    All singleton getters use double-checked locking pattern to prevent race conditions
+    when multiple threads attempt to initialize the same singleton simultaneously.
 """
 
+import threading
 from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING
 
@@ -27,6 +32,9 @@ _auth_manager: "TRAuthManager | None" = None
 _bridge: "TRBridge | None" = None
 _pipeline: "Pipeline | None" = None
 
+# Lock for thread-safe singleton initialization (double-checked locking pattern)
+_state_lock = threading.Lock()
+
 # Pre-initialized executor with throttling constraint (REQ-010: max 5 concurrent API requests)
 # Bridge operations use 2 workers to leave headroom for other async tasks
 _bridge_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="bridge")
@@ -40,13 +48,16 @@ def get_auth_manager() -> "TRAuthManager":
 
     Note:
         Lazy initialization avoids import-time side effects from pytr library.
+        Uses double-checked locking for thread safety.
     """
     global _auth_manager
     if _auth_manager is None:
-        from portfolio_src.core.tr_auth import TRAuthManager
+        with _state_lock:
+            if _auth_manager is None:  # Double-check after acquiring lock
+                from portfolio_src.core.tr_auth import TRAuthManager
 
-        logger.debug("Initializing TRAuthManager singleton")
-        _auth_manager = TRAuthManager()
+                logger.debug("Initializing TRAuthManager singleton")
+                _auth_manager = TRAuthManager()
     return _auth_manager
 
 
@@ -58,24 +69,36 @@ def get_bridge() -> "TRBridge":
 
     Note:
         Uses TRBridge.get_instance() which manages its own singleton pattern.
+        Uses double-checked locking for thread safety.
     """
     global _bridge
     if _bridge is None:
-        from portfolio_src.core.tr_bridge import TRBridge
+        with _state_lock:
+            if _bridge is None:  # Double-check after acquiring lock
+                from portfolio_src.core.tr_bridge import TRBridge
 
-        logger.debug("Initializing TRBridge singleton")
-        _bridge = TRBridge.get_instance()
+                logger.debug("Initializing TRBridge singleton")
+                _bridge = TRBridge.get_instance()
     return _bridge
 
 
 def get_pipeline() -> "Pipeline":
-    """Get or create the Pipeline singleton."""
+    """Get or create the Pipeline singleton.
+
+    Returns:
+        Pipeline instance for data processing.
+
+    Note:
+        Uses double-checked locking for thread safety.
+    """
     global _pipeline
     if _pipeline is None:
-        from portfolio_src.core.pipeline import Pipeline
+        with _state_lock:
+            if _pipeline is None:  # Double-check after acquiring lock
+                from portfolio_src.core.pipeline import Pipeline
 
-        logger.debug("Initializing Pipeline singleton")
-        _pipeline = Pipeline()
+                logger.debug("Initializing Pipeline singleton")
+                _pipeline = Pipeline()
     return _pipeline
 
 

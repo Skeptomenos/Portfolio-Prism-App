@@ -153,7 +153,7 @@ Create shared validator, then apply to all entry points.
 |------|------|-------|------|
 | 5.1.1 | `src-tauri/python/portfolio_src/core/pipeline.py` | Use atomic write for debug JSON snapshots | 15m | **DONE** |
 | 5.1.2 | `src-tauri/python/portfolio_src/core/pipeline.py` | Fix private attribute access in telemetry | 10m | **DONE** |
-| 5.1.3 | `src-tauri/python/portfolio_src/headless/state.py` | Thread-safe singleton (double-checked locking) | 20m |
+| 5.1.3 | `src-tauri/python/portfolio_src/headless/state.py` | Thread-safe singleton (double-checked locking) | 20m | **DONE** |
 | 5.1.4 | `src-tauri/python/portfolio_src/data/database.py` | Propagate migration failures (don't swallow) | 15m |
 | 5.1.5 | `src-tauri/python/portfolio_src/data/hive_client.py` | Fix cache expiry timezone handling | 15m |
 | 5.1.6 | `src/hooks/usePortfolioData.ts` | Fix useXRayData portfolioId mismatch + add query invalidation | 20m |
