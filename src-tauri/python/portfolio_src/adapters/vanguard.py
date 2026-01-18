@@ -19,14 +19,11 @@ import requests
 import pandas as pd
 from typing import Optional, List, Dict, Any
 
-from portfolio_src.prism_utils.logging_config import get_logger
-
-logger = get_logger(__name__)
-
 from portfolio_src.data.caching import cache_adapter_data
 from portfolio_src.data.holdings_cache import ManualUploadRequired
 from portfolio_src.prism_utils.logging_config import get_logger
-from portfolio_src.config import MANUAL_INPUTS_DIR, RAW_DOWNLOADS_DIR
+from portfolio_src.prism_utils.isin_validator import is_valid_isin
+from portfolio_src.config import MANUAL_INPUTS_DIR
 
 logger = get_logger(__name__)
 
@@ -115,6 +112,12 @@ class VanguardAdapter:
             A pandas DataFrame containing the ETF holdings,
             or an empty DataFrame if fetching fails.
         """
+        # Validate ISIN format before making any requests
+        # Prevents path traversal in manual file lookup and cache key pollution
+        if not is_valid_isin(isin):
+            logger.warning(f"Invalid ISIN format: {isin}. Skipping fetch.")
+            return pd.DataFrame()
+
         logger.info(f"--- Running Vanguard holdings acquisition for {isin} ---")
 
         # 1. Try Manual File first
