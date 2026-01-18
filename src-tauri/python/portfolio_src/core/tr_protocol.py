@@ -43,7 +43,7 @@ class TRResponse:
 class TRError(Exception):
     """TR daemon specific error."""
 
-    def __init__(self, message: str, method: str = None):
+    def __init__(self, message: str, method: Optional[str] = None):
         super().__init__(message)
         self.method = method
         self.message = message
@@ -55,11 +55,31 @@ def serialize_request(request: TRRequest) -> str:
 
 
 def deserialize_response(json_str: str) -> TRResponse:
-    """Deserialize JSON string to response."""
+    """Deserialize JSON string to response.
+
+    Validates that:
+    - 'id' field is present (required for request/response matching)
+    - 'result' field is dict or None (type safety)
+
+    Raises:
+        ValueError: If response is missing required 'id' field or has invalid type
+        json.JSONDecodeError: If json_str is not valid JSON
+    """
     data = json.loads(json_str)
-    return TRResponse(
-        result=data.get("result"), error=data.get("error"), id=data.get("id")
-    )
+
+    # Validate ID field is present (required for request/response matching)
+    response_id = data.get("id")
+    if response_id is None:
+        raise ValueError("Response missing required 'id' field")
+
+    # Validate result field type (must be dict or None)
+    result = data.get("result")
+    if result is not None and not isinstance(result, dict):
+        raise ValueError(
+            f"Expected result to be dict or None, got {type(result).__name__}"
+        )
+
+    return TRResponse(result=result, error=data.get("error"), id=response_id)
 
 
 def create_error_response(request_id: str, error_message: str) -> str:

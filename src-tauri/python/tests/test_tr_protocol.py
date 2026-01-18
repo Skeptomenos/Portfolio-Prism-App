@@ -126,7 +126,8 @@ class TestDeserializeResponse:
         assert response.error == "Login failed"
         assert response.id == "req_2"
 
-    def test_deserialize_missing_fields_uses_none(self):
+    def test_deserialize_missing_optional_fields_uses_none(self):
+        """result and error are optional, only id is required."""
         json_str = '{"id": "req_3"}'
         response = deserialize_response(json_str)
         assert response.result is None
@@ -136,6 +137,37 @@ class TestDeserializeResponse:
     def test_deserialize_invalid_json_raises(self):
         with pytest.raises(json.JSONDecodeError):
             deserialize_response("not valid json")
+
+    def test_deserialize_missing_id_raises_valueerror(self):
+        """Missing 'id' field should raise ValueError (required for request/response matching)."""
+        json_str = '{"result": null}'
+        with pytest.raises(ValueError, match="missing required 'id' field"):
+            deserialize_response(json_str)
+
+    def test_deserialize_result_string_raises_valueerror(self):
+        """result field with string type should raise ValueError."""
+        json_str = '{"result": "string_not_dict", "id": "req_1"}'
+        with pytest.raises(ValueError, match="Expected result to be dict or None"):
+            deserialize_response(json_str)
+
+    def test_deserialize_result_number_raises_valueerror(self):
+        """result field with number type should raise ValueError."""
+        json_str = '{"result": 123, "id": "req_1"}'
+        with pytest.raises(ValueError, match="Expected result to be dict or None"):
+            deserialize_response(json_str)
+
+    def test_deserialize_result_array_raises_valueerror(self):
+        """result field with array type should raise ValueError."""
+        json_str = '{"result": [1, 2, 3], "id": "req_1"}'
+        with pytest.raises(ValueError, match="Expected result to be dict or None"):
+            deserialize_response(json_str)
+
+    def test_deserialize_result_null_succeeds(self):
+        """result field with null value should succeed."""
+        json_str = '{"result": null, "id": "req_1"}'
+        response = deserialize_response(json_str)
+        assert response.result is None
+        assert response.id == "req_1"
 
 
 class TestCreateErrorResponse:
