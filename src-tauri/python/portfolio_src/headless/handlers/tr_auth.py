@@ -112,17 +112,18 @@ async def handle_tr_check_saved_session(
 async def handle_tr_get_stored_credentials(
     cmd_id: int, payload: dict[str, Any]
 ) -> dict[str, Any]:
-    """Get stored Trade Republic credentials for form pre-fill.
+    """Check if stored Trade Republic credentials exist.
 
-    Returns phone and PIN if "Remember me" was previously checked.
-    Used to pre-fill the login form for returning users.
+    Returns only a flag indicating credentials exist and a masked phone for UI display.
+    SECURITY: Never returns plaintext credentials over IPC. Use useStoredCredentials
+    flag in tr_login to authenticate with stored credentials server-side.
 
     Args:
         cmd_id: IPC command identifier.
         payload: Command payload (unused).
 
     Returns:
-        Success response with credentials (or null if none stored).
+        Success response with hasCredentials flag and masked phone for display.
     """
     try:
         loop = asyncio.get_event_loop()
@@ -134,14 +135,14 @@ async def handle_tr_get_stored_credentials(
         )
 
         if phone and pin:
-            masked = f"***{phone[-4:]}" if len(phone) > 4 else "****"
-            logger.info(f"Returning stored credentials for phone ending {masked}")
+            masked_phone = f"***{phone[-4:]}" if len(phone) > 4 else "****"
+            logger.info(f"Stored credentials found for phone ending {masked_phone}")
             return success_response(
                 cmd_id,
                 {
                     "hasCredentials": True,
-                    "phone": phone,
-                    "pin": pin,
+                    "maskedPhone": masked_phone,
+                    # SECURITY: Do NOT return plaintext phone or pin
                 },
             )
         else:
@@ -149,12 +150,11 @@ async def handle_tr_get_stored_credentials(
                 cmd_id,
                 {
                     "hasCredentials": False,
-                    "phone": None,
-                    "pin": None,
+                    "maskedPhone": None,
                 },
             )
     except Exception as e:
-        logger.error(f"Failed to get stored credentials: {e}", exc_info=True)
+        logger.error(f"Failed to check stored credentials: {e}", exc_info=True)
         return error_response(cmd_id, "TR_CREDENTIALS_ERROR", str(e))
 
 
@@ -163,14 +163,32 @@ async def handle_tr_login(cmd_id: int, payload: dict[str, Any]) -> dict[str, Any
 
     Args:
         cmd_id: IPC command identifier.
-        payload: Must contain 'phone', 'pin', and optionally 'remember'.
+        payload: Must contain either:
+            - 'phone' and 'pin': Direct credentials from user input
+            - 'useStoredCredentials': true to use server-side stored credentials
+            Optionally: 'remember' to save credentials for future logins.
 
     Returns:
         Success response with auth state, or error response.
     """
-    phone = payload.get("phone", "")
-    pin = payload.get("pin", "")
+    use_stored = payload.get("useStoredCredentials", False)
     remember = payload.get("remember", True)
+
+    if use_stored:
+        # SECURITY: Retrieve credentials server-side, never expose to frontend
+        loop = asyncio.get_event_loop()
+        executor = get_executor()
+        auth_manager = get_auth_manager()
+        phone, pin = await loop.run_in_executor(
+            executor, auth_manager.get_stored_credentials
+        )
+        if not phone or not pin:
+            return error_response(
+                cmd_id, "TR_NO_STORED_CREDENTIALS", "No stored credentials available"
+            )
+    else:
+        phone = payload.get("phone", "")
+        pin = payload.get("pin", "")
 
     if not phone or not pin:
         return error_response(

@@ -11,7 +11,14 @@ import { useQuery } from '@tanstack/react-query'
 import { useAppStore } from '../../store/useAppStore'
 import { LoginForm, TwoFactorModal, SessionRestorePrompt } from '../auth'
 import { PortfolioTable } from '../portfolio/PortfolioTable'
-import { trCheckSavedSession, trLogout, syncPortfolio, getPositions, trLogin } from '../../lib/ipc'
+import {
+  trCheckSavedSession,
+  trLogout,
+  syncPortfolio,
+  getPositions,
+  trLogin,
+  trLoginWithStoredCredentials,
+} from '../../lib/ipc'
 import type { SessionCheck, AuthResponse, Position } from '../../types'
 
 const styles = {
@@ -419,12 +426,18 @@ export const TradeRepublicView: React.FC = () => {
           onSuccess={handleTwoFactorSuccess}
           onResendRequest={async () => {
             // SECURITY: Credentials handled here, not exposed as props to child
-            if (!loginCredentials) throw new Error('No credentials available')
-            const response = await trLogin(
-              loginCredentials.phone,
-              loginCredentials.pin,
-              loginCredentials.remember
-            )
+            // If phone/pin are empty, it means stored credentials were used - resend with stored credentials
+            let response: AuthResponse
+            if (!loginCredentials || (!loginCredentials.phone && !loginCredentials.pin)) {
+              // Used stored credentials for initial login, use them again for resend
+              response = await trLoginWithStoredCredentials()
+            } else {
+              response = await trLogin(
+                loginCredentials.phone,
+                loginCredentials.pin,
+                loginCredentials.remember
+              )
+            }
             if (response.authState !== 'waiting_2fa') {
               throw new Error('Failed to resend code')
             }

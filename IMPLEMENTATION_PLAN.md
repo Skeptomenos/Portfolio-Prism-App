@@ -29,7 +29,7 @@ This plan consolidates **40 code review findings** into a prioritized implementa
 | 1.1.1 | `src/lib/ipc.ts:67-72` | Scrub phone/PIN from error logs before writing to system_logs | 15m | **DONE** (v0.1.0) |
 | 1.1.2 | `src/components/auth/TwoFactorModal.tsx:112-114` | Remove credential retention in React props during 2FA flow | 20m | **DONE** (v0.1.1) |
 | 1.1.3 | `src/components/auth/LoginForm.tsx` | Sanitize credentials in IPC error logging (uses ipc.ts) | 10m | **DONE** (v0.1.2) |
-| 1.1.4 | `src-tauri/python/portfolio_src/headless/handlers/tr_auth.py:139-145` | Stop returning plaintext credentials via IPC response | 20m | |
+| 1.1.4 | `src-tauri/python/portfolio_src/headless/handlers/tr_auth.py:139-145` | Stop returning plaintext credentials via IPC response | 20m | **DONE** (v0.1.3) |
 
 **Verification:**
 - [ ] Search codebase for credential logging: `grep -r "phone\|pin\|password" --include="*.log"`

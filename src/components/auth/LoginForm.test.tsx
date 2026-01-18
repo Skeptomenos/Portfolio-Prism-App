@@ -5,7 +5,10 @@ import * as ipc from '../../lib/ipc'
 
 vi.mock('../../lib/ipc', () => ({
   trLogin: vi.fn(),
-  trGetStoredCredentials: vi.fn(() => Promise.resolve({ hasCredentials: false })),
+  trGetStoredCredentials: vi.fn(() =>
+    Promise.resolve({ hasCredentials: false, maskedPhone: null })
+  ),
+  trLoginWithStoredCredentials: vi.fn(),
 }))
 
 vi.mock('../../store/useAppStore', () => ({
@@ -20,8 +23,7 @@ describe('LoginForm', () => {
     vi.clearAllMocks()
     vi.mocked(ipc.trGetStoredCredentials).mockResolvedValue({
       hasCredentials: false,
-      phone: null,
-      pin: null,
+      maskedPhone: null,
     })
   })
 
@@ -205,19 +207,47 @@ describe('LoginForm', () => {
     })
   })
 
-  it('loads stored credentials on mount', async () => {
+  it('shows quick login button when stored credentials exist', async () => {
     vi.mocked(ipc.trGetStoredCredentials).mockResolvedValue({
       hasCredentials: true,
-      phone: '+4917612345678',
-      pin: '1234',
+      maskedPhone: '***5678',
     })
 
     render(<LoginForm />)
 
     await waitFor(() => {
-      expect(screen.getByLabelText('Phone Number')).toHaveValue('+4917612345678')
-      expect(screen.getByLabelText('PIN')).toHaveValue('1234')
+      // Should show quick login button with masked phone
+      expect(screen.getByText(/Saved credentials for \*\*\*5678/)).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Quick Login' })).toBeInTheDocument()
+      // Form fields should be empty (credentials not pre-filled for security)
+      expect(screen.getByLabelText('Phone Number')).toHaveValue('')
+      expect(screen.getByLabelText('PIN')).toHaveValue('')
+      // Remember should be checked when stored credentials exist
       expect(screen.getByLabelText('Remember this device')).toBeChecked()
+    })
+  })
+
+  it('uses stored credentials on quick login', async () => {
+    vi.mocked(ipc.trGetStoredCredentials).mockResolvedValue({
+      hasCredentials: true,
+      maskedPhone: '***5678',
+    })
+    vi.mocked(ipc.trLoginWithStoredCredentials).mockResolvedValue({
+      authState: 'waiting_2fa',
+      countdown: 30,
+      message: '2FA code sent',
+    })
+
+    render(<LoginForm />)
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Quick Login' })).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Quick Login' }))
+
+    await waitFor(() => {
+      expect(ipc.trLoginWithStoredCredentials).toHaveBeenCalled()
     })
   })
 

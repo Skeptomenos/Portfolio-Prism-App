@@ -6,7 +6,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { useAppStore } from '../../store/useAppStore'
-import { trLogin, trGetStoredCredentials } from '../../lib/ipc'
+import { trLogin, trGetStoredCredentials, trLoginWithStoredCredentials } from '../../lib/ipc'
 import { scrubText } from '../../lib/scrubber'
 import type { AuthResponse } from '../../types'
 
@@ -125,18 +125,22 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, onLoginErr
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [credentialsLoaded, setCredentialsLoaded] = useState(false)
+  // SECURITY: Only store masked phone for display, never plaintext credentials
+  const [storedCredentialsInfo, setStoredCredentialsInfo] = useState<{
+    hasCredentials: boolean
+    maskedPhone: string | null
+  } | null>(null)
 
   const { setAuthState, setAuthError } = useAppStore()
 
   useEffect(() => {
     if (credentialsLoaded) return
 
-    const loadStoredCredentials = async () => {
+    const checkStoredCredentials = async () => {
       try {
         const result = await trGetStoredCredentials()
-        if (result.hasCredentials && result.phone && result.pin) {
-          setPhone(result.phone)
-          setPin(result.pin)
+        if (result.hasCredentials) {
+          setStoredCredentialsInfo(result)
           setRemember(true)
         }
       } catch {
@@ -146,7 +150,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, onLoginErr
       }
     }
 
-    loadStoredCredentials()
+    checkStoredCredentials()
   }, [credentialsLoaded])
 
   const validatePhone = (phone: string): boolean => {
@@ -248,7 +252,58 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, onLoginErr
     }
   }
 
+  const handleStoredCredentialsLogin = async () => {
+    if (isLoading) return
+
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const loginPromise = trLoginWithStoredCredentials()
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new Error('Login request timed out. Trade Republic might be slow.')),
+          45000
+        )
+      )
+
+      const response = (await Promise.race([loginPromise, timeoutPromise])) as AuthResponse
+
+      setAuthState(response.authState)
+
+      if (response.authState === 'waiting_2fa') {
+        // SECURITY: Pass empty credentials since we're using stored ones server-side
+        // The 2FA resend will need to use stored credentials too
+        onLoginSuccess?.(response, { phone: '', pin: '', remember: true })
+      } else if (response.authState === 'error') {
+        const msg = scrubText(response.message || 'Login failed')
+        setError(msg)
+        setAuthError(msg)
+        onLoginError?.(msg)
+      }
+    } catch (err) {
+      const rawMessage = err instanceof Error ? err.message : 'Login failed'
+      const message = scrubText(rawMessage)
+
+      if (message.includes('rate limit') || message.includes('TOO_MANY_REQUESTS')) {
+        setError('Trade Republic rate limit reached. Please wait 2-5 minutes before trying again.')
+      } else if (message.includes('NO_STORED_CREDENTIALS')) {
+        setError('Stored credentials not found. Please enter your credentials.')
+        setStoredCredentialsInfo(null)
+      } else {
+        setError(message)
+      }
+
+      setAuthError(message)
+      setAuthState('idle')
+      onLoginError?.(message)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const canSubmit = phone.length >= 10 && pin.length === 4 && !isLoading
+  const hasStoredCredentials = storedCredentialsInfo?.hasCredentials ?? false
 
   return (
     <div style={styles.container}>
@@ -256,6 +311,51 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, onLoginErr
         <h2 style={styles.title}>Connect to Trade Republic</h2>
         <p style={styles.subtitle}>Enter your phone number and PIN to sync your portfolio</p>
       </div>
+
+      {/* Quick login option when stored credentials exist */}
+      {hasStoredCredentials && storedCredentialsInfo?.maskedPhone && (
+        <div style={{ marginBottom: '24px' }}>
+          <div
+            style={{
+              background: 'rgba(16, 185, 129, 0.1)',
+              border: '1px solid rgba(16, 185, 129, 0.3)',
+              borderRadius: '8px',
+              padding: '16px',
+              marginBottom: '12px',
+            }}
+          >
+            <p style={{ color: '#94a3b8', fontSize: '13px', margin: '0 0 8px 0' }}>
+              Saved credentials for {storedCredentialsInfo.maskedPhone}
+            </p>
+            <button
+              type="button"
+              onClick={handleStoredCredentialsLogin}
+              disabled={isLoading}
+              style={{
+                ...styles.button,
+                width: '100%',
+                marginTop: '0',
+                ...(isLoading ? styles.buttonDisabled : {}),
+              }}
+            >
+              {isLoading ? 'Connecting...' : 'Quick Login'}
+            </button>
+          </div>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              color: '#64748b',
+              fontSize: '12px',
+            }}
+          >
+            <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }} />
+            <span>or enter credentials manually</span>
+            <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }} />
+          </div>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} style={styles.form}>
         {error && <div style={styles.error}>{error}</div>}

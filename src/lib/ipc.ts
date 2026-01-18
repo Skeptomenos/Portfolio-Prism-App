@@ -215,23 +215,23 @@ export async function trCheckSavedSession(): Promise<SessionCheck> {
 }
 
 /**
- * Get stored Trade Republic credentials for form pre-fill
+ * Check if stored Trade Republic credentials exist.
+ * SECURITY: Only returns masked phone for UI display, never plaintext credentials.
  */
 export async function trGetStoredCredentials(): Promise<{
   hasCredentials: boolean
-  phone: string | null
-  pin: string | null
+  maskedPhone: string | null
 }> {
   try {
     return await callCommand('tr_get_stored_credentials', {})
   } catch (error) {
     console.error('[IPC] tr_get_stored_credentials failed:', error)
-    return { hasCredentials: false, phone: null, pin: null }
+    return { hasCredentials: false, maskedPhone: null }
   }
 }
 
 /**
- * Start Trade Republic login process
+ * Start Trade Republic login process with provided credentials.
  */
 export async function trLogin(
   phone: string,
@@ -242,6 +242,19 @@ export async function trLogin(
     return await callCommand('tr_login', { phone, pin, remember })
   } catch (error) {
     console.error('[IPC] tr_login failed:', error)
+    throw error
+  }
+}
+
+/**
+ * Start Trade Republic login using stored credentials (server-side).
+ * SECURITY: Credentials are retrieved and used server-side, never sent to frontend.
+ */
+export async function trLoginWithStoredCredentials(): Promise<AuthResponse> {
+  try {
+    return await callCommand('tr_login', { useStoredCredentials: true })
+  } catch (error) {
+    console.error('[IPC] tr_login (stored) failed:', error)
     throw error
   }
 }

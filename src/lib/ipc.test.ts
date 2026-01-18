@@ -309,7 +309,7 @@ describe('IPC Layer', () => {
       mockFetch.mockRejectedValue(new Error('Network error'))
 
       const result = await trGetStoredCredentials()
-      expect(result).toEqual({ hasCredentials: false, phone: null, pin: null })
+      expect(result).toEqual({ hasCredentials: false, maskedPhone: null })
     })
 
     it('trLogout calls tr_logout command', async () => {
