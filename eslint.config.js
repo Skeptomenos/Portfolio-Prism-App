@@ -37,6 +37,14 @@ export default tseslint.config(
     },
   },
   {
-    ignores: ['dist/**', 'node_modules/**', 'coverage/**', 'src-tauri/**', 'e2e/**', '*.config.*'],
+    ignores: [
+      'dist/**',
+      'node_modules/**',
+      'coverage/**',
+      'src-tauri/**',
+      'e2e/**',
+      'infrastructure/**',
+      '*.config.*',
+    ],
   }
 )

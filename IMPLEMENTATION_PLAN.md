@@ -39,10 +39,10 @@ This plan consolidates **40 code review findings** into a prioritized implementa
 ### 1.2 Input Validation (Security Bypass)
 **Scope:** Prevent resource abuse and injection attacks.
 
-| Task | File | Issue | Est. |
-|------|------|-------|------|
-| 1.2.1 | `infrastructure/cloudflare/worker.js:260-269` | Add Finnhub symbol/query input validation (HIGH) | 30m |
-| 1.2.2 | `src-tauri/python/portfolio_src/data/proxy_client.py` | Remove direct Finnhub API fallback (security bypass) | 20m |
+| Task | File | Issue | Est. | Status |
+|------|------|-------|------|--------|
+| 1.2.1 | `infrastructure/cloudflare/worker.js:260-269` | Add Finnhub symbol/query input validation (HIGH) | 30m | **DONE** (v0.1.4) |
+| 1.2.2 | `src-tauri/python/portfolio_src/data/proxy_client.py` | Remove direct Finnhub API fallback (security bypass) | 20m | |
 
 **Verification:**
 - [ ] Test Finnhub endpoint with malicious inputs (SQL injection, path traversal)
