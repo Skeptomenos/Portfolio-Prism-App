@@ -4,6 +4,7 @@ import GlassCard from '../GlassCard'
 import MetricCard from '../MetricCard'
 import PortfolioChart from '../PortfolioChart'
 import { DashboardSkeleton } from '../ui/Skeleton'
+import TopHoldingsCard from './TopHoldingsCard'
 import { getDashboardData, getTrueHoldings } from '../../lib/ipc'
 
 export default function Dashboard() {
@@ -172,66 +173,16 @@ export default function Dashboard() {
         {dashboardData.topHoldings.length > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {dashboardData.topHoldings.slice(0, 5).map((holding, index) => (
-              <div
+              <TopHoldingsCard
                 key={holding.isin}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '16px',
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  borderRadius: '12px',
-                  border: '1px solid rgba(255, 255, 255, 0.05)',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <div
-                    style={{
-                      width: '40px',
-                      height: '40px',
-                      borderRadius: '8px',
-                      background: `linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-purple) 100%)`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '18px',
-                      fontWeight: '700',
-                    }}
-                  >
-                    {index + 1}
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '15px', fontWeight: '600' }}>{holding.name}</div>
-                    <div style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>
-                      {holding.ticker || holding.isin}
-                    </div>
-                  </div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div className="metric-value" style={{ fontSize: '16px' }}>
-                    €
-                    {holding.value.toLocaleString(undefined, {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: '13px',
-                      fontWeight: '600',
-                      color: holding.pnl >= 0 ? 'var(--accent-emerald)' : 'var(--accent-red)',
-                    }}
-                  >
-                    {holding.pnl >= 0 ? '+' : ''}€
-                    {holding.pnl.toLocaleString(undefined, {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}{' '}
-                    ({holding.pnl >= 0 ? '+' : ''}
-                    {holding.pnlPercentage.toFixed(1)}%)
-                  </div>
-                </div>
-              </div>
+                rank={index + 1}
+                name={holding.name}
+                ticker={holding.ticker}
+                isin={holding.isin}
+                value={holding.value}
+                pnl={holding.pnl}
+                pnlPercentage={holding.pnlPercentage}
+              />
             ))}
           </div>
         ) : (
