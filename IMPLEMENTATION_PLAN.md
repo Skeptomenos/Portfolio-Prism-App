@@ -71,18 +71,18 @@ This plan consolidates **40+ code review findings** into a prioritized implement
 ### 2.1 ISIN Validation Pattern
 Create shared validator, then apply to all entry points.
 
-| Task | File | Issue | Est. |
-|------|------|-------|------|
-| 2.1.1 | `src-tauri/src/commands.rs` | Add ISIN format validation (12 chars, 2-letter prefix, checksum) | 25m |
-| 2.1.2 | `src-tauri/python/portfolio_src/adapters/xtrackers.py` | Add ISIN input validation | 10m |
-| 2.1.3 | `src-tauri/python/portfolio_src/adapters/vanguard.py` | Add ISIN input validation | 10m |
-| 2.1.4 | `src-tauri/python/portfolio_src/adapters/ishares.py` | Add ISIN input validation + **fix undefined `ISHARES_CONFIG_PATH` bug** | 20m |
-| 2.1.5 | `src-tauri/python/portfolio_src/data/proxy_client.py` | Add symbol/query input validation | 15m |
-| 2.1.6 | `src-tauri/python/portfolio_src/data/hive_client.py` | Add ISIN input validation | 10m |
-| 2.1.7 | `src-tauri/python/portfolio_src/data/caching.py` | Add ISIN validation to cache decorator | 15m |
-| 2.1.8 | `src-tauri/python/portfolio_src/headless/handlers/tr_auth.py` | Validate `PRISM_DATA_DIR` and cookie file paths (prevent path traversal/symlink attacks) | 15m |
-| 2.1.9 | `src-tauri/python/portfolio_src/headless/dispatcher.py` | Add IPC payload structure validation (command, id, payload types) | 15m |
-| 2.1.10 | `src-tauri/src/python_engine.rs` | Add payload validation for Python engine IPC (moved from Phase 6) | 15m |
+| Task | File | Issue | Est. | Status |
+|------|------|-------|------|--------|
+| 2.1.1 | `src-tauri/src/commands.rs` | Add ISIN format validation (12 chars, 2-letter prefix, checksum) + file path validation | 25m | **DONE** (v0.2.0) |
+| 2.1.2 | `src-tauri/python/portfolio_src/adapters/xtrackers.py` | Add ISIN input validation | 10m | |
+| 2.1.3 | `src-tauri/python/portfolio_src/adapters/vanguard.py` | Add ISIN input validation | 10m | |
+| 2.1.4 | `src-tauri/python/portfolio_src/adapters/ishares.py` | Add ISIN input validation + **fix undefined `ISHARES_CONFIG_PATH` bug** | 20m | |
+| 2.1.5 | `src-tauri/python/portfolio_src/data/proxy_client.py` | Add symbol/query input validation | 15m | |
+| 2.1.6 | `src-tauri/python/portfolio_src/data/hive_client.py` | Add ISIN input validation | 10m | |
+| 2.1.7 | `src-tauri/python/portfolio_src/data/caching.py` | Add ISIN validation to cache decorator | 15m | |
+| 2.1.8 | `src-tauri/python/portfolio_src/headless/handlers/tr_auth.py` | Validate `PRISM_DATA_DIR` and cookie file paths (prevent path traversal/symlink attacks) | 15m | |
+| 2.1.9 | `src-tauri/python/portfolio_src/headless/dispatcher.py` | Add IPC payload structure validation (command, id, payload types) | 15m | |
+| 2.1.10 | `src-tauri/src/python_engine.rs` | Add payload validation for Python engine IPC (moved from Phase 6) | 15m | |
 
 **Note:** Task 2.1.4 includes a **bug fix** - `ISHARES_CONFIG_PATH` is undefined in ishares.py.
 

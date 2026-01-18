@@ -11,6 +11,172 @@ use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager, State};
 
 // =============================================================================
+// Input Validation Helpers
+// =============================================================================
+
+/// Validate ISIN format and Luhn checksum.
+///
+/// ISIN format: 2 letter country code + 9 alphanumeric NSIN + 1 check digit
+///
+/// # Arguments
+/// * `isin` - The ISIN string to validate
+///
+/// # Returns
+/// * `Ok(String)` - Normalized uppercase ISIN if valid
+/// * `Err(String)` - User-friendly error message if invalid
+///
+/// # Examples
+/// ```
+/// assert!(validate_isin("US0378331005").is_ok());  // Apple Inc
+/// assert!(validate_isin("DE0007164600").is_ok());  // SAP SE
+/// assert!(validate_isin("invalid").is_err());
+/// ```
+fn validate_isin(isin: &str) -> Result<String, String> {
+    let isin = isin.trim().to_uppercase();
+
+    // Length check (must be exactly 12 characters)
+    if isin.len() != 12 {
+        return Err(format!(
+            "Invalid ISIN: must be exactly 12 characters (got {})",
+            isin.len()
+        ));
+    }
+
+    // Country code (first 2 chars must be uppercase ASCII letters)
+    let country_code = &isin[..2];
+    if !country_code.chars().all(|c| c.is_ascii_uppercase()) {
+        return Err("Invalid ISIN: first 2 characters must be letters (country code)".to_string());
+    }
+
+    // NSIN (chars 3-11, 9 chars, must be alphanumeric)
+    let nsin = &isin[2..11];
+    if !nsin.chars().all(|c| c.is_ascii_alphanumeric()) {
+        return Err(
+            "Invalid ISIN: characters 3-11 must be alphanumeric (security identifier)".to_string(),
+        );
+    }
+
+    // Check digit (last char must be a digit)
+    let check_digit = isin.chars().nth(11).unwrap();
+    if !check_digit.is_ascii_digit() {
+        return Err("Invalid ISIN: last character must be a digit (check digit)".to_string());
+    }
+
+    // Luhn checksum validation
+    if !validate_isin_luhn(&isin) {
+        return Err("Invalid ISIN: checksum validation failed".to_string());
+    }
+
+    Ok(isin)
+}
+
+/// Validate ISIN using Luhn algorithm.
+///
+/// Algorithm:
+/// 1. Convert letters to numbers (A=10, B=11, ..., Z=35)
+/// 2. Apply Luhn algorithm to resulting digit string
+/// 3. Valid if total mod 10 == 0
+fn validate_isin_luhn(isin: &str) -> bool {
+    // Convert ISIN to digit string (letters become 2-digit numbers)
+    let mut digits = String::new();
+    for c in isin.chars() {
+        if c.is_ascii_digit() {
+            digits.push(c);
+        } else if c.is_ascii_uppercase() {
+            // A=10, B=11, ..., Z=35
+            let value = (c as u32) - ('A' as u32) + 10;
+            digits.push_str(&value.to_string());
+        } else {
+            return false;
+        }
+    }
+
+    // Luhn algorithm (process from right to left)
+    let mut total: u32 = 0;
+    for (i, c) in digits.chars().rev().enumerate() {
+        let mut n = c.to_digit(10).unwrap_or(0);
+        // Double every second digit from right (0-indexed, so i % 2 == 1)
+        if i % 2 == 1 {
+            n *= 2;
+            if n > 9 {
+                n -= 9;
+            }
+        }
+        total += n;
+    }
+
+    total % 10 == 0
+}
+
+/// Allowed file extensions for holdings uploads.
+const ALLOWED_EXTENSIONS: &[&str] = &["csv", "xlsx", "xls", "json"];
+
+/// Validate file path for holdings upload.
+///
+/// Checks:
+/// - File exists
+/// - Extension is allowed (csv, xlsx, xls, json)
+/// - Path is canonicalized (prevents path traversal attacks with `..`)
+///
+/// # Arguments
+/// * `path` - The file path to validate
+///
+/// # Returns
+/// * `Ok(String)` - Canonicalized absolute path if valid
+/// * `Err(String)` - User-friendly error message if invalid
+fn validate_file_path(path: &str) -> Result<String, String> {
+    use std::path::PathBuf;
+
+    let path = path.trim();
+    if path.is_empty() {
+        return Err("File path cannot be empty".to_string());
+    }
+
+    let path_buf = PathBuf::from(path);
+
+    // Check file exists
+    if !path_buf.exists() {
+        return Err(format!("File not found: {}", path));
+    }
+
+    // Check it's a file, not a directory
+    if !path_buf.is_file() {
+        return Err(format!("Path is not a file: {}", path));
+    }
+
+    // Validate extension
+    let extension = path_buf
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| ext.to_lowercase());
+
+    match extension {
+        Some(ref ext) if ALLOWED_EXTENSIONS.contains(&ext.as_str()) => {}
+        Some(ext) => {
+            return Err(format!(
+                "Unsupported file extension: .{}. Allowed: {}",
+                ext,
+                ALLOWED_EXTENSIONS.join(", ")
+            ));
+        }
+        None => {
+            return Err("File must have an extension (csv, xlsx, xls, or json)".to_string());
+        }
+    }
+
+    // Canonicalize path to prevent path traversal (resolves `..`, symlinks)
+    // This is defense-in-depth against directory traversal attacks
+    let canonical = path_buf
+        .canonicalize()
+        .map_err(|e| format!("Invalid file path: {}", e))?;
+
+    canonical
+        .to_str()
+        .map(|s| s.to_string())
+        .ok_or_else(|| "File path contains invalid characters".to_string())
+}
+
+// =============================================================================
 // Response Types (match TypeScript types in src/types/index.ts)
 // =============================================================================
 
@@ -723,19 +889,27 @@ pub async fn get_overlap_analysis(
 }
 
 /// Upload manual ETF holdings
+///
+/// Validates file path and ISIN format before forwarding to Python engine.
 #[tauri::command]
 pub async fn upload_holdings(
     file_path: String,
     etf_isin: String,
     engine: State<'_, Arc<PythonEngine>>,
 ) -> Result<serde_json::Value, String> {
+    // Validate ISIN format before processing
+    let validated_isin = validate_isin(&etf_isin)?;
+
+    // Validate file path
+    let validated_path = validate_file_path(&file_path)?;
+
     if !engine.is_connected().await {
         return Err("Python engine not connected".to_string());
     }
 
     let payload = json!({
-        "filePath": file_path,
-        "etfIsin": etf_isin
+        "filePath": validated_path,
+        "etfIsin": validated_isin
     });
 
     match engine.send_command("upload_holdings", payload).await {
