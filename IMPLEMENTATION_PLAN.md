@@ -161,9 +161,9 @@ Create shared validator, then apply to all entry points.
 
 ### 5.2 Dead Code Removal
 
-| Task | File | Issue | Est. |
-|------|------|-------|------|
-| 5.2.1 | `src-tauri/python/portfolio_src/headless/state.py` | Remove/integrate unused get_pipeline() | 10m |
+| Task | File | Issue | Est. | Status |
+|------|------|-------|------|--------|
+| 5.2.1 | `src-tauri/python/portfolio_src/headless/state.py` | Remove/integrate unused get_pipeline() | 10m | **DONE** (v0.5.5) |
 | 5.2.2 | `src-tauri/python/portfolio_src/data/database.py` | Remove unused connection cache | 10m |
 | 5.2.3 | `src-tauri/python/portfolio_src/adapters/vanguard.py` | Remove duplicate logger assignment | 5m |
 

@@ -4,7 +4,6 @@ Provides lazy-initialized singleton instances for shared resources:
 - TRAuthManager: Trade Republic authentication
 - TRBridge: Trade Republic API bridge
 - ThreadPoolExecutor: Throttled executor for bridge operations
-- Pipeline: Data processing pipeline
 
 These singletons are initialized on first access to avoid import-time side effects.
 The executor is pre-configured with max_workers=2 to respect API rate limits (REQ-010).
@@ -12,6 +11,10 @@ The executor is pre-configured with max_workers=2 to respect API rate limits (RE
 Thread Safety:
     All singleton getters use double-checked locking pattern to prevent race conditions
     when multiple threads attempt to initialize the same singleton simultaneously.
+
+Note:
+    Pipeline is intentionally NOT a singleton - each sync run creates a fresh Pipeline
+    instance to ensure clean state. See handlers/sync.py:handle_run_pipeline().
 """
 
 import threading
@@ -23,14 +26,12 @@ from portfolio_src.prism_utils.logging_config import get_logger
 if TYPE_CHECKING:
     from portfolio_src.core.tr_auth import TRAuthManager
     from portfolio_src.core.tr_bridge import TRBridge
-    from portfolio_src.core.pipeline import Pipeline
 
 logger = get_logger(__name__)
 
 # Module-level singletons (lazy-initialized)
 _auth_manager: "TRAuthManager | None" = None
 _bridge: "TRBridge | None" = None
-_pipeline: "Pipeline | None" = None
 
 # Lock for thread-safe singleton initialization (double-checked locking pattern)
 _state_lock = threading.Lock()
@@ -82,26 +83,6 @@ def get_bridge() -> "TRBridge":
     return _bridge
 
 
-def get_pipeline() -> "Pipeline":
-    """Get or create the Pipeline singleton.
-
-    Returns:
-        Pipeline instance for data processing.
-
-    Note:
-        Uses double-checked locking for thread safety.
-    """
-    global _pipeline
-    if _pipeline is None:
-        with _state_lock:
-            if _pipeline is None:  # Double-check after acquiring lock
-                from portfolio_src.core.pipeline import Pipeline
-
-                logger.debug("Initializing Pipeline singleton")
-                _pipeline = Pipeline()
-    return _pipeline
-
-
 def get_executor() -> ThreadPoolExecutor:
     """Get the shared bridge executor.
 
@@ -122,8 +103,7 @@ def reset_state() -> None:
         This should only be used in test fixtures to ensure clean state.
         Do not call in production code.
     """
-    global _auth_manager, _bridge, _pipeline
+    global _auth_manager, _bridge
     logger.debug("Resetting headless state singletons")
     _auth_manager = None
     _bridge = None
-    _pipeline = None
