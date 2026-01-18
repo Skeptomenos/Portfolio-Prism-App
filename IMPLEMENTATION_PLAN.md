@@ -200,7 +200,7 @@ Create shared validator, then apply to all entry points.
 |------|------|-------|------|--------|
 | 7.1 | `src/components/ui/Toast.tsx` | Add accessibility attributes to close button + ARIA live region | 15m | **DONE** (v0.7.0) |
 | 7.2 | `src/App.tsx` | Move console.log to useEffect (runs on every render) | 5m | **DONE** (v0.7.1) |
-| 7.3 | `src/main.tsx` | Add root element null check with fallback | 5m |
+| 7.3 | `src/main.tsx` | Add root element null check with fallback | 5m | **DONE** (v0.7.2) |
 | 7.4 | `src/lib/tauri.ts` | Cache Tauri API module imports for performance | 10m |
 
 ---
