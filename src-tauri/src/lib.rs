@@ -24,6 +24,22 @@ use tauri_plugin_shell::process::CommandEvent;
 use tauri_plugin_shell::ShellExt;
 use fs2::FileExt;
 
+/// Escape a string for safe use in AppleScript string literals.
+/// Prevents command injection via special characters like quotes and backslashes.
+/// SECURITY: Always use this when passing user-controlled or error data to osascript.
+fn escape_applescript_string(s: &str) -> String {
+    s.chars()
+        .flat_map(|c| match c {
+            '\\' => vec!['\\', '\\'],
+            '"' => vec!['\\', '"'],
+            '\n' => vec!['\\', 'n'],
+            '\r' => vec!['\\', 'r'],
+            '\t' => vec!['\\', 't'],
+            _ => vec![c],
+        })
+        .collect()
+}
+
 // Legacy greet command (can be removed later)
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -72,10 +88,12 @@ pub fn run() {
                     #[cfg(target_os = "macos")]
                     {
                         use std::process::Command;
+                        // SECURITY: Escape user-facing message to prevent AppleScript injection
+                        let safe_msg = escape_applescript_string(&msg);
                         let _ = Command::new("osascript")
                             .args(["-e", &format!(
                                 "display dialog \"{}\" buttons {{\"OK\"}} default button \"OK\" with icon stop with title \"Portfolio Prism\"",
-                                msg
+                                safe_msg
                             )])
                             .output();
                     }
@@ -108,10 +126,12 @@ pub fn run() {
                             "Portfolio Prism failed to start the analytics engine.\n\nError: {}\n\nPlease try restarting the application. If the problem persists, reinstall the app.",
                             msg
                         );
+                        // SECURITY: Escape user-facing message to prevent AppleScript injection
+                        let safe_msg = escape_applescript_string(&dialog_msg);
                         let _ = Command::new("osascript")
                             .args(["-e", &format!(
                                 "display dialog \"{}\" buttons {{\"Quit\"}} default button \"Quit\" with icon stop with title \"Portfolio Prism - Engine Error\"",
-                                dialog_msg
+                                safe_msg
                             )])
                             .output();
                     }
