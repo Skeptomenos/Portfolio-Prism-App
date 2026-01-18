@@ -1,33 +1,43 @@
 /**
  * IPC Commands Module
- * 
+ *
  * High-level functions for communicating with the Rust backend.
  */
 
-import { invoke, isTauri } from './tauri';
-import type { 
-  DashboardData, EngineHealth, Holding, AuthStatus, SessionCheck, 
-  AuthResponse, LogoutResponse, PortfolioSyncResult, PositionsResponse,
-  TauriCommands, TrueHoldingsResponse, SystemLogReport
-} from '../types';
+import { invoke, isTauri } from './tauri'
+import { scrubObject } from './scrubber'
+import type {
+  DashboardData,
+  EngineHealth,
+  Holding,
+  AuthStatus,
+  SessionCheck,
+  AuthResponse,
+  LogoutResponse,
+  PortfolioSyncResult,
+  PositionsResponse,
+  TauriCommands,
+  TrueHoldingsResponse,
+  SystemLogReport,
+} from '../types'
 
-const pendingRequests = new Map<string, Promise<unknown>>();
+// Commands that handle credentials - never log their payloads raw
+const AUTH_COMMANDS = ['tr_login', 'tr_submit_2fa', 'tr_get_stored_credentials'] as const
 
-async function deduplicatedCall<T>(
-  key: string,
-  fn: () => Promise<T>
-): Promise<T> {
+const pendingRequests = new Map<string, Promise<unknown>>()
+
+async function deduplicatedCall<T>(key: string, fn: () => Promise<T>): Promise<T> {
   if (pendingRequests.has(key)) {
-    return pendingRequests.get(key) as Promise<T>;
+    return pendingRequests.get(key) as Promise<T>
   }
 
-  const promise = fn();
-  pendingRequests.set(key, promise);
+  const promise = fn()
+  pendingRequests.set(key, promise)
 
   try {
-    return await promise;
+    return await promise
   } finally {
-    pendingRequests.delete(key);
+    pendingRequests.delete(key)
   }
 }
 
@@ -36,51 +46,62 @@ async function callCommand<K extends keyof TauriCommands>(
   payload: TauriCommands[K]['args']
 ): Promise<TauriCommands[K]['returns']> {
   if (isTauri()) {
-    return await invoke(command, payload);
+    return await invoke(command, payload)
   }
 
   try {
     const response = await fetch('http://127.0.0.1:5001/command', {
       method: 'POST',
-      headers: { 
+      headers: {
         'Content-Type': 'application/json',
-        'X-Echo-Bridge-Token': 'dev-echo-bridge-secret'
+        'X-Echo-Bridge-Token': 'dev-echo-bridge-secret',
       },
 
       body: JSON.stringify({
         id: Math.floor(Math.random() * 1000000),
         command,
-        payload
-      })
-    });
+        payload,
+      }),
+    })
 
     if (!response.ok) {
-      throw new Error(`Echo-Bridge unreachable (status: ${response.status})`);
+      throw new Error(`Echo-Bridge unreachable (status: ${response.status})`)
     }
 
-    const result = await response.json();
+    const result = await response.json()
     if (result.status === 'error') {
-      const errorMsg = result.error.message || 'Unknown backend error';
-      const errorCode = result.error.code || 'UNKNOWN';
-      console.error(`[IPC] Backend error (${errorCode}):`, errorMsg);
-      
-      // Log to system logs for auto-reporting
-      logEvent('ERROR', `Backend Error: ${errorMsg}`, { 
-        command, 
-        code: errorCode,
-        payload 
-      }, 'pipeline', 'api_error');
+      const errorMsg = result.error.message || 'Unknown backend error'
+      const errorCode = result.error.code || 'UNKNOWN'
+      console.error(`[IPC] Backend error (${errorCode}):`, errorMsg)
 
-      throw new Error(`Backend Error: ${errorMsg}`);
+      // Log to system logs for auto-reporting
+      // SECURITY: Never log credentials (phone, pin, 2FA code) to system logs
+      const safePayload = AUTH_COMMANDS.includes(command as (typeof AUTH_COMMANDS)[number])
+        ? { ...payload, phone: '[REDACTED]', pin: '[REDACTED]', code: '[REDACTED]' }
+        : scrubObject(payload)
+
+      logEvent(
+        'ERROR',
+        `Backend Error: ${errorMsg}`,
+        {
+          command,
+          code: errorCode,
+          payload: safePayload,
+        },
+        'pipeline',
+        'api_error'
+      )
+
+      throw new Error(`Backend Error: ${errorMsg}`)
     }
 
-    return result.data;
+    return result.data
   } catch (error) {
     if (error instanceof Error && error.message.startsWith('Backend Error:')) {
-      throw error;
+      throw error
     }
-    console.error('[IPC] Echo-Bridge connection failed:', error);
-    throw new Error('Echo-Bridge unreachable. Check if the Python engine is running on port 5001.');
+    console.error('[IPC] Echo-Bridge connection failed:', error)
+    throw new Error('Echo-Bridge unreachable. Check if the Python engine is running on port 5001.')
   }
 }
 
@@ -89,12 +110,10 @@ async function callCommand<K extends keyof TauriCommands>(
  */
 export async function getEngineHealth(): Promise<EngineHealth> {
   try {
-    return await deduplicatedCall('get_engine_health', () => 
-      callCommand('get_engine_health', {})
-    );
+    return await deduplicatedCall('get_engine_health', () => callCommand('get_engine_health', {}))
   } catch (error) {
-    console.error('[IPC] get_health failed:', error);
-    throw error;
+    console.error('[IPC] get_health failed:', error)
+    throw error
   }
 }
 
@@ -103,13 +122,11 @@ export async function getEngineHealth(): Promise<EngineHealth> {
  */
 export async function getDashboardData(portfolioId: number): Promise<DashboardData> {
   try {
-    const key = `get_dashboard_data:${portfolioId}`;
-    return await deduplicatedCall(key, () => 
-      callCommand('get_dashboard_data', { portfolioId })
-    );
+    const key = `get_dashboard_data:${portfolioId}`
+    return await deduplicatedCall(key, () => callCommand('get_dashboard_data', { portfolioId }))
   } catch (error) {
-    console.error('[IPC] get_dashboard_data failed:', error);
-    throw error;
+    console.error('[IPC] get_dashboard_data failed:', error)
+    throw error
   }
 }
 
@@ -118,11 +135,11 @@ export async function getDashboardData(portfolioId: number): Promise<DashboardDa
  */
 export async function getHoldings(portfolioId: number): Promise<Holding[]> {
   try {
-    const dashboard = await getDashboardData(portfolioId);
-    return dashboard.topHoldings;
+    const dashboard = await getDashboardData(portfolioId)
+    return dashboard.topHoldings
   } catch (error) {
-    console.error('[IPC] getHoldings failed:', error);
-    throw error;
+    console.error('[IPC] getHoldings failed:', error)
+    throw error
   }
 }
 
@@ -131,13 +148,11 @@ export async function getHoldings(portfolioId: number): Promise<Holding[]> {
  */
 export async function getPositions(portfolioId: number): Promise<PositionsResponse> {
   try {
-    const key = `get_positions:${portfolioId}`;
-    return await deduplicatedCall(key, () => 
-      callCommand('get_positions', { portfolioId })
-    );
+    const key = `get_positions:${portfolioId}`
+    return await deduplicatedCall(key, () => callCommand('get_positions', { portfolioId }))
   } catch (error) {
-    console.error('[IPC] get_positions failed:', error);
-    throw error;
+    console.error('[IPC] get_positions failed:', error)
+    throw error
   }
 }
 
@@ -145,29 +160,31 @@ export async function getPositions(portfolioId: number): Promise<PositionsRespon
  * Trigger portfolio sync with real Trade Republic data
  */
 export async function syncPortfolio(
-  portfolioId: number, 
+  portfolioId: number,
   force: boolean = false
 ): Promise<PortfolioSyncResult> {
   try {
-    const key = `sync_portfolio:${portfolioId}:${force}`;
-    return await deduplicatedCall(key, () => 
-      callCommand('sync_portfolio', { portfolioId, force })
-    );
+    const key = `sync_portfolio:${portfolioId}:${force}`
+    return await deduplicatedCall(key, () => callCommand('sync_portfolio', { portfolioId, force }))
   } catch (error) {
-    console.error('[IPC] sync_portfolio failed:', error);
-    throw error;
+    console.error('[IPC] sync_portfolio failed:', error)
+    throw error
   }
 }
 
 /**
  * Trigger analytics pipeline manually
  */
-export async function runPipeline(): Promise<{ success: boolean; errors: string[]; durationMs: number }> {
+export async function runPipeline(): Promise<{
+  success: boolean
+  errors: string[]
+  durationMs: number
+}> {
   try {
-    return await callCommand('run_pipeline', {});
+    return await callCommand('run_pipeline', {})
   } catch (error) {
-    console.error('[IPC] run_pipeline failed:', error);
-    throw error;
+    console.error('[IPC] run_pipeline failed:', error)
+    throw error
   }
 }
 
@@ -176,12 +193,10 @@ export async function runPipeline(): Promise<{ success: boolean; errors: string[
  */
 export async function trGetAuthStatus(): Promise<AuthStatus> {
   try {
-    return await deduplicatedCall('tr_get_auth_status', () => 
-      callCommand('tr_get_auth_status', {})
-    );
+    return await deduplicatedCall('tr_get_auth_status', () => callCommand('tr_get_auth_status', {}))
   } catch (error) {
-    console.error('[IPC] tr_get_auth_status failed:', error);
-    throw error;
+    console.error('[IPC] tr_get_auth_status failed:', error)
+    throw error
   }
 }
 
@@ -190,12 +205,12 @@ export async function trGetAuthStatus(): Promise<AuthStatus> {
  */
 export async function trCheckSavedSession(): Promise<SessionCheck> {
   try {
-    return await deduplicatedCall('tr_check_saved_session', () => 
+    return await deduplicatedCall('tr_check_saved_session', () =>
       callCommand('tr_check_saved_session', {})
-    );
+    )
   } catch (error) {
-    console.error('[IPC] tr_check_saved_session failed:', error);
-    throw error;
+    console.error('[IPC] tr_check_saved_session failed:', error)
+    throw error
   }
 }
 
@@ -203,15 +218,15 @@ export async function trCheckSavedSession(): Promise<SessionCheck> {
  * Get stored Trade Republic credentials for form pre-fill
  */
 export async function trGetStoredCredentials(): Promise<{
-  hasCredentials: boolean;
-  phone: string | null;
-  pin: string | null;
+  hasCredentials: boolean
+  phone: string | null
+  pin: string | null
 }> {
   try {
-    return await callCommand('tr_get_stored_credentials', {});
+    return await callCommand('tr_get_stored_credentials', {})
   } catch (error) {
-    console.error('[IPC] tr_get_stored_credentials failed:', error);
-    return { hasCredentials: false, phone: null, pin: null };
+    console.error('[IPC] tr_get_stored_credentials failed:', error)
+    return { hasCredentials: false, phone: null, pin: null }
   }
 }
 
@@ -224,10 +239,10 @@ export async function trLogin(
   remember: boolean = true
 ): Promise<AuthResponse> {
   try {
-    return await callCommand('tr_login', { phone, pin, remember });
+    return await callCommand('tr_login', { phone, pin, remember })
   } catch (error) {
-    console.error('[IPC] tr_login failed:', error);
-    throw error;
+    console.error('[IPC] tr_login failed:', error)
+    throw error
   }
 }
 
@@ -236,10 +251,10 @@ export async function trLogin(
  */
 export async function trSubmit2FA(code: string): Promise<AuthResponse> {
   try {
-    return await callCommand('tr_submit_2fa', { code });
+    return await callCommand('tr_submit_2fa', { code })
   } catch (error) {
-    console.error('[IPC] tr_submit_2fa failed:', error);
-    throw error;
+    console.error('[IPC] tr_submit_2fa failed:', error)
+    throw error
   }
 }
 
@@ -248,10 +263,10 @@ export async function trSubmit2FA(code: string): Promise<AuthResponse> {
  */
 export async function trLogout(): Promise<LogoutResponse> {
   try {
-    return await callCommand('tr_logout', {});
+    return await callCommand('tr_logout', {})
   } catch (error) {
-    console.error('[IPC] tr_logout failed:', error);
-    throw error;
+    console.error('[IPC] tr_logout failed:', error)
+    throw error
   }
 }
 
@@ -260,10 +275,10 @@ export async function trLogout(): Promise<LogoutResponse> {
  */
 export async function checkConnection(): Promise<boolean> {
   try {
-    await getEngineHealth();
-    return true;
+    await getEngineHealth()
+    return true
   } catch {
-    return false;
+    return false
   }
 }
 
@@ -271,7 +286,7 @@ export async function checkConnection(): Promise<boolean> {
  * Get current runtime environment
  */
 export function getEnvironment(): 'tauri' | 'browser' {
-  return isTauri() ? 'tauri' : 'browser';
+  return isTauri() ? 'tauri' : 'browser'
 }
 
 /**
@@ -279,10 +294,10 @@ export function getEnvironment(): 'tauri' | 'browser' {
  */
 export async function uploadHoldings(filePath: string, etfIsin: string): Promise<any> {
   try {
-    return await callCommand('upload_holdings', { filePath, etfIsin });
+    return await callCommand('upload_holdings', { filePath, etfIsin })
   } catch (error) {
-    console.error('[IPC] upload_holdings failed:', error);
-    throw error;
+    console.error('[IPC] upload_holdings failed:', error)
+    throw error
   }
 }
 
@@ -291,12 +306,10 @@ export async function uploadHoldings(filePath: string, etfIsin: string): Promise
  */
 export async function getTrueHoldings(): Promise<TrueHoldingsResponse> {
   try {
-    return await deduplicatedCall('get_true_holdings', () => 
-      callCommand('get_true_holdings', {})
-    );
+    return await deduplicatedCall('get_true_holdings', () => callCommand('get_true_holdings', {}))
   } catch (error) {
-    console.error('[IPC] get_true_holdings failed:', error);
-    throw error;
+    console.error('[IPC] get_true_holdings failed:', error)
+    throw error
   }
 }
 
@@ -311,19 +324,19 @@ export async function logEvent(
   category: string = 'general'
 ): Promise<void> {
   try {
-    await callCommand('log_event', { level, message, context, component, category });
+    await callCommand('log_event', { level, message, context, component, category })
   } catch (error) {
     // Silent fail to avoid infinite loops if logging itself fails
-    console.error('[IPC] Failed to log event:', error);
+    console.error('[IPC] Failed to log event:', error)
   }
 }
 
 export async function getRecentReports(): Promise<SystemLogReport[]> {
   try {
-    return await callCommand('get_recent_reports', {});
+    return await callCommand('get_recent_reports', {})
   } catch (error) {
-    console.error('[IPC] get_recent_reports failed:', error);
-    return [];
+    console.error('[IPC] get_recent_reports failed:', error)
+    return []
   }
 }
 
@@ -332,10 +345,10 @@ export async function getRecentReports(): Promise<SystemLogReport[]> {
  */
 export async function getPendingReviews(): Promise<any[]> {
   try {
-    return await callCommand('get_pending_reviews', {});
+    return await callCommand('get_pending_reviews', {})
   } catch (error) {
-    console.error('[IPC] get_pending_reviews failed:', error);
-    return [];
+    console.error('[IPC] get_pending_reviews failed:', error)
+    return []
   }
 }
 
@@ -344,12 +357,12 @@ export async function getPendingReviews(): Promise<any[]> {
  */
 export async function getPipelineReport(): Promise<any> {
   try {
-    return await deduplicatedCall('get_pipeline_report', () => 
+    return await deduplicatedCall('get_pipeline_report', () =>
       callCommand('get_pipeline_report', {})
-    );
+    )
   } catch (error) {
-    console.error('[IPC] get_pipeline_report failed:', error);
-    throw error;
+    console.error('[IPC] get_pipeline_report failed:', error)
+    throw error
   }
 }
 
@@ -358,9 +371,9 @@ export async function getPipelineReport(): Promise<any> {
  */
 export async function setHiveContribution(enabled: boolean): Promise<void> {
   try {
-    await callCommand('set_hive_contribution', { enabled });
+    await callCommand('set_hive_contribution', { enabled })
   } catch (error) {
-    console.error('[IPC] set_hive_contribution failed:', error);
+    console.error('[IPC] set_hive_contribution failed:', error)
   }
 }
 
@@ -369,10 +382,10 @@ export async function setHiveContribution(enabled: boolean): Promise<void> {
  */
 export async function getHiveContribution(): Promise<boolean> {
   try {
-    const result = await callCommand('get_hive_contribution', {});
-    return result?.enabled ?? false;
+    const result = await callCommand('get_hive_contribution', {})
+    return result?.enabled ?? false
   } catch (error) {
-    console.error('[IPC] get_hive_contribution failed:', error);
-    return false;
+    console.error('[IPC] get_hive_contribution failed:', error)
+    return false
   }
 }
