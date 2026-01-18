@@ -17,9 +17,6 @@ from portfolio_src.models import AssetClass, normalize_asset_class
 # Database filename
 DB_FILENAME = "prism.db"
 
-# Module-level connection cache
-_connection: Optional[sqlite3.Connection] = None
-
 logger = logging.getLogger(__name__)
 
 
@@ -71,7 +68,6 @@ def init_db(db_path: Optional[str] = None) -> sqlite3.Connection:
     Returns:
         SQLite connection object
     """
-    global _connection
 
     if db_path is None:
         db_path = str(get_db_path())
@@ -127,10 +123,6 @@ def init_db(db_path: Optional[str] = None) -> sqlite3.Connection:
         logger.error(f"[DB] ERROR: Schema file not found!")
         raise FileNotFoundError(f"Schema file not found: {schema_path}")
 
-    # Cache connection if not in-memory
-    if db_path != ":memory:":
-        _connection = conn
-
     return conn
 
 
@@ -138,6 +130,11 @@ def init_db(db_path: Optional[str] = None) -> sqlite3.Connection:
 def get_connection():
     """
     Context manager for database connections.
+
+    Creates a new connection per call. This is intentional for SQLite WAL mode
+    concurrency - each operation gets its own connection, enabling concurrent
+    reads while a write is in progress. Connections are automatically closed
+    when the context manager exits.
 
     Always use with 'with' statement to ensure connections are closed:
         with get_connection() as conn:
@@ -152,15 +149,6 @@ def get_connection():
         yield conn
     finally:
         conn.close()
-
-
-def close_connection() -> None:
-    """Close the cached database connection."""
-    global _connection
-
-    if _connection is not None:
-        _connection.close()
-        _connection = None
 
 
 @contextmanager
