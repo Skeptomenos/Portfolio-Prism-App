@@ -50,11 +50,13 @@ async function callCommand<K extends keyof TauriCommands>(
   }
 
   try {
+    // Use environment variable for Echo Bridge token with fallback for local dev
+    const echoToken = import.meta.env.VITE_ECHO_BRIDGE_TOKEN || 'dev-echo-bridge-secret'
     const response = await fetch('http://127.0.0.1:5001/command', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Echo-Bridge-Token': 'dev-echo-bridge-secret',
+        'X-Echo-Bridge-Token': echoToken,
       },
 
       body: JSON.stringify({
