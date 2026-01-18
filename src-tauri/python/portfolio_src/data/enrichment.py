@@ -21,8 +21,8 @@ load_dotenv()
 from typing import List, Dict, Optional, Any
 
 # --- Constants ---
-FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY")
-FINNHUB_API_URL = "https://finnhub.io/api/v1"
+# SECURITY: Direct Finnhub API access removed - all calls must go through proxy
+# See AGENTS.md: "API keys MUST be proxied via Cloudflare Worker — never in client"
 
 # Rate limiting for API calls (configurable via environment variable)
 # Default: 100ms between calls. Finnhub free tier allows 60 calls/min (~1000ms minimum)
@@ -242,8 +242,7 @@ def enrich_securities_bulk(
     """
     enriched_results = []
     session = requests.Session()
-    if FINNHUB_API_KEY:
-        session.headers["X-Finnhub-Token"] = FINNHUB_API_KEY
+    # SECURITY: Finnhub token injected by Cloudflare Worker proxy, not client
 
     # Load Universe Mapping (Lazy Load)
     global _UNIVERSE_MAPPING
@@ -349,49 +348,11 @@ def enrich_securities_bulk(
             except requests.exceptions.RequestException as e:
                 logger.warning(f"Proxy request error for {identifier}: {e}")
 
-        elif FINNHUB_API_KEY:
-            # Local dev mode: direct Finnhub call
-            try:
-                response = session.get(
-                    f"{FINNHUB_API_URL}/stock/profile2", params={"symbol": identifier}
-                )
-                if response.status_code == 200:
-                    profile_data = response.json()
-                    if profile_data:
-                        # Update result but preserve ISIN if Finnhub misses it
-                        finnhub_isin = profile_data.get("isin")
+        # SECURITY: Direct Finnhub API fallback removed (security bypass risk)
+        # All Finnhub calls must go through Cloudflare Worker proxy
+        # If WORKER_URL is not configured, enrichment falls through to Wikidata
 
-                        result.update(
-                            {
-                                "ticker": profile_data.get("ticker", identifier),
-                                "name": profile_data.get("name", "N/A"),
-                                "sector": profile_data.get(
-                                    "finnhubIndustry", "Unknown"
-                                ),
-                                "geography": profile_data.get("country", "Unknown"),
-                            }
-                        )
-
-                        # Only overwrite ISIN if Finnhub provides a valid one
-                        if finnhub_isin:
-                            result["isin"] = finnhub_isin
-                            logger.debug(
-                                f"ISIN for {identifier}: {finnhub_isin} [Finnhub]"
-                            )
-                        # Visual feedback for API hit
-                        # Visual feedback for API hit
-                        logger.debug(f"Enriched {identifier} via Finnhub")
-                    else:
-                        logger.warning(f"Empty profile from Finnhub for {identifier}")
-
-                rate_limit_sec = max(ENRICHMENT_RATE_LIMIT_MS / 1000, 1.0)
-                logger.debug(f"Rate limiting: sleeping {rate_limit_sec}s")
-                time.sleep(rate_limit_sec)
-
-            except requests.exceptions.RequestException as e:
-                logger.warning(f"Finnhub request error for {identifier}: {e}")
-
-        # NEW: Wikidata ISIN Fallback (if still N/A after Finnhub)
+        # Wikidata ISIN Fallback (if still N/A after proxy)
 
         # Only run if we don't already have a valid ISIN
         if (

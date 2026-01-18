@@ -1,19 +1,28 @@
 # Implementation Plan
 
 > Generated from `specs/review-fixes.md` analysis  
-> Last Updated: 2026-01-18
+> Last Updated: 2026-01-18 (Plan Revision v2)
+
+---
+
+## Changelog
+
+| Date | Changes |
+|------|---------|
+| 2026-01-18 v2 | Added 10 new tasks from gap analysis: 1.2.3-1.2.4 (API proxy enforcement), 2.1.8-2.1.10 (input validation), 5.1.7 (protocol desync), split 4.2.4 → 4.2.4-4.2.6, split 9.1 → 9.1-9.3. Total: 55 → 65 tasks. |
+| 2026-01-18 v1 | Initial plan from code review analysis. |
 
 ---
 
 ## Overview
 
-This plan consolidates **40 code review findings** into a prioritized implementation sequence. The reviews identified **6 HIGH severity** and **~75 MEDIUM severity** issues across security, correctness, and code quality domains.
+This plan consolidates **40+ code review findings** into a prioritized implementation sequence. The reviews identified **6 HIGH severity** and **~78 MEDIUM severity** issues across security, correctness, and code quality domains.
 
 ### Severity Distribution
 | Severity | Count | Focus Areas |
 |----------|-------|-------------|
-| HIGH | 6 | Credential leakage, input validation bypass |
-| MEDIUM | ~75 | ISIN validation, error sanitization, timer cleanup, test coverage |
+| HIGH | 6 | Credential leakage, input validation bypass, direct API calls |
+| MEDIUM | ~78 | ISIN validation, error sanitization, timer cleanup, test coverage |
 
 ---
 
@@ -42,11 +51,16 @@ This plan consolidates **40 code review findings** into a prioritized implementa
 | Task | File | Issue | Est. | Status |
 |------|------|-------|------|--------|
 | 1.2.1 | `infrastructure/cloudflare/worker.js:260-269` | Add Finnhub symbol/query input validation (HIGH) | 30m | **DONE** (v0.1.4) |
-| 1.2.2 | `src-tauri/python/portfolio_src/data/proxy_client.py` | Remove direct Finnhub API fallback (security bypass) | 20m | |
+| 1.2.2 | `src-tauri/python/portfolio_src/data/proxy_client.py` | Remove direct Finnhub API fallback (security bypass) | 20m | **DONE** (already clean - no fallback exists) |
+| 1.2.2b | `src-tauri/python/portfolio_src/data/resolution.py` | Remove direct Finnhub API fallback (lines 36-37, 476-498) | 15m | |
+| 1.2.3 | `src-tauri/python/portfolio_src/data/enrichment.py` | Remove direct Finnhub API fallback (lines 352-392) - same issue as proxy_client | 20m | **DONE** (v0.1.5) |
+| 1.2.4 | `src-tauri/python/portfolio_src/core/security_mapper.py` | Verify OPENFIGI_API_KEY usage - ensure proxied or remove | 15m | |
 
 **Verification:**
 - [ ] Test Finnhub endpoint with malicious inputs (SQL injection, path traversal)
 - [ ] Confirm proxy_client only routes through Worker, no direct API calls
+- [ ] Confirm enrichment.py only routes through Worker, no direct API calls
+- [ ] Audit all `*_API_KEY` env vars for direct usage violations
 
 ---
 
@@ -66,12 +80,17 @@ Create shared validator, then apply to all entry points.
 | 2.1.5 | `src-tauri/python/portfolio_src/data/proxy_client.py` | Add symbol/query input validation | 15m |
 | 2.1.6 | `src-tauri/python/portfolio_src/data/hive_client.py` | Add ISIN input validation | 10m |
 | 2.1.7 | `src-tauri/python/portfolio_src/data/caching.py` | Add ISIN validation to cache decorator | 15m |
+| 2.1.8 | `src-tauri/python/portfolio_src/headless/handlers/tr_auth.py` | Validate `PRISM_DATA_DIR` and cookie file paths (prevent path traversal/symlink attacks) | 15m |
+| 2.1.9 | `src-tauri/python/portfolio_src/headless/dispatcher.py` | Add IPC payload structure validation (command, id, payload types) | 15m |
+| 2.1.10 | `src-tauri/src/python_engine.rs` | Add payload validation for Python engine IPC (moved from Phase 6) | 15m |
 
 **Note:** Task 2.1.4 includes a **bug fix** - `ISHARES_CONFIG_PATH` is undefined in ishares.py.
 
 **Verification:**
 - [ ] Unit tests for ISIN validation (valid, invalid prefix, wrong length, bad checksum)
 - [ ] Integration test with malformed ISINs through each adapter
+- [ ] Test cookie path with `../` traversal attempts
+- [ ] Test dispatcher with malformed JSON payloads
 
 ---
 
@@ -112,7 +131,9 @@ Create shared validator, then apply to all entry points.
 | 4.2.1 | `src-tauri/tauri.conf.json` | Remove unsafe CSP directives for production | 20m |
 | 4.2.2 | `src-tauri/capabilities/default.json` | Add explicit sidecar scoping, harden CSP | 20m |
 | 4.2.3 | `infrastructure/cloudflare/wrangler.toml` | Harden observability, enable KV rate limiting | 15m |
-| 4.2.4 | `infrastructure/cloudflare/worker.js` | Environment-based CORS, migrate to KV rate limiting, feedback size validation | 30m |
+| 4.2.4 | `infrastructure/cloudflare/worker.js` | Add feedback payload size validation (max 10KB) | 10m |
+| 4.2.5 | `infrastructure/cloudflare/worker.js` | Implement environment-based CORS (dev vs prod origins) | 15m |
+| 4.2.6 | `infrastructure/cloudflare/worker.js` | Migrate rate limiting from in-memory to KV-based | 20m |
 
 **Verification:**
 - [ ] `cargo deny check` passes
@@ -136,6 +157,7 @@ Create shared validator, then apply to all entry points.
 | 5.1.4 | `src-tauri/python/portfolio_src/data/database.py` | Propagate migration failures (don't swallow) | 15m |
 | 5.1.5 | `src-tauri/python/portfolio_src/data/hive_client.py` | Fix cache expiry timezone handling | 15m |
 | 5.1.6 | `src/hooks/usePortfolioData.ts` | Fix useXRayData portfolioId mismatch + add query invalidation | 20m |
+| 5.1.7 | `src-tauri/python/portfolio_src/core/tr_bridge.py` | Validate Response ID matches Request ID (prevent protocol desync) | 15m |
 
 ### 5.2 Dead Code Removal
 
@@ -165,7 +187,7 @@ Create shared validator, then apply to all entry points.
 | 6.1 | `.env.example` | Document Echo Bridge token requirement + runtime warning | 10m |
 | 6.2 | `src-tauri/python/prism_headless.py` | Change default host 0.0.0.0 → 127.0.0.1 + log silent exceptions | 15m |
 | 6.3 | `src-tauri/python/portfolio_src/core/tr_bridge.py` | Document credential transmission security model | 10m |
-| 6.4 | `src-tauri/src/python_engine.rs` | Document race condition safety invariants + add payload validation | 20m |
+| 6.4 | `src-tauri/src/python_engine.rs` | Document race condition safety invariants (payload validation moved to 2.1.10) | 10m |
 | 6.5 | `src-tauri/python/portfolio_src/data/hive_client.py` | Improve fallback logging | 10m |
 
 ---
@@ -205,8 +227,10 @@ Create shared validator, then apply to all entry points.
 
 | Task | File | Issue | Est. |
 |------|------|-------|------|
-| 9.1 | `src/components/views/Dashboard.tsx` | Component decomposition (320→150 lines) | 45m |
-| 9.2 | `src/components/views/Dashboard.tsx` | Null safety for history array | 10m |
+| 9.1 | `src/components/views/Dashboard.tsx` | Extract DashboardSkeleton component | 15m |
+| 9.2 | `src/components/views/Dashboard.tsx` | Extract TopHoldingsCard component | 15m |
+| 9.3 | `src/components/views/Dashboard.tsx` | Extract TrueExposureCard component | 15m |
+| 9.4 | `src/components/views/Dashboard.tsx` | Null safety for history array | 10m |
 
 ---
 
@@ -228,16 +252,16 @@ Create shared validator, then apply to all entry points.
 
 | Phase | Tasks | Estimated Time |
 |-------|-------|----------------|
-| Phase 1 | 6 | 1.5 hours |
-| Phase 2 | 7 | 1.5 hours |
+| Phase 1 | 8 | 2 hours |
+| Phase 2 | 10 | 2.5 hours |
 | Phase 3 | 5 | 1.5 hours |
-| Phase 4 | 7 | 2 hours |
-| Phase 5 | 12 | 3 hours |
-| Phase 6 | 5 | 1 hour |
-| Phase 7 | 4 | 30 mins |
+| Phase 4 | 9 | 2.5 hours |
+| Phase 5 | 13 | 3.25 hours |
+| Phase 6 | 5 | 55 mins |
+| Phase 7 | 4 | 35 mins |
 | Phase 8 | 7 | 2.5 hours |
-| Phase 9 | 2 | 1 hour |
-| **Total** | **55** | **~14.5 hours** |
+| Phase 9 | 4 | 55 mins |
+| **Total** | **65** | **~16.5 hours** |
 
 ---
 

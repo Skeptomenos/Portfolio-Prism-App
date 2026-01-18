@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **Removed direct Finnhub API fallback from enrichment.py (Task 1.2.3):**
+  - Eliminated security bypass where `FINNHUB_API_KEY` env var could trigger direct API calls, exposing keys in client binary.
+  - All Finnhub calls now route exclusively through Cloudflare Worker proxy.
+  - Enforces AGENTS.md constraint: "API keys MUST be proxied via Cloudflare Worker — never in client."
+  - Falls through to Wikidata when proxy is unavailable (graceful degradation without key exposure).
+
 ### Added
 
 - **Phase 1 Pipeline Contracts - Data Validation at Phase Boundaries:**
