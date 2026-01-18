@@ -1,0 +1,45 @@
+# cargo-deny configuration for Portfolio Prism
+# Run with: cargo deny check
+# Docs: https://embarkstudios.github.io/cargo-deny/
+
+[advisories]
+# Path to local advisory database (auto-fetched if not present)
+db-path = "~/.cargo/advisory-db"
+# Deny packages with known vulnerabilities
+vulnerability = "deny"
+# Warn about unmaintained packages
+unmaintained = "warn"
+# Deny packages that have been yanked from crates.io
+yanked = "deny"
+
+[licenses]
+# Deny packages without licenses
+unlicensed = "deny"
+# Allowed license types (common open source licenses)
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "MPL-2.0",
+    "Zlib",
+    "Unicode-DFS-2016",
+]
+# Confidence threshold for license detection
+confidence-threshold = 0.8
+
+[bans]
+# Warn when multiple versions of the same crate are present
+multiple-versions = "warn"
+# Deny wildcard version specifiers
+wildcards = "deny"
+# Allow certain crates to have multiple versions (common for transitive deps)
+skip = []
+
+[sources]
+# Only allow crates from crates.io
+unknown-registry = "deny"
+unknown-git = "deny"
+# Allow private registries (none currently)
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- **Tightened Rust dependency version constraints + added cargo-deny (Task 4.1.1):**
+  - Updated version constraints in `src-tauri/Cargo.toml` from major-only (`"1"`, `"2"`) to minor (`"1.0"`, `"2.0"`) to prevent unexpected breaking changes.
+  - Created `src-tauri/deny.toml` for cargo-deny security scanning.
+  - Configuration denies known vulnerabilities and yanked packages.
+  - Warns about unmaintained packages and multiple versions.
+  - Enforces license allowlist (MIT, Apache-2.0, BSD, ISC, MPL-2.0, Zlib).
+  - Denies wildcard version specifiers and unknown registries.
+
 - **Enhanced PII scrubber with ReDoS protection (Task 3.5):**
   - Added credit card pattern detection (Visa, Mastercard, Amex, Discover).
   - Added SSN pattern detection (requires dashes/spaces for disambiguation).

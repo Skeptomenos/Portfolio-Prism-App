@@ -118,9 +118,9 @@ Create shared validator, then apply to all entry points.
 
 ### 4.1 Dependency Security Scanning
 
-| Task | File | Issue | Est. |
-|------|------|-------|------|
-| 4.1.1 | `src-tauri/Cargo.toml` | Tighten version constraints + add cargo-deny | 20m |
+| Task | File | Issue | Est. | Status |
+|------|------|-------|------|--------|
+| 4.1.1 | `src-tauri/Cargo.toml` | Tighten version constraints + add cargo-deny | 20m | **DONE** (v0.4.0) |
 | 4.1.2 | `package.json` | Pin critical Tauri deps + configure Dependabot | 15m |
 | 4.1.3 | `src-tauri/python/pyproject.toml` | Update pytr + add pip-audit scanning | 15m |
 
