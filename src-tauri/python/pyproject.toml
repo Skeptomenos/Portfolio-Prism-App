@@ -20,7 +20,7 @@ dependencies = [
     "pydantic>=2.12.5",
     "pyinstaller>=6.0",
     "python-dotenv>=1.2.1",
-    "pytr>=0.4.2",
+    "pytr>=0.4.5",  # Security: kept at latest for Trade Republic API compatibility
     "requests>=2.32.5",
     "httpx>=0.28.0",
     "supabase>=2.27.0",
@@ -34,4 +34,5 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest>=9.0.2",
+    "pip-audit>=2.10.0",  # Security: automated vulnerability scanning
 ]

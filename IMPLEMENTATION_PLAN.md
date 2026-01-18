@@ -122,7 +122,7 @@ Create shared validator, then apply to all entry points.
 |------|------|-------|------|--------|
 | 4.1.1 | `src-tauri/Cargo.toml` | Tighten version constraints + add cargo-deny | 20m | **DONE** (v0.4.0) |
 | 4.1.2 | `package.json` | Pin critical Tauri deps + configure Dependabot | 15m | **DONE** (v0.4.1) |
-| 4.1.3 | `src-tauri/python/pyproject.toml` | Update pytr + add pip-audit scanning | 15m |
+| 4.1.3 | `src-tauri/python/pyproject.toml` | Update pytr + add pip-audit scanning | 15m | **DONE** (v0.4.2) |
 
 ### 4.2 CSP & Security Hardening
 
