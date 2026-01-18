@@ -14,11 +14,61 @@ from portfolio_src.prism_utils.logging_config import get_logger
 logger = get_logger(__name__)
 
 
-async def dispatch(cmd: dict[str, Any]) -> dict[str, Any]:
+def _validate_ipc_payload(cmd: Any) -> tuple[bool, str, int]:
+    """Validate IPC payload structure before processing.
+
+    Validates that the incoming command has the required structure:
+    - Must be a dict
+    - 'command' must be a string (or missing/empty for unknown command handling)
+    - 'id' must be an int or coercible to int
+    - 'payload' must be a dict if present
+
+    Args:
+        cmd: Raw command object to validate.
+
+    Returns:
+        Tuple of (is_valid, error_message, cmd_id).
+        If valid, error_message is empty string.
+        cmd_id is extracted/defaulted for error response correlation.
+    """
+    # Must be a dict
+    if not isinstance(cmd, dict):
+        return False, f"IPC payload must be a dict, got {type(cmd).__name__}", 0
+
+    # Extract cmd_id early for error response correlation
+    raw_id = cmd.get("id", 0)
+    try:
+        cmd_id = int(raw_id) if raw_id is not None else 0
+    except (TypeError, ValueError):
+        return False, f"IPC 'id' must be an integer, got {type(raw_id).__name__}", 0
+
+    # Validate 'command' is a string (empty string handled downstream as unknown command)
+    command = cmd.get("command")
+    if command is not None and not isinstance(command, str):
+        return (
+            False,
+            f"IPC 'command' must be a string, got {type(command).__name__}",
+            cmd_id,
+        )
+
+    # Validate 'payload' is a dict if present
+    payload = cmd.get("payload")
+    if payload is not None and not isinstance(payload, dict):
+        return (
+            False,
+            f"IPC 'payload' must be a dict, got {type(payload).__name__}",
+            cmd_id,
+        )
+
+    return True, "", cmd_id
+
+
+async def dispatch(cmd: Any) -> dict[str, Any]:
     """Dispatch a command to its handler.
 
-    Extracts command name, ID, and payload from the incoming message,
-    looks up the handler in the registry, and invokes it.
+    Validates payload structure, extracts command name, ID, and payload
+    from the incoming message, looks up the handler in the registry,
+    and invokes it.
 
     Args:
         cmd: Command dict with 'command', 'id', and 'payload' keys.
@@ -32,6 +82,12 @@ async def dispatch(cmd: dict[str, Any]) -> dict[str, Any]:
         >>> await dispatch({"command": "get_health", "id": 1, "payload": {}})
         {"id": 1, "status": "success", "data": {"version": "0.1.0", ...}}
     """
+    # Validate IPC payload structure before processing
+    is_valid, validation_error, validated_id = _validate_ipc_payload(cmd)
+    if not is_valid:
+        logger.warning(f"IPC payload validation failed: {validation_error}")
+        return error_response(validated_id, "INVALID_PAYLOAD", validation_error)
+
     command = cmd.get("command", "")
     cmd_id = cmd.get("id", 0)
     payload = cmd.get("payload", {})

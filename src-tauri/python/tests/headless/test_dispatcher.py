@@ -8,6 +8,7 @@ from portfolio_src.headless.dispatcher import (
     dispatch,
     get_available_commands,
     is_command_registered,
+    _validate_ipc_payload,
 )
 
 
@@ -161,3 +162,159 @@ class TestDispatcherHelpers:
         """Should return False for unregistered commands."""
         assert is_command_registered("fake_command") is False
         assert is_command_registered("") is False
+
+
+class TestIPCPayloadValidation:
+    """Tests for IPC payload structure validation."""
+
+    def test_validate_valid_payload(self):
+        """Should accept well-formed payload."""
+        is_valid, error, cmd_id = _validate_ipc_payload(
+            {"command": "get_health", "id": 1, "payload": {}}
+        )
+        assert is_valid is True
+        assert error == ""
+        assert cmd_id == 1
+
+    def test_validate_payload_not_dict(self):
+        """Should reject non-dict payload."""
+        is_valid, error, cmd_id = _validate_ipc_payload("not a dict")
+        assert is_valid is False
+        assert "must be a dict" in error
+        assert cmd_id == 0
+
+    def test_validate_payload_none(self):
+        """Should reject None payload."""
+        is_valid, error, cmd_id = _validate_ipc_payload(None)
+        assert is_valid is False
+        assert "must be a dict" in error
+
+    def test_validate_payload_list(self):
+        """Should reject list payload."""
+        is_valid, error, cmd_id = _validate_ipc_payload([1, 2, 3])
+        assert is_valid is False
+        assert "must be a dict" in error
+
+    def test_validate_command_not_string(self):
+        """Should reject non-string command."""
+        is_valid, error, cmd_id = _validate_ipc_payload(
+            {"command": 123, "id": 1, "payload": {}}
+        )
+        assert is_valid is False
+        assert "'command' must be a string" in error
+        assert cmd_id == 1  # ID should still be extracted
+
+    def test_validate_command_list(self):
+        """Should reject list command."""
+        is_valid, error, cmd_id = _validate_ipc_payload(
+            {"command": ["cmd"], "id": 2, "payload": {}}
+        )
+        assert is_valid is False
+        assert "'command' must be a string" in error
+        assert cmd_id == 2
+
+    def test_validate_id_not_int(self):
+        """Should reject non-integer id."""
+        is_valid, error, cmd_id = _validate_ipc_payload(
+            {"command": "test", "id": "not_int", "payload": {}}
+        )
+        assert is_valid is False
+        assert "'id' must be an integer" in error
+        assert cmd_id == 0  # Default when id is invalid
+
+    def test_validate_id_float_coerced(self):
+        """Should coerce float id to int."""
+        is_valid, error, cmd_id = _validate_ipc_payload(
+            {"command": "test", "id": 5.0, "payload": {}}
+        )
+        assert is_valid is True
+        assert cmd_id == 5
+
+    def test_validate_id_string_int_coerced(self):
+        """Should coerce string integer to int."""
+        is_valid, error, cmd_id = _validate_ipc_payload(
+            {"command": "test", "id": "42", "payload": {}}
+        )
+        assert is_valid is True
+        assert cmd_id == 42
+
+    def test_validate_payload_field_not_dict(self):
+        """Should reject non-dict payload field."""
+        is_valid, error, cmd_id = _validate_ipc_payload(
+            {"command": "test", "id": 1, "payload": "string_payload"}
+        )
+        assert is_valid is False
+        assert "'payload' must be a dict" in error
+        assert cmd_id == 1
+
+    def test_validate_payload_field_list(self):
+        """Should reject list payload field."""
+        is_valid, error, cmd_id = _validate_ipc_payload(
+            {"command": "test", "id": 3, "payload": [1, 2, 3]}
+        )
+        assert is_valid is False
+        assert "'payload' must be a dict" in error
+        assert cmd_id == 3
+
+    def test_validate_missing_command_ok(self):
+        """Should accept missing command (handled downstream)."""
+        is_valid, error, cmd_id = _validate_ipc_payload({"id": 1, "payload": {}})
+        assert is_valid is True
+
+    def test_validate_missing_payload_ok(self):
+        """Should accept missing payload."""
+        is_valid, error, cmd_id = _validate_ipc_payload({"command": "test", "id": 1})
+        assert is_valid is True
+
+    def test_validate_missing_id_defaults_zero(self):
+        """Should default missing id to 0."""
+        is_valid, error, cmd_id = _validate_ipc_payload(
+            {"command": "test", "payload": {}}
+        )
+        assert is_valid is True
+        assert cmd_id == 0
+
+
+class TestDispatchPayloadValidation:
+    """Tests for dispatch function with invalid payloads."""
+
+    @pytest.mark.asyncio
+    async def test_dispatch_non_dict_payload(self):
+        """Should return INVALID_PAYLOAD for non-dict input."""
+        result = await dispatch("not a dict")
+
+        assert result["status"] == "error"
+        assert result["error"]["code"] == "INVALID_PAYLOAD"
+        assert "must be a dict" in result["error"]["message"]
+        assert result["id"] == 0
+
+    @pytest.mark.asyncio
+    async def test_dispatch_invalid_command_type(self):
+        """Should return INVALID_PAYLOAD for non-string command."""
+        result = await dispatch({"command": 123, "id": 5, "payload": {}})
+
+        assert result["status"] == "error"
+        assert result["error"]["code"] == "INVALID_PAYLOAD"
+        assert "'command' must be a string" in result["error"]["message"]
+        assert result["id"] == 5
+
+    @pytest.mark.asyncio
+    async def test_dispatch_invalid_id_type(self):
+        """Should return INVALID_PAYLOAD for non-integer id."""
+        result = await dispatch(
+            {"command": "test", "id": {"nested": "dict"}, "payload": {}}
+        )
+
+        assert result["status"] == "error"
+        assert result["error"]["code"] == "INVALID_PAYLOAD"
+        assert "'id' must be an integer" in result["error"]["message"]
+
+    @pytest.mark.asyncio
+    async def test_dispatch_invalid_payload_type(self):
+        """Should return INVALID_PAYLOAD for non-dict payload field."""
+        result = await dispatch({"command": "get_health", "id": 7, "payload": "string"})
+
+        assert result["status"] == "error"
+        assert result["error"]["code"] == "INVALID_PAYLOAD"
+        assert "'payload' must be a dict" in result["error"]["message"]
+        assert result["id"] == 7
