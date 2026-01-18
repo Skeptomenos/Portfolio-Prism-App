@@ -1,14 +1,14 @@
 /**
  * Two-Factor Authentication Modal
- * 
+ *
  * Centered modal for entering 2FA code from Trade Republic app.
  * Features countdown timer and auto-submit on 4 digits.
  */
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Modal } from '../ui/Modal';
-import { useAppStore } from '../../store/useAppStore';
-import { trSubmit2FA, trLogin } from '../../lib/ipc';
+import React, { useState, useEffect, useRef } from 'react'
+import { Modal } from '../ui/Modal'
+import { useAppStore } from '../../store/useAppStore'
+import { trSubmit2FA } from '../../lib/ipc'
 
 const styles = {
   container: {
@@ -103,172 +103,169 @@ const styles = {
     color: '#64748b',
     cursor: 'not-allowed',
   },
-};
+}
 
 interface TwoFactorModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSuccess: () => void;
-  phone?: string;
-  pin?: string;
-  remember?: boolean;
-  initialCountdown?: number;
+  isOpen: boolean
+  onClose: () => void
+  onSuccess: () => void
+  /**
+   * Callback to request code resend. Parent handles credentials internally.
+   * Returns the new countdown value, or throws on failure.
+   * SECURITY: Credentials are NOT passed as props to prevent exposure in React DevTools.
+   */
+  onResendRequest?: () => Promise<number>
+  initialCountdown?: number
 }
 
 export const TwoFactorModal: React.FC<TwoFactorModalProps> = ({
   isOpen,
   onClose,
   onSuccess,
-  phone = '',
-  pin = '',
-  remember = false,
+  onResendRequest,
   initialCountdown = 30,
 }) => {
-  const [code, setCode] = useState(['', '', '', '']);
-  const [countdown, setCountdown] = useState(initialCountdown);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  
-  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
-  const { setAuthState, addToast } = useAppStore();
+  const [code, setCode] = useState(['', '', '', ''])
+  const [countdown, setCountdown] = useState(initialCountdown)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([])
+  const { setAuthState, addToast } = useAppStore()
 
   // Reset state when modal opens
   useEffect(() => {
     if (isOpen) {
-      setCode(['', '', '', '']);
-      setCountdown(initialCountdown);
-      setError(null);
-      setIsLoading(false);
-      setTimeout(() => inputRefs.current[0]?.focus(), 100);
+      setCode(['', '', '', ''])
+      setCountdown(initialCountdown)
+      setError(null)
+      setIsLoading(false)
+      setTimeout(() => inputRefs.current[0]?.focus(), 100)
     }
-  }, [isOpen, initialCountdown]);
+  }, [isOpen, initialCountdown])
 
   // Countdown timer
   useEffect(() => {
-    if (!isOpen || countdown <= 0 || isLoading) return;
-    
+    if (!isOpen || countdown <= 0 || isLoading) return
+
     const timer = setInterval(() => {
-      setCountdown((prev) => prev - 1);
-    }, 1000);
-    
-    return () => clearInterval(timer);
-  }, [isOpen, countdown, isLoading]);
+      setCountdown((prev) => prev - 1)
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [isOpen, countdown, isLoading])
 
   // Auto-submit when all digits entered
   useEffect(() => {
-    const fullCode = code.join('');
+    const fullCode = code.join('')
     if (fullCode.length === 4 && !isLoading) {
-      handleVerify();
+      handleVerify()
     }
-  }, [code]);
+  }, [code])
 
   const handleInputChange = (index: number, value: string) => {
-    const digit = value.replace(/\D/g, '').slice(0, 1);
-    
-    const newCode = [...code];
-    newCode[index] = digit;
-    setCode(newCode);
-    setError(null);
+    const digit = value.replace(/\D/g, '').slice(0, 1)
+
+    const newCode = [...code]
+    newCode[index] = digit
+    setCode(newCode)
+    setError(null)
 
     // Auto-focus next input
     if (digit && index < 3) {
-      inputRefs.current[index + 1]?.focus();
+      inputRefs.current[index + 1]?.focus()
     }
-  };
+  }
 
   const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
     if (e.key === 'Backspace' && !code[index] && index > 0) {
-      inputRefs.current[index - 1]?.focus();
-      const newCode = [...code];
-      newCode[index - 1] = '';
-      setCode(newCode);
+      inputRefs.current[index - 1]?.focus()
+      const newCode = [...code]
+      newCode[index - 1] = ''
+      setCode(newCode)
     }
-  };
+  }
 
   const handlePaste = (e: React.ClipboardEvent) => {
-    e.preventDefault();
-    const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 4);
-    const newCode = pastedData.split('').concat(['', '', '', '']).slice(0, 4);
-    setCode(newCode);
-    
-    const nextEmptyIndex = newCode.findIndex((digit) => !digit);
-    const focusIndex = nextEmptyIndex >= 0 ? nextEmptyIndex : 3;
-    inputRefs.current[focusIndex]?.focus();
-  };
+    e.preventDefault()
+    const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 4)
+    const newCode = pastedData.split('').concat(['', '', '', '']).slice(0, 4)
+    setCode(newCode)
+
+    const nextEmptyIndex = newCode.findIndex((digit) => !digit)
+    const focusIndex = nextEmptyIndex >= 0 ? nextEmptyIndex : 3
+    inputRefs.current[focusIndex]?.focus()
+  }
 
   const handleVerify = async () => {
-    const fullCode = code.join('');
+    const fullCode = code.join('')
     if (fullCode.length !== 4) {
-      setError('Please enter all 4 digits');
-      return;
+      setError('Please enter all 4 digits')
+      return
     }
 
-    setIsLoading(true);
-    setError(null);
+    setIsLoading(true)
+    setError(null)
 
     try {
-      const response = await trSubmit2FA(fullCode);
-      
+      const response = await trSubmit2FA(fullCode)
+
       if (response.authState === 'authenticated') {
-        setAuthState('authenticated');
+        setAuthState('authenticated')
         addToast({
           type: 'success',
           title: 'Authentication successful',
           message: 'Connected to Trade Republic',
-        });
-        onSuccess();
+        })
+        onSuccess()
       } else {
-        setError(response.message || 'Verification failed');
-        setCode(['', '', '', '']);
-        inputRefs.current[0]?.focus();
+        setError(response.message || 'Verification failed')
+        setCode(['', '', '', ''])
+        inputRefs.current[0]?.focus()
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Verification failed';
-      setError(message);
-      setCode(['', '', '', '']);
-      inputRefs.current[0]?.focus();
+      const message = err instanceof Error ? err.message : 'Verification failed'
+      setError(message)
+      setCode(['', '', '', ''])
+      inputRefs.current[0]?.focus()
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   const handleResend = async () => {
-    if (countdown > 0 || isLoading || !phone || !pin) return;
+    // SECURITY: Credentials handled by parent via callback - not exposed in props
+    if (countdown > 0 || isLoading || !onResendRequest) return
 
-    setIsLoading(true);
-    setError(null);
+    setIsLoading(true)
+    setError(null)
 
     try {
-      const response = await trLogin(phone, pin, remember);
-      
-      if (response.authState === 'waiting_2fa') {
-        setCountdown(response.countdown || 30);
-        setCode(['', '', '', '']);
-        inputRefs.current[0]?.focus();
-        addToast({
-          type: 'info',
-          title: 'Code resent',
-          message: 'Check your Trade Republic app',
-        });
-      } else {
-        setError('Failed to resend code');
-      }
+      const newCountdown = await onResendRequest()
+      setCountdown(newCountdown)
+      setCode(['', '', '', ''])
+      inputRefs.current[0]?.focus()
+      addToast({
+        type: 'info',
+        title: 'Code resent',
+        message: 'Check your Trade Republic app',
+      })
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to resend code';
-      setError(message);
+      const message = err instanceof Error ? err.message : 'Failed to resend code'
+      setError(message)
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   const formatCountdown = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
 
-  const canVerify = code.join('').length === 4 && !isLoading;
-  const canResend = countdown <= 0 && !isLoading && phone && pin;
+  const canVerify = code.join('').length === 4 && !isLoading
+  const canResend = countdown <= 0 && !isLoading && !!onResendRequest
 
   return (
     <Modal
@@ -279,9 +276,7 @@ export const TwoFactorModal: React.FC<TwoFactorModalProps> = ({
       closeOnEscape={!isLoading}
     >
       <div style={styles.container}>
-        <p style={styles.description}>
-          Enter the 4-digit code from your Trade Republic app
-        </p>
+        <p style={styles.description}>Enter the 4-digit code from your Trade Republic app</p>
 
         {error && <div style={styles.error}>{error}</div>}
 
@@ -301,32 +296,32 @@ export const TwoFactorModal: React.FC<TwoFactorModalProps> = ({
               disabled={isLoading}
               style={{
                 ...styles.codeInput,
-                ...(document.activeElement === inputRefs.current[index] ? styles.codeInputFocus : {}),
+                ...(document.activeElement === inputRefs.current[index]
+                  ? styles.codeInputFocus
+                  : {}),
               }}
               onFocus={(e) => {
-                e.target.style.borderColor = '#10b981';
-                e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.2)';
+                e.target.style.borderColor = '#10b981'
+                e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.2)'
               }}
               onBlur={(e) => {
-                e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-                e.target.style.boxShadow = 'none';
+                e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)'
+                e.target.style.boxShadow = 'none'
               }}
             />
           ))}
         </div>
 
-        <div style={{
-          ...styles.countdown,
-          ...(countdown <= 0 ? styles.countdownExpired : {}),
-        }}>
-          {countdown > 0 ? (
-            `Code expires in ${formatCountdown(countdown)}`
-          ) : (
-            'Code expired'
-          )}
+        <div
+          style={{
+            ...styles.countdown,
+            ...(countdown <= 0 ? styles.countdownExpired : {}),
+          }}
+        >
+          {countdown > 0 ? `Code expires in ${formatCountdown(countdown)}` : 'Code expired'}
         </div>
 
-        {phone && pin && (
+        {onResendRequest && (
           <button
             onClick={handleResend}
             disabled={!canResend}
@@ -360,7 +355,7 @@ export const TwoFactorModal: React.FC<TwoFactorModalProps> = ({
         </div>
       </div>
     </Modal>
-  );
-};
+  )
+}
 
-export default TwoFactorModal;
+export default TwoFactorModal

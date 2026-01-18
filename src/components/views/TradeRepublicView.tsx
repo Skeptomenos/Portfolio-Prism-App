@@ -1,23 +1,18 @@
 /**
  * Trade Republic View
- * 
+ *
  * Main view for Trade Republic integration.
  * - When NOT authenticated: Shows login form or session restore
  * - When authenticated: Shows account status, sync button, and portfolio table
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { useAppStore } from '../../store/useAppStore';
-import { LoginForm, TwoFactorModal, SessionRestorePrompt } from '../auth';
-import { PortfolioTable } from '../portfolio/PortfolioTable';
-import { 
-  trCheckSavedSession, 
-  trLogout, 
-  syncPortfolio, 
-  getPositions 
-} from '../../lib/ipc';
-import type { SessionCheck, AuthResponse, Position } from '../../types';
+import React, { useState, useEffect, useCallback } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useAppStore } from '../../store/useAppStore'
+import { LoginForm, TwoFactorModal, SessionRestorePrompt } from '../auth'
+import { PortfolioTable } from '../portfolio/PortfolioTable'
+import { trCheckSavedSession, trLogout, syncPortfolio, getPositions, trLogin } from '../../lib/ipc'
+import type { SessionCheck, AuthResponse, Position } from '../../types'
 
 const styles = {
   container: {
@@ -189,134 +184,145 @@ const styles = {
     color: '#f59e0b',
     fontSize: '13px',
   },
-};
+}
 
 export const TradeRepublicView: React.FC = () => {
-  const { 
-    authState, 
-    setAuthState, 
-    activePortfolioId, 
+  const {
+    authState,
+    setAuthState,
+    activePortfolioId,
     addToast,
     hasUnsavedChanges,
-    setHasUnsavedChanges
-  } = useAppStore();
-  
-  const [sessionData, setSessionData] = useState<SessionCheck | null>(null);
-  const [loginCredentials, setLoginCredentials] = useState<{ phone: string; pin: string; remember: boolean } | null>(null);
-  const [authResponse, setAuthResponse] = useState<AuthResponse | null>(null);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [localPositions, setLocalPositions] = useState<Position[]>([]);
+    setHasUnsavedChanges,
+  } = useAppStore()
+
+  const [sessionData, setSessionData] = useState<SessionCheck | null>(null)
+  const [loginCredentials, setLoginCredentials] = useState<{
+    phone: string
+    pin: string
+    remember: boolean
+  } | null>(null)
+  const [authResponse, setAuthResponse] = useState<AuthResponse | null>(null)
+  const [isSyncing, setIsSyncing] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [localPositions, setLocalPositions] = useState<Position[]>([])
 
   // Fetch positions when authenticated
-  const { data: positionsData, refetch: refetchPositions, isLoading: isLoadingPositions } = useQuery({
+  const {
+    data: positionsData,
+    refetch: refetchPositions,
+    isLoading: isLoadingPositions,
+  } = useQuery({
     queryKey: ['positions', activePortfolioId],
     queryFn: () => getPositions(activePortfolioId),
     enabled: authState === 'authenticated',
     staleTime: 30000,
-  });
+  })
 
   // Update local positions when data changes
   useEffect(() => {
     if (positionsData?.positions) {
-      setLocalPositions(positionsData.positions);
+      setLocalPositions(positionsData.positions)
     }
-  }, [positionsData]);
+  }, [positionsData])
 
   useEffect(() => {
     const loadSessionData = async () => {
       if (authState === 'idle') {
         try {
-          const session = await trCheckSavedSession();
-          setSessionData(session);
+          const session = await trCheckSavedSession()
+          setSessionData(session)
         } catch (error) {
-          console.error('[TradeRepublicView] Failed to load session data:', error);
+          console.error('[TradeRepublicView] Failed to load session data:', error)
         }
       }
-    };
-    loadSessionData();
-  }, [authState]);
+    }
+    loadSessionData()
+  }, [authState])
 
   // Handle login success
-  const handleLoginSuccess = useCallback((response: AuthResponse, credentials?: { phone: string; pin: string; remember: boolean }) => {
-    setAuthResponse(response);
-    if (credentials) {
-      setLoginCredentials(credentials);
-    }
-  }, []);
+  const handleLoginSuccess = useCallback(
+    (response: AuthResponse, credentials?: { phone: string; pin: string; remember: boolean }) => {
+      setAuthResponse(response)
+      if (credentials) {
+        setLoginCredentials(credentials)
+      }
+    },
+    []
+  )
 
   // Handle 2FA success - auto-sync after login
   const handleTwoFactorSuccess = useCallback(async () => {
-    setAuthState('authenticated');
-    setLoginCredentials(null);
-    setAuthResponse(null);
-    
+    setAuthState('authenticated')
+    setLoginCredentials(null)
+    setAuthResponse(null)
+
     // Auto-sync after successful login
-    setIsSyncing(true);
+    setIsSyncing(true)
     addToast({
       type: 'info',
       title: 'Syncing portfolio',
       message: 'Fetching your positions from Trade Republic...',
-    });
-    
+    })
+
     try {
-      const result = await syncPortfolio(activePortfolioId, false);
+      const result = await syncPortfolio(activePortfolioId, false)
       addToast({
         type: 'success',
         title: 'Portfolio synced',
         message: `${result.syncedPositions} positions loaded`,
-      });
-      refetchPositions();
+      })
+      refetchPositions()
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Sync failed';
+      const message = error instanceof Error ? error.message : 'Sync failed'
       addToast({
         type: 'error',
         title: 'Auto-sync failed',
         message: `${message}. Click "Sync Now" to retry.`,
-      });
+      })
     } finally {
-      setIsSyncing(false);
+      setIsSyncing(false)
     }
-  }, [setAuthState, refetchPositions, activePortfolioId, addToast]);
+  }, [setAuthState, refetchPositions, activePortfolioId, addToast])
 
   // Handle session restore - auto-sync after restore
   const handleRestoreComplete = useCallback(async () => {
-    setAuthState('authenticated');
-    
+    setAuthState('authenticated')
+
     // Auto-sync after session restore
-    setIsSyncing(true);
+    setIsSyncing(true)
     addToast({
       type: 'info',
       title: 'Syncing portfolio',
       message: 'Fetching your positions from Trade Republic...',
-    });
-    
+    })
+
     try {
-      const result = await syncPortfolio(activePortfolioId, false);
+      const result = await syncPortfolio(activePortfolioId, false)
       addToast({
         type: 'success',
         title: 'Portfolio synced',
         message: `${result.syncedPositions} positions loaded`,
-      });
-      refetchPositions();
+      })
+      refetchPositions()
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Sync failed';
+      const message = error instanceof Error ? error.message : 'Sync failed'
       addToast({
         type: 'error',
         title: 'Auto-sync failed',
         message: `${message}. Click "Sync Now" to retry.`,
-      });
+      })
       // Still refetch in case there's cached data
-      refetchPositions();
+      refetchPositions()
     } finally {
-      setIsSyncing(false);
+      setIsSyncing(false)
     }
-  }, [setAuthState, refetchPositions, activePortfolioId, addToast]);
+  }, [setAuthState, refetchPositions, activePortfolioId, addToast])
 
   // Handle fresh login
   const handleFreshLogin = useCallback(() => {
-    setSessionData({ hasSession: false, prompt: 'login_required' });
-  }, []);
+    setSessionData({ hasSession: false, prompt: 'login_required' })
+  }, [])
 
   // Handle sync
   const handleSync = useCallback(async () => {
@@ -325,75 +331,78 @@ export const TradeRepublicView: React.FC = () => {
         type: 'warning',
         title: 'Unsaved changes',
         message: 'Please save your changes before syncing',
-      });
-      return;
+      })
+      return
     }
 
-    setIsSyncing(true);
+    setIsSyncing(true)
     try {
-      const result = await syncPortfolio(activePortfolioId, false);
+      const result = await syncPortfolio(activePortfolioId, false)
       addToast({
         type: 'success',
         title: 'Portfolio synced',
         message: `${result.syncedPositions} positions updated`,
-      });
-      refetchPositions();
+      })
+      refetchPositions()
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Sync failed';
+      const message = error instanceof Error ? error.message : 'Sync failed'
       addToast({
         type: 'error',
         title: 'Sync failed',
         message,
-      });
-      
+      })
+
       // Check if it's an auth error
       if (message.includes('auth') || message.includes('session')) {
-        setAuthState('idle');
+        setAuthState('idle')
       }
     } finally {
-      setIsSyncing(false);
+      setIsSyncing(false)
     }
-  }, [activePortfolioId, hasUnsavedChanges, addToast, refetchPositions, setAuthState]);
+  }, [activePortfolioId, hasUnsavedChanges, addToast, refetchPositions, setAuthState])
 
   // Handle logout
   const handleLogout = useCallback(async () => {
-    setIsLoggingOut(true);
+    setIsLoggingOut(true)
     try {
-      await trLogout();
-      setAuthState('idle');
-      setSessionData(null);
-      setLocalPositions([]);
+      await trLogout()
+      setAuthState('idle')
+      setSessionData(null)
+      setLocalPositions([])
       addToast({
         type: 'info',
         title: 'Logged out',
         message: 'Session cleared successfully',
-      });
+      })
     } catch (error) {
       addToast({
         type: 'error',
         title: 'Logout failed',
         message: error instanceof Error ? error.message : 'Unknown error',
-      });
+      })
     } finally {
-      setIsLoggingOut(false);
+      setIsLoggingOut(false)
     }
-  }, [addToast, setAuthState]);
+  }, [addToast, setAuthState])
 
   // Handle position update (local only for now)
-  const handlePositionUpdate = useCallback((updatedPosition: Position) => {
-    setLocalPositions(prev => 
-      prev.map(p => p.isin === updatedPosition.isin ? updatedPosition : p)
-    );
-    setHasUnsavedChanges(true);
-  }, [setHasUnsavedChanges]);
+  const handlePositionUpdate = useCallback(
+    (updatedPosition: Position) => {
+      setLocalPositions((prev) =>
+        prev.map((p) => (p.isin === updatedPosition.isin ? updatedPosition : p))
+      )
+      setHasUnsavedChanges(true)
+    },
+    [setHasUnsavedChanges]
+  )
 
   // Format currency
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('de-DE', {
       style: 'currency',
       currency: 'EUR',
-    }).format(value);
-  };
+    }).format(value)
+  }
 
   // Render auth content
   const renderAuthContent = () => {
@@ -403,17 +412,27 @@ export const TradeRepublicView: React.FC = () => {
         <TwoFactorModal
           isOpen={true}
           onClose={() => {
-            setAuthState('idle');
-            setLoginCredentials(null);
-            setAuthResponse(null);
+            setAuthState('idle')
+            setLoginCredentials(null)
+            setAuthResponse(null)
           }}
           onSuccess={handleTwoFactorSuccess}
-          phone={loginCredentials.phone}
-          pin={loginCredentials.pin}
-          remember={loginCredentials.remember}
+          onResendRequest={async () => {
+            // SECURITY: Credentials handled here, not exposed as props to child
+            if (!loginCredentials) throw new Error('No credentials available')
+            const response = await trLogin(
+              loginCredentials.phone,
+              loginCredentials.pin,
+              loginCredentials.remember
+            )
+            if (response.authState !== 'waiting_2fa') {
+              throw new Error('Failed to resend code')
+            }
+            return response.countdown || 30
+          }}
           initialCountdown={authResponse.countdown}
         />
-      );
+      )
     }
 
     // Show session restore prompt
@@ -426,25 +445,23 @@ export const TradeRepublicView: React.FC = () => {
             onRestoreComplete={handleRestoreComplete}
           />
         </div>
-      );
+      )
     }
 
     // Show login form
     return (
       <div style={styles.authContainer}>
-        <LoginForm
-          onLoginSuccess={handleLoginSuccess}
-        />
+        <LoginForm onLoginSuccess={handleLoginSuccess} />
       </div>
-    );
-  };
+    )
+  }
 
   // Render authenticated content
   const renderAuthenticatedContent = () => {
-    const totalValue = positionsData?.totalValue || 0;
-    const totalPnl = positionsData?.totalPnl || 0;
-    const totalPnlPercent = positionsData?.totalPnlPercent || 0;
-    const lastSyncTime = positionsData?.lastSyncTime;
+    const totalValue = positionsData?.totalValue || 0
+    const totalPnl = positionsData?.totalPnl || 0
+    const totalPnlPercent = positionsData?.totalPnlPercent || 0
+    const lastSyncTime = positionsData?.lastSyncTime
 
     return (
       <>
@@ -481,14 +498,29 @@ export const TradeRepublicView: React.FC = () => {
             >
               {isSyncing ? (
                 <>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: 'spin 1s linear infinite' }}>
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    style={{ animation: 'spin 1s linear infinite' }}
+                  >
                     <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                   </svg>
                   Syncing...
                 </>
               ) : (
                 <>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
                     <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
                     <path d="M3 3v5h5" />
                     <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
@@ -515,7 +547,14 @@ export const TradeRepublicView: React.FC = () => {
         {/* Warning banner for unsaved changes */}
         {hasUnsavedChanges && (
           <div style={styles.warningBanner}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
               <line x1="12" y1="9" x2="12" y2="13" />
               <line x1="12" y1="17" x2="12.01" y2="17" />
@@ -532,14 +571,25 @@ export const TradeRepublicView: React.FC = () => {
           </div>
           <div style={styles.summaryCard}>
             <div style={styles.summaryLabel}>Total P&L</div>
-            <div style={{ ...styles.summaryValue, ...(totalPnl >= 0 ? styles.positive : styles.negative) }}>
+            <div
+              style={{
+                ...styles.summaryValue,
+                ...(totalPnl >= 0 ? styles.positive : styles.negative),
+              }}
+            >
               {formatCurrency(totalPnl)}
             </div>
           </div>
           <div style={styles.summaryCard}>
             <div style={styles.summaryLabel}>P&L %</div>
-            <div style={{ ...styles.summaryValue, ...(totalPnlPercent >= 0 ? styles.positive : styles.negative) }}>
-              {totalPnlPercent >= 0 ? '+' : ''}{totalPnlPercent.toFixed(2)}%
+            <div
+              style={{
+                ...styles.summaryValue,
+                ...(totalPnlPercent >= 0 ? styles.positive : styles.negative),
+              }}
+            >
+              {totalPnlPercent >= 0 ? '+' : ''}
+              {totalPnlPercent.toFixed(2)}%
             </div>
           </div>
         </div>
@@ -554,10 +604,7 @@ export const TradeRepublicView: React.FC = () => {
               Loading positions...
             </div>
           ) : (
-            <PortfolioTable 
-              positions={localPositions} 
-              onPositionUpdate={handlePositionUpdate}
-            />
+            <PortfolioTable positions={localPositions} onPositionUpdate={handlePositionUpdate} />
           )}
         </div>
 
@@ -571,14 +618,22 @@ export const TradeRepublicView: React.FC = () => {
           `}
         </style>
       </>
-    );
-  };
+    )
+  }
 
   return (
     <div style={styles.container}>
       <div style={styles.header}>
         <h1 style={styles.title}>
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: '#10b981' }}>
+          <svg
+            width="28"
+            height="28"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            style={{ color: '#10b981' }}
+          >
             <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
             <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
           </svg>
@@ -594,7 +649,7 @@ export const TradeRepublicView: React.FC = () => {
 
       {authState === 'authenticated' ? renderAuthenticatedContent() : renderAuthContent()}
     </div>
-  );
-};
+  )
+}
 
-export default TradeRepublicView;
+export default TradeRepublicView

@@ -5,7 +5,6 @@ import * as ipc from '../../lib/ipc'
 
 vi.mock('../../lib/ipc', () => ({
   trSubmit2FA: vi.fn(),
-  trLogin: vi.fn(),
 }))
 
 vi.mock('../../store/useAppStore', () => ({
@@ -16,13 +15,14 @@ vi.mock('../../store/useAppStore', () => ({
 }))
 
 describe('TwoFactorModal', () => {
+  // SECURITY: Credentials are no longer passed as props - use onResendRequest callback
+  const mockResendRequest = vi.fn()
+
   const defaultProps = {
     isOpen: true,
     onClose: vi.fn(),
     onSuccess: vi.fn(),
-    phone: '+4917612345678',
-    pin: '1234',
-    remember: false,
+    onResendRequest: mockResendRequest,
     initialCountdown: 0,
   }
 
@@ -152,9 +152,14 @@ describe('TwoFactorModal', () => {
     expect(onClose).toHaveBeenCalled()
   })
 
-  it('shows resend button when phone and pin are provided', () => {
+  it('shows resend button when onResendRequest is provided', () => {
     render(<TwoFactorModal {...defaultProps} />)
     expect(screen.getByText('Resend code')).toBeInTheDocument()
+  })
+
+  it('hides resend button when onResendRequest is not provided', () => {
+    render(<TwoFactorModal {...defaultProps} onResendRequest={undefined} />)
+    expect(screen.queryByText('Resend code')).not.toBeInTheDocument()
   })
 
   it('disables resend button while countdown is active', () => {
