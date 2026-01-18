@@ -7,6 +7,7 @@ import requests
 from io import StringIO
 from portfolio_src.data.caching import cache_adapter_data
 from portfolio_src.prism_utils.logging_config import get_logger
+from portfolio_src.prism_utils.isin_validator import is_valid_isin
 
 logger = get_logger(__name__)
 
@@ -38,10 +39,10 @@ class ISharesAdapter:
 
     def _save_config(self):
         try:
-            os.makedirs(os.path.dirname(ISHARES_CONFIG_PATH), exist_ok=True)
-            with open(ISHARES_CONFIG_PATH, "w") as f:
+            os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
+            with open(CONFIG_PATH, "w") as f:
                 json.dump(self.config, f, indent=4)
-            logger.info(f"Updated iShares config saved to {ISHARES_CONFIG_PATH}")
+            logger.info(f"Updated iShares config saved to {CONFIG_PATH}")
         except Exception as e:
             logger.error(f"Failed to save iShares config: {e}")
 
@@ -110,6 +111,11 @@ class ISharesAdapter:
         Returns:
             A pandas DataFrame containing the ETF holdings, or an empty DataFrame if fetching fails.
         """
+        # Validate ISIN format before making any requests
+        if not is_valid_isin(isin):
+            logger.warning(f"Invalid ISIN format: {isin}. Skipping fetch.")
+            return pd.DataFrame()
+
         logger.info(f"--- Fetching holdings for {isin} ---")
 
         # 1. Check Config
