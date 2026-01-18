@@ -17,6 +17,7 @@ from typing import Optional, Dict, List, Any
 from dataclasses import dataclass
 from dotenv import load_dotenv
 from portfolio_src.prism_utils.logging_config import get_logger
+from portfolio_src.prism_utils.isin_validator import is_valid_isin
 
 load_dotenv()
 
@@ -331,6 +332,10 @@ class HiveClient:
         Look up an ISIN in the universe.
         Returns from cache if available, None otherwise.
         """
+        # Validate ISIN format before cache access
+        if not is_valid_isin(isin):
+            return None
+
         # Ensure cache is populated
         if not self._universe_cache or not self._is_cache_valid():
             self.sync_universe()
@@ -382,16 +387,23 @@ class HiveClient:
         Batch lookup multiple ISINs from the universe.
         Returns a dictionary mapping ISINs to AssetEntry objects.
         """
+        # Filter out invalid ISINs to prevent cache pollution
+        valid_isins = [isin for isin in isins if is_valid_isin(isin)]
+        if not valid_isins:
+            return {}
+
         # Check cache first
-        uncached_isins = [isin for isin in isins if isin not in self._universe_cache]
+        uncached_isins = [
+            isin for isin in valid_isins if isin not in self._universe_cache
+        ]
 
         if not uncached_isins:
-            return {isin: self._universe_cache[isin] for isin in isins}
+            return {isin: self._universe_cache[isin] for isin in valid_isins}
 
         # Initialize result with cached entries
         result = {
             isin: self._universe_cache[isin]
-            for isin in isins
+            for isin in valid_isins
             if isin in self._universe_cache
         }
 
@@ -558,6 +570,11 @@ class HiveClient:
         """
         if not self._is_contribution_allowed():
             return HiveResult(success=False, error="Hive contribution disabled by user")
+
+        # Validate ISIN format before RPC call
+        if not is_valid_isin(isin):
+            return HiveResult(success=False, error=f"Invalid ISIN format: {isin}")
+
         client = self._get_client()
         if not client:
             return HiveResult(success=False, error="Supabase client not configured")
@@ -608,6 +625,11 @@ class HiveClient:
         """
         if not self._is_contribution_allowed():
             return HiveResult(success=False, error="Hive contribution disabled by user")
+
+        # Validate ISIN format before RPC call
+        if not is_valid_isin(isin):
+            return HiveResult(success=False, error=f"Invalid ISIN format: {isin}")
+
         client = self._get_client()
         if not client:
             return HiveResult(success=False, error="Supabase client not configured")
@@ -646,6 +668,11 @@ class HiveClient:
         """
         if not self._is_contribution_allowed():
             return HiveResult(success=False, error="Hive contribution disabled by user")
+
+        # Validate ISIN format before RPC call
+        if not is_valid_isin(isin):
+            return HiveResult(success=False, error=f"Invalid ISIN format: {isin}")
+
         client = self._get_client()
         if not client:
             return HiveResult(success=False, error="Supabase client not configured")
@@ -687,6 +714,11 @@ class HiveClient:
     ) -> HiveResult:
         if not self._is_contribution_allowed():
             return HiveResult(success=False, error="Hive contribution disabled by user")
+
+        # Validate ISIN format before RPC call
+        if not is_valid_isin(isin):
+            return HiveResult(success=False, error=f"Invalid ISIN format: {isin}")
+
         client = self._get_client()
         if not client:
             return HiveResult(success=False, error="Supabase client not configured")
@@ -923,6 +955,10 @@ class HiveClient:
         Fetch ETF holdings from the Hive.
         Returns a DataFrame with columns [isin, name, weight, sector, geography].
         """
+        # Validate ISIN format before RPC call
+        if not is_valid_isin(etf_isin):
+            return None
+
         client = self._get_client()
         if not client:
             return None
@@ -959,6 +995,12 @@ class HiveClient:
         """
         if not self._is_contribution_allowed():
             return False
+
+        # Validate ISIN format before RPC call
+        if not is_valid_isin(etf_isin):
+            logger.warning(f"Invalid ETF ISIN format: {etf_isin}")
+            return False
+
         client = self._get_client()
         if not client:
             return False

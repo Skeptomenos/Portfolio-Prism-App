@@ -132,7 +132,12 @@ class TestHiveResolutionChain:
                 assert result.detail == "local_cache_ticker"
                 mock_hive.resolve_ticker.assert_not_called()
 
-    def test_tier2_miss_skips_network_calls(self):
+    def test_tier2_miss_skips_api_calls_but_tries_hive(self):
+        """
+        Tier2 holdings (low weight) skip expensive API calls but still try Hive.
+        The Hive is always attempted because it has no rate limits and is cheap.
+        Only after Hive miss should tier2 skip and return 'skipped' status.
+        """
         with patch("portfolio_src.data.resolution.get_local_cache") as mock_cache_fn:
             with patch("portfolio_src.data.resolution.get_hive_client") as mock_hive_fn:
                 mock_cache = MagicMock()
@@ -143,6 +148,8 @@ class TestHiveResolutionChain:
 
                 mock_hive = MagicMock()
                 mock_hive.is_configured = True
+                # Hive returns None (miss) for the ticker
+                mock_hive.resolve_ticker.return_value = None
                 mock_hive_fn.return_value = mock_hive
 
                 resolver = ISINResolver(tier1_threshold=0.5)
@@ -150,7 +157,8 @@ class TestHiveResolutionChain:
 
                 assert result.status == "skipped"
                 assert result.detail == "tier2_skipped"
-                mock_hive.resolve_ticker.assert_not_called()
+                # Hive IS called (cheap, no rate limits), but API is not
+                mock_hive.resolve_ticker.assert_called()
 
 
 class TestCacheUpdates:
