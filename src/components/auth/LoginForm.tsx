@@ -153,8 +153,12 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, onLoginErr
     checkStoredCredentials()
   }, [credentialsLoaded])
 
+  // Trade Republic markets: DE (+49), AT (+43), FR (+33), NL (+31), ES (+34), IT (+39)
+  const TR_COUNTRY_CODES = ['49', '43', '33', '31', '34', '39'] as const
+
   const validatePhone = (phone: string): boolean => {
-    const phoneRegex = /^\+49\d{9,15}$/
+    // E.164 format for all TR markets: +{country_code}{7-15 digits}
+    const phoneRegex = /^\+(?:49|43|33|31|34|39)\d{7,15}$/
     return phoneRegex.test(phone.replace(/\s/g, ''))
   }
 
@@ -164,20 +168,26 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, onLoginErr
 
   const formatPhone = (value: string): string => {
     // Remove non-digits except +
-    let cleaned = value.replace(/[^\d+]/g, '')
+    const cleaned = value.replace(/[^\d+]/g, '')
 
-    // Ensure it starts with +49
-    if (!cleaned.startsWith('+')) {
-      if (cleaned.startsWith('49')) {
-        cleaned = '+' + cleaned
-      } else if (cleaned.startsWith('0')) {
-        cleaned = '+49' + cleaned.slice(1)
-      } else {
-        cleaned = '+49' + cleaned
-      }
+    // If starts with +, leave as-is (user is entering full international format)
+    if (cleaned.startsWith('+')) {
+      return cleaned
     }
 
-    return cleaned
+    // Check if starts with a TR country code (without +)
+    const startsWithTRCode = TR_COUNTRY_CODES.some((code) => cleaned.startsWith(code))
+    if (startsWithTRCode) {
+      return '+' + cleaned
+    }
+
+    // Handle German local format: 0176... → +49176...
+    if (cleaned.startsWith('0')) {
+      return '+49' + cleaned.slice(1)
+    }
+
+    // Default: assume German number without prefix
+    return '+49' + cleaned
   }
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -199,7 +209,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, onLoginErr
     const cleanPhone = phone.replace(/\s/g, '')
 
     if (!validatePhone(cleanPhone)) {
-      setError('Please enter a valid German phone number (+49...)')
+      setError(
+        'Please enter a valid phone number for a Trade Republic market (DE, AT, FR, NL, ES, IT)'
+      )
       return
     }
 
@@ -369,7 +381,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, onLoginErr
             type="tel"
             value={phone}
             onChange={handlePhoneChange}
-            placeholder="+49 176 12345678"
+            placeholder="+49 176 12345678 or +33 612345678"
             disabled={isLoading}
             autoComplete="tel"
             inputMode="tel"
@@ -383,7 +395,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, onLoginErr
               e.target.style.boxShadow = 'none'
             }}
           />
-          <span style={styles.hint}>German phone number with country code</span>
+          <span style={styles.hint}>
+            Phone number with country code (+49, +43, +33, +31, +34, +39)
+          </span>
         </div>
 
         <div style={styles.fieldGroup}>

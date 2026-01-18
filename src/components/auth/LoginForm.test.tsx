@@ -122,7 +122,7 @@ describe('LoginForm', () => {
     fireEvent.submit(form!)
 
     await waitFor(() => {
-      expect(screen.getByText(/valid German phone number/)).toBeInTheDocument()
+      expect(screen.getByText(/valid phone number for a Trade Republic market/)).toBeInTheDocument()
     })
   })
 
@@ -262,5 +262,154 @@ describe('LoginForm', () => {
 
     fireEvent.click(checkbox)
     expect(checkbox).not.toBeChecked()
+  })
+
+  // Multi-market phone validation tests
+  describe('Trade Republic market phone validation', () => {
+    it('accepts Austrian phone number (+43)', async () => {
+      const mockLogin = vi.mocked(ipc.trLogin)
+      mockLogin.mockResolvedValue({ authState: 'waiting_2fa', message: 'Enter 2FA' })
+
+      render(<LoginForm />)
+
+      const phoneInput = screen.getByLabelText('Phone Number')
+      const pinInput = screen.getByLabelText('PIN')
+
+      fireEvent.change(phoneInput, { target: { value: '+436641234567' } })
+      fireEvent.change(pinInput, { target: { value: '1234' } })
+
+      const form = screen.getByRole('button', { name: 'Connect' }).closest('form')
+      fireEvent.submit(form!)
+
+      await waitFor(() => {
+        expect(mockLogin).toHaveBeenCalledWith('+436641234567', '1234', false)
+      })
+    })
+
+    it('accepts French phone number (+33)', async () => {
+      const mockLogin = vi.mocked(ipc.trLogin)
+      mockLogin.mockResolvedValue({ authState: 'waiting_2fa', message: 'Enter 2FA' })
+
+      render(<LoginForm />)
+
+      const phoneInput = screen.getByLabelText('Phone Number')
+      const pinInput = screen.getByLabelText('PIN')
+
+      fireEvent.change(phoneInput, { target: { value: '+33612345678' } })
+      fireEvent.change(pinInput, { target: { value: '1234' } })
+
+      const form = screen.getByRole('button', { name: 'Connect' }).closest('form')
+      fireEvent.submit(form!)
+
+      await waitFor(() => {
+        expect(mockLogin).toHaveBeenCalledWith('+33612345678', '1234', false)
+      })
+    })
+
+    it('accepts Dutch phone number (+31)', async () => {
+      const mockLogin = vi.mocked(ipc.trLogin)
+      mockLogin.mockResolvedValue({ authState: 'waiting_2fa', message: 'Enter 2FA' })
+
+      render(<LoginForm />)
+
+      const phoneInput = screen.getByLabelText('Phone Number')
+      const pinInput = screen.getByLabelText('PIN')
+
+      fireEvent.change(phoneInput, { target: { value: '+31612345678' } })
+      fireEvent.change(pinInput, { target: { value: '1234' } })
+
+      const form = screen.getByRole('button', { name: 'Connect' }).closest('form')
+      fireEvent.submit(form!)
+
+      await waitFor(() => {
+        expect(mockLogin).toHaveBeenCalledWith('+31612345678', '1234', false)
+      })
+    })
+
+    it('accepts Spanish phone number (+34)', async () => {
+      const mockLogin = vi.mocked(ipc.trLogin)
+      mockLogin.mockResolvedValue({ authState: 'waiting_2fa', message: 'Enter 2FA' })
+
+      render(<LoginForm />)
+
+      const phoneInput = screen.getByLabelText('Phone Number')
+      const pinInput = screen.getByLabelText('PIN')
+
+      fireEvent.change(phoneInput, { target: { value: '+34612345678' } })
+      fireEvent.change(pinInput, { target: { value: '1234' } })
+
+      const form = screen.getByRole('button', { name: 'Connect' }).closest('form')
+      fireEvent.submit(form!)
+
+      await waitFor(() => {
+        expect(mockLogin).toHaveBeenCalledWith('+34612345678', '1234', false)
+      })
+    })
+
+    it('accepts Italian phone number (+39)', async () => {
+      const mockLogin = vi.mocked(ipc.trLogin)
+      mockLogin.mockResolvedValue({ authState: 'waiting_2fa', message: 'Enter 2FA' })
+
+      render(<LoginForm />)
+
+      const phoneInput = screen.getByLabelText('Phone Number')
+      const pinInput = screen.getByLabelText('PIN')
+
+      fireEvent.change(phoneInput, { target: { value: '+39612345678' } })
+      fireEvent.change(pinInput, { target: { value: '1234' } })
+
+      const form = screen.getByRole('button', { name: 'Connect' }).closest('form')
+      fireEvent.submit(form!)
+
+      await waitFor(() => {
+        expect(mockLogin).toHaveBeenCalledWith('+39612345678', '1234', false)
+      })
+    })
+
+    it('rejects unsupported country code (+1 US)', async () => {
+      render(<LoginForm />)
+
+      const phoneInput = screen.getByLabelText('Phone Number')
+      const pinInput = screen.getByLabelText('PIN')
+
+      fireEvent.change(phoneInput, { target: { value: '+12025551234' } })
+      fireEvent.change(pinInput, { target: { value: '1234' } })
+
+      const form = screen.getByRole('button', { name: 'Connect' }).closest('form')
+      fireEvent.submit(form!)
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(/valid phone number for a Trade Republic market/)
+        ).toBeInTheDocument()
+      })
+    })
+
+    it('formats Austrian number without + prefix', () => {
+      render(<LoginForm />)
+
+      const phoneInput = screen.getByLabelText('Phone Number')
+      fireEvent.change(phoneInput, { target: { value: '436641234567' } })
+
+      expect(phoneInput).toHaveValue('+436641234567')
+    })
+
+    it('formats French number without + prefix', () => {
+      render(<LoginForm />)
+
+      const phoneInput = screen.getByLabelText('Phone Number')
+      fireEvent.change(phoneInput, { target: { value: '33612345678' } })
+
+      expect(phoneInput).toHaveValue('+33612345678')
+    })
+
+    it('preserves user-entered + prefix for any number', () => {
+      render(<LoginForm />)
+
+      const phoneInput = screen.getByLabelText('Phone Number')
+      fireEvent.change(phoneInput, { target: { value: '+43664' } })
+
+      expect(phoneInput).toHaveValue('+43664')
+    })
   })
 })
