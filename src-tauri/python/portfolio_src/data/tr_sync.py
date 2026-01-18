@@ -6,6 +6,7 @@ Replaces POC/scripts/fetch_tr_api.py with direct library calls.
 Fetches portfolio data using pytr library and saves to CSV.
 """
 
+import csv
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
@@ -107,6 +108,9 @@ class TRDataFetcher:
         """
         Save positions to CSV in pipeline-compatible format.
 
+        Uses stdlib csv module for robust handling of edge cases (embedded commas,
+        quotes, newlines in instrument names).
+
         Format: ISIN,Quantity,AvgCost,CurrentPrice,NetValue,TR_Name
         (Compatible with state_manager.py expectations)
 
@@ -119,17 +123,22 @@ class TRDataFetcher:
         """
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(output_path, "w", encoding="utf-8") as f:
-            f.write("ISIN,Quantity,AvgCost,CurrentPrice,NetValue,TR_Name\n")
+        # Use newline="" per csv module docs to prevent extra blank lines on Windows
+        with open(output_path, "w", encoding="utf-8", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(
+                ["ISIN", "Quantity", "AvgCost", "CurrentPrice", "NetValue", "TR_Name"]
+            )
             for pos in positions:
-                # Escape name for CSV
-                name = pos["name"].replace('"', '""')
-                if "," in name or '"' in name:
-                    name = f'"{name}"'
-
-                f.write(
-                    f"{pos['isin']},{pos['quantity']:.6f},{pos['avg_cost']:.4f},"
-                    f"{pos['current_price']:.4f},{pos['net_value']:.2f},{name}\n"
+                writer.writerow(
+                    [
+                        pos["isin"],
+                        f"{pos['quantity']:.6f}",
+                        f"{pos['avg_cost']:.4f}",
+                        f"{pos['current_price']:.4f}",
+                        f"{pos['net_value']:.2f}",
+                        pos["name"],
+                    ]
                 )
 
         logger.info(f"Saved {len(positions)} positions to {output_path}")
