@@ -2,6 +2,43 @@
 //!
 //! Manages communication with the Python headless sidecar process.
 //! Uses stdin/stdout for JSON-based command/response protocol.
+//!
+//! # Thread Safety & Race Condition Invariants
+//!
+//! This module is designed for safe concurrent access from multiple Tauri command handlers.
+//! The following invariants ensure race-free operation:
+//!
+//! ## Command ID Generation
+//! - `next_id: AtomicU64` uses `fetch_add` with `SeqCst` ordering
+//! - Guarantees unique IDs even under concurrent `send_command` calls
+//! - Overflow is theoretically possible but practically unreachable (2^64 commands)
+//!
+//! ## Mutex-Protected State
+//! All mutable state is protected by `tokio::sync::Mutex` (async-aware):
+//! - `child`: Exclusive access to child process stdin writes
+//! - `pending`: Maps command IDs to response channels
+//! - `connected`: Engine connection status flag
+//! - `version`: Engine version from ready signal
+//!
+//! ## Request/Response Matching
+//! The pending request pattern ensures correct response routing:
+//! 1. `send_command` generates unique ID, creates oneshot channel, inserts into `pending`
+//! 2. Command is written to stdin (under `child` lock)
+//! 3. `handle_response` extracts ID, removes from `pending`, sends response
+//! 4. `send_command` awaits on channel with timeout
+//!
+//! **Critical invariant**: Response IDs MUST match request IDs. The Python engine
+//! echoes the request ID in responses. Mismatched IDs would cause orphaned channels.
+//!
+//! ## Lock Ordering
+//! When acquiring multiple locks, always follow this order to prevent deadlock:
+//! 1. `child` (if writing to stdin)
+//! 2. `pending` (for channel management)
+//! 3. `connected`/`version` (status checks)
+//!
+//! ## Cleanup on Failure
+//! All error paths in `send_command` remove the pending entry before returning,
+//! preventing memory leaks from orphaned oneshot channels.
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
