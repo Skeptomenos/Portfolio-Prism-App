@@ -5,13 +5,21 @@ Handles login, logout, 2FA, and session management for Trade Republic integratio
 
 import asyncio
 import os
+from pathlib import Path
 from typing import Any
 
 from portfolio_src.headless.responses import success_response, error_response
 from portfolio_src.headless.state import get_auth_manager, get_bridge, get_executor
 from portfolio_src.prism_utils.logging_config import get_logger
+from portfolio_src.prism_utils.validation import (
+    get_safe_data_dir,
+    is_safe_path_within_directory,
+)
 
 logger = get_logger(__name__)
+
+# Allowed cookie file name - security: prevents arbitrary file access
+ALLOWED_COOKIE_FILENAME = "tr_cookies.txt"
 
 
 async def handle_tr_get_auth_status(
@@ -73,11 +81,22 @@ async def handle_tr_check_saved_session(
         loop = asyncio.get_event_loop()
         executor = get_executor()
 
-        data_dir = os.environ.get(
-            "PRISM_DATA_DIR",
-            os.path.expanduser("~/Library/Application Support/PortfolioPrism"),
-        )
-        cookies_file = os.path.join(data_dir, "tr_cookies.txt")
+        # SECURITY: Use validated data directory to prevent path traversal attacks
+        try:
+            data_dir = get_safe_data_dir()
+        except ValueError as e:
+            logger.error(f"Invalid PRISM_DATA_DIR configuration: {e}")
+            return error_response(
+                cmd_id, "TR_CONFIG_ERROR", "Invalid data directory configuration"
+            )
+
+        cookies_file = os.path.join(data_dir, ALLOWED_COOKIE_FILENAME)
+
+        # SECURITY: Validate the cookie file path is within allowed directory
+        if not is_safe_path_within_directory(cookies_file, data_dir):
+            logger.warning(f"Cookie file path validation failed: {cookies_file}")
+            return error_response(cmd_id, "TR_PATH_ERROR", "Invalid cookie file path")
+
         has_session = os.path.exists(cookies_file)
 
         if has_session:
@@ -276,13 +295,33 @@ async def handle_tr_logout(cmd_id: int, payload: dict[str, Any]) -> dict[str, An
         auth_manager = get_auth_manager()
         await loop.run_in_executor(executor, auth_manager.logout)
 
-        # Clear cookies file
-        data_dir = os.environ.get(
-            "PRISM_DATA_DIR",
-            os.path.expanduser("~/Library/Application Support/PortfolioPrism"),
-        )
-        cookies_file = os.path.join(data_dir, "tr_cookies.txt")
+        # SECURITY: Use validated data directory to prevent path traversal attacks
+        try:
+            data_dir = get_safe_data_dir()
+        except ValueError as e:
+            logger.error(f"Invalid PRISM_DATA_DIR configuration: {e}")
+            return error_response(
+                cmd_id, "TR_CONFIG_ERROR", "Invalid data directory configuration"
+            )
+
+        cookies_file = os.path.join(data_dir, ALLOWED_COOKIE_FILENAME)
+
+        # SECURITY: Validate the cookie file path before deletion
+        # Prevents attackers from using symlinks to delete arbitrary files
+        if not is_safe_path_within_directory(cookies_file, data_dir):
+            logger.warning(f"Cookie file path validation failed: {cookies_file}")
+            return error_response(cmd_id, "TR_PATH_ERROR", "Invalid cookie file path")
+
         if os.path.exists(cookies_file):
+            # Additional check: ensure it's a regular file, not a symlink to elsewhere
+            cookie_path = Path(cookies_file)
+            if cookie_path.is_symlink():
+                logger.warning(
+                    f"Cookie file is a symlink, refusing to delete: {cookies_file}"
+                )
+                return error_response(
+                    cmd_id, "TR_PATH_ERROR", "Cookie file is a symlink"
+                )
             os.remove(cookies_file)
 
         logger.info("TR logout successful, session cleared")

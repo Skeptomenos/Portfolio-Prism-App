@@ -80,7 +80,7 @@ Create shared validator, then apply to all entry points.
 | 2.1.5 | `src-tauri/python/portfolio_src/data/proxy_client.py` | Add symbol/query input validation | 15m | **DONE** (v0.2.4) |
 | 2.1.6 | `src-tauri/python/portfolio_src/data/hive_client.py` | Add ISIN input validation | 10m | **DONE** (v0.2.5) |
 | 2.1.7 | `src-tauri/python/portfolio_src/data/caching.py` | Add ISIN validation to cache decorator | 15m | **DONE** (v0.2.6) |
-| 2.1.8 | `src-tauri/python/portfolio_src/headless/handlers/tr_auth.py` | Validate `PRISM_DATA_DIR` and cookie file paths (prevent path traversal/symlink attacks) | 15m | |
+| 2.1.8 | `src-tauri/python/portfolio_src/headless/handlers/tr_auth.py` | Validate `PRISM_DATA_DIR` and cookie file paths (prevent path traversal/symlink attacks) | 15m | **DONE** (v0.2.7) |
 | 2.1.9 | `src-tauri/python/portfolio_src/headless/dispatcher.py` | Add IPC payload structure validation (command, id, payload types) | 15m | |
 | 2.1.10 | `src-tauri/src/python_engine.rs` | Add payload validation for Python engine IPC (moved from Phase 6) | 15m | |
 
