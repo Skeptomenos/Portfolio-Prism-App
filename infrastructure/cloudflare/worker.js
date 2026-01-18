@@ -135,16 +135,41 @@ async function checkRateLimit(ip, env) {
 }
 
 /**
- * CORS headers for responses
+ * Get allowed CORS origins based on environment
+ *
+ * SECURITY: Production restricts CORS to the Tauri app origin only.
+ * Development allows localhost origins for testing with vite dev server, streamlit, etc.
+ *
+ * @param {object} env - Worker environment bindings
+ * @returns {string[]} List of allowed origins
  */
-function corsHeaders(origin) {
-  const allowedOrigins = [
-    'tauri://localhost',
-    'http://localhost:1420',
-    'http://localhost:8501',
-    'https://localhost',
-  ]
+function getAllowedOrigins(env) {
+  const isDev = env.ENVIRONMENT === 'development'
 
+  if (isDev) {
+    // Development: Allow localhost origins for testing
+    return [
+      'tauri://localhost',
+      'http://localhost:1420', // Vite dev server
+      'http://localhost:8501', // Streamlit debug UI
+      'http://localhost:5173', // Vite alternative port
+      'https://localhost',
+    ]
+  }
+
+  // Production: Only allow the Tauri app origin
+  // This prevents XSS attacks from exploiting the proxy from other origins
+  return ['tauri://localhost']
+}
+
+/**
+ * CORS headers for responses
+ *
+ * @param {string} origin - The Origin header from the request
+ * @param {object} env - Worker environment bindings
+ */
+function corsHeaders(origin, env) {
+  const allowedOrigins = getAllowedOrigins(env)
   const corsOrigin = allowedOrigins.includes(origin) ? origin : allowedOrigins[0]
 
   return {
@@ -157,12 +182,15 @@ function corsHeaders(origin) {
 
 /**
  * Handle CORS preflight
+ *
+ * @param {Request} request - The incoming request
+ * @param {object} env - Worker environment bindings
  */
-function handleOptions(request) {
+function handleOptions(request, env) {
   const origin = request.headers.get('Origin') || ''
   return new Response(null, {
     status: 204,
-    headers: corsHeaders(origin),
+    headers: corsHeaders(origin, env),
   })
 }
 
@@ -330,7 +358,7 @@ export default {
 
     // Handle CORS preflight
     if (request.method === 'OPTIONS') {
-      return handleOptions(request)
+      return handleOptions(request, env)
     }
 
     // Check rate limit (uses KV if available, falls back to in-memory)
@@ -340,7 +368,7 @@ export default {
         status: 429,
         headers: {
           'Content-Type': 'application/json',
-          ...corsHeaders(origin),
+          ...corsHeaders(origin, env),
         },
       })
     }
@@ -355,7 +383,7 @@ export default {
           status: 413, // Payload Too Large
           headers: {
             'Content-Type': 'application/json',
-            ...corsHeaders(origin),
+            ...corsHeaders(origin, env),
           },
         })
       }
@@ -376,7 +404,7 @@ export default {
               }),
               {
                 status: 400,
-                headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+                headers: { 'Content-Type': 'application/json', ...corsHeaders(origin, env) },
               }
             )
           }
@@ -393,7 +421,7 @@ export default {
               }),
               {
                 status: 400,
-                headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+                headers: { 'Content-Type': 'application/json', ...corsHeaders(origin, env) },
               }
             )
           }
@@ -410,7 +438,7 @@ export default {
               }),
               {
                 status: 400,
-                headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+                headers: { 'Content-Type': 'application/json', ...corsHeaders(origin, env) },
               }
             )
           }
@@ -444,7 +472,7 @@ export default {
             status: 404,
             headers: {
               'Content-Type': 'application/json',
-              ...corsHeaders(origin),
+              ...corsHeaders(origin, env),
             },
           })
       }
@@ -453,7 +481,7 @@ export default {
         status: 200,
         headers: {
           'Content-Type': 'application/json',
-          ...corsHeaders(origin),
+          ...corsHeaders(origin, env),
         },
       })
     } catch (error) {
@@ -461,7 +489,7 @@ export default {
         status: 500,
         headers: {
           'Content-Type': 'application/json',
-          ...corsHeaders(origin),
+          ...corsHeaders(origin, env),
         },
       })
     }
