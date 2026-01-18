@@ -14,11 +14,35 @@ const RATE_LIMIT = {
   windowMs: 60 * 1000, // 1 minute
 }
 
+// Payload size limit (10KB) to prevent abuse on feedback/report endpoints
+const MAX_PAYLOAD_SIZE = 10 * 1024 // 10KB
+
 // Input validation patterns
 // Stock symbols: 1-10 alphanumeric chars, dots, hyphens (e.g., "AAPL", "BRK.A", "BRK-B")
 const SYMBOL_PATTERN = /^[A-Z0-9./-]{1,10}$/i
 // Search queries: 1-50 chars, alphanumeric + basic punctuation, no injection patterns
 const QUERY_PATTERN = /^[A-Za-z0-9\s./'&,-]{1,50}$/
+
+/**
+ * Validate request payload size
+ * @param {Request} request - The incoming request
+ * @returns {Promise<{valid: boolean, error?: string, size?: number}>}
+ */
+async function validatePayloadSize(request) {
+  // Check Content-Length header first (fast path)
+  const contentLength = request.headers.get('Content-Length')
+  if (contentLength) {
+    const size = parseInt(contentLength, 10)
+    if (!isNaN(size) && size > MAX_PAYLOAD_SIZE) {
+      return {
+        valid: false,
+        error: `Payload too large. Maximum size is ${MAX_PAYLOAD_SIZE / 1024}KB.`,
+        size,
+      }
+    }
+  }
+  return { valid: true }
+}
 
 /**
  * Validate Finnhub stock symbol
@@ -319,6 +343,22 @@ export default {
           ...corsHeaders(origin),
         },
       })
+    }
+
+    // Validate payload size for endpoints that accept user content (feedback, report)
+    // This prevents abuse via oversized payloads that could consume memory/bandwidth
+    const payloadEndpoints = ['/feedback', '/report']
+    if (request.method === 'POST' && payloadEndpoints.includes(url.pathname)) {
+      const sizeCheck = await validatePayloadSize(request)
+      if (!sizeCheck.valid) {
+        return new Response(JSON.stringify({ error: sizeCheck.error }), {
+          status: 413, // Payload Too Large
+          headers: {
+            'Content-Type': 'application/json',
+            ...corsHeaders(origin),
+          },
+        })
+      }
     }
 
     try {

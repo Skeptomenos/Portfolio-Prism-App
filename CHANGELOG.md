@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- **Feedback payload size validation (Task 4.2.4):**
+  - Added `MAX_PAYLOAD_SIZE` constant (10KB) to prevent abuse via oversized payloads.
+  - Added `validatePayloadSize()` function that checks `Content-Length` header.
+  - Applied validation to `/feedback` and `/report` endpoints in Cloudflare Worker.
+  - Returns HTTP 413 (Payload Too Large) when limit exceeded.
+  - Protects against memory/bandwidth abuse on user-content endpoints.
+
 - **Production CSP hardening with environment-specific configs (Task 4.2.1):**
   - Created `src-tauri/tauri.prod.conf.json` with strict CSP for production builds.
   - Removes `'unsafe-inline'` and `'unsafe-eval'` from `script-src` in production (XSS protection).
