@@ -50,17 +50,55 @@ function validateQuery(query) {
   return trimmed
 }
 
-// In-memory rate limit store (use KV in production)
+// In-memory rate limit store (fallback when KV is not available)
 const rateLimitStore = new Map()
 
 /**
- * Check rate limit for an IP
+ * Check rate limit for an IP using KV storage (persistent) or in-memory (fallback)
+ *
+ * KV-based rate limiting provides:
+ * - Persistence across worker restarts
+ * - Consistency across edge locations
+ * - Protection against rate limit bypass via geo-distribution
+ *
+ * @param {string} ip - Client IP address
+ * @param {object} env - Worker environment bindings
+ * @returns {Promise<boolean>} - True if request is allowed, false if rate limited
  */
-function checkRateLimit(ip) {
+async function checkRateLimit(ip, env) {
   const now = Date.now()
   const windowStart = now - RATE_LIMIT.windowMs
 
-  // Get or create entry
+  // Use KV-based rate limiting if available (production)
+  if (env.RATE_LIMIT_KV) {
+    try {
+      const key = `ratelimit:${ip}`
+      const stored = await env.RATE_LIMIT_KV.get(key, { type: 'json' })
+
+      let entry = stored
+      if (!entry || entry.windowStart < windowStart) {
+        entry = { windowStart: now, count: 0 }
+      }
+
+      entry.count++
+
+      // Store with TTL matching rate limit window (in seconds)
+      // Add buffer to ensure entry persists through the window
+      const ttlSeconds = Math.ceil(RATE_LIMIT.windowMs / 1000) + 60
+      await env.RATE_LIMIT_KV.put(key, JSON.stringify(entry), {
+        expirationTtl: ttlSeconds,
+      })
+
+      return entry.count <= RATE_LIMIT.maxRequests
+    } catch (err) {
+      // KV error - fall through to in-memory rate limiting
+      // Log error for observability but don't block requests
+      console.error('KV rate limit error, falling back to in-memory:', err.message)
+    }
+  }
+
+  // Fallback: In-memory rate limiting
+  // Note: Resets on worker restart, not shared across edge locations
   let entry = rateLimitStore.get(ip)
   if (!entry || entry.windowStart < windowStart) {
     entry = { windowStart: now, count: 0 }
@@ -271,8 +309,9 @@ export default {
       return handleOptions(request)
     }
 
-    // Check rate limit
-    if (!checkRateLimit(ip)) {
+    // Check rate limit (uses KV if available, falls back to in-memory)
+    const allowed = await checkRateLimit(ip, env)
+    if (!allowed) {
       return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
         status: 429,
         headers: {
