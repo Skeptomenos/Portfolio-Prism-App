@@ -185,7 +185,7 @@ class Pipeline:
         adapter_registry = AdapterRegistry()
         enrichment_service = HiveEnrichmentService()
 
-        isin_resolver = ISINResolver(tier1_threshold=0.5)
+        isin_resolver = ISINResolver(tier1_threshold=0.1)
         self._decomposer = Decomposer(holdings_cache, adapter_registry, isin_resolver)
         self._enricher = Enricher(enrichment_service)
         self._aggregator = Aggregator()

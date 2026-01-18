@@ -185,10 +185,11 @@ class ISINResolver:
         is_tier2 = weight <= self.tier1_threshold
 
         # 3. LocalCache + Hive resolution with variants
+        # Always try Hive network (no rate limits) - only skip expensive API calls for tier2
         result = self._resolve_via_hive(
             ticker_clean,
             name_clean,
-            skip_network=is_tier2,
+            skip_network=False,
             ticker_variants=ticker_variants,
             name_variants=name_variants,
         )

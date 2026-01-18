@@ -181,6 +181,18 @@ class Aggregator:
         if direct_positions.empty:
             return pd.DataFrame()
 
+        name_col = get_name_column(direct_positions)
+        if name_col:
+            cash_mask = (
+                direct_positions[name_col]
+                .astype(str)
+                .str.upper()
+                .str.contains("CASH", na=False)
+            )
+            direct_positions = direct_positions[~cash_mask].copy()
+            if direct_positions.empty:
+                return pd.DataFrame()
+
         isin_col = get_isin_column(direct_positions)
         name_col = get_name_column(direct_positions)
         value_col = get_value_column(direct_positions)
