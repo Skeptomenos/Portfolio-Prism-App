@@ -230,6 +230,18 @@ class TRBridge:
                     id=response_data.get("id"),
                 )
 
+                # Validate response ID matches request ID (prevent protocol desync)
+                if response.id != request_id:
+                    logger.error(
+                        f"Protocol desync: expected response ID '{request_id}', "
+                        f"got '{response.id}'. Resetting daemon."
+                    )
+                    self.shutdown()
+                    raise RuntimeError(
+                        f"Protocol desync: response ID mismatch "
+                        f"(expected: {request_id}, got: {response.id})"
+                    )
+
                 if response.error:
                     raise RuntimeError(f"Daemon error: {response.error}")
 
