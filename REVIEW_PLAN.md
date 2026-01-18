@@ -8,8 +8,8 @@
 | **Branch** | main |
 | **Base** | main |
 | **Total Files** | 42 |
-| **Reviewed** | 25 |
-| **Findings** | 153 (0 critical, 5 high) |
+| **Reviewed** | 26 |
+| **Findings** | 163 (0 critical, 5 high) |
 | **Status** | In Progress |
 
 ## Project Context
@@ -60,7 +60,7 @@
 | [x] | `src-tauri/python/portfolio_src/data/tr_sync.py` | Trade Republic sync, data validation | 2 Medium, 2 Low, 1 Info |
 | [x] | `src-tauri/python/portfolio_src/data/caching.py` | Cache invalidation, data freshness | 2 Medium, 3 Low, 2 Info |
 | [x] | `src-tauri/python/portfolio_src/adapters/ishares.py` | ETF data parsing, input validation | 2 Medium, 5 Low, 2 Info |
-| [ ] | `src-tauri/python/portfolio_src/adapters/vanguard.py` | ETF data parsing, input validation | - |
+| [x] | `src-tauri/python/portfolio_src/adapters/vanguard.py` | ETF data parsing, input validation | 2 Medium, 4 Low, 2 Info |
 | [ ] | `src-tauri/python/portfolio_src/adapters/xtrackers.py` | ETF data parsing, input validation | - |
 | [ ] | `src/lib/api/feedback.ts` | Feedback API, error handling | - |
 
@@ -147,3 +147,4 @@ From AGENTS.md and project context:
 | 2026-01-18 | `src-tauri/python/portfolio_src/data/tr_sync.py` | Automated | PASSED (2M, 2L, 1I) |
 | 2026-01-18 | `src-tauri/python/portfolio_src/data/caching.py` | Automated | PASSED (2M, 3L, 2I) |
 | 2026-01-18 | `src-tauri/python/portfolio_src/adapters/ishares.py` | Automated | PASSED (2M, 5L, 2I) |
+| 2026-01-18 | `src-tauri/python/portfolio_src/adapters/vanguard.py` | Automated | PASSED (2M, 4L, 2I) |
