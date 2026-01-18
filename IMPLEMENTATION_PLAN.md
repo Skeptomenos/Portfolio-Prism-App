@@ -225,9 +225,9 @@ Create shared validator, then apply to all entry points.
 
 **Goal:** Improve maintainability via decomposition.
 
-| Task | File | Issue | Est. |
-|------|------|-------|------|
-| 9.1 | `src/components/views/Dashboard.tsx` | Extract DashboardSkeleton component | 15m |
+| Task | File | Issue | Est. | Status |
+|------|------|-------|------|--------|
+| 9.1 | `src/components/views/Dashboard.tsx` | Extract DashboardSkeleton component | 15m | **DONE** (v0.9.0) |
 | 9.2 | `src/components/views/Dashboard.tsx` | Extract TopHoldingsCard component | 15m |
 | 9.3 | `src/components/views/Dashboard.tsx` | Extract TrueExposureCard component | 15m |
 | 9.4 | `src/components/views/Dashboard.tsx` | Null safety for history array | 10m |

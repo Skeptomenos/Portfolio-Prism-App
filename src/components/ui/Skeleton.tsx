@@ -61,24 +61,32 @@ export function SkeletonTable({ rows = 5 }: { rows?: number }) {
   )
 }
 
+/**
+ * Dashboard loading skeleton - matches Dashboard.tsx loading state structure
+ * Displays animated placeholder cards while portfolio data is loading.
+ */
 export function DashboardSkeleton() {
   return (
-    <div className="space-y-6">
-      <Skeleton height={32} width={200} className="mb-6" />
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <SkeletonCard />
-        <SkeletonCard />
-        <SkeletonCard />
+    <div className="animate-fade-in">
+      <div style={{ marginBottom: '32px' }}>
+        <h2 style={{ fontSize: '28px', fontWeight: '700', marginBottom: '8px' }}>
+          Portfolio Overview
+        </h2>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
+          Loading your portfolio data...
+        </p>
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-        <div className="rounded-2xl bg-white/[0.03] border border-white/[0.08] p-6">
-          <Skeleton height={24} width="30%" className="mb-4" />
-          <Skeleton height={200} className="rounded-lg" />
-        </div>
-        <div className="rounded-2xl bg-white/[0.03] border border-white/[0.08] p-6">
-          <Skeleton height={24} width="30%" className="mb-4" />
-          <Skeleton height={200} className="rounded-lg" />
-        </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
+        {[1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className="rounded-2xl bg-white/[0.03] border border-white/[0.08]"
+            style={{ padding: '24px', minHeight: '120px' }}
+          >
+            <Skeleton height={20} width="60%" className="mb-3" />
+            <Skeleton height={36} width="80%" />
+          </div>
+        ))}
       </div>
     </div>
   )
