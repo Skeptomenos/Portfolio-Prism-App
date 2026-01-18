@@ -193,6 +193,8 @@ class TRBridge:
         Send command to daemon and get response.
         ⚠️ MUST be called via run_in_executor when used in async context.
         ⚠️ DO NOT remove the _command_lock; it prevents stream corruption.
+
+        SECURITY: params may contain credentials (phone, pin) - never log or persist.
         """
         with self._command_lock:
             self._ensure_daemon_running()
@@ -255,7 +257,13 @@ class TRBridge:
                 raise RuntimeError(f"Daemon communication failed: {e}")
 
     def login(self, phone: str, pin: str, **kwargs) -> Dict[str, Any]:
-        """Initiate login process."""
+        """
+        Initiate login process.
+
+        Security Note: Credentials are sent via stdin pipe to daemon subprocess.
+        This is acceptable as both processes run under the same user context
+        and stdin is not externally accessible. No network transmission occurs.
+        """
         return self._send_command(TRMethod.LOGIN.value, phone=phone, pin=pin, **kwargs)
 
     def logout(self) -> Dict[str, Any]:
