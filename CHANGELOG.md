@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- **Enhanced PII scrubber with ReDoS protection (Task 3.5):**
+  - Added credit card pattern detection (Visa, Mastercard, Amex, Discover).
+  - Added SSN pattern detection (requires dashes/spaces for disambiguation).
+  - Added IPv4 and IPv6 address pattern detection.
+  - Added Unix and Windows file path pattern detection.
+  - Refactored all regex patterns to avoid catastrophic backtracking (ReDoS).
+  - Added input length truncation (100KB max) to prevent DoS attacks.
+  - Reordered patterns so more specific patterns (credit cards, IP, SSN) run before general PHONE pattern.
+  - Added 41 comprehensive unit tests in `src/lib/scrubber.test.ts`.
+
 - **Removed direct Finnhub API fallback from enrichment.py (Task 1.2.3):**
   - Eliminated security bypass where `FINNHUB_API_KEY` env var could trigger direct API calls, exposing keys in client binary.
   - All Finnhub calls now route exclusively through Cloudflare Worker proxy.
