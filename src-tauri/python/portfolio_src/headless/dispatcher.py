@@ -8,7 +8,7 @@ import asyncio
 from typing import Any
 
 from portfolio_src.headless.handlers import HANDLER_REGISTRY
-from portfolio_src.headless.responses import error_response
+from portfolio_src.headless.responses import error_response, sanitize_error_message
 from portfolio_src.prism_utils.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -109,8 +109,12 @@ async def dispatch(cmd: Any) -> dict[str, Any]:
         else:
             return handler(cmd_id, payload)
     except Exception as e:
+        # Log full error details server-side for debugging
         logger.error(f"Handler error for '{command}': {e}", exc_info=True)
-        return error_response(cmd_id, "HANDLER_ERROR", str(e))
+        # SECURITY: Sanitize exception message before sending to client
+        # to prevent information disclosure (file paths, stack traces, etc.)
+        safe_message = sanitize_error_message(str(e))
+        return error_response(cmd_id, "HANDLER_ERROR", safe_message)
 
 
 def get_available_commands() -> list[str]:
