@@ -10,7 +10,6 @@ Resolution priority:
 6. Mark as unresolved
 """
 
-import os
 import time
 import threading
 from dataclasses import dataclass
@@ -32,9 +31,6 @@ from portfolio_src.data.normalizer import (
 )
 
 logger = get_logger(__name__)
-
-FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY")
-FINNHUB_API_URL = "https://finnhub.io/api/v1"
 
 # Resolution confidence scores per spec
 CONFIDENCE_PROVIDER = 1.0  # Provider-supplied ISIN
@@ -471,32 +467,9 @@ class ISINResolver:
             time.sleep(0.5)
 
         except Exception as e:
-            logger.debug(f"Finnhub API error for {ticker}: {e}")
+            logger.debug(f"Finnhub proxy error for {ticker}: {e}")
 
-        if FINNHUB_API_KEY:
-            try:
-                response = requests.get(
-                    f"{FINNHUB_API_URL}/stock/profile2",
-                    params={"symbol": ticker},
-                    headers={"X-Finnhub-Token": FINNHUB_API_KEY},
-                    timeout=10,
-                )
-
-                if response.status_code == 200:
-                    data = response.json()
-                    isin = data.get("isin")
-                    if isin and is_valid_isin(isin):
-                        logger.debug(f"Finnhub direct resolved {ticker} -> {isin}")
-                        return isin, False
-                elif response.status_code == 429:
-                    logger.debug(f"Finnhub direct rate limit for {ticker}")
-                    return None, True
-
-                time.sleep(1.1)
-
-            except Exception as e:
-                logger.debug(f"Finnhub direct API error for {ticker}: {e}")
-
+        # SECURITY: All Finnhub calls MUST go through the proxy - no direct API fallback
         return None, False
 
     def _cache_positive_result(
