@@ -1,0 +1,47 @@
+# Dependabot configuration for automated dependency updates
+# Docs: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates
+version: 2
+updates:
+  # NPM dependencies (frontend, build tools)
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+      - 'npm'
+    commit-message:
+      prefix: 'deps(npm)'
+    groups:
+      # Group minor/patch updates to reduce PR noise
+      dev-dependencies:
+        dependency-type: 'development'
+        update-types:
+          - 'minor'
+          - 'patch'
+      production-minor:
+        dependency-type: 'production'
+        update-types:
+          - 'minor'
+          - 'patch'
+        exclude-patterns:
+          - '@tauri-apps/*' # Review Tauri updates individually (critical shell)
+
+  # Rust dependencies (Tauri shell)
+  - package-ecosystem: 'cargo'
+    directory: '/src-tauri'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+    open-pull-requests-limit: 3
+    labels:
+      - 'dependencies'
+      - 'rust'
+    commit-message:
+      prefix: 'deps(cargo)'
+    # Ignore pre-release versions for stability
+    ignore:
+      - dependency-name: '*'
+        update-types: ['version-update:semver-prerelease']
