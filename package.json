@@ -10,6 +10,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build --config src-tauri/tauri.prod.conf.json",
     "build:python": "python3 scripts/prism.py build",
     "start": "python3 scripts/prism.py all",
     "test": "vitest",

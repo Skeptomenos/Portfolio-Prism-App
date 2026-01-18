@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- **Production CSP hardening with environment-specific configs (Task 4.2.1):**
+  - Created `src-tauri/tauri.prod.conf.json` with strict CSP for production builds.
+  - Removes `'unsafe-inline'` and `'unsafe-eval'` from `script-src` in production (XSS protection).
+  - Restricts `connect-src` from wildcard `*.workers.dev` to specific worker domain.
+  - Added `npm run tauri:build` script that applies production CSP via `--config` flag.
+  - Updated dev config to include Google Fonts (`fonts.googleapis.com`, `fonts.gstatic.com`).
+  - Created `docs/security/CSP.md` documenting dev vs prod CSP differences.
+
 - **Tightened Rust dependency version constraints + added cargo-deny (Task 4.1.1):**
   - Updated version constraints in `src-tauri/Cargo.toml` from major-only (`"1"`, `"2"`) to minor (`"1.0"`, `"2.0"`) to prevent unexpected breaking changes.
   - Created `src-tauri/deny.toml` for cargo-deny security scanning.
