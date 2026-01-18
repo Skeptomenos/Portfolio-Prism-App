@@ -120,6 +120,7 @@ def init_db(db_path: Optional[str] = None) -> sqlite3.Connection:
         except Exception as e:
             conn.rollback()
             logger.error(f"[DB] Migration error: {e}")
+            raise RuntimeError(f"Database migration failed: {e}") from e
 
         logger.info(f"[DB] Schema applied successfully")
     else:
