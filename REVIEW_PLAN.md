@@ -8,8 +8,8 @@
 | **Branch** | main |
 | **Base** | main |
 | **Total Files** | 42 |
-| **Reviewed** | 41 |
-| **Findings** | 254 (0 critical, 5 high) |
+| **Reviewed** | 42 |
+| **Findings** | 263 (0 critical, 5 high) |
 | **Status** | In Progress |
 
 ## Project Context
@@ -86,7 +86,7 @@
 | [x] | `vite.config.ts` | Build config, env exposure | 2M, 2L, 2I |
 | [x] | `.env.example` | Environment variables, secrets | 1M, 3L, 2I |
 | [x] | `package.json` | Dependency security | 2M, 3L, 2I |
-| [ ] | `src-tauri/Cargo.toml` | Rust dependency security | - |
+| [x] | `src-tauri/Cargo.toml` | Rust dependency security | 2M, 4L, 3I |
 | [ ] | `src-tauri/python/pyproject.toml` | Python dependency security | - |
 
 ## Known Concerns
@@ -163,3 +163,4 @@ From AGENTS.md and project context:
 | 2026-01-18 | `vite.config.ts` | Automated | PASSED (2M, 2L, 2I) |
 | 2026-01-18 | `.env.example` | Automated | PASSED (1M, 3L, 2I) |
 | 2026-01-18 | `package.json` | Automated | PASSED (2M, 3L, 2I) |
+| 2026-01-18 | `src-tauri/Cargo.toml` | Automated | PASSED (2M, 4L, 3I) |
