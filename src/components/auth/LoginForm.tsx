@@ -118,6 +118,9 @@ interface LoginFormProps {
   onLoginError?: (error: string) => void
 }
 
+// SECURITY: Clear PIN from memory after 5 minutes of inactivity
+const PIN_IDLE_TIMEOUT_MS = 5 * 60 * 1000
+
 export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, onLoginError }) => {
   const [phone, setPhone] = useState('')
   const [pin, setPin] = useState('')
@@ -132,6 +135,25 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, onLoginErr
   } | null>(null)
 
   const { setAuthState, setAuthError } = useAppStore()
+
+  // SECURITY: Clear PIN on component unmount to prevent memory exposure
+  useEffect(() => {
+    return () => {
+      setPin('')
+    }
+  }, [])
+
+  // SECURITY: Clear PIN after 5 minutes of inactivity to prevent memory exposure
+  // The timeout resets whenever PIN changes (user is actively typing)
+  useEffect(() => {
+    if (!pin) return // No timeout needed if PIN is empty
+
+    const timeoutId = setTimeout(() => {
+      setPin('')
+    }, PIN_IDLE_TIMEOUT_MS)
+
+    return () => clearTimeout(timeoutId)
+  }, [pin])
 
   useEffect(() => {
     if (credentialsLoaded) return

@@ -216,7 +216,7 @@ Create shared validator, then apply to all entry points.
 | 8.3 | `src/lib/scrubber.ts` | Align hash algorithm with backend (SHA-256) | 15m | **DONE** (v0.8.2) |
 | 8.4 | `src/lib/api/feedback.ts` | Scrub PII from payload + add request timeout | 20m | **DONE** (v0.8.3) |
 | 8.5 | `src/components/auth/LoginForm.tsx` | Expand phone validation for TR markets | 15m | **DONE** (v0.8.4) |
-| 8.6 | `src/components/auth/LoginForm.tsx` | Add PIN state timeout | 15m |
+| 8.6 | `src/components/auth/LoginForm.tsx` | Add PIN state timeout | 15m | **DONE** (v0.8.5) |
 | 8.7 | `src/components/auth/TwoFactorModal.tsx` | Add local rate limiting on 2FA attempts | 20m |
 
 ---
