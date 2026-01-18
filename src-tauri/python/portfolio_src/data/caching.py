@@ -154,6 +154,16 @@ def cache_adapter_data(ttl_hours: int = 24):
     def decorator(func):
         @wraps(func)
         def wrapper(self, isin: str, *args, **kwargs):
+            # SECURITY: Validate ISIN format before any cache or network operations
+            # This prevents path traversal attacks via malformed ISINs and
+            # avoids wasted API calls for invalid identifiers
+            if not is_valid_isin(isin):
+                logger.warning(
+                    f"Invalid ISIN format in cache decorator: {isin}. "
+                    f"Skipping cache lookup and fetch."
+                )
+                return pd.DataFrame()
+
             class_name = self.__class__.__name__
             cache_file = os.path.join(CACHE_DIR, f"{isin}_{class_name}.csv")
 
