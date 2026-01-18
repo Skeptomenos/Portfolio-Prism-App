@@ -103,7 +103,7 @@ Create shared validator, then apply to all entry points.
 | 3.1 | `src-tauri/python/portfolio_src/headless/dispatcher.py` | Sanitize exception messages in error responses | 15m | **DONE** (v0.3.0) |
 | 3.2 | `src-tauri/python/portfolio_src/core/tr_protocol.py` | Add type validation in deserialize_response | 15m | **DONE** (v0.3.1) |
 | 3.3 | `src-tauri/src/lib.rs` | Escape AppleScript strings in error dialogs | 15m | **DONE** (v0.3.2) |
-| 3.4 | `src/components/views/TradeRepublicView.tsx` | Sanitize error messages before display | 10m | |
+| 3.4 | `src/components/views/TradeRepublicView.tsx` | Sanitize error messages before display | 10m | **DONE** (v0.3.3) |
 | 3.5 | `src/lib/scrubber.ts` | Add missing PII patterns (credit cards, SSN, IP, file paths) + ReDoS protection | 30m | |
 
 **Verification:**

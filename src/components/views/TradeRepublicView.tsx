@@ -20,6 +20,7 @@ import {
   trLoginWithStoredCredentials,
 } from '../../lib/ipc'
 import type { SessionCheck, AuthResponse, Position } from '../../types'
+import { sanitizeErrorMessage } from '../../lib/errors'
 
 const styles = {
   container: {
@@ -281,7 +282,8 @@ export const TradeRepublicView: React.FC = () => {
       })
       refetchPositions()
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Sync failed'
+      const rawMessage = error instanceof Error ? error.message : 'Sync failed'
+      const message = sanitizeErrorMessage(rawMessage)
       addToast({
         type: 'error',
         title: 'Auto-sync failed',
@@ -313,7 +315,8 @@ export const TradeRepublicView: React.FC = () => {
       })
       refetchPositions()
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Sync failed'
+      const rawMessage = error instanceof Error ? error.message : 'Sync failed'
+      const message = sanitizeErrorMessage(rawMessage)
       addToast({
         type: 'error',
         title: 'Auto-sync failed',
@@ -352,15 +355,16 @@ export const TradeRepublicView: React.FC = () => {
       })
       refetchPositions()
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Sync failed'
+      const rawMessage = error instanceof Error ? error.message : 'Sync failed'
+      const message = sanitizeErrorMessage(rawMessage)
       addToast({
         type: 'error',
         title: 'Sync failed',
         message,
       })
 
-      // Check if it's an auth error
-      if (message.includes('auth') || message.includes('session')) {
+      // Check if it's an auth error (check raw message for auth detection, display sanitized)
+      if (rawMessage.includes('auth') || rawMessage.includes('session')) {
         setAuthState('idle')
       }
     } finally {
@@ -382,10 +386,11 @@ export const TradeRepublicView: React.FC = () => {
         message: 'Session cleared successfully',
       })
     } catch (error) {
+      const rawMessage = error instanceof Error ? error.message : 'Unknown error'
       addToast({
         type: 'error',
         title: 'Logout failed',
-        message: error instanceof Error ? error.message : 'Unknown error',
+        message: sanitizeErrorMessage(rawMessage),
       })
     } finally {
       setIsLoggingOut(false)
