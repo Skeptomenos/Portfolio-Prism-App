@@ -313,7 +313,9 @@ class HiveClient:
 
                 DataIngestion.ingest_metadata(pd.DataFrame(rows))
 
-            logger.info(f"Synced {len(self._universe_cache)} assets from Hive via RPC")
+            logger.info(
+                f"[Hive] Synced {len(self._universe_cache)} assets from Hive via RPC"
+            )
 
             return HiveResult(
                 success=True,
@@ -322,11 +324,23 @@ class HiveClient:
 
         except Exception as e:
             # Fallback to file cache if Supabase download fails
+            logger.warning(
+                f"[Hive] Supabase sync failed: {e}. "
+                "Attempting fallback to local file cache."
+            )
             if self._load_cache():
+                logger.info(
+                    f"[Hive] Fallback successful: loaded {len(self._universe_cache)} "
+                    "assets from stale file cache. Data may be outdated."
+                )
                 return HiveResult(
                     success=True,
                     data={"count": len(self._universe_cache), "source": "stale_cache"},
                 )
+            logger.error(
+                "[Hive] Fallback failed: no local cache available. "
+                "Universe sync is unavailable."
+            )
             return HiveResult(
                 success=False, error=f"Supabase download failed: {str(e)}"
             )
@@ -415,7 +429,11 @@ class HiveClient:
         try:
             client = self._get_client()
             if client is None:
-                logger.warning("Supabase client unavailable, using local detection")
+                logger.warning(
+                    f"[Hive] Supabase client unavailable for batch lookup of "
+                    f"{len(uncached_isins)} ISINs. Falling back to local asset class "
+                    "detection. Assets will have limited metadata until Hive sync succeeds."
+                )
                 for isin in uncached_isins:
                     asset = AssetEntry(
                         isin=isin,
@@ -472,7 +490,11 @@ class HiveClient:
                 result[isin] = asset
 
         except Exception as e:
-            logger.error(f"Hive batch lookup failed: {e}")
+            failed_count = sum(1 for isin in uncached_isins if isin not in result)
+            logger.warning(
+                f"[Hive] Batch lookup failed for {failed_count} ISINs: {e}. "
+                "Falling back to local asset class detection for missing entries."
+            )
             for isin in uncached_isins:
                 if isin not in result:
                     asset = AssetEntry(
@@ -911,46 +933,79 @@ class HiveClient:
             response = client.rpc("get_all_assets_rpc", {}).execute()
             if response.data:
                 result["assets"] = response.data
-                logger.info(f"Synced {len(response.data)} assets from Hive")
+                logger.info(
+                    f"[Hive] Synced {len(response.data)} assets from Hive via RPC"
+                )
         except Exception as e:
-            logger.warning(f"Failed to sync assets: {e}")
+            logger.warning(
+                f"[Hive] RPC fetch for assets failed: {e}. "
+                "Attempting fallback via direct table query (may be limited by RLS)."
+            )
             # Fallback: try direct query (may fail due to RLS)
             try:
                 response = client.from_("assets").select("*").execute()
                 if response.data:
                     result["assets"] = response.data
-            except Exception:
-                pass
+                    logger.info(
+                        f"[Hive] Fallback query succeeded: loaded {len(response.data)} assets."
+                    )
+            except Exception as fallback_e:
+                logger.error(
+                    f"[Hive] Fallback query also failed: {fallback_e}. "
+                    "No assets available for identity sync."
+                )
 
         # Fetch listings
         try:
             response = client.rpc("get_all_listings_rpc", {}).execute()
             if response.data:
                 result["listings"] = response.data
-                logger.info(f"Synced {len(response.data)} listings from Hive")
+                logger.info(
+                    f"[Hive] Synced {len(response.data)} listings from Hive via RPC"
+                )
         except Exception as e:
-            logger.warning(f"Failed to sync listings: {e}")
+            logger.warning(
+                f"[Hive] RPC fetch for listings failed: {e}. "
+                "Attempting fallback via direct table query."
+            )
             try:
                 response = client.from_("listings").select("*").execute()
                 if response.data:
                     result["listings"] = response.data
-            except Exception:
-                pass
+                    logger.info(
+                        f"[Hive] Fallback query succeeded: loaded {len(response.data)} listings."
+                    )
+            except Exception as fallback_e:
+                logger.error(
+                    f"[Hive] Fallback query also failed: {fallback_e}. "
+                    "No listings available for identity sync."
+                )
 
         # Fetch aliases
         try:
             response = client.rpc("get_all_aliases_rpc", {}).execute()
             if response.data:
                 result["aliases"] = response.data
-                logger.info(f"Synced {len(response.data)} aliases from Hive")
+                logger.info(
+                    f"[Hive] Synced {len(response.data)} aliases from Hive via RPC"
+                )
         except Exception as e:
-            logger.warning(f"Failed to sync aliases: {e}")
+            logger.warning(
+                f"[Hive] RPC fetch for aliases failed: {e}. "
+                "Attempting fallback via direct table query."
+            )
             try:
                 response = client.from_("aliases").select("*").execute()
                 if response.data:
                     result["aliases"] = response.data
-            except Exception:
-                pass
+                    logger.info(
+                        f"[Hive] Fallback query succeeded: loaded {len(response.data)} aliases."
+                    )
+            except Exception as fallback_e:
+                logger.error(
+                    f"[Hive] Fallback query also failed: {fallback_e}. "
+                    "No aliases available for identity sync."
+                )
 
         return result
 
