@@ -8,25 +8,12 @@ import json
 import sys
 from typing import Any
 
-from portfolio_src.core.services.sync_service import (
-    AuthenticationError,
-    SyncService,
-)
+from portfolio_src.core.services.sync_service import AuthenticationError
 from portfolio_src.headless.responses import error_response, success_response
+from portfolio_src.headless.state import get_sync_service
 from portfolio_src.prism_utils.logging_config import get_logger
 
 logger = get_logger(__name__)
-
-# Module-level service singleton for stateful operations
-_sync_service: SyncService | None = None
-
-
-def _get_sync_service() -> SyncService:
-    """Get or create the SyncService singleton."""
-    global _sync_service
-    if _sync_service is None:
-        _sync_service = SyncService()
-    return _sync_service
 
 
 def emit_progress(progress: int, message: str, phase: str = "pipeline") -> None:
@@ -59,7 +46,7 @@ async def handle_sync_portfolio(cmd_id: int, payload: dict[str, Any]) -> dict[st
     Thin handler that delegates to SyncService.
     """
     portfolio_id = payload.get("portfolioId", 1)
-    service = _get_sync_service()
+    service = get_sync_service()
 
     try:
         result = service.sync_portfolio(
@@ -90,7 +77,7 @@ async def handle_run_pipeline(cmd_id: int, payload: dict[str, Any]) -> dict[str,
 
     Thin handler that delegates to SyncService.
     """
-    service = _get_sync_service()
+    service = get_sync_service()
 
     try:
         result = service.run_pipeline(progress_callback=emit_progress)

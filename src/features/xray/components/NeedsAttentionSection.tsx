@@ -1,34 +1,34 @@
-import { useState, useId } from 'react';
-import { AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
-import GlassCard from '../../GlassCard';
-import ResolutionStatusBadge from '../../common/ResolutionStatusBadge';
-import type { XRayHolding } from '../../../types';
-import './NeedsAttentionSection.css';
+import { useState, useId } from 'react'
+import { AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react'
+import GlassCard from '../../../components/GlassCard'
+import ResolutionStatusBadge from '../../../components/common/ResolutionStatusBadge'
+import type { XRayHolding } from '../types'
+import './NeedsAttentionSection.css'
 
 interface NeedsAttentionSectionProps {
-  holdings: XRayHolding[];
-  onHoldingClick?: (holding: XRayHolding) => void;
+  holdings: XRayHolding[]
+  onHoldingClick?: (holding: XRayHolding) => void
 }
 
 export default function NeedsAttentionSection({
   holdings,
   onHoldingClick,
 }: NeedsAttentionSectionProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const listId = useId();
+  const [isExpanded, setIsExpanded] = useState(false)
+  const listId = useId()
 
-  if (holdings.length === 0) return null;
+  if (holdings.length === 0) return null
 
-  const displayHoldings = isExpanded ? holdings : holdings.slice(0, 5);
+  const displayHoldings = isExpanded ? holdings : holdings.slice(0, 5)
 
-  const handleToggle = () => setIsExpanded(!isExpanded);
+  const handleToggle = () => setIsExpanded(!isExpanded)
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      handleToggle();
+      e.preventDefault()
+      handleToggle()
     }
-  };
+  }
 
   return (
     <GlassCard className="needs-attention-section">
@@ -62,8 +62,8 @@ export default function NeedsAttentionSection({
             onClick={() => onHoldingClick?.(holding)}
             onKeyDown={(e) => {
               if ((e.key === 'Enter' || e.key === ' ') && onHoldingClick) {
-                e.preventDefault();
-                onHoldingClick(holding);
+                e.preventDefault()
+                onHoldingClick(holding)
               }
             }}
             role="listitem"
@@ -71,13 +71,9 @@ export default function NeedsAttentionSection({
           >
             <div className="attention-item-info">
               <div className="attention-item-name">{holding.stock}</div>
-              {holding.ticker && (
-                <div className="attention-item-ticker">{holding.ticker}</div>
-              )}
+              {holding.ticker && <div className="attention-item-ticker">{holding.ticker}</div>}
             </div>
-            <div className="attention-item-value">
-              €{holding.totalValue.toLocaleString()}
-            </div>
+            <div className="attention-item-value">€{holding.totalValue.toLocaleString()}</div>
             <ResolutionStatusBadge
               status={holding.resolutionStatus}
               source={holding.resolutionSource}
@@ -91,14 +87,10 @@ export default function NeedsAttentionSection({
       </div>
 
       {holdings.length > 5 && !isExpanded && (
-        <button
-          className="show-more-btn"
-          onClick={() => setIsExpanded(true)}
-          type="button"
-        >
+        <button className="show-more-btn" onClick={() => setIsExpanded(true)} type="button">
           Show {holdings.length - 5} more
         </button>
       )}
     </GlassCard>
-  );
+  )
 }

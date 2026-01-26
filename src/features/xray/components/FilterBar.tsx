@@ -1,19 +1,19 @@
-import { Search, Filter, ArrowUpDown } from 'lucide-react';
-import GlassCard from '../../GlassCard';
-import './FilterBar.css';
+import { Search, Filter, ArrowUpDown } from 'lucide-react'
+import GlassCard from '../../../components/GlassCard'
+import './FilterBar.css'
 
-export type FilterType = 'all' | 'resolved' | 'unresolved' | 'low-confidence';
-export type SortType = 'value' | 'confidence' | 'name';
+export type FilterType = 'all' | 'resolved' | 'unresolved' | 'low-confidence'
+export type SortType = 'value' | 'confidence' | 'name'
 
 interface FilterBarProps {
-  filter: FilterType;
-  sort: SortType;
-  searchQuery: string;
-  onFilterChange: (filter: FilterType) => void;
-  onSortChange: (sort: SortType) => void;
-  onSearchChange: (query: string) => void;
-  totalCount: number;
-  filteredCount: number;
+  filter: FilterType
+  sort: SortType
+  searchQuery: string
+  onFilterChange: (filter: FilterType) => void
+  onSortChange: (sort: SortType) => void
+  onSearchChange: (query: string) => void
+  totalCount: number
+  filteredCount: number
 }
 
 const filterLabels: Record<FilterType, string> = {
@@ -21,7 +21,7 @@ const filterLabels: Record<FilterType, string> = {
   resolved: 'Resolved',
   unresolved: 'Unresolved',
   'low-confidence': 'Low Confidence',
-};
+}
 
 export default function FilterBar({
   filter,
@@ -82,5 +82,5 @@ export default function FilterBar({
         Showing {filteredCount.toLocaleString()} of {totalCount.toLocaleString()} holdings
       </div>
     </GlassCard>
-  );
+  )
 }

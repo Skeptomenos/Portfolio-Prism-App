@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import Sidebar from './components/Sidebar'
 import { Dashboard } from './features/dashboard'
-import XRayView from './components/views/XRayView'
+import { XRayView } from './features/xray'
 import HealthView from './components/views/HealthView'
 
 import { HoldingsView } from './features/portfolio'

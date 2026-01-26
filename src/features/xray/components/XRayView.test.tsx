@@ -1,14 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '../../test/utils'
+import { render, screen, fireEvent, waitFor } from '../../../test/utils'
 import XRayView from './XRayView'
-import * as ipc from '../../lib/ipc'
+import * as ipc from '../../../lib/ipc'
 
-vi.mock('../../lib/ipc', () => ({
+vi.mock('../../../lib/ipc', () => ({
   runPipeline: vi.fn(),
   getDashboardData: vi.fn(),
 }))
 
-vi.mock('../../hooks/usePipelineDiagnostics', () => ({
+vi.mock('../../../hooks/usePipelineDiagnostics', () => ({
   usePipelineDiagnostics: vi.fn(() => ({
     data: null,
     isLoading: false,
@@ -16,18 +16,18 @@ vi.mock('../../hooks/usePipelineDiagnostics', () => ({
   })),
 }))
 
-vi.mock('../../hooks/usePipelineProgress', () => ({
+vi.mock('../../../hooks/usePipelineProgress', () => ({
   usePipelineProgress: vi.fn(() => ({})),
 }))
 
-vi.mock('../../hooks/usePortfolioData', () => ({
+vi.mock('../../../hooks/usePortfolioData', () => ({
   useDashboardData: vi.fn(() => ({
     isLoading: false,
     data: { totalValue: 100000 },
   })),
 }))
 
-vi.mock('../../store/useAppStore', () => ({
+vi.mock('../../../store/useAppStore', () => ({
   useActivePortfolioId: vi.fn(() => 1),
 }))
 

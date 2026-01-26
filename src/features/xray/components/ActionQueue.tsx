@@ -1,30 +1,30 @@
-import { useState } from 'react';
-import GlassCard from '../../GlassCard';
-import type { PipelineHealthReport, PipelineFailure } from '../../../hooks/usePipelineDiagnostics';
-import './ActionQueue.css';
+import { useState } from 'react'
+import GlassCard from '../../../components/GlassCard'
+import type { PipelineHealthReport, PipelineFailure } from '../types'
+import './ActionQueue.css'
 
-const IGNORED_ISSUES_KEY = 'portfolio-prism-ignored-issues';
+const IGNORED_ISSUES_KEY = 'portfolio-prism-ignored-issues'
 
 function getIgnoredIssues(): Set<string> {
   try {
-    const stored = localStorage.getItem(IGNORED_ISSUES_KEY);
-    return stored ? new Set(JSON.parse(stored)) : new Set();
+    const stored = localStorage.getItem(IGNORED_ISSUES_KEY)
+    return stored ? new Set(JSON.parse(stored)) : new Set()
   } catch {
-    return new Set();
+    return new Set()
   }
 }
 
 function saveIgnoredIssues(ignored: Set<string>): void {
-  localStorage.setItem(IGNORED_ISSUES_KEY, JSON.stringify([...ignored]));
+  localStorage.setItem(IGNORED_ISSUES_KEY, JSON.stringify([...ignored]))
 }
 
 function getIssueKey(failure: PipelineFailure): string {
-  return `${failure.stage}:${failure.item}:${failure.error || (failure as any).issue}`;
+  return `${failure.stage}:${failure.item}:${failure.error || (failure as any).issue}`
 }
 
 interface ActionQueueProps {
-  report: PipelineHealthReport | null;
-  onAction?: (action: string, item: PipelineFailure) => void;
+  report: PipelineHealthReport | null
+  onAction?: (action: string, item: PipelineFailure) => void
 }
 
 // =============================================================================
@@ -36,11 +36,11 @@ function SeverityBadge({ severity }: { severity: string }) {
     ERROR: { label: 'Error', className: 'severity-error' },
     WARNING: { label: 'Warning', className: 'severity-warning' },
     INFO: { label: 'Info', className: 'severity-info' },
-  };
+  }
 
-  const cfg = config[severity?.toUpperCase()] || config.WARNING;
+  const cfg = config[severity?.toUpperCase()] || config.WARNING
 
-  return <span className={`severity-badge ${cfg.className}`}>{cfg.label}</span>;
+  return <span className={`severity-badge ${cfg.className}`}>{cfg.label}</span>
 }
 
 // =============================================================================
@@ -48,37 +48,37 @@ function SeverityBadge({ severity }: { severity: string }) {
 // =============================================================================
 
 export default function ActionQueue({ report, onAction }: ActionQueueProps) {
-  const [ignoredIssues, setIgnoredIssues] = useState<Set<string>>(() => getIgnoredIssues());
-  const [showIgnored, setShowIgnored] = useState(false);
-  const [fixTooltip, setFixTooltip] = useState<string | null>(null);
+  const [ignoredIssues, setIgnoredIssues] = useState<Set<string>>(() => getIgnoredIssues())
+  const [showIgnored, setShowIgnored] = useState(false)
+  const [fixTooltip, setFixTooltip] = useState<string | null>(null)
 
-  const allFailures = report?.failures || [];
-  const visibleFailures = allFailures.filter(f => !ignoredIssues.has(getIssueKey(f)));
-  const ignoredFailures = allFailures.filter(f => ignoredIssues.has(getIssueKey(f)));
-  const displayedFailures = showIgnored ? ignoredFailures : visibleFailures;
+  const allFailures = report?.failures || []
+  const visibleFailures = allFailures.filter((f) => !ignoredIssues.has(getIssueKey(f)))
+  const ignoredFailures = allFailures.filter((f) => ignoredIssues.has(getIssueKey(f)))
+  const displayedFailures = showIgnored ? ignoredFailures : visibleFailures
 
   const handleIgnore = (failure: PipelineFailure) => {
-    const key = getIssueKey(failure);
-    const newIgnored = new Set(ignoredIssues);
-    newIgnored.add(key);
-    setIgnoredIssues(newIgnored);
-    saveIgnoredIssues(newIgnored);
-    onAction?.('ignore', failure);
-  };
+    const key = getIssueKey(failure)
+    const newIgnored = new Set(ignoredIssues)
+    newIgnored.add(key)
+    setIgnoredIssues(newIgnored)
+    saveIgnoredIssues(newIgnored)
+    onAction?.('ignore', failure)
+  }
 
   const handleRestore = (failure: PipelineFailure) => {
-    const key = getIssueKey(failure);
-    const newIgnored = new Set(ignoredIssues);
-    newIgnored.delete(key);
-    setIgnoredIssues(newIgnored);
-    saveIgnoredIssues(newIgnored);
-  };
+    const key = getIssueKey(failure)
+    const newIgnored = new Set(ignoredIssues)
+    newIgnored.delete(key)
+    setIgnoredIssues(newIgnored)
+    saveIgnoredIssues(newIgnored)
+  }
 
   const handleFixClick = (failure: PipelineFailure) => {
-    setFixTooltip(getIssueKey(failure));
-    setTimeout(() => setFixTooltip(null), 2000);
-    onAction?.('fix', failure);
-  };
+    setFixTooltip(getIssueKey(failure))
+    setTimeout(() => setFixTooltip(null), 2000)
+    onAction?.('fix', failure)
+  }
 
   if (allFailures.length === 0) {
     return (
@@ -90,7 +90,7 @@ export default function ActionQueue({ report, onAction }: ActionQueueProps) {
           </p>
         </div>
       </GlassCard>
-    );
+    )
   }
 
   return (
@@ -99,11 +99,10 @@ export default function ActionQueue({ report, onAction }: ActionQueueProps) {
         <h4>Data Quality Issues</h4>
         <div className="header-controls">
           {ignoredFailures.length > 0 && (
-            <button 
-              className="toggle-ignored-btn"
-              onClick={() => setShowIgnored(!showIgnored)}
-            >
-              {showIgnored ? `Show Active (${visibleFailures.length})` : `Show Ignored (${ignoredFailures.length})`}
+            <button className="toggle-ignored-btn" onClick={() => setShowIgnored(!showIgnored)}>
+              {showIgnored
+                ? `Show Active (${visibleFailures.length})`
+                : `Show Ignored (${ignoredFailures.length})`}
             </button>
           )}
           <span className="issue-count">
@@ -111,7 +110,7 @@ export default function ActionQueue({ report, onAction }: ActionQueueProps) {
           </span>
         </div>
       </div>
-      
+
       {displayedFailures.length === 0 ? (
         <div className="action-queue-empty-state">
           <p style={{ color: 'var(--text-secondary)', padding: '16px', textAlign: 'center' }}>
@@ -121,11 +120,14 @@ export default function ActionQueue({ report, onAction }: ActionQueueProps) {
       ) : (
         <div className="action-queue-list">
           {displayedFailures.map((failure, idx) => {
-            const key = getIssueKey(failure);
-            const isIgnored = ignoredIssues.has(key);
-            
+            const key = getIssueKey(failure)
+            const isIgnored = ignoredIssues.has(key)
+
             return (
-              <div key={`${failure.item}-${idx}`} className={`action-queue-item ${isIgnored ? 'ignored' : ''}`}>
+              <div
+                key={`${failure.item}-${idx}`}
+                className={`action-queue-item ${isIgnored ? 'ignored' : ''}`}
+              >
                 <div className="item-header">
                   <SeverityBadge severity={failure.severity} />
                   <span className="item-stage">{failure.stage.replace(/_/g, ' ')}</span>
@@ -133,15 +135,11 @@ export default function ActionQueue({ report, onAction }: ActionQueueProps) {
                 <div className="item-content">
                   <div className="item-name">{failure.item}</div>
                   <div className="item-error">{failure.error || (failure as any).issue}</div>
-                  {failure.fix && (
-                    <div className="item-fix-hint">
-                      💡 {failure.fix}
-                    </div>
-                  )}
+                  {failure.fix && <div className="item-fix-hint">💡 {failure.fix}</div>}
                 </div>
                 <div className="item-actions">
                   {isIgnored ? (
-                    <button 
+                    <button
                       className="action-button action-secondary"
                       onClick={() => handleRestore(failure)}
                     >
@@ -150,7 +148,7 @@ export default function ActionQueue({ report, onAction }: ActionQueueProps) {
                   ) : (
                     <>
                       <div className="fix-button-wrapper">
-                        <button 
+                        <button
                           className="action-button action-primary"
                           onClick={() => handleFixClick(failure)}
                         >
@@ -160,7 +158,7 @@ export default function ActionQueue({ report, onAction }: ActionQueueProps) {
                           <span className="coming-soon-tooltip">Coming Soon</span>
                         )}
                       </div>
-                      <button 
+                      <button
                         className="action-button action-secondary"
                         onClick={() => handleIgnore(failure)}
                       >
@@ -170,10 +168,10 @@ export default function ActionQueue({ report, onAction }: ActionQueueProps) {
                   )}
                 </div>
               </div>
-            );
+            )
           })}
         </div>
       )}
     </div>
-  );
+  )
 }

@@ -1,19 +1,19 @@
 /**
  * HiveLog Component
- * 
+ *
  * Displays community data interactions: Hive hits and new contributions.
  */
 
-import GlassCard from '../../GlassCard';
-import type { PipelineHealthReport } from '../../../hooks/usePipelineDiagnostics';
-import './HiveLog.css';
+import GlassCard from '../../../components/GlassCard'
+import type { PipelineHealthReport } from '../types'
+import './HiveLog.css'
 
 // =============================================================================
 // Types
 // =============================================================================
 
 interface HiveLogProps {
-  report: PipelineHealthReport | null;
+  report: PipelineHealthReport | null
 }
 
 // =============================================================================
@@ -22,20 +22,20 @@ interface HiveLogProps {
 
 export default function HiveLog({ report }: HiveLogProps) {
   // Extract hive data from the report (uses the new fields from backend upgrade)
-  const performance = report?.performance;
-  const hiveHitRate = performance?.hive_hit_rate ?? 0;
-  const totalAssets = performance?.total_assets_processed ?? 0;
-  
+  const performance = report?.performance
+  const hiveHitRate = performance?.hive_hit_rate ?? 0
+  const totalAssets = performance?.total_assets_processed ?? 0
+
   // These fields come from the backend upgrade
-  const enrichment = report?.enrichment;
-  const hiveLog = enrichment?.hive_log;
-  const contributions = hiveLog?.contributions || [];
-  const hits = hiveLog?.hits || [];
+  const enrichment = report?.enrichment
+  const hiveLog = enrichment?.hive_log
+  const contributions = hiveLog?.contributions || []
+  const hits = hiveLog?.hits || []
 
   // Calculate stats
-  const hiveHits = hits.length || Math.round((hiveHitRate / 100) * totalAssets);
-  const apiCalls = totalAssets - hiveHits;
-  const newContributions = contributions.length || enrichment?.stats?.new_contributions || 0;
+  const hiveHits = hits.length || Math.round((hiveHitRate / 100) * totalAssets)
+  const apiCalls = totalAssets - hiveHits
+  const newContributions = contributions.length || enrichment?.stats?.new_contributions || 0
 
   return (
     <div className="hive-log-container">
@@ -95,9 +95,7 @@ export default function HiveLog({ report }: HiveLogProps) {
               </div>
             ))}
             {contributions.length > 10 && (
-              <div className="hive-item more">
-                +{contributions.length - 10} more
-              </div>
+              <div className="hive-item more">+{contributions.length - 10} more</div>
             )}
           </div>
         </div>
@@ -115,11 +113,7 @@ export default function HiveLog({ report }: HiveLogProps) {
                 <span className="item-badge hit">From Hive</span>
               </div>
             ))}
-            {hits.length > 10 && (
-              <div className="hive-item more">
-                +{hits.length - 10} more
-              </div>
-            )}
+            {hits.length > 10 && <div className="hive-item more">+{hits.length - 10} more</div>}
           </div>
         </div>
       )}
@@ -133,5 +127,5 @@ export default function HiveLog({ report }: HiveLogProps) {
         </GlassCard>
       )}
     </div>
-  );
+  )
 }

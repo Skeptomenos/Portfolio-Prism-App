@@ -1,14 +1,14 @@
 """Tests for headless/handlers/sync.py - Sync and pipeline handlers."""
 
 import json
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
-from io import StringIO
 
 from portfolio_src.headless.handlers.sync import (
     emit_progress,
-    handle_sync_portfolio,
     handle_run_pipeline,
+    handle_sync_portfolio,
 )
 
 
@@ -129,9 +129,7 @@ class TestHandleRunPipeline:
             "portfolio_src.core.pipeline.Pipeline",
             return_value=mock_pipeline,
         ):
-            with patch(
-                "portfolio_src.headless.handlers.sync.emit_progress"
-            ) as mock_emit:
+            with patch("portfolio_src.headless.handlers.sync.emit_progress") as mock_emit:
                 await handle_run_pipeline(1, {})
 
                 # Should emit at least start and end progress
@@ -144,24 +142,19 @@ class TestHandleSyncPortfolio:
     @pytest.mark.asyncio
     async def test_returns_error_when_not_authenticated(self):
         """Returns error when TR is not authenticated."""
-        mock_bridge = MagicMock()
-        mock_bridge.get_status.return_value = {"status": "idle"}
+        from portfolio_src.core.services.sync_service import AuthenticationError
 
-        mock_auth = MagicMock()
-        mock_auth.try_restore_session = AsyncMock(
-            return_value=MagicMock(success=False, message="No session")
+        mock_service = MagicMock()
+        mock_service.sync_portfolio.side_effect = AuthenticationError(
+            "Please authenticate with Trade Republic first"
         )
 
         with patch(
-            "portfolio_src.headless.handlers.sync.get_bridge",
-            return_value=mock_bridge,
+            "portfolio_src.headless.handlers.sync.get_sync_service",
+            return_value=mock_service,
         ):
-            with patch(
-                "portfolio_src.headless.handlers.sync.get_auth_manager",
-                return_value=mock_auth,
-            ):
-                with patch("portfolio_src.headless.handlers.sync.emit_progress"):
-                    result = await handle_sync_portfolio(1, {})
+            with patch("portfolio_src.headless.handlers.sync.emit_progress"):
+                result = await handle_sync_portfolio(1, {})
 
         assert result["status"] == "error"
         assert result["error"]["code"] == "TR_AUTH_REQUIRED"
@@ -169,81 +162,48 @@ class TestHandleSyncPortfolio:
     @pytest.mark.asyncio
     async def test_uses_default_portfolio_id(self):
         """Uses portfolio ID 1 by default."""
-        mock_bridge = MagicMock()
-        mock_bridge.get_status.return_value = {"status": "authenticated"}
+        from portfolio_src.models.sync import PortfolioSyncResult
 
-        mock_fetcher = MagicMock()
-        mock_fetcher.fetch_portfolio_sync.return_value = []
-
-        mock_sync_result = {
-            "synced_positions": 0,
-            "new_positions": 0,
-            "updated_positions": 0,
-            "total_value": 0,
-        }
+        mock_service = MagicMock()
+        mock_service.sync_portfolio.return_value = PortfolioSyncResult(
+            synced_positions=0,
+            new_positions=0,
+            updated_positions=0,
+            total_value=0,
+            duration_ms=100,
+        )
 
         with patch(
-            "portfolio_src.headless.handlers.sync.get_bridge",
-            return_value=mock_bridge,
+            "portfolio_src.headless.handlers.sync.get_sync_service",
+            return_value=mock_service,
         ):
-            with patch(
-                "portfolio_src.data.tr_sync.TRDataFetcher",
-                return_value=mock_fetcher,
-            ):
-                with patch(
-                    "portfolio_src.data.database.sync_positions_from_tr",
-                    return_value=mock_sync_result,
-                ) as mock_sync:
-                    with patch("portfolio_src.data.database.update_sync_state"):
-                        with patch(
-                            "portfolio_src.headless.handlers.sync.emit_progress"
-                        ):
-                            await handle_sync_portfolio(1, {})
+            with patch("portfolio_src.headless.handlers.sync.emit_progress"):
+                await handle_sync_portfolio(1, {})
 
-                            mock_sync.assert_called_once()
-                            assert mock_sync.call_args[0][0] == 1
+                mock_service.sync_portfolio.assert_called_once()
+                call_kwargs = mock_service.sync_portfolio.call_args[1]
+                assert call_kwargs["portfolio_id"] == 1
 
     @pytest.mark.asyncio
     async def test_returns_sync_statistics(self):
         """Returns sync statistics on success."""
-        mock_bridge = MagicMock()
-        mock_bridge.get_status.return_value = {"status": "authenticated"}
+        from portfolio_src.models.sync import PortfolioSyncResult
 
-        mock_fetcher = MagicMock()
-        mock_fetcher.fetch_portfolio_sync.return_value = [
-            {
-                "isin": "US1234567890",
-                "name": "Test Stock",
-                "quantity": 10,
-                "avg_cost": 100.0,
-                "current_price": 110.0,
-            }
-        ]
-
-        mock_sync_result = {
-            "synced_positions": 1,
-            "new_positions": 1,
-            "updated_positions": 0,
-            "total_value": 1100.0,
-        }
+        mock_service = MagicMock()
+        mock_service.sync_portfolio.return_value = PortfolioSyncResult(
+            synced_positions=1,
+            new_positions=1,
+            updated_positions=0,
+            total_value=1100.0,
+            duration_ms=150,
+        )
 
         with patch(
-            "portfolio_src.headless.handlers.sync.get_bridge",
-            return_value=mock_bridge,
+            "portfolio_src.headless.handlers.sync.get_sync_service",
+            return_value=mock_service,
         ):
-            with patch(
-                "portfolio_src.data.tr_sync.TRDataFetcher",
-                return_value=mock_fetcher,
-            ):
-                with patch(
-                    "portfolio_src.data.database.sync_positions_from_tr",
-                    return_value=mock_sync_result,
-                ):
-                    with patch("portfolio_src.data.database.update_sync_state"):
-                        with patch(
-                            "portfolio_src.headless.handlers.sync.emit_progress"
-                        ):
-                            result = await handle_sync_portfolio(1, {})
+            with patch("portfolio_src.headless.handlers.sync.emit_progress"):
+                result = await handle_sync_portfolio(1, {})
 
         assert result["status"] == "success"
         assert result["data"]["syncedPositions"] == 1

@@ -1,19 +1,19 @@
 /**
  * ResolutionTable Component
- * 
+ *
  * Displays the ETF decomposition results: which ETFs were resolved, by what source, and with how many holdings.
  */
 
-import GlassCard from '../../GlassCard';
-import type { PipelineHealthReport } from '../../../hooks/usePipelineDiagnostics';
-import './ResolutionTable.css';
+import GlassCard from '../../../components/GlassCard'
+import type { PipelineHealthReport } from '../types'
+import './ResolutionTable.css'
 
 // =============================================================================
 // Types
 // =============================================================================
 
 interface ResolutionTableProps {
-  report: PipelineHealthReport | null;
+  report: PipelineHealthReport | null
 }
 
 // =============================================================================
@@ -27,15 +27,15 @@ function StatusBadge({ status }: { status: string }) {
     partial: { label: '⚠ Partial', className: 'status-warning' },
     failed: { label: '✕ Failed', className: 'status-error' },
     empty: { label: '— Empty', className: 'status-muted' },
-  };
+  }
 
-  const cfg = config[status] || config.empty;
+  const cfg = config[status] || config.empty
 
-  return <span className={`resolution-status-badge ${cfg.className}`}>{cfg.label}</span>;
+  return <span className={`resolution-status-badge ${cfg.className}`}>{cfg.label}</span>
 }
 
 function SourceBadge({ source }: { source?: string }) {
-  if (!source) return <span className="resolution-source-badge source-unknown">Unknown</span>;
+  if (!source) return <span className="resolution-source-badge source-unknown">Unknown</span>
 
   const sourceLabels: Record<string, string> = {
     hive: '🐝 Hive',
@@ -45,13 +45,16 @@ function SourceBadge({ source }: { source?: string }) {
     amundi_adapter: '🔌 Amundi',
     ishares_adapter: '🔌 iShares',
     vanguard_adapter: '🔌 Vanguard',
-  };
+  }
 
-  const label = sourceLabels[source.toLowerCase()] || `🔌 ${source}`;
-  const className = source.toLowerCase().includes('hive') ? 'source-hive' : 
-                   source.toLowerCase().includes('cache') ? 'source-cache' : 'source-adapter';
+  const label = sourceLabels[source.toLowerCase()] || `🔌 ${source}`
+  const className = source.toLowerCase().includes('hive')
+    ? 'source-hive'
+    : source.toLowerCase().includes('cache')
+      ? 'source-cache'
+      : 'source-adapter'
 
-  return <span className={`resolution-source-badge ${className}`}>{label}</span>;
+  return <span className={`resolution-source-badge ${className}`}>{label}</span>
 }
 
 // =============================================================================
@@ -59,14 +62,16 @@ function SourceBadge({ source }: { source?: string }) {
 // =============================================================================
 
 export default function ResolutionTable({ report }: ResolutionTableProps) {
-  const etfRows = report?.decomposition?.per_etf || [];
+  const etfRows = report?.decomposition?.per_etf || []
 
   if (etfRows.length === 0) {
     return (
       <GlassCard style={{ padding: '24px', textAlign: 'center' }}>
-        <p style={{ color: 'var(--text-secondary)' }}>No ETF resolution data available. Run analysis to generate.</p>
+        <p style={{ color: 'var(--text-secondary)' }}>
+          No ETF resolution data available. Run analysis to generate.
+        </p>
       </GlassCard>
-    );
+    )
   }
 
   return (
@@ -88,7 +93,9 @@ export default function ResolutionTable({ report }: ResolutionTableProps) {
                 <div className="etf-name" style={{ fontSize: '14px', fontWeight: 500 }}>
                   {etf.name || 'Unknown'}
                 </div>
-                <div className="etf-ticker" style={{ fontSize: '11px', opacity: 0.7 }}>{etf.isin}</div>
+                <div className="etf-ticker" style={{ fontSize: '11px', opacity: 0.7 }}>
+                  {etf.isin}
+                </div>
               </td>
               <td>
                 <StatusBadge status={etf.status} />
@@ -103,5 +110,5 @@ export default function ResolutionTable({ report }: ResolutionTableProps) {
         </tbody>
       </table>
     </div>
-  );
+  )
 }

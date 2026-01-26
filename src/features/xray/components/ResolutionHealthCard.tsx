@@ -1,10 +1,10 @@
-import { Activity, CheckCircle, AlertCircle, MinusCircle, HelpCircle } from 'lucide-react';
-import GlassCard from '../../GlassCard';
-import type { ResolutionSummary } from '../../../types';
-import './ResolutionHealthCard.css';
+import { Activity, CheckCircle, AlertCircle, MinusCircle, HelpCircle } from 'lucide-react'
+import GlassCard from '../../../components/GlassCard'
+import type { ResolutionSummary } from '../types'
+import './ResolutionHealthCard.css'
 
 interface ResolutionHealthCardProps {
-  summary: ResolutionSummary;
+  summary: ResolutionSummary
 }
 
 const sourceColors: Record<string, string> = {
@@ -17,7 +17,7 @@ const sourceColors: Record<string, string> = {
   api_yfinance: 'var(--accent-cyan, #06b6d4)',
   api_openfigi: 'var(--accent-cyan, #06b6d4)',
   unknown: 'var(--text-tertiary, #64748b)',
-};
+}
 
 const sourceLabels: Record<string, string> = {
   provider: 'Provider',
@@ -29,16 +29,16 @@ const sourceLabels: Record<string, string> = {
   api_yfinance: 'yFinance',
   api_openfigi: 'OpenFIGI',
   unknown: 'Unknown',
-};
+}
 
 export default function ResolutionHealthCard({ summary }: ResolutionHealthCardProps) {
-  const healthPercent = Math.round(summary.healthScore * 100);
+  const healthPercent = Math.round(summary.healthScore * 100)
 
   const sortedSources = Object.entries(summary.bySource)
     .filter(([, count]) => count > 0)
-    .sort(([, a], [, b]) => b - a);
+    .sort(([, a], [, b]) => b - a)
 
-  const maxSourceCount = Math.max(...Object.values(summary.bySource), 1);
+  const maxSourceCount = Math.max(...Object.values(summary.bySource), 1)
 
   return (
     <GlassCard className="resolution-health-card">
@@ -51,11 +51,14 @@ export default function ResolutionHealthCard({ summary }: ResolutionHealthCardPr
         <div className="stat-card primary">
           <div className="stat-value">{healthPercent}%</div>
           <div className="stat-label">Health Score</div>
-          <div className="stat-bar" role="progressbar" aria-valuenow={healthPercent} aria-valuemin={0} aria-valuemax={100}>
-            <div
-              className="stat-bar-fill"
-              style={{ width: `${healthPercent}%` }}
-            />
+          <div
+            className="stat-bar"
+            role="progressbar"
+            aria-valuenow={healthPercent}
+            aria-valuemin={0}
+            aria-valuemax={100}
+          >
+            <div className="stat-bar-fill" style={{ width: `${healthPercent}%` }} />
           </div>
         </div>
 
@@ -97,9 +100,7 @@ export default function ResolutionHealthCard({ summary }: ResolutionHealthCardPr
           <div className="source-bars">
             {sortedSources.map(([source, count]) => (
               <div key={source} className="source-row">
-                <div className="source-label">
-                  {sourceLabels[source] || source}
-                </div>
+                <div className="source-label">{sourceLabels[source] || source}</div>
                 <div className="source-bar-wrapper">
                   <div
                     className="source-bar"
@@ -116,5 +117,5 @@ export default function ResolutionHealthCard({ summary }: ResolutionHealthCardPr
         </div>
       )}
     </GlassCard>
-  );
+  )
 }

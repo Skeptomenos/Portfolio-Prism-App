@@ -8,7 +8,7 @@ import {
   FilterBar,
   type FilterType,
   type SortType,
-} from '../../../components/views/xray'
+} from '../../xray'
 import ResolutionStatusBadge from '../../../components/common/ResolutionStatusBadge'
 import type { XRayHolding, ResolutionSummary } from '../../../types'
 

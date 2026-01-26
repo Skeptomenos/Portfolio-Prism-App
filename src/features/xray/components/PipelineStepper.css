@@ -111,9 +111,5 @@
 }
 
 .stepper-connector.complete {
-  background: linear-gradient(
-    90deg,
-    rgba(16, 185, 129, 0.5),
-    rgba(16, 185, 129, 0.2)
-  );
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.5), rgba(16, 185, 129, 0.2));
 }
