@@ -159,7 +159,7 @@ class SQLiteLogHandler(logging.Handler):
         else:
             seed = f"{record.levelname}:{formatted_msg}"
 
-        return hashlib.md5(seed.encode()).hexdigest()
+        return hashlib.sha256(seed.encode()).hexdigest()
 
 
 class PrismFormatter(logging.Formatter):

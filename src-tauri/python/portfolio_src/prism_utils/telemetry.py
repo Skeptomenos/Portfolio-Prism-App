@@ -333,7 +333,7 @@ class Telemetry:
     ) -> Optional[str]:
         """Report an unresolved ISIN."""
         # Generate a deterministic ID for this asset
-        asset_id = hashlib.md5(f"{name}:{ticker}:{provider_isin}".encode()).hexdigest()[:8]
+        asset_id = hashlib.sha256(f"{name}:{ticker}:{provider_isin}".encode()).hexdigest()[:8]
 
         title = f"Unresolved asset: {name}"
         body = (
@@ -434,7 +434,7 @@ class Telemetry:
         """Report enrichment coverage gaps (missing sector/geography)."""
         title = f"Enrichment gap: {gap_type} coverage at {coverage_rate:.0%}"
 
-        batch_hash = hashlib.md5(",".join(sorted(affected_isins)).encode()).hexdigest()[:8]
+        batch_hash = hashlib.sha256(",".join(sorted(affected_isins)).encode()).hexdigest()[:8]
 
         sample_isins = affected_isins[:10]
         isin_list = "\n".join(f"- `{isin}`" for isin in sample_isins)
@@ -518,7 +518,7 @@ class Telemetry:
         context: str = "",
     ) -> Optional[str]:
         """Report an unexpected error."""
-        error_hash = hashlib.md5(str(error).encode()).hexdigest()[:8]
+        error_hash = hashlib.sha256(str(error).encode()).hexdigest()[:8]
         title = f"Unexpected error: {type(error).__name__}"
 
         body = (
