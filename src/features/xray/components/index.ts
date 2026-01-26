@@ -1,3 +1,4 @@
+export { XRayErrorBoundary } from './XRayErrorBoundary'
 export { default as PipelineStepper } from './PipelineStepper'
 export { default as ResolutionTable } from './ResolutionTable'
 export { default as ActionQueue } from './ActionQueue'

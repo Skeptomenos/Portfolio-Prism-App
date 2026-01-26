@@ -1,4 +1,5 @@
-export { default as XRayView } from './components/XRayView'
+export { default as XRayView } from './components/XRayViewWithBoundary'
+export { XRayErrorBoundary } from './components/XRayErrorBoundary'
 export { default as PipelineStepper } from './components/PipelineStepper'
 export { default as ResolutionTable } from './components/ResolutionTable'
 export { default as ActionQueue } from './components/ActionQueue'
