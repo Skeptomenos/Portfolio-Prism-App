@@ -22,9 +22,7 @@ class TestHandleLogEvent:
                 "portfolio_src.headless.handlers.telemetry.get_session_id",
                 return_value="test-session",
             ):
-                result = await handle_log_event(
-                    1, {"level": "INFO", "message": "Test message"}
-                )
+                result = await handle_log_event(1, {"level": "INFO", "message": "Test message"})
 
         assert result["status"] == "success"
         assert result["data"] is True
@@ -90,6 +88,8 @@ class TestHandleGetRecentReports:
 
         mock_conn = MagicMock()
         mock_conn.execute.return_value = mock_cursor
+        mock_conn.__enter__ = MagicMock(return_value=mock_conn)
+        mock_conn.__exit__ = MagicMock(return_value=False)
 
         with patch(
             "portfolio_src.data.database.get_connection",
@@ -108,6 +108,8 @@ class TestHandleGetRecentReports:
 
         mock_conn = MagicMock()
         mock_conn.execute.return_value = mock_cursor
+        mock_conn.__enter__ = MagicMock(return_value=mock_conn)
+        mock_conn.__exit__ = MagicMock(return_value=False)
 
         with patch(
             "portfolio_src.data.database.get_connection",
@@ -130,6 +132,8 @@ class TestHandleGetRecentReports:
 
         mock_conn = MagicMock()
         mock_conn.execute.return_value = mock_cursor
+        mock_conn.__enter__ = MagicMock(return_value=mock_conn)
+        mock_conn.__exit__ = MagicMock(return_value=False)
 
         with patch(
             "portfolio_src.data.database.get_connection",
@@ -152,6 +156,8 @@ class TestHandleGetPendingReviews:
 
         mock_conn = MagicMock()
         mock_conn.execute.return_value = mock_cursor
+        mock_conn.__enter__ = MagicMock(return_value=mock_conn)
+        mock_conn.__exit__ = MagicMock(return_value=False)
 
         with patch(
             "portfolio_src.data.database.get_connection",
@@ -170,6 +176,8 @@ class TestHandleGetPendingReviews:
 
         mock_conn = MagicMock()
         mock_conn.execute.return_value = mock_cursor
+        mock_conn.__enter__ = MagicMock(return_value=mock_conn)
+        mock_conn.__exit__ = MagicMock(return_value=False)
 
         with patch(
             "portfolio_src.data.database.get_connection",
@@ -191,6 +199,8 @@ class TestHandleGetPendingReviews:
 
         mock_conn = MagicMock()
         mock_conn.execute.return_value = mock_cursor
+        mock_conn.__enter__ = MagicMock(return_value=mock_conn)
+        mock_conn.__exit__ = MagicMock(return_value=False)
 
         with patch(
             "portfolio_src.data.database.get_connection",

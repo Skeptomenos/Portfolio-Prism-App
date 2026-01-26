@@ -34,9 +34,10 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest>=9.0.2",
-    "pip-audit>=2.10.0",  # Security: automated vulnerability scanning
+    "pytest-asyncio>=0.24.0",
+    "pip-audit>=2.10.0",
     "ruff>=0.14.14",
-    "mypy>=1.14.0",       # Type checking: strict mode with incremental strictness
+    "mypy>=1.14.0",
     "tach>=0.33.1",
 ]
 
@@ -67,3 +68,12 @@ strict = false              # Start non-strict, ramp up incrementally
 ignore_missing_imports = true
 disallow_untyped_defs = true
 files = ["portfolio_src"]
+
+# Pytest configuration - enables test co-location per specs/05-testing-organization.md
+# Tests can be discovered in both `tests/` (integration/E2E) and `portfolio_src/` (unit tests)
+[tool.pytest.ini_options]
+testpaths = ["tests", "portfolio_src"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
