@@ -21,7 +21,7 @@ interface FeedbackDialogProps {
   onClose: () => void
 }
 
-export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({ isOpen, onClose }) => {
+export const FeedbackDialog = ({ isOpen, onClose }: FeedbackDialogProps): JSX.Element => {
   const [type, setType] = useState<FeedbackType>('functional')
   const [message, setMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)

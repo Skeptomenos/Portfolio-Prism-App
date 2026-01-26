@@ -31,7 +31,7 @@ const sourceLabels: Record<string, string> = {
   unknown: 'Unknown',
 }
 
-export default function ResolutionHealthCard({ summary }: ResolutionHealthCardProps) {
+export default function ResolutionHealthCard({ summary }: ResolutionHealthCardProps): JSX.Element {
   const healthPercent = Math.round(summary.healthScore * 100)
 
   const sortedSources = Object.entries(summary.bySource)

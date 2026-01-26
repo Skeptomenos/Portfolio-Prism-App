@@ -88,7 +88,7 @@ pnpm test
 
 | Status | Task | Spec Reference | Notes |
 |--------|------|----------------|-------|
-| [ ] | **Task 3.1**: Add explicit `: JSX.Element` return types to React components | `specs/12-frontend-explicit-return-types.md:L11-22` | **INCLUDES:** Enable ESLint rule `@typescript-eslint/explicit-function-return-type: warn` in `eslint.config.js`, then fix ~7+ components |
+| [x] | **Task 3.1**: Add explicit `: JSX.Element` return types to React components | `specs/12-frontend-explicit-return-types.md:L11-22` | Done in v0.10.28 - ESLint rule enabled (warn), component and hook return types added |
 | [ ] | **Task 3.2**: Move ALL orphan hooks to feature slices | `specs/15-fsd-hooks-and-store.md:L14-25` | Move: `usePortfolioData` -> `features/portfolio/hooks/`, `usePipelineProgress` + `usePipelineDiagnostics` -> `features/xray/hooks/`. Only `useTauriEvents` stays in `src/hooks/` |
 | [ ] | **Task 3.3**: Split monolithic `useAppStore.ts` into feature slices | `specs/15-fsd-hooks-and-store.md:L28-42` | 366 lines -> Extract `authSlice.ts`, `syncSlice.ts`, `uiSlice.ts` with Zustand `combine()`. Maintain `useAppStore` as public facade API via barrel re-exports |
 

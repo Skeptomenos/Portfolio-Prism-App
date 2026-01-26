@@ -13,7 +13,7 @@ interface NeedsAttentionSectionProps {
 export default function NeedsAttentionSection({
   holdings,
   onHoldingClick,
-}: NeedsAttentionSectionProps) {
+}: NeedsAttentionSectionProps): JSX.Element | null {
   const [isExpanded, setIsExpanded] = useState(false)
   const listId = useId()
 

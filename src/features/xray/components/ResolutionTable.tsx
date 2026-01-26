@@ -20,7 +20,7 @@ interface ResolutionTableProps {
 // Status Badge Helper
 // =============================================================================
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status }: { status: string }): JSX.Element {
   const config: Record<string, { label: string; className: string }> = {
     complete: { label: '✓ Resolved', className: 'status-success' },
     success: { label: '✓ Resolved', className: 'status-success' },
@@ -34,7 +34,7 @@ function StatusBadge({ status }: { status: string }) {
   return <span className={`resolution-status-badge ${cfg.className}`}>{cfg.label}</span>
 }
 
-function SourceBadge({ source }: { source?: string }) {
+function SourceBadge({ source }: { source?: string }): JSX.Element {
   if (!source) return <span className="resolution-source-badge source-unknown">Unknown</span>
 
   const sourceLabels: Record<string, string> = {
@@ -61,7 +61,7 @@ function SourceBadge({ source }: { source?: string }) {
 // Component
 // =============================================================================
 
-export default function ResolutionTable({ report }: ResolutionTableProps) {
+export default function ResolutionTable({ report }: ResolutionTableProps): JSX.Element {
   const etfRows = report?.decomposition?.per_etf || []
 
   if (etfRows.length === 0) {

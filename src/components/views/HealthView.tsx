@@ -36,7 +36,7 @@ import type {
   DataQualityIssue,
 } from '../../hooks/usePipelineDiagnostics'
 
-const HealthView = () => {
+const HealthView = (): JSX.Element => {
   const [health, setHealth] = useState<PipelineHealthReport | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -672,7 +672,7 @@ interface StatusCardProps {
   color: 'blue' | 'green' | 'orange' | 'red' | 'gray'
 }
 
-const StatusCard = ({ label, value, icon: Icon, color }: StatusCardProps) => {
+const StatusCard = ({ label, value, icon: Icon, color }: StatusCardProps): JSX.Element => {
   const colors: Record<string, { bg: string; text: string }> = {
     blue: { bg: 'rgba(59, 130, 246, 0.1)', text: '#3b82f6' },
     green: { bg: 'rgba(16, 185, 129, 0.1)', text: '#10b981' },
@@ -728,7 +728,7 @@ const getSeverityColor = (severity: string) => {
   }
 }
 
-const QualityIssueCard = ({ issue }: { issue: DataQualityIssue }) => {
+const QualityIssueCard = ({ issue }: { issue: DataQualityIssue }): JSX.Element => {
   const colors = getSeverityColor(issue.severity)
   return (
     <div
@@ -781,7 +781,7 @@ const QualityIssueCard = ({ issue }: { issue: DataQualityIssue }) => {
   )
 }
 
-const DataQualitySection = ({ dataQuality }: { dataQuality?: DataQuality }) => {
+const DataQualitySection = ({ dataQuality }: { dataQuality?: DataQuality }): JSX.Element | null => {
   if (!dataQuality || dataQuality.total_issues === 0) {
     return (
       <div

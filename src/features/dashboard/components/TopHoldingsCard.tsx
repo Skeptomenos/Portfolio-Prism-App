@@ -16,7 +16,7 @@ export default function TopHoldingsCard({
   value,
   pnl,
   pnlPercentage,
-}: TopHoldingsCardProps) {
+}: TopHoldingsCardProps): JSX.Element {
   const isProfitable = pnl >= 0
 
   return (

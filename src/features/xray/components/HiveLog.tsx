@@ -20,7 +20,7 @@ interface HiveLogProps {
 // Component
 // =============================================================================
 
-export default function HiveLog({ report }: HiveLogProps) {
+export default function HiveLog({ report }: HiveLogProps): JSX.Element {
   // Extract hive data from the report (uses the new fields from backend upgrade)
   const performance = report?.performance
   const hiveHitRate = performance?.hive_hit_rate ?? 0

@@ -6,7 +6,7 @@ interface TrueExposureCardProps {
   holdings: XRayHolding[]
 }
 
-function TrueExposureItem({ holding, rank }: { holding: XRayHolding; rank: number }) {
+function TrueExposureItem({ holding, rank }: { holding: XRayHolding; rank: number }): JSX.Element {
   const hasMultipleSources = holding.sources.length > 1
   const hasDirect = holding.sources.some((s) => s.etf === 'DIRECT')
 
@@ -63,7 +63,7 @@ function TrueExposureItem({ holding, rank }: { holding: XRayHolding; rank: numbe
   )
 }
 
-export default function TrueExposureCard({ holdings }: TrueExposureCardProps) {
+export default function TrueExposureCard({ holdings }: TrueExposureCardProps): JSX.Element | null {
   if (holdings.length === 0) {
     return null
   }

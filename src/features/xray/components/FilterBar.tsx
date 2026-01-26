@@ -32,7 +32,7 @@ export default function FilterBar({
   onSearchChange,
   totalCount,
   filteredCount,
-}: FilterBarProps) {
+}: FilterBarProps): JSX.Element {
   return (
     <GlassCard className="filter-bar">
       <div className="filter-bar-row">

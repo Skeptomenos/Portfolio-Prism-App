@@ -90,7 +90,7 @@ export class ErrorBoundary extends Component<Props, State> {
     this.setState((prev) => ({ showReview: !prev.showReview }))
   }
 
-  public render() {
+  public render(): ReactNode {
     const { hasError, error, errorInfo, isReporting, isReported, showReview } = this.state
 
     if (hasError) {

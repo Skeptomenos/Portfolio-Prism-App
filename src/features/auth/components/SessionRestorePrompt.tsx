@@ -4,7 +4,7 @@
  * Glassmorphic prompt for restoring a saved Trade Republic session.
  */
 
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { useAppStore } from '../../../store/useAppStore'
 import { trGetAuthStatus, syncPortfolio } from '../../../lib/ipc'
 import type { SessionCheck } from '../../../types'
@@ -130,11 +130,11 @@ interface SessionRestorePromptProps {
   onRestoreComplete: () => void
 }
 
-export const SessionRestorePrompt: React.FC<SessionRestorePromptProps> = ({
+export const SessionRestorePrompt = ({
   sessionData,
   onFreshLogin,
   onRestoreComplete,
-}) => {
+}: SessionRestorePromptProps): JSX.Element => {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 

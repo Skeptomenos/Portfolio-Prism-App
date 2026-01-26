@@ -41,7 +41,7 @@ function getEtfDisplayName(isin: string, nameMap: EtfNameMap): string {
   return name && name !== 'Unknown' ? name : isin
 }
 
-export default function HoldingsView() {
+export default function HoldingsView(): JSX.Element {
   const [holdings, setHoldings] = useState<XRayHolding[]>([])
   const [summary, setSummary] = useState<ResolutionSummary>(EMPTY_SUMMARY)
   const [etfNameMap, setEtfNameMap] = useState<EtfNameMap>({})

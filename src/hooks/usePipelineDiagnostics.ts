@@ -5,7 +5,7 @@
  * This provides data for the PipelineStepper, ResolutionTable, ActionQueue, etc.
  */
 
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, type UseQueryResult } from '@tanstack/react-query'
 import { getPipelineReport } from '../lib/ipc'
 
 // =============================================================================
@@ -110,7 +110,7 @@ export interface PipelineHealthReport {
 // Hook
 // =============================================================================
 
-export function usePipelineDiagnostics() {
+export function usePipelineDiagnostics(): UseQueryResult<PipelineHealthReport, Error> {
   return useQuery({
     queryKey: ['pipelineDiagnostics'],
     queryFn: async (): Promise<PipelineHealthReport> => {

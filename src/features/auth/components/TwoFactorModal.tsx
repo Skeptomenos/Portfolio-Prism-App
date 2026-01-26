@@ -122,13 +122,13 @@ interface TwoFactorModalProps {
 const MAX_ATTEMPTS = 5
 const LOCKOUT_MS = 60000 // 1 minute lockout after max attempts
 
-export const TwoFactorModal: React.FC<TwoFactorModalProps> = ({
+export const TwoFactorModal = ({
   isOpen,
   onClose,
   onSuccess,
   onResendRequest,
   initialCountdown = 30,
-}) => {
+}: TwoFactorModalProps): JSX.Element => {
   const [code, setCode] = useState(['', '', '', ''])
   const [countdown, setCountdown] = useState(initialCountdown)
   const [isLoading, setIsLoading] = useState(false)

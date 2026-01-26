@@ -18,7 +18,7 @@ import { logger } from './lib/logger'
 // Re-export ViewType from types for backward compatibility
 export type { ViewType } from './types'
 
-function App() {
+function App(): JSX.Element {
   const currentView = useCurrentView()
   const setCurrentView = useAppStore((state) => state.setCurrentView)
   const setAuth = useAppStore((state) => state.setAuthState)
@@ -31,7 +31,7 @@ function App() {
   useTauriEvents()
 
   useEffect(() => {
-    const initApp = async () => {
+    const initApp = async (): Promise<void> => {
       try {
         const health = await getEngineHealth()
         if (health.sessionId) {
@@ -64,7 +64,7 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const renderView = () => {
+  const renderView = (): JSX.Element => {
     switch (currentView) {
       case 'dashboard':
         return <Dashboard />

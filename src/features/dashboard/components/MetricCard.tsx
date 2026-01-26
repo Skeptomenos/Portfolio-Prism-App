@@ -20,7 +20,7 @@ export default function MetricCard({
   trend,
   sparklineData,
   color,
-}: MetricCardProps) {
+}: MetricCardProps): JSX.Element {
   const getTrendColor = () => {
     if (color) return color
     if (trend === 'up') return 'var(--accent-emerald)'

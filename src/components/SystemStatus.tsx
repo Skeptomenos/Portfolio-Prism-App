@@ -1,41 +1,41 @@
 /**
  * SystemStatus Component
- * 
+ *
  * Displays engine connection status with sync controls.
  * Shows: status indicator, last sync time, sync button, progress bar.
  * Optionally expands to show engine health details.
  */
 
-import { useState } from 'react';
-import { RefreshCw, ChevronDown, ChevronUp, Zap, Globe } from 'lucide-react';
-import { useAppStore, useEngineStatus, useSyncProgress } from '../store/useAppStore';
-import { useSyncPortfolio, useEngineHealth } from '../hooks/usePortfolioData';
-import { isTauri } from '../lib/tauri';
-import type { EngineStatus } from '../types';
+import { useState } from 'react'
+import { RefreshCw, ChevronDown, ChevronUp, Zap, Globe } from 'lucide-react'
+import { useAppStore, useEngineStatus, useSyncProgress } from '../store/useAppStore'
+import { useSyncPortfolio, useEngineHealth } from '../hooks/usePortfolioData'
+import { isTauri } from '../lib/tauri'
+import type { EngineStatus } from '../types'
 
 // =============================================================================
 // Status Display Configuration
 // =============================================================================
 
 interface StatusConfig {
-  color: string;
-  label: string;
-  glow: string;
+  color: string
+  label: string
+  glow: string
 }
 
 function getStatusConfig(status: EngineStatus): StatusConfig {
   switch (status) {
     case 'idle':
-      return { color: '#10b981', label: 'Connected', glow: 'rgba(16, 185, 129, 0.5)' };
+      return { color: '#10b981', label: 'Connected', glow: 'rgba(16, 185, 129, 0.5)' }
     case 'processing':
-      return { color: '#f59e0b', label: 'Syncing...', glow: 'rgba(245, 158, 11, 0.5)' };
+      return { color: '#f59e0b', label: 'Syncing...', glow: 'rgba(245, 158, 11, 0.5)' }
     case 'error':
-      return { color: '#ef4444', label: 'Error', glow: 'rgba(239, 68, 68, 0.5)' };
+      return { color: '#ef4444', label: 'Error', glow: 'rgba(239, 68, 68, 0.5)' }
     case 'connecting':
-      return { color: '#3b82f6', label: 'Connecting...', glow: 'rgba(59, 130, 246, 0.5)' };
+      return { color: '#3b82f6', label: 'Connecting...', glow: 'rgba(59, 130, 246, 0.5)' }
     case 'disconnected':
     default:
-      return { color: '#6b7280', label: 'Disconnected', glow: 'rgba(107, 114, 128, 0.5)' };
+      return { color: '#6b7280', label: 'Disconnected', glow: 'rgba(107, 114, 128, 0.5)' }
   }
 }
 
@@ -44,19 +44,19 @@ function getStatusConfig(status: EngineStatus): StatusConfig {
 // =============================================================================
 
 function formatRelativeTime(date: Date | null): string {
-  if (!date) return 'Never';
-  
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMinutes = Math.floor(diffMs / 60000);
-  
-  if (diffMinutes < 1) return 'Just now';
-  if (diffMinutes < 60) return `${diffMinutes}m ago`;
-  
-  const diffHours = Math.floor(diffMinutes / 60);
-  if (diffHours < 24) return `${diffHours}h ago`;
-  
-  return date.toLocaleDateString();
+  if (!date) return 'Never'
+
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffMinutes = Math.floor(diffMs / 60000)
+
+  if (diffMinutes < 1) return 'Just now'
+  if (diffMinutes < 60) return `${diffMinutes}m ago`
+
+  const diffHours = Math.floor(diffMinutes / 60)
+  if (diffHours < 24) return `${diffHours}h ago`
+
+  return date.toLocaleDateString()
 }
 
 // =============================================================================
@@ -65,39 +65,39 @@ function formatRelativeTime(date: Date | null): string {
 
 interface SystemStatusProps {
   /** Show expanded details by default */
-  defaultExpanded?: boolean;
+  defaultExpanded?: boolean
   /** Compact mode (no expand, minimal UI) */
-  compact?: boolean;
+  compact?: boolean
 }
 
-export default function SystemStatus({ 
+export default function SystemStatus({
   defaultExpanded = false,
-  compact = false 
-}: SystemStatusProps) {
-  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
-  
+  compact = false,
+}: SystemStatusProps): JSX.Element {
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded)
+
   // Store state
-  const engineStatus = useEngineStatus();
-  const syncProgress = useSyncProgress();
-  const lastSyncTime = useAppStore((state) => state.lastSyncTime);
-  
+  const engineStatus = useEngineStatus()
+  const syncProgress = useSyncProgress()
+  const lastSyncTime = useAppStore((state) => state.lastSyncTime)
+
   // Sync mutation
-  const syncMutation = useSyncPortfolio();
-  
+  const syncMutation = useSyncPortfolio()
+
   // Engine health query
-  const { data: engineHealth } = useEngineHealth();
-  
+  const { data: engineHealth } = useEngineHealth()
+
   // Derived state
-  const statusConfig = getStatusConfig(engineStatus);
-  const isSyncing = engineStatus === 'processing';
-  const canSync = engineStatus === 'idle' || engineStatus === 'error';
-  
+  const statusConfig = getStatusConfig(engineStatus)
+  const isSyncing = engineStatus === 'processing'
+  const canSync = engineStatus === 'idle' || engineStatus === 'error'
+
   // Handlers
   const handleSync = () => {
     if (canSync) {
-      syncMutation.mutate({ force: false });
+      syncMutation.mutate({ force: false })
     }
-  };
+  }
 
   return (
     <div
@@ -110,10 +110,10 @@ export default function SystemStatus({
       }}
     >
       {/* Header Row */}
-      <div 
-        style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
           justifyContent: 'space-between',
           gap: '8px',
         }}
@@ -134,7 +134,7 @@ export default function SystemStatus({
             {statusConfig.label}
           </span>
         </div>
-        
+
         {/* Sync Button */}
         <button
           onClick={handleSync}
@@ -157,23 +157,23 @@ export default function SystemStatus({
           }}
           onMouseEnter={(e) => {
             if (canSync) {
-              e.currentTarget.style.background = 'rgba(59, 130, 246, 0.25)';
+              e.currentTarget.style.background = 'rgba(59, 130, 246, 0.25)'
             }
           }}
           onMouseLeave={(e) => {
             if (canSync) {
-              e.currentTarget.style.background = 'rgba(59, 130, 246, 0.15)';
+              e.currentTarget.style.background = 'rgba(59, 130, 246, 0.15)'
             }
           }}
         >
-          <RefreshCw 
-            size={14} 
-            style={{ 
+          <RefreshCw
+            size={14}
+            style={{
               animation: isSyncing ? 'spin 1s linear infinite' : 'none',
-            }} 
+            }}
           />
         </button>
-        
+
         {/* Expand Button (if not compact) */}
         {!compact && (
           <button
@@ -192,29 +192,29 @@ export default function SystemStatus({
               transition: 'color 0.2s ease',
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.color = 'var(--text-secondary)';
+              e.currentTarget.style.color = 'var(--text-secondary)'
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.color = 'var(--text-tertiary)';
+              e.currentTarget.style.color = 'var(--text-tertiary)'
             }}
           >
             {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           </button>
         )}
       </div>
-      
+
       {/* Last Sync Time */}
-      <p 
-        style={{ 
-          fontSize: '11px', 
-          color: 'var(--text-tertiary)', 
+      <p
+        style={{
+          fontSize: '11px',
+          color: 'var(--text-tertiary)',
           marginTop: '6px',
           marginBottom: 0,
         }}
       >
         Last sync: {formatRelativeTime(lastSyncTime)}
       </p>
-      
+
       {/* Progress Bar (visible during sync) */}
       {isSyncing && syncProgress && (
         <div style={{ marginTop: '10px' }}>
@@ -222,7 +222,7 @@ export default function SystemStatus({
           <p style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginBottom: '6px' }}>
             {syncProgress.message}
           </p>
-          
+
           {/* Progress bar container */}
           <div
             style={{
@@ -245,7 +245,7 @@ export default function SystemStatus({
           </div>
         </div>
       )}
-      
+
       {/* Expanded Details */}
       {isExpanded && !compact && (
         <div
@@ -255,19 +255,21 @@ export default function SystemStatus({
             borderTop: '1px solid rgba(255, 255, 255, 0.1)',
           }}
         >
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <DetailRow label="Version" value={engineHealth?.version ?? '...'} />
-              <DetailRow label="Memory" value={engineHealth ? `${engineHealth.memoryUsageMb.toFixed(1)} MB` : '...'} />
-              <DetailRow 
-                label="Runtime" 
-                value={isTauri() ? 'Native Shell' : 'Echo-Bridge'} 
-                icon={isTauri() ? <Zap size={10} /> : <Globe size={10} />}
-              />
-            </div>
-
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <DetailRow label="Version" value={engineHealth?.version ?? '...'} />
+            <DetailRow
+              label="Memory"
+              value={engineHealth ? `${engineHealth.memoryUsageMb.toFixed(1)} MB` : '...'}
+            />
+            <DetailRow
+              label="Runtime"
+              value={isTauri() ? 'Native Shell' : 'Echo-Bridge'}
+              icon={isTauri() ? <Zap size={10} /> : <Globe size={10} />}
+            />
+          </div>
         </div>
       )}
-      
+
       {/* CSS Animations */}
       <style>{`
         @keyframes spin {
@@ -280,7 +282,7 @@ export default function SystemStatus({
         }
       `}</style>
     </div>
-  );
+  )
 }
 
 // =============================================================================
@@ -288,12 +290,12 @@ export default function SystemStatus({
 // =============================================================================
 
 interface DetailRowProps {
-  label: string;
-  value: string;
-  icon?: React.ReactNode;
+  label: string
+  value: string
+  icon?: React.ReactNode
 }
 
-function DetailRow({ label, value, icon }: DetailRowProps) {
+function DetailRow({ label, value, icon }: DetailRowProps): JSX.Element {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
       <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{label}</span>
@@ -304,5 +306,5 @@ function DetailRow({ label, value, icon }: DetailRowProps) {
         </span>
       </div>
     </div>
-  );
+  )
 }

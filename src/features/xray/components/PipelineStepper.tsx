@@ -98,7 +98,7 @@ export default function PipelineStepper({
   activeStep,
   onStepClick,
   style,
-}: PipelineStepperProps) {
+}: PipelineStepperProps): JSX.Element {
   const steps = buildStepsFromReport(report)
 
   return (

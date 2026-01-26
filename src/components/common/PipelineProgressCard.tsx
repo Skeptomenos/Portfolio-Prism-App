@@ -1,16 +1,16 @@
-import { useMemo } from 'react';
-import { usePipelineProgress, PipelinePhase } from '../../hooks/usePipelineProgress';
-import GlassCard from '../GlassCard';
-import './PipelineProgressCard.css';
+import { useMemo } from 'react'
+import { usePipelineProgress, PipelinePhase } from '../../hooks/usePipelineProgress'
+import GlassCard from '../GlassCard'
+import './PipelineProgressCard.css'
 
 // =============================================================================
 // Types & Constants
 // =============================================================================
 
 interface PhaseConfig {
-  key: PipelinePhase;
-  label: string;
-  icon: string;
+  key: PipelinePhase
+  label: string
+  icon: string
 }
 
 const PIPELINE_PHASES: PhaseConfig[] = [
@@ -19,31 +19,31 @@ const PIPELINE_PHASES: PhaseConfig[] = [
   { key: 'enrichment', label: 'Enrich', icon: '◆' },
   { key: 'aggregation', label: 'Aggregate', icon: '▣' },
   { key: 'reporting', label: 'Report', icon: '◉' },
-];
+]
 
 // =============================================================================
 // Component
 // =============================================================================
 
-export default function PipelineProgressCard() {
-  const { progress, message, phase, isConnected } = usePipelineProgress();
+export default function PipelineProgressCard(): JSX.Element {
+  const { progress, message, phase, isConnected } = usePipelineProgress()
 
   // Determine which phases are complete, active, or pending
   const phaseStates = useMemo(() => {
-    const currentIndex = PIPELINE_PHASES.findIndex(config => config.key === phase);
-    
+    const currentIndex = PIPELINE_PHASES.findIndex((config) => config.key === phase)
+
     return PIPELINE_PHASES.map((_, index) => {
-      if (phase === 'complete') return 'complete';
-      if (phase === 'idle' || phase === 'sync') return 'pending';
-      if (index < currentIndex) return 'complete';
-      if (index === currentIndex) return 'active';
-      return 'pending';
-    });
-  }, [phase]);
+      if (phase === 'complete') return 'complete'
+      if (phase === 'idle' || phase === 'sync') return 'pending'
+      if (index < currentIndex) return 'complete'
+      if (index === currentIndex) return 'active'
+      return 'pending'
+    })
+  }, [phase])
 
   // Format progress for display
-  const displayProgress = Math.round(progress);
-  const isComplete = phase === 'complete';
+  const displayProgress = Math.round(progress)
+  const isComplete = phase === 'complete'
 
   return (
     <GlassCard style={{ padding: 0, overflow: 'hidden' }}>
@@ -71,7 +71,7 @@ export default function PipelineProgressCard() {
           {/* Progress Bar */}
           <div className="progress-bar-container">
             <div className="progress-bar-track">
-              <div 
+              <div
                 className={`progress-bar-fill ${isComplete ? 'complete' : ''}`}
                 style={{ width: `${progress}%` }}
               >
@@ -91,15 +91,18 @@ export default function PipelineProgressCard() {
         {/* Phase Stepper */}
         <div className="phase-stepper">
           {PIPELINE_PHASES.map((phaseConfig, index) => {
-            const state = phaseStates[index];
+            const state = phaseStates[index]
             return (
-              <div 
-                key={phaseConfig.key} 
-                className={`phase-step ${state}`}
-              >
+              <div key={phaseConfig.key} className={`phase-step ${state}`}>
                 <div className="phase-node">
                   {state === 'complete' ? (
-                    <svg className="phase-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                    <svg
+                      className="phase-check"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                    >
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
                   ) : (
@@ -111,7 +114,7 @@ export default function PipelineProgressCard() {
                   <div className={`phase-connector ${state === 'complete' ? 'complete' : ''}`} />
                 )}
               </div>
-            );
+            )
           })}
         </div>
 
@@ -129,5 +132,5 @@ export default function PipelineProgressCard() {
         )}
       </div>
     </GlassCard>
-  );
+  )
 }

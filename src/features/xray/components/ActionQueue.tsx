@@ -31,7 +31,7 @@ interface ActionQueueProps {
 // Severity Badge Helper
 // =============================================================================
 
-function SeverityBadge({ severity }: { severity: string }) {
+function SeverityBadge({ severity }: { severity: string }): JSX.Element {
   const config: Record<string, { label: string; className: string }> = {
     ERROR: { label: 'Error', className: 'severity-error' },
     WARNING: { label: 'Warning', className: 'severity-warning' },
@@ -47,7 +47,7 @@ function SeverityBadge({ severity }: { severity: string }) {
 // Component
 // =============================================================================
 
-export default function ActionQueue({ report, onAction }: ActionQueueProps) {
+export default function ActionQueue({ report, onAction }: ActionQueueProps): JSX.Element {
   const [ignoredIssues, setIgnoredIssues] = useState<Set<string>>(() => getIgnoredIssues())
   const [showIgnored, setShowIgnored] = useState(false)
   const [fixTooltip, setFixTooltip] = useState<string | null>(null)

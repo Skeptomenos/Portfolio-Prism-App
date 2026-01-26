@@ -8,7 +8,7 @@ import TopHoldingsCard from './TopHoldingsCard'
 import TrueExposureCard from './TrueExposureCard'
 import { getDashboardData, getTrueHoldings } from '../../../lib/ipc'
 
-export default function Dashboard() {
+export default function Dashboard(): JSX.Element {
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['dashboardData', 1],
     queryFn: () => getDashboardData(1),

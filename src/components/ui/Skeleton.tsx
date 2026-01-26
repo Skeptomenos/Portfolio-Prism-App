@@ -12,7 +12,7 @@ export function Skeleton({
   variant = 'rectangular',
   width,
   height,
-}: SkeletonProps) {
+}: SkeletonProps): JSX.Element {
   const baseClasses = 'animate-pulse bg-white/5'
 
   const variantClasses = {
@@ -28,7 +28,7 @@ export function Skeleton({
   return <div className={`${baseClasses} ${variantClasses[variant]} ${className}`} style={style} />
 }
 
-export function SkeletonCard({ className = '' }: { className?: string }) {
+export function SkeletonCard({ className = '' }: { className?: string }): JSX.Element {
   return (
     <div className={`rounded-2xl bg-white/[0.03] border border-white/[0.08] p-6 ${className}`}>
       <Skeleton height={20} width="40%" className="mb-4" />
@@ -38,7 +38,7 @@ export function SkeletonCard({ className = '' }: { className?: string }) {
   )
 }
 
-export function SkeletonTable({ rows = 5 }: { rows?: number }) {
+export function SkeletonTable({ rows = 5 }: { rows?: number }): JSX.Element {
   return (
     <div className="space-y-3">
       <div className="flex gap-4 pb-3 border-b border-white/10">
@@ -65,7 +65,7 @@ export function SkeletonTable({ rows = 5 }: { rows?: number }) {
  * Dashboard loading skeleton - matches Dashboard.tsx loading state structure
  * Displays animated placeholder cards while portfolio data is loading.
  */
-export function DashboardSkeleton() {
+export function DashboardSkeleton(): JSX.Element {
   return (
     <div className="animate-fade-in">
       <div style={{ marginBottom: '32px' }}>
@@ -92,7 +92,7 @@ export function DashboardSkeleton() {
   )
 }
 
-export function HoldingsSkeleton() {
+export function HoldingsSkeleton(): JSX.Element {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -104,7 +104,7 @@ export function HoldingsSkeleton() {
   )
 }
 
-export function XRaySkeleton() {
+export function XRaySkeleton(): JSX.Element {
   return (
     <div className="space-y-6">
       <Skeleton height={32} width={250} className="mb-6" />

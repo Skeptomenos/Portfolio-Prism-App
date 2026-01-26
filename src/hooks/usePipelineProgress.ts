@@ -390,12 +390,18 @@ export function usePipelineProgress(enabled: boolean = true): PipelineProgressSt
  * Use this when you need to manually connect/disconnect from the SSE stream,
  * for example when the pipeline is only active during certain operations.
  */
-export function usePipelineProgressWithControl() {
+interface UsePipelineProgressWithControlReturn extends PipelineProgressState {
+  connect: () => void
+  disconnect: () => void
+  enabled: boolean
+}
+
+export function usePipelineProgressWithControl(): UsePipelineProgressWithControlReturn {
   const [enabled, setEnabled] = useState(false)
   const state = usePipelineProgress(enabled)
 
-  const connect = useCallback(() => setEnabled(true), [])
-  const disconnect = useCallback(() => setEnabled(false), [])
+  const connect = useCallback((): void => setEnabled(true), [])
+  const disconnect = useCallback((): void => setEnabled(false), [])
 
   return {
     ...state,

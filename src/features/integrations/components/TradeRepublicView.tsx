@@ -6,7 +6,7 @@
  * - When authenticated: Shows account status, sync button, and portfolio table
  */
 
-import React, { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useAppStore } from '../../../store/useAppStore'
 import { LoginForm, TwoFactorModal, SessionRestorePrompt } from '../../auth'
@@ -195,7 +195,7 @@ const styles = {
   },
 }
 
-export const TradeRepublicView: React.FC = () => {
+export const TradeRepublicView = (): JSX.Element => {
   const {
     authState,
     setAuthState,

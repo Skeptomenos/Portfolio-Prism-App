@@ -1,39 +1,38 @@
-import { useId } from 'react';
-import { ShieldCheck, CheckCircle, AlertCircle, MinusCircle, Circle } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
-import type { ResolutionStatus, ResolutionSource } from '../../types';
-import './ResolutionStatusBadge.css';
+import { useId } from 'react'
+import { ShieldCheck, CheckCircle, AlertCircle, MinusCircle, Circle } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import type { ResolutionStatus, ResolutionSource } from '../../types'
+import './ResolutionStatusBadge.css'
 
 interface ResolutionStatusBadgeProps {
-  status: ResolutionStatus;
-  source?: ResolutionSource;
-  confidence: number;
-  originalTicker?: string;
-  resolvedIsin?: string;
-  compact?: boolean;
+  status: ResolutionStatus
+  source?: ResolutionSource
+  confidence: number
+  originalTicker?: string
+  resolvedIsin?: string
+  compact?: boolean
 }
 
-type ConfidenceLevel = 'verified' | 'high' | 'medium' | 'unresolved' | 'skipped';
+type ConfidenceLevel = 'verified' | 'high' | 'medium' | 'unresolved' | 'skipped'
 
-function getConfidenceLevel(
-  confidence: number,
-  source?: string,
-  status?: string
-): ConfidenceLevel {
-  if (status === 'skipped') return 'skipped';
-  if (status === 'unresolved' || confidence < 0.50) return 'unresolved';
-  if (source === 'provider' || source === 'manual' || confidence === 1.0) return 'verified';
-  if (confidence >= 0.80) return 'high';
-  return 'medium';
+function getConfidenceLevel(confidence: number, source?: string, status?: string): ConfidenceLevel {
+  if (status === 'skipped') return 'skipped'
+  if (status === 'unresolved' || confidence < 0.5) return 'unresolved'
+  if (source === 'provider' || source === 'manual' || confidence === 1.0) return 'verified'
+  if (confidence >= 0.8) return 'high'
+  return 'medium'
 }
 
-const levelConfig: Record<ConfidenceLevel, {
-  icon: LucideIcon;
-  color: string;
-  bgColor: string;
-  label: string;
-  explanation: string;
-}> = {
+const levelConfig: Record<
+  ConfidenceLevel,
+  {
+    icon: LucideIcon
+    color: string
+    bgColor: string
+    label: string
+    explanation: string
+  }
+> = {
   verified: {
     icon: ShieldCheck,
     color: 'var(--accent-emerald, #10b981)',
@@ -69,7 +68,7 @@ const levelConfig: Record<ConfidenceLevel, {
     label: 'Skipped',
     explanation: 'Intentionally excluded (cash, derivatives)',
   },
-};
+}
 
 const sourceLabels: Record<string, string> = {
   provider: 'Trade Republic',
@@ -81,7 +80,7 @@ const sourceLabels: Record<string, string> = {
   api_yfinance: 'Yahoo Finance',
   api_openfigi: 'OpenFIGI',
   unknown: 'Unknown',
-};
+}
 
 export default function ResolutionStatusBadge({
   status,
@@ -90,14 +89,14 @@ export default function ResolutionStatusBadge({
   originalTicker,
   resolvedIsin,
   compact = false,
-}: ResolutionStatusBadgeProps) {
-  const tooltipId = useId();
-  const level = getConfidenceLevel(confidence, source, status);
-  const config = levelConfig[level];
-  const Icon = config.icon;
+}: ResolutionStatusBadgeProps): JSX.Element {
+  const tooltipId = useId()
+  const level = getConfidenceLevel(confidence, source, status)
+  const config = levelConfig[level]
+  const Icon = config.icon
 
-  const confidencePercent = Math.round(confidence * 100);
-  const sourceLabel = sourceLabels[source || 'unknown'] || source || 'Unknown';
+  const confidencePercent = Math.round(confidence * 100)
+  const sourceLabel = sourceLabels[source || 'unknown'] || source || 'Unknown'
 
   return (
     <div
@@ -123,7 +122,7 @@ export default function ResolutionStatusBadge({
           <Icon size={16} style={{ color: config.color }} aria-hidden="true" />
           <span style={{ color: config.color, fontWeight: 600 }}>{config.label}</span>
         </div>
-        
+
         <div className="tooltip-explanation">{config.explanation}</div>
 
         <div className="tooltip-divider" />
@@ -155,5 +154,5 @@ export default function ResolutionStatusBadge({
         )}
       </div>
     </div>
-  );
+  )
 }

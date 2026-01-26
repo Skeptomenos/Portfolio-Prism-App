@@ -1,11 +1,11 @@
 /**
  * Modal Component
- * 
+ *
  * Glassmorphic centered modal with dark overlay.
  * Used for 2FA entry and confirmations.
  */
 
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback } from 'react'
 
 const styles = {
   overlay: {
@@ -64,19 +64,19 @@ const styles = {
   content: {
     color: '#cbd5e1',
   },
-};
-
-interface ModalProps {
-  isOpen: boolean;
-  onClose?: () => void;
-  title?: string;
-  showCloseButton?: boolean;
-  children: React.ReactNode;
-  closeOnOverlayClick?: boolean;
-  closeOnEscape?: boolean;
 }
 
-export const Modal: React.FC<ModalProps> = ({
+interface ModalProps {
+  isOpen: boolean
+  onClose?: () => void
+  title?: string
+  showCloseButton?: boolean
+  children: React.ReactNode
+  closeOnOverlayClick?: boolean
+  closeOnEscape?: boolean
+}
+
+export const Modal = ({
   isOpen,
   onClose,
   title,
@@ -84,37 +84,37 @@ export const Modal: React.FC<ModalProps> = ({
   children,
   closeOnOverlayClick = true,
   closeOnEscape = true,
-}) => {
+}: ModalProps): JSX.Element | null => {
   // Handle escape key
   const handleEscape = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === 'Escape' && closeOnEscape && onClose) {
-        onClose();
+        onClose()
       }
     },
     [closeOnEscape, onClose]
-  );
+  )
 
   useEffect(() => {
     if (isOpen) {
-      document.addEventListener('keydown', handleEscape);
+      document.addEventListener('keydown', handleEscape)
       // Prevent body scroll when modal is open
-      document.body.style.overflow = 'hidden';
+      document.body.style.overflow = 'hidden'
     }
 
     return () => {
-      document.removeEventListener('keydown', handleEscape);
-      document.body.style.overflow = 'unset';
-    };
-  }, [isOpen, handleEscape]);
+      document.removeEventListener('keydown', handleEscape)
+      document.body.style.overflow = 'unset'
+    }
+  }, [isOpen, handleEscape])
 
-  if (!isOpen) return null;
+  if (!isOpen) return null
 
   const handleOverlayClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget && closeOnOverlayClick && onClose) {
-      onClose();
+      onClose()
     }
-  };
+  }
 
   return (
     <>
@@ -146,15 +146,22 @@ export const Modal: React.FC<ModalProps> = ({
                   style={styles.closeButton}
                   onClick={onClose}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-                    e.currentTarget.style.color = '#f8fafc';
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'
+                    e.currentTarget.style.color = '#f8fafc'
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                    e.currentTarget.style.color = '#94a3b8';
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'
+                    e.currentTarget.style.color = '#94a3b8'
                   }}
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
                     <line x1="18" y1="6" x2="6" y2="18" />
                     <line x1="6" y1="6" x2="18" y2="18" />
                   </svg>
@@ -166,7 +173,7 @@ export const Modal: React.FC<ModalProps> = ({
         </div>
       </div>
     </>
-  );
-};
+  )
+}
 
-export default Modal;
+export default Modal

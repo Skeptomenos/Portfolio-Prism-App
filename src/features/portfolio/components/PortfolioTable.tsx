@@ -128,7 +128,10 @@ interface PortfolioTableProps {
   onPositionUpdate?: (position: Position) => void
 }
 
-export const PortfolioTable: React.FC<PortfolioTableProps> = ({ positions, onPositionUpdate }) => {
+export const PortfolioTable = ({
+  positions,
+  onPositionUpdate,
+}: PortfolioTableProps): JSX.Element => {
   const [sorting, setSorting] = useState<SortingState>([])
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null)
   const [editValue, setEditValue] = useState('')
@@ -237,7 +240,7 @@ export const PortfolioTable: React.FC<PortfolioTableProps> = ({ positions, onPos
       columnId: string
       value: string | number
       isEditable?: boolean
-    }) => {
+    }): JSX.Element => {
       const isEditing = editingCell?.rowIndex === rowIndex && editingCell?.columnId === columnId
 
       if (isEditing) {

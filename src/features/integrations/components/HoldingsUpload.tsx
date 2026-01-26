@@ -11,13 +11,13 @@ interface HoldingsUploadProps {
   onSuccess?: () => void
 }
 
-const HoldingsUpload: React.FC<HoldingsUploadProps> = ({
+const HoldingsUpload = ({
   isOpen,
   onClose,
   etfIsin,
   etfTicker,
   onSuccess,
-}) => {
+}: HoldingsUploadProps): JSX.Element => {
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle')

@@ -13,7 +13,7 @@ export function ErrorState({
   message,
   onRetry,
   showContactSupport = true,
-}: ErrorStateProps) {
+}: ErrorStateProps): JSX.Element {
   const openFeedback = useAppStore((state) => state.openFeedback)
 
   return (
@@ -50,7 +50,7 @@ export function ErrorState({
   )
 }
 
-export function LoadingError({ onRetry }: { onRetry?: () => void }) {
+export function LoadingError({ onRetry }: { onRetry?: () => void }): JSX.Element {
   return (
     <ErrorState
       title="Failed to load data"
@@ -60,7 +60,7 @@ export function LoadingError({ onRetry }: { onRetry?: () => void }) {
   )
 }
 
-export function ConnectionError({ onRetry }: { onRetry?: () => void }) {
+export function ConnectionError({ onRetry }: { onRetry?: () => void }): JSX.Element {
   return (
     <ErrorState
       title="Connection lost"

@@ -1,23 +1,23 @@
-import { useMemo } from 'react';
-import GlassCard from '../GlassCard';
-import UnresolvedIsinsList from './UnresolvedIsinsList';
-import { PipelineSummaryData } from '../../hooks/usePipelineProgress';
-import './PipelineSummaryCard.css';
+import { useMemo } from 'react'
+import GlassCard from '../GlassCard'
+import UnresolvedIsinsList from './UnresolvedIsinsList'
+import { PipelineSummaryData } from '../../hooks/usePipelineProgress'
+import './PipelineSummaryCard.css'
 
 // =============================================================================
 // Types
 // =============================================================================
 
 interface PipelineSummaryCardProps {
-  summary: PipelineSummaryData | null;
-  isVisible: boolean;
-  onDismiss?: () => void;
+  summary: PipelineSummaryData | null
+  isVisible: boolean
+  onDismiss?: () => void
 }
 
 interface PhaseTimingConfig {
-  key: string;
-  label: string;
-  color: string;
+  key: string
+  label: string
+  color: string
 }
 
 const PHASE_COLORS: PhaseTimingConfig[] = [
@@ -25,7 +25,7 @@ const PHASE_COLORS: PhaseTimingConfig[] = [
   { key: 'decomposition', label: 'Decompose', color: '#22d3ee' },
   { key: 'enrichment', label: 'Enrich', color: '#10b981' },
   { key: 'aggregation', label: 'Aggregate', color: '#a855f7' },
-];
+]
 
 // =============================================================================
 // Helpers
@@ -37,62 +37,61 @@ function formatCurrency(value: number): string {
     currency: 'EUR',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(value);
+  }).format(value)
 }
 
 function formatTime(seconds: number): string {
   if (seconds < 1) {
-    return `${Math.round(seconds * 1000)}ms`;
+    return `${Math.round(seconds * 1000)}ms`
   }
-  return `${seconds.toFixed(1)}s`;
+  return `${seconds.toFixed(1)}s`
 }
 
 function getSuccessRateColor(rate: number): string {
-  if (rate >= 95) return 'emerald';
-  if (rate >= 80) return 'cyan';
-  return 'red';
+  if (rate >= 95) return 'emerald'
+  if (rate >= 80) return 'cyan'
+  return 'red'
 }
 
 // =============================================================================
 // Component
 // =============================================================================
 
-export default function PipelineSummaryCard({ 
-  summary, 
-  isVisible, 
-  onDismiss 
-}: PipelineSummaryCardProps) {
-  
+export default function PipelineSummaryCard({
+  summary,
+  isVisible,
+  onDismiss,
+}: PipelineSummaryCardProps): JSX.Element | null {
   // Calculate success rate
   const successRate = useMemo(() => {
-    if (!summary) return 0;
-    const { resolved, total } = summary.resolution;
-    return total > 0 ? Math.round((resolved / total) * 100) : 100;
-  }, [summary]);
+    if (!summary) return 0
+    const { resolved, total } = summary.resolution
+    return total > 0 ? Math.round((resolved / total) * 100) : 100
+  }, [summary])
 
   // Calculate phase timing percentages
   const phaseTimings = useMemo(() => {
-    if (!summary?.timing.phases) return [];
-    
-    const totalTime = summary.timing.total_seconds;
-    if (totalTime === 0) return [];
+    if (!summary?.timing.phases) return []
 
-    return PHASE_COLORS.map(phase => {
-      const duration = summary.timing.phases[phase.key] || 0;
-      const percentage = (duration / totalTime) * 100;
+    const totalTime = summary.timing.total_seconds
+    if (totalTime === 0) return []
+
+    return PHASE_COLORS.map((phase) => {
+      const duration = summary.timing.phases[phase.key] || 0
+      const percentage = (duration / totalTime) * 100
       return {
         ...phase,
         duration,
         percentage: Math.max(percentage, 2), // Minimum 2% for visibility
-      };
-    }).filter(phase => phase.duration > 0);
-  }, [summary]);
+      }
+    }).filter((phase) => phase.duration > 0)
+  }, [summary])
 
   if (!isVisible || !summary) {
-    return null;
+    return null
   }
 
-  const rateColorClass = getSuccessRateColor(successRate);
+  const rateColorClass = getSuccessRateColor(successRate)
 
   return (
     <GlassCard style={{ padding: 0, overflow: 'hidden' }}>
@@ -167,9 +166,7 @@ export default function PipelineSummaryCard({
             </div>
             <div className="stat-content">
               <div className="resolution-rate">
-                <span className={`rate-badge ${rateColorClass}`}>
-                  {successRate}%
-                </span>
+                <span className={`rate-badge ${rateColorClass}`}>{successRate}%</span>
                 <span className="rate-detail">
                   {summary.resolution.resolved}/{summary.resolution.total} resolved
                 </span>
@@ -201,23 +198,21 @@ export default function PipelineSummaryCard({
                   style={{
                     width: `${phase.percentage}%`,
                     backgroundColor: phase.color,
-                    borderRadius: index === 0 
-                      ? '4px 0 0 4px' 
-                      : index === phaseTimings.length - 1 
-                        ? '0 4px 4px 0' 
-                        : '0',
+                    borderRadius:
+                      index === 0
+                        ? '4px 0 0 4px'
+                        : index === phaseTimings.length - 1
+                          ? '0 4px 4px 0'
+                          : '0',
                   }}
                   title={`${phase.label}: ${formatTime(phase.duration)}`}
                 />
               ))}
             </div>
             <div className="timing-legend">
-              {phaseTimings.map(phase => (
+              {phaseTimings.map((phase) => (
                 <div key={phase.key} className="legend-item">
-                  <span 
-                    className="legend-dot" 
-                    style={{ backgroundColor: phase.color }}
-                  />
+                  <span className="legend-dot" style={{ backgroundColor: phase.color }} />
                   <span className="legend-label">{phase.label}</span>
                   <span className="legend-time">{formatTime(phase.duration)}</span>
                 </div>
@@ -237,5 +232,5 @@ export default function PipelineSummaryCard({
         )}
       </div>
     </GlassCard>
-  );
+  )
 }

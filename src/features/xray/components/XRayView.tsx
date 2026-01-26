@@ -32,7 +32,7 @@ const TABS: TabConfig[] = [
 // Component
 // =============================================================================
 
-export default function XRayView() {
+export default function XRayView(): JSX.Element {
   const activePortfolioId = useActivePortfolioId()
   const { isLoading: isDashboardLoading } = useDashboardData(activePortfolioId)
   const {

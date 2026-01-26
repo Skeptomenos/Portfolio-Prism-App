@@ -19,7 +19,7 @@ import type { EngineStatusEvent, PortfolioUpdatedEvent, SyncProgress } from '../
  * Initialize all Tauri event listeners.
  * Call this once in your root component (App.tsx).
  */
-export function useTauriEvents() {
+export function useTauriEvents(): void {
   const setEngineStatus = useAppStore((state) => state.setEngineStatus)
   const setSyncProgress = useAppStore((state) => state.setSyncProgress)
   const setLastSyncTime = useAppStore((state) => state.setLastSyncTime)
@@ -43,7 +43,7 @@ export function useTauriEvents() {
     const unlistenFns: Array<() => void> = []
 
     // Setup all listeners
-    const setupListeners = async () => {
+    const setupListeners = async (): Promise<void> => {
       const unlistenEngineStatus = await listen('engine-status', (payload: EngineStatusEvent) => {
         logger.debug('[Event] engine-status', payload)
         setEngineStatus(payload.status)
@@ -126,13 +126,13 @@ export function useTauriEvents() {
 /**
  * Subscribe to engine status changes
  */
-export function useEngineStatusListener(callback: (status: EngineStatusEvent) => void) {
+export function useEngineStatusListener(callback: (status: EngineStatusEvent) => void): void {
   useEffect(() => {
     if (!isTauri()) return
 
     let unlisten: (() => void) | null = null
 
-    const setup = async () => {
+    const setup = async (): Promise<void> => {
       unlisten = await listen('engine-status', callback)
     }
     setup()
@@ -146,13 +146,13 @@ export function useEngineStatusListener(callback: (status: EngineStatusEvent) =>
 /**
  * Subscribe to portfolio update events
  */
-export function usePortfolioUpdateListener(callback: (event: PortfolioUpdatedEvent) => void) {
+export function usePortfolioUpdateListener(callback: (event: PortfolioUpdatedEvent) => void): void {
   useEffect(() => {
     if (!isTauri()) return
 
     let unlisten: (() => void) | null = null
 
-    const setup = async () => {
+    const setup = async (): Promise<void> => {
       unlisten = await listen('portfolio-updated', callback)
     }
     setup()

@@ -121,7 +121,7 @@ interface LoginFormProps {
 // SECURITY: Clear PIN from memory after 5 minutes of inactivity
 const PIN_IDLE_TIMEOUT_MS = 5 * 60 * 1000
 
-export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, onLoginError }) => {
+export const LoginForm = ({ onLoginSuccess, onLoginError }: LoginFormProps): JSX.Element => {
   const [phone, setPhone] = useState('')
   const [pin, setPin] = useState('')
   const [remember, setRemember] = useState(false)

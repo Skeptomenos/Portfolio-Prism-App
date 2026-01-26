@@ -14,7 +14,10 @@ interface PortfolioChartProps {
   color?: string
 }
 
-export default function PortfolioChart({ data, color = '#8b5cf6' }: PortfolioChartProps) {
+export default function PortfolioChart({
+  data,
+  color = '#8b5cf6',
+}: PortfolioChartProps): JSX.Element | null {
   if (!data || data.length === 0) return null
 
   return (
