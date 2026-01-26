@@ -77,7 +77,12 @@ const HealthView = () => {
 
   useEffect(() => {
     loadHealth()
-    getHiveContribution().then(setHiveContributionEnabled)
+    const fetchHiveContribution = async () => {
+      const enabled = await getHiveContribution()
+      setHiveContributionEnabled(enabled)
+    }
+    fetchHiveContribution()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- zustand selectors are stable
   }, [])
 
   const handleRunAnalysis = async () => {

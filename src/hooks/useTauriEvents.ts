@@ -132,9 +132,10 @@ export function useEngineStatusListener(callback: (status: EngineStatusEvent) =>
 
     let unlisten: (() => void) | null = null
 
-    listen('engine-status', callback).then((fn) => {
-      unlisten = fn
-    })
+    const setup = async () => {
+      unlisten = await listen('engine-status', callback)
+    }
+    setup()
 
     return () => {
       unlisten?.()
@@ -151,9 +152,10 @@ export function usePortfolioUpdateListener(callback: (event: PortfolioUpdatedEve
 
     let unlisten: (() => void) | null = null
 
-    listen('portfolio-updated', callback).then((fn) => {
-      unlisten = fn
-    })
+    const setup = async () => {
+      unlisten = await listen('portfolio-updated', callback)
+    }
+    setup()
 
     return () => {
       unlisten?.()
