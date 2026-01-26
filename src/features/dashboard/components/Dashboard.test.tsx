@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '../../test/utils'
+import { render, screen, waitFor } from '../../../test/utils'
 import Dashboard from './Dashboard'
-import * as ipc from '../../lib/ipc'
-import { mockDashboardData, mockTrueHoldingsResponse } from '../../test/mocks/ipc'
+import * as ipc from '../../../lib/ipc'
+import { mockDashboardData, mockTrueHoldingsResponse } from '../../../test/mocks/ipc'
 
-vi.mock('../../lib/ipc', () => ({
+vi.mock('../../../lib/ipc', () => ({
   getDashboardData: vi.fn(),
   getTrueHoldings: vi.fn(),
 }))

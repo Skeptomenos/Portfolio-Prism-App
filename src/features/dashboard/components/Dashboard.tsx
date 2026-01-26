@@ -1,12 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 import { TrendingUp, TrendingDown, Sparkles, RefreshCw } from 'lucide-react'
-import GlassCard from '../GlassCard'
-import MetricCard from '../MetricCard'
-import PortfolioChart from '../PortfolioChart'
-import { DashboardSkeleton } from '../ui/Skeleton'
+import GlassCard from '../../../components/GlassCard'
+import MetricCard from './MetricCard'
+import PortfolioChart from '../../../components/PortfolioChart'
+import { DashboardSkeleton } from '../../../components/ui/Skeleton'
 import TopHoldingsCard from './TopHoldingsCard'
 import TrueExposureCard from './TrueExposureCard'
-import { getDashboardData, getTrueHoldings } from '../../lib/ipc'
+import { getDashboardData, getTrueHoldings } from '../../../lib/ipc'
 
 export default function Dashboard() {
   const { data, isLoading, isError, refetch } = useQuery({

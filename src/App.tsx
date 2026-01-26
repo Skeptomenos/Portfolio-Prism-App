@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import Sidebar from './components/Sidebar'
-import Dashboard from './components/views/Dashboard'
+import { Dashboard } from './features/dashboard'
 import XRayView from './components/views/XRayView'
 import HealthView from './components/views/HealthView'
 
