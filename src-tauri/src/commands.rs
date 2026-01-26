@@ -530,24 +530,8 @@ pub async fn sync_portfolio(
         "force": force
     });
 
-    // Clone app_handle for the async block
-    let _handle = app_handle.clone();
-
-    // TODO: Implement event listening from Python engine
-    // For now, progress events are handled via direct responses
-    // engine.listen_events("sync_progress", move |event_data| {
-    //     if let (Some(progress), Some(message)) = (
-    //         event_data.get("progress").and_then(|v| v.as_u64()),
-    //         event_data.get("message").and_then(|v| v.as_str()),
-    //     ) {
-    //         let payload = SyncProgress {
-    //             status: "syncing".to_string(),
-    //             progress: progress as u8,
-    //             message: message.to_string(),
-    //         };
-    //         let _ = handle.emit("sync-progress", payload);
-    //     }
-    // }).await;
+    // Events from Python (sync_progress) are handled in lib.rs stdout loop
+    // and emitted as Tauri events automatically
 
     match engine.send_command("sync_portfolio", payload).await {
         Ok(response) => {

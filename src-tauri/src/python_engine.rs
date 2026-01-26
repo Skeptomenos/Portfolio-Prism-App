@@ -246,7 +246,6 @@ impl PythonEngine {
         }
     }
 
-    /// Parse a line of stdout from Python
     pub fn parse_stdout(line: &str) -> Option<StdoutMessage> {
         let json: Value = serde_json::from_str(line).ok()?;
 
@@ -256,10 +255,23 @@ impl PythonEngine {
             return Some(StdoutMessage::Ready(signal));
         }
 
-        // Otherwise it's a response
+        // Check if it's an event (has "event" field)
+        if json.get("event").is_some() {
+            let event: EngineEvent = serde_json::from_value(json).ok()?;
+            return Some(StdoutMessage::Event(event));
+        }
+
+        // Otherwise it's a response (has "id" field)
         let response: EngineResponse = serde_json::from_value(json).ok()?;
         Some(StdoutMessage::Response(response))
     }
+}
+
+/// Event from Python engine (emitted during long-running operations)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EngineEvent {
+    pub event: String,
+    pub data: Value,
 }
 
 /// Types of messages from Python stdout
@@ -267,6 +279,7 @@ impl PythonEngine {
 pub enum StdoutMessage {
     Ready(ReadySignal),
     Response(EngineResponse),
+    Event(EngineEvent),
 }
 
 impl Default for PythonEngine {

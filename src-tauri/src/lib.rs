@@ -163,6 +163,14 @@ pub fn run() {
                                 StdoutMessage::Response(response) => {
                                     engine_clone.handle_response(response).await;
                                 }
+                                StdoutMessage::Event(event) => {
+                                    let event_name = match event.event.as_str() {
+                                        "sync_progress" => "sync-progress",
+                                        "pipeline_progress" => "pipeline-progress",
+                                        other => other,
+                                    };
+                                    let _ = app_handle.emit(event_name, event.data);
+                                }
                             }
                         }
                     } else if let CommandEvent::Stderr(line_bytes) = event {
