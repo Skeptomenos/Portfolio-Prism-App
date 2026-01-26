@@ -7,6 +7,7 @@
 import { z } from 'zod'
 import { invoke, isTauri } from './tauri'
 import { scrubObject } from './scrubber'
+import { logger } from './logger'
 import type {
   DashboardData,
   EngineHealth,
@@ -96,7 +97,7 @@ async function callCommand<K extends keyof TauriCommands>(
     if (!result.success) {
       const errorMsg = result.error?.message || 'Unknown backend error'
       const errorCode = result.error?.code || 'UNKNOWN'
-      console.error(`[IPC] Backend error (${errorCode}):`, errorMsg)
+      logger.error(`[IPC] Backend error (${errorCode}): ${errorMsg}`)
 
       // Log to system logs for auto-reporting
       // SECURITY: Never log credentials (phone, pin, 2FA code) to system logs
@@ -124,7 +125,7 @@ async function callCommand<K extends keyof TauriCommands>(
     if (error instanceof Error && error.message.startsWith('Backend Error:')) {
       throw error
     }
-    console.error('[IPC] Echo-Bridge connection failed:', error)
+    logger.error('[IPC] Echo-Bridge connection failed', error instanceof Error ? error : undefined)
     throw new Error('Echo-Bridge unreachable. Check if the Python engine is running on port 5001.')
   }
 }
@@ -136,7 +137,7 @@ export async function getEngineHealth(): Promise<EngineHealth> {
   try {
     return await deduplicatedCall('get_engine_health', () => callCommand('get_engine_health', {}))
   } catch (error) {
-    console.error('[IPC] get_health failed:', error)
+    logger.error('[IPC] get_health failed', error instanceof Error ? error : undefined)
     throw error
   }
 }
@@ -149,7 +150,7 @@ export async function getDashboardData(portfolioId: number): Promise<DashboardDa
     const key = `get_dashboard_data:${portfolioId}`
     return await deduplicatedCall(key, () => callCommand('get_dashboard_data', { portfolioId }))
   } catch (error) {
-    console.error('[IPC] get_dashboard_data failed:', error)
+    logger.error('[IPC] get_dashboard_data failed', error instanceof Error ? error : undefined)
     throw error
   }
 }
@@ -162,7 +163,7 @@ export async function getHoldings(portfolioId: number): Promise<Holding[]> {
     const dashboard = await getDashboardData(portfolioId)
     return dashboard.topHoldings
   } catch (error) {
-    console.error('[IPC] getHoldings failed:', error)
+    logger.error('[IPC] getHoldings failed', error instanceof Error ? error : undefined)
     throw error
   }
 }
@@ -175,7 +176,7 @@ export async function getPositions(portfolioId: number): Promise<PositionsRespon
     const key = `get_positions:${portfolioId}`
     return await deduplicatedCall(key, () => callCommand('get_positions', { portfolioId }))
   } catch (error) {
-    console.error('[IPC] get_positions failed:', error)
+    logger.error('[IPC] get_positions failed', error instanceof Error ? error : undefined)
     throw error
   }
 }
@@ -191,7 +192,7 @@ export async function syncPortfolio(
     const key = `sync_portfolio:${portfolioId}:${force}`
     return await deduplicatedCall(key, () => callCommand('sync_portfolio', { portfolioId, force }))
   } catch (error) {
-    console.error('[IPC] sync_portfolio failed:', error)
+    logger.error('[IPC] sync_portfolio failed', error instanceof Error ? error : undefined)
     throw error
   }
 }
@@ -207,7 +208,7 @@ export async function runPipeline(): Promise<{
   try {
     return await callCommand('run_pipeline', {})
   } catch (error) {
-    console.error('[IPC] run_pipeline failed:', error)
+    logger.error('[IPC] run_pipeline failed', error instanceof Error ? error : undefined)
     throw error
   }
 }
@@ -219,7 +220,7 @@ export async function trGetAuthStatus(): Promise<AuthStatus> {
   try {
     return await deduplicatedCall('tr_get_auth_status', () => callCommand('tr_get_auth_status', {}))
   } catch (error) {
-    console.error('[IPC] tr_get_auth_status failed:', error)
+    logger.error('[IPC] tr_get_auth_status failed', error instanceof Error ? error : undefined)
     throw error
   }
 }
@@ -233,7 +234,7 @@ export async function trCheckSavedSession(): Promise<SessionCheck> {
       callCommand('tr_check_saved_session', {})
     )
   } catch (error) {
-    console.error('[IPC] tr_check_saved_session failed:', error)
+    logger.error('[IPC] tr_check_saved_session failed', error instanceof Error ? error : undefined)
     throw error
   }
 }
@@ -249,7 +250,10 @@ export async function trGetStoredCredentials(): Promise<{
   try {
     return await callCommand('tr_get_stored_credentials', {})
   } catch (error) {
-    console.error('[IPC] tr_get_stored_credentials failed:', error)
+    logger.error(
+      '[IPC] tr_get_stored_credentials failed',
+      error instanceof Error ? error : undefined
+    )
     return { hasCredentials: false, maskedPhone: null }
   }
 }
@@ -265,7 +269,7 @@ export async function trLogin(
   try {
     return await callCommand('tr_login', { phone, pin, remember })
   } catch (error) {
-    console.error('[IPC] tr_login failed:', error)
+    logger.error('[IPC] tr_login failed', error instanceof Error ? error : undefined)
     throw error
   }
 }
@@ -278,7 +282,7 @@ export async function trLoginWithStoredCredentials(): Promise<AuthResponse> {
   try {
     return await callCommand('tr_login', { useStoredCredentials: true })
   } catch (error) {
-    console.error('[IPC] tr_login (stored) failed:', error)
+    logger.error('[IPC] tr_login (stored) failed', error instanceof Error ? error : undefined)
     throw error
   }
 }
@@ -290,7 +294,7 @@ export async function trSubmit2FA(code: string): Promise<AuthResponse> {
   try {
     return await callCommand('tr_submit_2fa', { code })
   } catch (error) {
-    console.error('[IPC] tr_submit_2fa failed:', error)
+    logger.error('[IPC] tr_submit_2fa failed', error instanceof Error ? error : undefined)
     throw error
   }
 }
@@ -302,7 +306,7 @@ export async function trLogout(): Promise<LogoutResponse> {
   try {
     return await callCommand('tr_logout', {})
   } catch (error) {
-    console.error('[IPC] tr_logout failed:', error)
+    logger.error('[IPC] tr_logout failed', error instanceof Error ? error : undefined)
     throw error
   }
 }
@@ -336,7 +340,7 @@ export async function uploadHoldings(
   try {
     return await callCommand('upload_holdings', { filePath, etfIsin })
   } catch (error) {
-    console.error('[IPC] upload_holdings failed:', error)
+    logger.error('[IPC] upload_holdings failed', error instanceof Error ? error : undefined)
     throw error
   }
 }
@@ -348,7 +352,7 @@ export async function getTrueHoldings(): Promise<TrueHoldingsResponse> {
   try {
     return await deduplicatedCall('get_true_holdings', () => callCommand('get_true_holdings', {}))
   } catch (error) {
-    console.error('[IPC] get_true_holdings failed:', error)
+    logger.error('[IPC] get_true_holdings failed', error instanceof Error ? error : undefined)
     throw error
   }
 }
@@ -366,7 +370,7 @@ export async function logEvent(
   try {
     await callCommand('log_event', { level, message, context, component, category })
   } catch (error) {
-    // Silent fail to avoid infinite loops if logging itself fails
+    // Fallback to avoid infinite loops if logger fails
     console.error('[IPC] Failed to log event:', error)
   }
 }
@@ -375,7 +379,7 @@ export async function getRecentReports(): Promise<SystemLogReport[]> {
   try {
     return await callCommand('get_recent_reports', {})
   } catch (error) {
-    console.error('[IPC] get_recent_reports failed:', error)
+    logger.error('[IPC] get_recent_reports failed', error instanceof Error ? error : undefined)
     return []
   }
 }
@@ -387,7 +391,7 @@ export async function getPendingReviews(): Promise<SystemLogReport[]> {
   try {
     return await callCommand('get_pending_reviews', {})
   } catch (error) {
-    console.error('[IPC] get_pending_reviews failed:', error)
+    logger.error('[IPC] get_pending_reviews failed', error instanceof Error ? error : undefined)
     return []
   }
 }
@@ -401,7 +405,7 @@ export async function getPipelineReport(): Promise<PipelineHealthReport> {
       callCommand('get_pipeline_report', {})
     )
   } catch (error) {
-    console.error('[IPC] get_pipeline_report failed:', error)
+    logger.error('[IPC] get_pipeline_report failed', error instanceof Error ? error : undefined)
     throw error
   }
 }
@@ -413,7 +417,7 @@ export async function setHiveContribution(enabled: boolean): Promise<void> {
   try {
     await callCommand('set_hive_contribution', { enabled })
   } catch (error) {
-    console.error('[IPC] set_hive_contribution failed:', error)
+    logger.error('[IPC] set_hive_contribution failed', error instanceof Error ? error : undefined)
   }
 }
 
@@ -425,7 +429,7 @@ export async function getHiveContribution(): Promise<boolean> {
     const result = await callCommand('get_hive_contribution', {})
     return result?.enabled ?? false
   } catch (error) {
-    console.error('[IPC] get_hive_contribution failed:', error)
+    logger.error('[IPC] get_hive_contribution failed', error instanceof Error ? error : undefined)
     return false
   }
 }

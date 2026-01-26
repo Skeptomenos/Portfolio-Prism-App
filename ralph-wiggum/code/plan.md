@@ -69,7 +69,7 @@ This plan addresses 8 specification documents to bring the codebase into full co
 | [x] | **Task 3.4**: Install Zod and create IPC validation wrapper | `specs/03-frontend-safety.md:L11-18` | Done: Zod 4.3.6 already installed. Created `validateResponse<T>()` helper and `IPCValidationError` class in `ipc.ts`. |
 | [x] | **Task 3.5**: Define Zod schemas for all IPC responses | `specs/03-frontend-safety.md:L21-29` | Done in v0.10.16: Created `DashboardDataSchema`, `EngineHealthSchema`, `AuthResponseSchema` etc. in feature/lib schemas. Types now inferred from Zod via z.infer. |
 | [x] | **Task 3.6**: Remove all `any` types (16 violations in 7 files) | `specs/03-frontend-safety.md:L31-39` | Done in v0.10.16: Replaced all `any` with `unknown` or proper types. Updated scrubber.ts, ipc.ts, HealthView.tsx, XRayView.tsx, feedback.ts, ErrorBoundary.tsx, and all related tests. |
-| [ ] | **Task 3.7**: Replace `console.log` with structured logger (19 instances) | `specs/03-frontend-safety.md#review-fixes` | Create logger wrapper; update hooks and components |
+| [x] | **Task 3.7**: Replace `console.log` with structured logger (19 instances) | `specs/03-frontend-safety.md#review-fixes` | Done in v0.10.18: Created `src/lib/logger.ts` with level-based logging. Replaced 65 console.* calls across 14 files. Production mode suppresses debug/info. |
 | [ ] | **Task 3.8**: Refactor `.then()` chains to async/await (5 instances) | `specs/03-frontend-safety.md:L41-43` | Fix `useTauriEvents.ts`, `HealthView.tsx`; tests can remain as-is |
 
 ### Test Co-location (Spec 05)

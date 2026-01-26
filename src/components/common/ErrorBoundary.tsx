@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { sendFeedback, type FeedbackMetadata } from '@/lib/api/feedback'
 import { useAppStore } from '@/store/useAppStore'
 import { scrubObject } from '@/lib/scrubber'
+import { logger } from '@/lib/logger'
 
 interface Props {
   children: ReactNode
@@ -41,7 +42,11 @@ export class ErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     this.setState({ error, errorInfo })
-    console.error('Uncaught error:', error, errorInfo)
+    logger.error('Uncaught error', {
+      error: error.message,
+      stack: error.stack,
+      componentStack: errorInfo.componentStack,
+    })
 
     // Auto-report if telemetry mode is 'auto'
     const { telemetryMode } = useAppStore.getState()
@@ -74,7 +79,7 @@ export class ErrorBoundary extends Component<Props, State> {
       })
       this.setState({ isReported: true, showReview: false })
     } catch (err) {
-      console.error('Failed to report crash:', err)
+      logger.error('Failed to report crash', err instanceof Error ? err : undefined)
       alert('Failed to send report automatically. Please check your internet connection.')
     } finally {
       this.setState({ isReporting: false })

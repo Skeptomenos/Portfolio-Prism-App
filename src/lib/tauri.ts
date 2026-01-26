@@ -8,6 +8,7 @@
  */
 
 import type { TauriCommands, TauriEvents } from '../types'
+import { logger } from './logger'
 
 // =============================================================================
 // Module Cache
@@ -79,8 +80,7 @@ export async function listen<K extends keyof TauriEvents>(
   handler: (payload: TauriEvents[K]) => void
 ): Promise<UnlistenFn> {
   if (!isTauri()) {
-    console.warn(`Tauri not available. Cannot listen for event: ${event}`)
-    // Return no-op unlisten function
+    logger.warn(`Tauri not available. Cannot listen for event: ${event}`)
     return () => {}
   }
 
@@ -97,7 +97,7 @@ export async function once<K extends keyof TauriEvents>(
   handler: (payload: TauriEvents[K]) => void
 ): Promise<UnlistenFn> {
   if (!isTauri()) {
-    console.warn(`Tauri not available. Cannot listen for event: ${event}`)
+    logger.warn(`Tauri not available. Cannot listen for event: ${event}`)
     return () => {}
   }
 
@@ -118,7 +118,7 @@ export async function emit<K extends keyof TauriEvents>(
   payload: TauriEvents[K]
 ): Promise<void> {
   if (!isTauri()) {
-    console.warn(`Tauri not available. Cannot emit event: ${event}`)
+    logger.warn(`Tauri not available. Cannot emit event: ${event}`)
     return
   }
 

@@ -83,7 +83,8 @@ describe('tauri.ts', () => {
       const handler = vi.fn()
       const unlisten = await listen('sync-progress', handler)
 
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(consoleSpy).toHaveBeenCalled()
+      expect(consoleSpy.mock.calls[0][0]).toContain(
         'Tauri not available. Cannot listen for event: sync-progress'
       )
       expect(typeof unlisten).toBe('function')
@@ -115,7 +116,8 @@ describe('tauri.ts', () => {
       const handler = vi.fn()
       const unlisten = await once('python-ready', handler)
 
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(consoleSpy).toHaveBeenCalled()
+      expect(consoleSpy.mock.calls[0][0]).toContain(
         'Tauri not available. Cannot listen for event: python-ready'
       )
       expect(typeof unlisten).toBe('function')
@@ -144,7 +146,8 @@ describe('tauri.ts', () => {
 
       await emit('sync-progress', { status: 'syncing', progress: 50, message: 'Testing' })
 
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(consoleSpy).toHaveBeenCalled()
+      expect(consoleSpy.mock.calls[0][0]).toContain(
         'Tauri not available. Cannot emit event: sync-progress'
       )
 

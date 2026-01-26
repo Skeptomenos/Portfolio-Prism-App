@@ -5,6 +5,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { queryClient } from './lib/queryClient'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
 import { logEvent } from './lib/ipc'
+import { logger } from './lib/logger'
 import App from './App'
 import './styles.css'
 
@@ -55,7 +56,7 @@ if (!rootElement) {
   const fallbackRoot = document.createElement('div')
   fallbackRoot.id = 'root'
   document.body.appendChild(fallbackRoot)
-  console.error('[main] Root element not found in DOM, created fallback')
+  logger.error('[main] Root element not found in DOM, created fallback')
   ReactDOM.createRoot(fallbackRoot).render(
     <React.StrictMode>
       <QueryClientProvider client={queryClient}>

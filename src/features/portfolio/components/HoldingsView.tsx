@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { TrendingUp, Loader2, AlertCircle, ChevronRight } from 'lucide-react'
 import GlassCard from '../../../components/GlassCard'
 import { getTrueHoldings, getPipelineReport } from '../../../lib/ipc'
+import { logger } from '../../../lib/logger'
 import {
   ResolutionHealthCard,
   NeedsAttentionSection,
@@ -76,7 +77,7 @@ export default function HoldingsView() {
 
       setError(null)
     } catch (err: unknown) {
-      console.error('Failed to load true holdings', err)
+      logger.error('Failed to load true holdings', err instanceof Error ? err : undefined)
       const message = err instanceof Error ? err.message : 'Failed to load holdings data'
       setError(message)
     } finally {

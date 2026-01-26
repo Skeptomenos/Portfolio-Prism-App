@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { logger } from '../lib/logger'
 
 // =============================================================================
 // Types
@@ -169,7 +170,7 @@ export function usePipelineProgress(enabled: boolean = true): PipelineProgressSt
     try {
       return JSON.parse(data) as SSEEvent
     } catch (err) {
-      console.warn('[SSE] Failed to parse event data:', data, err)
+      logger.warn('[SSE] Failed to parse event data', { data, error: err })
       return null
     }
   }, [])
@@ -202,13 +203,12 @@ export function usePipelineProgress(enabled: boolean = true): PipelineProgressSt
 
       switch (event.type) {
         case 'connected':
-          console.log('[SSE] Connected to pipeline progress stream')
+          logger.info('[SSE] Connected to pipeline progress stream')
           setState((prev) => ({
             ...prev,
             isConnected: true,
             error: null,
           }))
-          // Reset retry delay on successful connection
           retryDelayRef.current = INITIAL_RETRY_DELAY
           break
 
@@ -230,11 +230,11 @@ export function usePipelineProgress(enabled: boolean = true): PipelineProgressSt
         }
 
         case 'heartbeat':
-          console.debug('[SSE] Heartbeat received')
+          logger.debug('[SSE] Heartbeat received')
           break
 
         case 'pipeline_summary':
-          console.log('[SSE] Pipeline summary received')
+          logger.info('[SSE] Pipeline summary received')
           setState((prev) => ({
             ...prev,
             summary: event.data,
@@ -242,7 +242,7 @@ export function usePipelineProgress(enabled: boolean = true): PipelineProgressSt
           break
 
         default:
-          console.debug('[SSE] Unknown event type:', event)
+          logger.debug('[SSE] Unknown event type', event)
       }
     },
     [normalizePhase]
@@ -260,7 +260,7 @@ export function usePipelineProgress(enabled: boolean = true): PipelineProgressSt
       eventSourceRef.current = null
     }
 
-    console.log('[SSE] Connecting to pipeline progress stream...')
+    logger.info('[SSE] Connecting to pipeline progress stream...')
 
     try {
       const eventSource = new EventSource(SSE_ENDPOINT)
@@ -268,7 +268,7 @@ export function usePipelineProgress(enabled: boolean = true): PipelineProgressSt
 
       eventSource.onopen = () => {
         if (!mountedRef.current) return
-        console.log('[SSE] Connection opened')
+        logger.debug('[SSE] Connection opened')
       }
 
       eventSource.onmessage = (event) => {
@@ -283,9 +283,8 @@ export function usePipelineProgress(enabled: boolean = true): PipelineProgressSt
       eventSource.onerror = (error) => {
         if (!mountedRef.current) return
 
-        console.error('[SSE] Connection error:', error)
+        logger.error('[SSE] Connection error', { event: error.type })
 
-        // Close the failed connection
         eventSource.close()
         eventSourceRef.current = null
 
@@ -295,9 +294,8 @@ export function usePipelineProgress(enabled: boolean = true): PipelineProgressSt
           error: 'Connection to pipeline lost. Reconnecting...',
         }))
 
-        // Schedule reconnection with exponential backoff
         const delay = retryDelayRef.current
-        console.log(`[SSE] Reconnecting in ${delay}ms...`)
+        logger.info(`[SSE] Reconnecting in ${delay}ms...`)
 
         retryTimeoutRef.current = setTimeout(() => {
           if (mountedRef.current && enabled) {
@@ -309,7 +307,7 @@ export function usePipelineProgress(enabled: boolean = true): PipelineProgressSt
         retryDelayRef.current = Math.min(retryDelayRef.current * RETRY_MULTIPLIER, MAX_RETRY_DELAY)
       }
     } catch (err) {
-      console.error('[SSE] Failed to create EventSource:', err)
+      logger.error('[SSE] Failed to create EventSource', err instanceof Error ? err : undefined)
       setState((prev) => ({
         ...prev,
         isConnected: false,
@@ -328,9 +326,8 @@ export function usePipelineProgress(enabled: boolean = true): PipelineProgressSt
       retryTimeoutRef.current = null
     }
 
-    // Close EventSource connection
     if (eventSourceRef.current) {
-      console.log('[SSE] Disconnecting from pipeline progress stream')
+      logger.info('[SSE] Disconnecting from pipeline progress stream')
       eventSourceRef.current.close()
       eventSourceRef.current = null
     }
@@ -367,7 +364,7 @@ export function usePipelineProgress(enabled: boolean = true): PipelineProgressSt
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible' && !eventSourceRef.current) {
-        console.log('[SSE] Tab visible, reconnecting...')
+        logger.info('[SSE] Tab visible, reconnecting...')
         retryDelayRef.current = INITIAL_RETRY_DELAY
         connect()
       }

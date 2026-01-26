@@ -21,6 +21,7 @@ import {
 } from '../../../lib/ipc'
 import type { SessionCheck, AuthResponse, Position } from '../../../types'
 import { sanitizeErrorMessage } from '../../../lib/errors'
+import { logger } from '../../../lib/logger'
 
 const styles = {
   container: {
@@ -251,7 +252,10 @@ export const TradeRepublicView: React.FC = () => {
           const session = await trCheckSavedSession()
           setSessionData(session)
         } catch (error) {
-          console.error('[TradeRepublicView] Failed to load session data:', error)
+          logger.error(
+            '[TradeRepublicView] Failed to load session data',
+            error instanceof Error ? error : undefined
+          )
         }
       }
     }

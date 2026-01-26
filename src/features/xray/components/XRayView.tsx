@@ -7,6 +7,7 @@ import { runPipeline } from '../api'
 import { useQueryClient } from '@tanstack/react-query'
 import { usePipelineProgress } from '../../../hooks/usePipelineProgress'
 import { PipelineStepper, ResolutionTable, ActionQueue, HiveLog } from './index'
+import { logger } from '../../../lib/logger'
 import type { PipelineFailure } from '../types'
 
 // =============================================================================
@@ -65,7 +66,7 @@ export default function XRayView() {
       await queryClient.invalidateQueries({ queryKey: ['pipelineDiagnostics'] })
       await refetchDiagnostics()
     } catch (err: unknown) {
-      console.error('Failed to run analysis', err)
+      logger.error('Failed to run analysis', err instanceof Error ? err : undefined)
       const errorMessage =
         typeof err === 'string'
           ? err
@@ -86,9 +87,8 @@ export default function XRayView() {
     else if (stepKey === 'enrich') setActiveTab('hive')
   }
 
-  // Handle action from ActionQueue
   const handleAction = (action: string, item: PipelineFailure) => {
-    console.log('Action triggered:', action, item)
+    logger.debug('Action triggered', { action, item })
     // TODO: Implement action modals (Upload CSV, Ignore list, etc.)
   }
 

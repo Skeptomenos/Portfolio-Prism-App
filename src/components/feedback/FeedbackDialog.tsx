@@ -1,43 +1,44 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { sendFeedback, FeedbackType } from '@/lib/api/feedback';
-import { useCurrentView, useAppStore } from '@/store/useAppStore';
-import { isTauri } from '@/lib/tauri';
-import { 
-  Bug, 
-  Lightbulb, 
-  Sparkles, 
-  X, 
-  Send, 
-  Loader2, 
+import React, { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { sendFeedback, FeedbackType } from '@/lib/api/feedback'
+import { useCurrentView, useAppStore } from '@/store/useAppStore'
+import { isTauri } from '@/lib/tauri'
+import { logger } from '@/lib/logger'
+import {
+  Bug,
+  Lightbulb,
+  Sparkles,
+  X,
+  Send,
+  Loader2,
   CheckCircle2,
   AlertCircle,
-  ExternalLink
-} from 'lucide-react';
+  ExternalLink,
+} from 'lucide-react'
 
 interface FeedbackDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
+  isOpen: boolean
+  onClose: () => void
 }
 
 export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({ isOpen, onClose }) => {
-  const [type, setType] = useState<FeedbackType>('functional');
-  const [message, setMessage] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [issueUrl, setIssueUrl] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const currentView = useCurrentView();
+  const [type, setType] = useState<FeedbackType>('functional')
+  const [message, setMessage] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSuccess, setIsSuccess] = useState(false)
+  const [issueUrl, setIssueUrl] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const currentView = useCurrentView()
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!message.trim()) return;
+    e.preventDefault()
+    if (!message.trim()) return
 
-    setIsSubmitting(true);
-    setError(null);
-    
+    setIsSubmitting(true)
+    setError(null)
+
     try {
-      const appState = useAppStore.getState();
+      const appState = useAppStore.getState()
       const result = await sendFeedback({
         type,
         message,
@@ -46,51 +47,54 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({ isOpen, onClose 
           view: currentView,
           environment: isTauri() ? 'tauri' : 'browser',
           lastSync: appState.lastSyncTime?.toISOString(),
-        }
-      });
-      setIsSuccess(true);
-      setIssueUrl(result.issue_url);
+        },
+      })
+      setIsSuccess(true)
+      setIssueUrl(result.issue_url)
       // Don't auto-close - let user see the success and click the link
     } catch (err) {
-      console.error('Failed to send feedback:', err);
-      setError(err instanceof Error ? err.message : 'Failed to send feedback. Please try again.');
+      logger.error('Failed to send feedback', err instanceof Error ? err : undefined)
+      setError(err instanceof Error ? err.message : 'Failed to send feedback. Please try again.')
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false)
     }
-  };
-  
+  }
+
   const handleClose = () => {
-    setIsSuccess(false);
-    setIssueUrl(null);
-    setError(null);
-    setMessage('');
-    setType('functional');
-    onClose();
-  };
+    setIsSuccess(false)
+    setIssueUrl(null)
+    setError(null)
+    setMessage('')
+    setType('functional')
+    onClose()
+  }
 
   const options = [
-    { 
-      id: 'functional' as const, 
-      label: 'Bug Report', 
-      icon: Bug, 
+    {
+      id: 'functional' as const,
+      label: 'Bug Report',
+      icon: Bug,
       color: 'text-rose-400',
-      activeClass: 'border-rose-500/50 bg-rose-500/10 text-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.1)]'
+      activeClass:
+        'border-rose-500/50 bg-rose-500/10 text-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.1)]',
     },
-    { 
-      id: 'feature' as const, 
-      label: 'Feature Idea', 
-      icon: Lightbulb, 
+    {
+      id: 'feature' as const,
+      label: 'Feature Idea',
+      icon: Lightbulb,
       color: 'text-amber-400',
-      activeClass: 'border-amber-500/50 bg-amber-500/10 text-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.1)]'
+      activeClass:
+        'border-amber-500/50 bg-amber-500/10 text-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.1)]',
     },
-    { 
-      id: 'ui_ux' as const, 
-      label: 'UI / UX', 
-      icon: Sparkles, 
+    {
+      id: 'ui_ux' as const,
+      label: 'UI / UX',
+      icon: Sparkles,
       color: 'text-violet-400',
-      activeClass: 'border-violet-500/50 bg-violet-500/10 text-violet-400 shadow-[0_0_15px_rgba(139,92,246,0.1)]'
+      activeClass:
+        'border-violet-500/50 bg-violet-500/10 text-violet-400 shadow-[0_0_15px_rgba(139,92,246,0.1)]',
     },
-  ];
+  ]
 
   return (
     <AnimatePresence>
@@ -108,7 +112,7 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({ isOpen, onClose 
             initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
             className="relative w-full max-w-md overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/90 shadow-2xl backdrop-blur-xl"
           >
             <div className="flex items-center justify-between border-b border-white/5 px-6 py-4">
@@ -123,7 +127,7 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({ isOpen, onClose 
 
             <div className="p-6">
               {isSuccess ? (
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   className="flex flex-col items-center justify-center py-8 text-center"
@@ -132,7 +136,9 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({ isOpen, onClose 
                     <CheckCircle2 className="h-8 w-8" />
                   </div>
                   <h3 className="mb-2 text-xl font-semibold text-emerald-400">Feedback Sent!</h3>
-                  <p className="text-zinc-400 mb-4">Thank you for helping us improve Portfolio Prism.</p>
+                  <p className="text-zinc-400 mb-4">
+                    Thank you for helping us improve Portfolio Prism.
+                  </p>
                   {issueUrl && !issueUrl.includes('mock') && (
                     <a
                       href={issueUrl}
@@ -165,30 +171,33 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({ isOpen, onClose 
                       </div>
                     </motion.div>
                   )}
-                  
+
                   <div className="flex flex-col gap-3">
                     <label className="text-xs font-medium uppercase tracking-wider text-zinc-500">
                       What kind of feedback?
                     </label>
                     <div className="grid grid-cols-3 gap-3">
                       {options.map((opt) => {
-                        const Icon = opt.icon;
-                        const isSelected = type === opt.id;
+                        const Icon = opt.icon
+                        const isSelected = type === opt.id
                         return (
                           <button
                             key={opt.id}
                             type="button"
                             onClick={() => setType(opt.id)}
                             className={`group flex flex-col items-center justify-center gap-2 rounded-xl border p-3 transition-all duration-200
-                              ${isSelected 
-                                ? opt.activeClass 
-                                : 'border-white/5 bg-white/5 text-zinc-400 hover:bg-white/10 hover:border-white/10'
+                              ${
+                                isSelected
+                                  ? opt.activeClass
+                                  : 'border-white/5 bg-white/5 text-zinc-400 hover:bg-white/10 hover:border-white/10'
                               }`}
                           >
-                            <Icon className={`h-6 w-6 ${isSelected ? 'scale-110' : 'group-hover:scale-110'} transition-transform`} />
+                            <Icon
+                              className={`h-6 w-6 ${isSelected ? 'scale-110' : 'group-hover:scale-110'} transition-transform`}
+                            />
                             <span className="text-xs font-medium">{opt.label}</span>
                           </button>
-                        );
+                        )
                       })}
                     </div>
                   </div>
@@ -234,5 +243,5 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({ isOpen, onClose 
         </div>
       )}
     </AnimatePresence>
-  );
-};
+  )
+}

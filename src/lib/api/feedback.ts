@@ -1,4 +1,5 @@
 import { scrubText, scrubObject } from '@/lib/scrubber'
+import { logger } from '@/lib/logger'
 
 // 'critical' is used for automatic system error reports (ErrorBoundary, global handlers)
 // 'functional', 'ui_ux', 'feature' are used for user-submitted feedback via FeedbackDialog
@@ -35,13 +36,13 @@ export interface FeedbackResponse {
 export async function sendFeedback(payload: FeedbackPayload): Promise<FeedbackResponse> {
   const workerUrl = import.meta.env.VITE_WORKER_URL
 
-  console.log('[Feedback] Sending feedback...', {
+  logger.info('[Feedback] Sending feedback...', {
     type: payload.type,
     workerUrl: workerUrl ? `${workerUrl.substring(0, 30)}...` : 'NOT SET',
   })
 
   if (!workerUrl) {
-    console.warn('[Feedback] VITE_WORKER_URL not configured - using mock response')
+    logger.warn('[Feedback] VITE_WORKER_URL not configured - using mock response')
     return { issue_url: 'https://github.com/mock-issue-url' }
   }
 
@@ -85,12 +86,12 @@ export async function sendFeedback(payload: FeedbackPayload): Promise<FeedbackRe
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => response.statusText)
-      console.error('[Feedback] Server error:', response.status, errorText)
+      logger.error(`[Feedback] Server error: ${response.status} ${errorText}`)
       throw new Error(`Server error (${response.status}): ${errorText}`)
     }
 
     const result = await response.json()
-    console.log('[Feedback] Success! Issue created:', result.issue_url)
+    logger.info('[Feedback] Success! Issue created', { issueUrl: result.issue_url })
     return result
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {

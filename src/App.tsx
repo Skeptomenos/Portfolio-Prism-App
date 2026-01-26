@@ -13,6 +13,7 @@ import { useCurrentView, useAppStore, useSetSessionId } from './store/useAppStor
 import { useTauriEvents } from './hooks/useTauriEvents'
 import { getEnvironment, trCheckSavedSession, trGetAuthStatus, getEngineHealth } from './lib/ipc'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
+import { logger } from './lib/logger'
 
 // Re-export ViewType from types for backward compatibility
 export type { ViewType } from './types'
@@ -51,14 +52,13 @@ function App() {
         setAuth('idle')
         setCurrentView('trade-republic')
       } catch (error) {
-        console.error('[App] Initialization failed:', error)
+        logger.error('[App] Initialization failed', error instanceof Error ? error : undefined)
         setAuth('idle')
         setCurrentView('trade-republic')
       }
     }
 
-    // Log environment on first render (inside useEffect to prevent logging on every render)
-    console.log(`[App] Running in ${getEnvironment()} environment`)
+    logger.info(`[App] Running in ${getEnvironment()} environment`)
 
     initApp()
     // eslint-disable-next-line react-hooks/exhaustive-deps

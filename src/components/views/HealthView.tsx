@@ -19,6 +19,7 @@ import {
   setHiveContribution,
   getHiveContribution,
 } from '../../lib/ipc'
+import { logger } from '../../lib/logger'
 import type { SystemLogReport } from '../../types'
 import {
   useAppStore,
@@ -67,7 +68,7 @@ const HealthView = () => {
       setPendingReviews(pending)
       setError(null)
     } catch (err) {
-      console.error('Failed to load health report:', err)
+      logger.error('Failed to load health report', err instanceof Error ? err : undefined)
       setHealth(null)
     } finally {
       setLoading(false)
