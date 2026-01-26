@@ -48,7 +48,7 @@ Within phases: Tasks can run in parallel where noted
 | Status | Task | Spec Reference | Notes |
 |--------|------|----------------|-------|
 | [x] | **Task 1.1**: Remove hardcoded `dev-echo-bridge-secret` fallbacks | `specs/07-security-hardcoded-secrets.md` | Done in v0.10.21 — `ipc.ts`, `echo_bridge.py` now fail-fast if tokens missing |
-| [ ] | **Task 1.2**: Replace custom SHA-256 with Web Crypto API | `specs/16-replace-custom-crypto.md` | `scrubber.ts:106-203` — 100 lines manual crypto → ~10 lines using `crypto.subtle.digest()` |
+| [x] | **Task 1.2**: Replace custom SHA-256 with Web Crypto API | `specs/16-replace-custom-crypto.md` | Done in v0.10.22 — 100-line manual SHA-256 replaced with `js-sha256` library |
 
 **Verification:**
 ```bash
