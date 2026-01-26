@@ -37,6 +37,7 @@ dev = [
     "pip-audit>=2.10.0",  # Security: automated vulnerability scanning
     "ruff>=0.14.14",
     "mypy>=1.14.0",       # Type checking: strict mode with incremental strictness
+    "tach>=0.33.1",
 ]
 
 # Ruff linter configuration - 2026 Standards
