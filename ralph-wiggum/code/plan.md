@@ -47,7 +47,7 @@ This plan implements the **2026 Mandate** to bring Portfolio Prism into complian
 | | **PHASE 0: PNPM MIGRATION** | `specs/00-pnpm-migration.md` | |
 | [x] | **0.1**: Remove `node_modules` and `package-lock.json` | `specs/00-pnpm-migration.md:L11-13` | Done - v0.10.0 |
 | [x] | **0.2**: Install deps with `pnpm install` | `specs/00-pnpm-migration.md:L19-21` | Done - v0.10.1 |
-| [ ] | **0.3**: Update `tauri.conf.json` build commands (npm -> pnpm) | `specs/00-pnpm-migration.md:L25-27` | |
+| [x] | **0.3**: Update `tauri.conf.json` build commands (npm -> pnpm) | `specs/00-pnpm-migration.md:L25-27` | Done - v0.10.2 |
 | [ ] | **0.4**: Update CI workflows to use pnpm | `specs/00-pnpm-migration.md:L29-32` | |
 | | | | |
 | | **PHASE 1: FRONTEND ARCHITECTURE (FSD)** | `specs/01-frontend-architecture.md` | |
