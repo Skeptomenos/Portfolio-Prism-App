@@ -1,24 +1,28 @@
-import os
-import requests
-import time
 import logging
+import os
+import time
+
+import requests
 import yfinance as yf
 from dotenv import load_dotenv
 
-
-from portfolio_src.data.caching import load_from_cache, save_to_cache, get_cache_key
-from portfolio_src.prism_utils.validation import is_valid_isin
-
 from portfolio_src.config import (
-    WORKER_URL,
     OUTPUTS_DIR,
+    WORKER_URL,
 )
-import pandas as pd
+from portfolio_src.data.caching import get_cache_key, load_from_cache, save_to_cache
+from portfolio_src.data.schemas import validate_response_safe
+from portfolio_src.data.schemas.external_api import (
+    FinnhubProfileResponse,
+    WikidataEntitiesResponse,
+    WikidataSearchResponse,
+)
+from portfolio_src.prism_utils.validation import is_valid_isin
 
 # Load environment variables from .env file
 load_dotenv()
 
-from typing import List, Dict, Optional, Any
+from typing import Any
 
 # --- Constants ---
 # SECURITY: Direct Finnhub API access removed - all calls must go through proxy
@@ -46,7 +50,7 @@ def debug_log(msg):
 # --- Helper Functions ---
 
 
-def fetch_from_yfinance(identifier: str) -> Optional[Dict[str, str]]:
+def fetch_from_yfinance(identifier: str) -> dict[str, str] | None:
     """
     Attempts to fetch metadata from YFinance using the identifier (ISIN or Ticker).
     Returns a dictionary with 'sector', 'geography', and 'name' or None if failed.
@@ -73,9 +77,9 @@ def fetch_from_yfinance(identifier: str) -> Optional[Dict[str, str]]:
 
 def fetch_isin_from_wikidata(
     company_name: str,
-    raw_ticker: Optional[str] = None,
-    yahoo_ticker: Optional[str] = None,
-) -> Optional[str]:
+    raw_ticker: str | None = None,
+    yahoo_ticker: str | None = None,
+) -> str | None:
     """
     Sophisticated ISIN lookup using Wikidata with multi-signal validation.
 
@@ -105,7 +109,13 @@ def fetch_isin_from_wikidata(
         try:
             resp = requests.get(url, params=params, headers=headers, timeout=10)
             if resp.status_code == 200:
-                return resp.json().get("search", [])
+                validated = validate_response_safe(WikidataSearchResponse, resp.json())
+                if validated:
+                    return [
+                        {"id": r.id, "label": r.label, "description": r.description}
+                        for r in validated.search
+                    ]
+                return []
         except Exception as e:
             logger.debug(f"Wikidata search failed for {query}: {e}")
         return []
@@ -122,7 +132,12 @@ def fetch_isin_from_wikidata(
         try:
             resp = requests.get(url, params=params, headers=headers, timeout=10)
             if resp.status_code == 200:
-                return resp.json().get("entities", {}).get(entity_id, {})
+                validated = validate_response_safe(WikidataEntitiesResponse, resp.json())
+                if validated and entity_id in validated.entities:
+                    entity = validated.entities[entity_id]
+                    # Return dict for backward compat with extract_isin/extract_tickers
+                    return {"claims": entity.claims.model_dump()}
+                return {}
         except Exception as e:
             logger.debug(f"Wikidata details failed for {entity_id}: {e}")
         return {}
@@ -146,9 +161,7 @@ def fetch_isin_from_wikidata(
         return tickers
 
     try:
-        logger.debug(
-            f"Wikidata lookup: {company_name} | Raw: {raw_ticker} | Yahoo: {yahoo_ticker}"
-        )
+        logger.debug(f"Wikidata lookup: {company_name} | Raw: {raw_ticker} | Yahoo: {yahoo_ticker}")
 
         # Strategy 1: Search by company name
         results = search_wikidata(company_name)
@@ -194,9 +207,7 @@ def fetch_isin_from_wikidata(
                 details = get_entity_details(entity_id)
                 isin = extract_isin(details)
                 if isin:
-                    logger.info(
-                        f"✓ ISIN for {company_name}: {isin} [Wikidata via ticker]"
-                    )
+                    logger.info(f"✓ ISIN for {company_name}: {isin} [Wikidata via ticker]")
                     return isin
 
         logger.warning(f"✗ No ISIN found for {company_name} in Wikidata")
@@ -207,7 +218,7 @@ def fetch_isin_from_wikidata(
         return None
 
 
-def load_asset_universe() -> Dict[str, str]:
+def load_asset_universe() -> dict[str, str]:
     """Load ticker -> ISIN mapping from LocalCache."""
     from portfolio_src.data.local_cache import get_local_cache
 
@@ -228,8 +239,8 @@ _UNIVERSE_MAPPING = None
 
 
 def enrich_securities_bulk(
-    securities_to_fetch: List[Dict[str, Any]], force_refresh: bool = False
-) -> List[Dict[str, Any]]:
+    securities_to_fetch: list[dict[str, Any]], force_refresh: bool = False
+) -> list[dict[str, Any]]:
     """
     Enriches a list of securities with metadata from Finnhub, using a robust caching layer.
 
@@ -262,11 +273,7 @@ def enrich_securities_bulk(
             continue
 
         # Filter out internal placeholders to prevent API noise
-        if (
-            identifier.startswith("_")
-            or "NON_EQUITY" in identifier
-            or "CASH" in identifier
-        ):
+        if identifier.startswith("_") or "NON_EQUITY" in identifier or "CASH" in identifier:
             continue
 
         # NEW: Check if the identifier is ALREADY an ISIN
@@ -309,9 +316,7 @@ def enrich_securities_bulk(
             result["isin"] = _UNIVERSE_MAPPING[identifier]
             # If we have the ISIN, we might still want sector/geo from API,
             # but at least we have the ID.
-            logger.debug(
-                f"Resolved ISIN locally: {identifier} -> {_UNIVERSE_MAPPING[identifier]}"
-            )
+            logger.debug(f"Resolved ISIN locally: {identifier} -> {_UNIVERSE_MAPPING[identifier]}")
 
         # Primary: Finnhub (via proxy if configured, otherwise direct)
         if WORKER_URL:
@@ -321,24 +326,19 @@ def enrich_securities_bulk(
                     params={"symbol": identifier},
                 )
                 if response.status_code == 200:
-                    profile_data = response.json()
-                    if profile_data:
-                        finnhub_isin = profile_data.get("isin")
+                    profile = validate_response_safe(FinnhubProfileResponse, response.json())
+                    if profile:
                         result.update(
                             {
-                                "ticker": profile_data.get("ticker", identifier),
-                                "name": profile_data.get("name", "N/A"),
-                                "sector": profile_data.get(
-                                    "finnhubIndustry", "Unknown"
-                                ),
-                                "geography": profile_data.get("country", "Unknown"),
+                                "ticker": profile.ticker or identifier,
+                                "name": profile.name or "N/A",
+                                "sector": profile.finnhubIndustry or "Unknown",
+                                "geography": profile.country or "Unknown",
                             }
                         )
-                        if finnhub_isin:
-                            result["isin"] = finnhub_isin
-                            logger.debug(
-                                f"ISIN for {identifier}: {finnhub_isin} [Proxy]"
-                            )
+                        if profile.isin:
+                            result["isin"] = profile.isin
+                            logger.debug(f"ISIN for {identifier}: {profile.isin} [Proxy]")
                         logger.debug(f"Enriched {identifier} via Proxy")
                     else:
                         logger.warning(f"Empty profile from proxy for {identifier}")
@@ -355,11 +355,7 @@ def enrich_securities_bulk(
         # Wikidata ISIN Fallback (if still N/A after proxy)
 
         # Only run if we don't already have a valid ISIN
-        if (
-            result["isin"] == "N/A"
-            and result.get("name") != "Not Found"
-            and not is_isin
-        ):
+        if result["isin"] == "N/A" and result.get("name") != "Not Found" and not is_isin:
             try:
                 wikidata_isin = fetch_isin_from_wikidata(
                     company_name=result["name"],
@@ -369,9 +365,7 @@ def enrich_securities_bulk(
 
                 if wikidata_isin:
                     result["isin"] = wikidata_isin
-                    logger.debug(
-                        f"Resolved ISIN via Wikidata: {identifier} -> {wikidata_isin}"
-                    )
+                    logger.debug(f"Resolved ISIN via Wikidata: {identifier} -> {wikidata_isin}")
                 else:
                     logger.warning(f"✗ No ISIN for {identifier} from Wikidata")
 
@@ -387,9 +381,7 @@ def enrich_securities_bulk(
 
         # Log final ISIN status
         if result["isin"] == "N/A":
-            logger.error(
-                f"⚠ FAILED to resolve ISIN for {identifier} after all attempts"
-            )
+            logger.error(f"⚠ FAILED to resolve ISIN for {identifier} after all attempts")
 
         # 3. Save to cache and append to results
         save_to_cache(cache_key, result)
@@ -404,8 +396,8 @@ def enrich_securities_bulk(
 
 
 def enrich_securities(
-    securities: List[Dict[str, Any]], force_refresh: bool = False
-) -> List[Dict[str, Any]]:
+    securities: list[dict[str, Any]], force_refresh: bool = False
+) -> list[dict[str, Any]]:
     """
     Enriches a list of securities with metadata by calling the bulk enrichment function.
     The caching logic is now handled within the bulk function itself.
@@ -429,7 +421,7 @@ class EnrichmentService:
     Satisfies dependency injection interface required by Enricher.
     """
 
-    def get_metadata_batch(self, isins: List[str]) -> Dict[str, Dict[str, Any]]:
+    def get_metadata_batch(self, isins: list[str]) -> dict[str, dict[str, Any]]:
         """
         Fetch metadata for a batch of ISINs.
 

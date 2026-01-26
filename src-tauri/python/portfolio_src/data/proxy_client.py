@@ -9,13 +9,21 @@ Routes API calls through a Cloudflare Worker that:
 This replaces direct API calls in resolution.py and enrichment.py.
 """
 
+import logging
 import os
 import re
-import logging
-import requests
-from typing import Optional, Dict, Any
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any
+
+import requests
+
+from portfolio_src.data.schemas import validate_response_safe
+from portfolio_src.data.schemas.external_api import (
+    FinnhubProfileResponse,
+    FinnhubQuoteResponse,
+    FinnhubSearchResponse,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +41,7 @@ QUERY_MAX_LENGTH = 100
 DANGEROUS_PATTERNS = re.compile(r"[<>\"';`\\]|\.\./|%00|%0[ad]", re.IGNORECASE)
 
 
-def is_valid_symbol(symbol: Optional[str]) -> bool:
+def is_valid_symbol(symbol: str | None) -> bool:
     """
     Validate stock symbol format.
 
@@ -51,7 +59,7 @@ def is_valid_symbol(symbol: Optional[str]) -> bool:
     return bool(SYMBOL_PATTERN.match(symbol))
 
 
-def is_valid_query(query: Optional[str]) -> bool:
+def is_valid_query(query: str | None) -> bool:
     """
     Validate search query for safety and length.
 
@@ -89,8 +97,8 @@ class ProxyResponse:
     """Response from proxy API."""
 
     success: bool
-    data: Optional[Dict[str, Any]]
-    error: Optional[str] = None
+    data: dict[str, Any] | None
+    error: str | None = None
     status_code: int = 200
 
 
@@ -106,7 +114,7 @@ class ProxyClient:
 
     DEFAULT_PROXY_URL = "https://portfolio-prism-proxy.bold-unit-582c.workers.dev"
 
-    def __init__(self, proxy_url: Optional[str] = None, timeout: int = 30):
+    def __init__(self, proxy_url: str | None = None, timeout: int = 30):
         """
         Initialize the proxy client.
 
@@ -129,7 +137,7 @@ class ProxyClient:
         self,
         endpoint: ProxyEndpoint,
         method: str = "POST",
-        payload: Optional[Dict] = None,
+        payload: dict | None = None,
     ) -> ProxyResponse:
         """
         Make a request to the proxy.
@@ -146,13 +154,9 @@ class ProxyClient:
 
         try:
             if method == "POST":
-                response = self._session.post(
-                    url, json=payload or {}, timeout=self.timeout
-                )
+                response = self._session.post(url, json=payload or {}, timeout=self.timeout)
             else:
-                response = self._session.get(
-                    url, params=payload or {}, timeout=self.timeout
-                )
+                response = self._session.get(url, params=payload or {}, timeout=self.timeout)
 
             response.raise_for_status()
 
@@ -209,7 +213,15 @@ class ProxyClient:
                 error="Invalid symbol format",
                 status_code=400,
             )
-        return self._request(ProxyEndpoint.FINNHUB_PROFILE, payload={"symbol": symbol})
+        response = self._request(ProxyEndpoint.FINNHUB_PROFILE, payload={"symbol": symbol})
+        if response.success and response.data:
+            validated = validate_response_safe(FinnhubProfileResponse, response.data)
+            if validated:
+                response.data = validated.model_dump(exclude_none=True)
+            else:
+                response.success = False
+                response.error = "Invalid response schema from Finnhub"
+        return response
 
     def get_quote(self, symbol: str) -> ProxyResponse:
         """
@@ -229,7 +241,15 @@ class ProxyClient:
                 error="Invalid symbol format",
                 status_code=400,
             )
-        return self._request(ProxyEndpoint.FINNHUB_QUOTE, payload={"symbol": symbol})
+        response = self._request(ProxyEndpoint.FINNHUB_QUOTE, payload={"symbol": symbol})
+        if response.success and response.data:
+            validated = validate_response_safe(FinnhubQuoteResponse, response.data)
+            if validated:
+                response.data = validated.model_dump(exclude_none=True)
+            else:
+                response.success = False
+                response.error = "Invalid response schema from Finnhub"
+        return response
 
     def search_symbol(self, query: str) -> ProxyResponse:
         """
@@ -249,12 +269,20 @@ class ProxyClient:
                 error="Invalid search query",
                 status_code=400,
             )
-        return self._request(ProxyEndpoint.FINNHUB_SEARCH, payload={"q": query})
+        response = self._request(ProxyEndpoint.FINNHUB_SEARCH, payload={"q": query})
+        if response.success and response.data:
+            validated = validate_response_safe(FinnhubSearchResponse, response.data)
+            if validated:
+                response.data = validated.model_dump(exclude_none=True)
+            else:
+                response.success = False
+                response.error = "Invalid response schema from Finnhub"
+        return response
 
     # === Feedback API ===
 
     def submit_feedback(
-        self, feedback_type: str, message: str, metadata: Optional[Dict] = None
+        self, feedback_type: str, message: str, metadata: dict | None = None
     ) -> ProxyResponse:
         """
         Submit user feedback (creates GitHub issue).
@@ -278,7 +306,7 @@ class ProxyClient:
 
 
 # Singleton instance for convenience
-_client: Optional[ProxyClient] = None
+_client: ProxyClient | None = None
 
 
 def get_proxy_client() -> ProxyClient:
