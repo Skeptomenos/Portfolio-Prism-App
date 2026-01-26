@@ -1,17 +1,11 @@
-/**
- * Vitest Setup File
- *
- * This file runs before each test file and sets up the testing environment.
- * It imports jest-dom matchers for DOM assertions and configures global mocks.
- */
-
 import '@testing-library/jest-dom/vitest'
 import { cleanup } from '@testing-library/react'
 import { afterEach, vi } from 'vitest'
+import { resetTauriMocks } from './mocks/tauri'
 
-// Cleanup after each test to prevent memory leaks and state pollution
 afterEach(() => {
   cleanup()
+  resetTauriMocks()
 })
 
 // Mock window.matchMedia for components that use media queries

@@ -188,5 +188,3 @@ export const mockIpcFunctions = {
 export function resetIpcMocks() {
   Object.values(mockIpcFunctions).forEach((mock) => mock.mockClear())
 }
-
-vi.mock('../../lib/ipc', () => mockIpcFunctions)

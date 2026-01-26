@@ -15,10 +15,11 @@ src/test/
 ├── setup.ts          # Global test setup (jest-dom, browser API mocks)
 ├── utils.tsx         # Custom render with providers
 ├── mocks/
-│   ├── tauri.ts      # Tauri API mocks (invoke, listen)
-│   ├── ipc.ts        # IPC function mocks with realistic data
-│   ├── store.ts      # Zustand store mocks
-│   └── handlers.ts   # MSW handlers for Echo-Bridge
+│   ├── tauri.ts      # Tauri API mocks (invoke, listen) - PRIMARY
+│   ├── server.ts     # MSW server (opt-in for HTTP tests)
+│   ├── handlers.ts   # MSW handlers for Echo-Bridge
+│   ├── ipc.ts        # Mock data constants and functions
+│   └── store.ts      # Zustand store mocks
 └── README.md         # This file
 ```
 
@@ -38,32 +39,53 @@ describe('MyComponent', () => {
 })
 ```
 
-### Mocking IPC Calls
+### Mocking Tauri Commands (Preferred)
+
+Use `setupTauriMock()` to mock Tauri invoke calls at the transport level:
 
 ```tsx
-import { render, screen } from '@/test/utils'
-import { mockIpcFunctions } from '@/test/mocks/ipc'
+import { setupTauriMock, mockDashboardData, mockEngineHealth } from '@/test/mocks/tauri'
 
 beforeEach(() => {
-  mockIpcFunctions.getDashboardData.mockResolvedValue({
-    totalValue: 100000,
-    // ... custom mock data
+  setupTauriMock({
+    get_dashboard_data: () => mockDashboardData(),
+    get_health: () => mockEngineHealth(),
   })
 })
 ```
 
-### Mocking Tauri Environment
+This approach:
+- Tests actual IPC logic (not just mocked modules)
+- Automatically enables Tauri environment detection
+- Provides realistic mock data generators
+
+### Mock Data Generators
 
 ```tsx
-import { mockTauriEnvironment } from '@/test/mocks/tauri'
+import {
+  mockDashboardData,
+  mockEngineHealth,
+  mockPositionsData,
+  mockAuthStatus,
+  mockSessionCheck,
+  mockTrueHoldingsData,
+  mockPipelineReport,
+} from '@/test/mocks/tauri'
 
-beforeEach(() => {
-  mockTauriEnvironment(true)  // Simulate running in Tauri
-})
+// Each returns a fresh object to prevent cross-test pollution
+const data = mockDashboardData()
+const auth = mockAuthStatus('authenticated')
+```
 
-afterEach(() => {
-  mockTauriEnvironment(false) // Reset to browser mode
-})
+### MSW for HTTP Mocking (Echo-Bridge)
+
+For tests that need HTTP-level mocking:
+
+```tsx
+import { server, startMswServer, stopMswServer } from '@/test/mocks/server'
+
+beforeAll(() => startMswServer())
+afterAll(() => stopMswServer())
 ```
 
 ### Mocking Store State
