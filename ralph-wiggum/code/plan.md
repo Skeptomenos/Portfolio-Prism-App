@@ -114,7 +114,7 @@ pnpm typecheck && pnpm build && pnpm lint
 | Status | Task | Spec Reference | Notes |
 |--------|------|----------------|-------|
 | [x] | **Task 4.1**: Set up Tauri transport mocking for tests | `specs/10-testing-mocking-refactor.md:L18-32` | Done in v0.10.31 - Added `setupTauriMock()` with command handlers, mock data generators (mockDashboardData, mockEngineHealth, etc.), opt-in MSW server in `server.ts` |
-| [ ] | **Task 4.2**: Reorganize test directories + integration setup | `specs/11-testing-e2e-location-integration.md:L12-18` | Move `/e2e/` to `/tests/e2e/`, update `playwright.config.ts`. Create `/tests/integration/setup.ts` with Python sidecar spawn, add `test:integration` script |
+| [x] | **Task 4.2**: Reorganize test directories + integration setup | `specs/11-testing-e2e-location-integration.md:L12-18` | Done in v0.10.32 - Moved `/e2e/` to `/tests/e2e/`, updated `playwright.config.ts`. Created `/tests/integration/setup.ts` with Python sidecar spawn, added `test:integration` and `test:unit` scripts. Updated vitest.config.ts with projects API |
 | [ ] | **Task 4.3**: Refactor 3 high-impact tests to use transport mocks | `specs/10-testing-mocking-refactor.md:L35-48` | Convert `Dashboard.test.tsx`, `LoginForm.test.tsx`, `XRayView.test.tsx`. Remove `vi.mock('../lib/ipc')` calls, use `setupTauriMock()` instead |
 
 **Verification:**
@@ -182,9 +182,9 @@ pnpm build && pnpm lint && uv run pytest && uv run ruff check . && uv run tach c
 | Phase 1: Security | 2 | 0 | COMPLETE | - |
 | Phase 2: Backend | 5 | 0 | COMPLETE | - |
 | Phase 3: Frontend | 3 | 0 | COMPLETE | - |
-| Phase 4: Testing | 3 | 2 | 45 min | Partial |
+| Phase 4: Testing | 3 | 1 | 30 min | Partial |
 | Phase 5: Polish | 5 | 5 | 2 hours | All parallel |
-| **Total** | **18** | **10** | **~3.5 hours** | |
+| **Total** | **18** | **6** | **~2.5 hours** | |
 
 ---
 
