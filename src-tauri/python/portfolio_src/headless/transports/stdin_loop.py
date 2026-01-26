@@ -9,13 +9,14 @@ import json
 import os
 import sys
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any
 
 from portfolio_src.headless.dispatcher import dispatch
 from portfolio_src.headless.lifecycle import get_session_id
+from portfolio_src.headless.protocol import write_protocol
 from portfolio_src.prism_utils.logging_config import get_logger
 
 logger = get_logger(__name__)
+
 
 # Engine version - should match the version in lifecycle
 VERSION = "0.1.0"
@@ -43,14 +44,13 @@ async def run_stdin_loop() -> None:
     # Start background audit of previous session logs
     asyncio.create_task(audit_previous_session())
 
-    # Emit ready signal
+    # Emit ready signal (lifecycle signal, not command response)
     ready_signal = {
         "status": "ready",
         "version": VERSION,
         "pid": os.getpid(),
     }
-    print(json.dumps(ready_signal))
-    sys.stdout.flush()
+    write_protocol(ready_signal)
 
     logger.info(f"Stdin loop started, session: {get_session_id()}")
 
@@ -71,46 +71,37 @@ async def run_stdin_loop() -> None:
             if not line:
                 continue
 
-            # Parse JSON command
             try:
                 cmd = json.loads(line)
             except json.JSONDecodeError as e:
                 logger.warning(f"Invalid JSON received: {e}")
-                print(
-                    json.dumps(
-                        {
-                            "id": 0,
-                            "success": False,
-                            "error": {
-                                "code": "INVALID_JSON",
-                                "message": f"Failed to parse JSON: {e}",
-                            },
-                        }
-                    )
+                write_protocol(
+                    {
+                        "id": 0,
+                        "success": False,
+                        "error": {
+                            "code": "INVALID_JSON",
+                            "message": f"Failed to parse JSON: {e}",
+                        },
+                    }
                 )
-                sys.stdout.flush()
                 continue
 
-            # Dispatch and respond
             response = await dispatch(cmd)
-            print(json.dumps(response))
-            sys.stdout.flush()
+            write_protocol(response)
 
         except KeyboardInterrupt:
             logger.info("Keyboard interrupt, shutting down")
             break
         except Exception as e:
             logger.error(f"Stdin loop error: {e}", exc_info=True)
-            print(
-                json.dumps(
-                    {
-                        "id": 0,
-                        "success": False,
-                        "error": {"code": "INTERNAL_ERROR", "message": str(e)},
-                    }
-                )
+            write_protocol(
+                {
+                    "id": 0,
+                    "success": False,
+                    "error": {"code": "INTERNAL_ERROR", "message": str(e)},
+                }
             )
-            sys.stdout.flush()
 
     executor.shutdown(wait=False)
     logger.info("Stdin loop terminated")

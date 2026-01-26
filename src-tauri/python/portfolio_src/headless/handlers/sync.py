@@ -4,11 +4,10 @@ Thin presentation layer for portfolio synchronization IPC.
 Delegates business logic to SyncService.
 """
 
-import json
-import sys
 from typing import Any
 
 from portfolio_src.core.services.sync_service import AuthenticationError
+from portfolio_src.headless.protocol import write_protocol
 from portfolio_src.headless.responses import error_response, success_response
 from portfolio_src.headless.state import get_sync_service
 from portfolio_src.prism_utils.logging_config import get_logger
@@ -17,20 +16,13 @@ logger = get_logger(__name__)
 
 
 def emit_progress(progress: int, message: str, phase: str = "pipeline") -> None:
-    """Emit sync progress event via stdout AND SSE broadcast.
-
-    This is the ONLY allowed stdout usage in handlers (for IPC events).
-    Also broadcasts to SSE clients for browser mode support.
-    """
-    print(
-        json.dumps(
-            {
-                "event": "sync_progress",
-                "data": {"progress": progress, "message": message, "phase": phase},
-            }
-        )
+    """Emit sync progress event via IPC protocol AND SSE broadcast."""
+    write_protocol(
+        {
+            "event": "sync_progress",
+            "data": {"progress": progress, "message": message, "phase": phase},
+        }
     )
-    sys.stdout.flush()
 
     try:
         from portfolio_src.headless.transports.echo_bridge import broadcast_progress

@@ -35,6 +35,9 @@ dependencies:
   recharts:
     specifier: ^2.12.7
     version: 2.15.4(react-dom@18.3.1)(react@18.3.1)
+  zod:
+    specifier: ^4.3.6
+    version: 4.3.6
   zustand:
     specifier: ^5.0.9
     version: 5.0.10(@types/react@18.3.27)(react@18.3.1)
@@ -5147,7 +5150,6 @@ packages:
 
   /zod@4.3.6:
     resolution: {integrity: sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg==}
-    dev: true
 
   /zustand@5.0.10(@types/react@18.3.27)(react@18.3.1):
     resolution: {integrity: sha512-U1AiltS1O9hSy3rul+Ub82ut2fqIAefiSuwECWt6jlMVUGejvf+5omLcRBSzqbRagSM3hQZbtzdeRc6QVScXTg==}

@@ -59,14 +59,14 @@ This plan addresses 8 specification documents to bring the codebase into full co
 | Status | Task | Spec Reference | Notes |
 |--------|------|----------------|-------|
 | [x] | **Task 3.1**: Update `responses.py` envelope from `status` to `success` boolean | `specs/04-backend-standards.md:L11-20` | Done in v0.10.15: Updated `responses.py`, `contracts.py`, `dispatcher.py`, `stdin_loop.py`, `echo_bridge.py`. Also updated Rust `EngineResponse.success: bool` and `commands.rs`. |
-| [ ] | **Task 3.2**: Replace `print()` with structured logging in Python sidecar | `specs/04-backend-standards.md:L26-35` | Fix `stdin_loop.py`, `sync.py`, `tr_daemon.py`, `diag_hive.py`; use `get_logger()` |
+| [x] | **Task 3.2**: Replace `print()` with structured logging in Python sidecar | `specs/04-backend-standards.md:L26-35` | Done: Created `protocol.py` with `write_protocol()` for IPC output. Updated `stdin_loop.py`, `sync.py` to use it. `tr_daemon.py` already correct (uses `protocol_stdout`). Converted `diag_hive.py` to use logger. |
 | [x] | **Task 3.3**: Update frontend IPC handler to expect `success` boolean | `specs/04-backend-standards.md:L22-24` | Done in v0.10.15: Updated `ipc.ts` to check `!result.success` instead of `result.status === 'error'`. Updated all frontend mocks and tests. |
 
 ### Frontend Type Safety (Spec 03)
 
 | Status | Task | Spec Reference | Notes |
 |--------|------|----------------|-------|
-| [ ] | **Task 3.4**: Install Zod and create IPC validation wrapper | `specs/03-frontend-safety.md:L11-18` | `pnpm add zod`; create generic `invoke<T>(cmd, args, schema: ZodSchema<T>)` |
+| [x] | **Task 3.4**: Install Zod and create IPC validation wrapper | `specs/03-frontend-safety.md:L11-18` | Done: Zod 4.3.6 already installed. Created `validateResponse<T>()` helper and `IPCValidationError` class in `ipc.ts`. |
 | [ ] | **Task 3.5**: Define Zod schemas for all IPC responses | `specs/03-frontend-safety.md:L21-29` | `DashboardResponseSchema`, `HealthStatusSchema`, `LoginResponseSchema` in features |
 | [ ] | **Task 3.6**: Remove all `any` types (16 violations in 7 files) | `specs/03-frontend-safety.md:L31-39` | Replace with `unknown`, specific interfaces, or Zod inferred types |
 | [ ] | **Task 3.7**: Replace `console.log` with structured logger (19 instances) | `specs/03-frontend-safety.md#review-fixes` | Create logger wrapper; update hooks and components |

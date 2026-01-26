@@ -4,6 +4,7 @@
  * High-level functions for communicating with the Rust backend.
  */
 
+import { z } from 'zod'
 import { invoke, isTauri } from './tauri'
 import { scrubObject } from './scrubber'
 import type {
@@ -20,6 +21,25 @@ import type {
   TrueHoldingsResponse,
   SystemLogReport,
 } from '../types'
+
+export class IPCValidationError extends Error {
+  constructor(
+    public readonly command: string,
+    public readonly issues: z.core.$ZodIssue[]
+  ) {
+    const summary = issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')
+    super(`IPC validation failed for ${command}: ${summary}`)
+    this.name = 'IPCValidationError'
+  }
+}
+
+export function validateResponse<T>(command: string, data: unknown, schema: z.ZodType<T>): T {
+  const result = schema.safeParse(data)
+  if (!result.success) {
+    throw new IPCValidationError(command, result.error.issues)
+  }
+  return result.data
+}
 
 // Commands that handle credentials - never log their payloads raw
 const AUTH_COMMANDS = ['tr_login', 'tr_submit_2fa', 'tr_get_stored_credentials'] as const
