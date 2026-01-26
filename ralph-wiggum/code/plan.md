@@ -144,7 +144,7 @@ pnpm test && pnpm test:e2e
 | [x] | **Task 5.1**: Implement X-Ray action modals (Upload CSV, Ignore list) | `src/features/xray/components/XRayView.tsx:92` | Done in v0.10.34 - Created `ActionModal.tsx` with upload form for ETF resolution failures, wired to Fix button. Updated UploadHoldingsResultSchema with totalWeight and contributedToHive fields. |
 | [x] | **Task 5.2**: Implement Rust event listening from Python engine | `src-tauri/src/commands.rs:536` | Done in v0.10.35 - Added `EngineEvent` struct and `Event` variant to `StdoutMessage`. Python events (sync_progress) now parsed in `lib.rs` and emitted as Tauri events to frontend. |
 | [x] | **Task 5.3**: Add feature-specific ErrorBoundary to X-Ray | `CODE_REVIEW_REPORT.md` | Done in v0.10.36 - Created `XRayErrorBoundary` with retry, contextual fallback UI. Wrapped `XRayView` export via `XRayViewWithBoundary`. Added 11 unit tests. |
-| [ ] | **Task 5.4**: Create `CONTRIBUTING.md` with testing patterns | `CODE_REVIEW_REPORT.md` | Document MSW usage, test organization, FSD patterns for contributors |
+| [x] | **Task 5.4**: Create `CONTRIBUTING.md` with testing patterns | `CODE_REVIEW_REPORT.md` | Done in v0.10.37 - Comprehensive contributor guide with testing patterns (setupTauriMock, mock data generators, FSD structure, component/hook test examples), code style guidelines, commit conventions |
 | [ ] | **Task 5.5**: Address remaining low-severity code review items | `CODE_REVIEW_REPORT.md:L509-514` | **INCLUDES:** MD5->SHA256 in Python (`logging_config.py`, `telemetry.py`), default exports, etc. |
 
 **Verification:**
@@ -183,8 +183,8 @@ pnpm build && pnpm lint && uv run pytest && uv run ruff check . && uv run tach c
 | Phase 2: Backend | 5 | 0 | COMPLETE | - |
 | Phase 3: Frontend | 3 | 0 | COMPLETE | - |
 | Phase 4: Testing | 3 | 0 | COMPLETE | - |
-| Phase 5: Polish | 5 | 2 | 0.75 hour | All parallel |
-| **Total** | **18** | **2** | **~0.75 hour** | |
+| Phase 5: Polish | 5 | 1 | 0.25 hour | All parallel |
+| **Total** | **18** | **1** | **~0.25 hour** | |
 
 ---
 
