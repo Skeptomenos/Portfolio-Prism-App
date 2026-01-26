@@ -300,15 +300,14 @@ def run_echo_bridge(host: str = "0.0.0.0", port: int = 5001) -> None:
         allow_headers=["*"],
     )
 
-    # Token for basic auth (prevents accidental exposure)
-    echo_token = os.environ.get("PRISM_ECHO_TOKEN", "dev-echo-bridge-secret")
-
-    # SECURITY: Warn when using default token in shared environments
-    if echo_token == "dev-echo-bridge-secret":
-        logger.warning(
-            "Echo Bridge using default token. Set PRISM_ECHO_TOKEN env var "
-            "for shared environments (see .env.example)"
+    # SECURITY: Require token from environment - no hardcoded fallbacks
+    echo_token = os.environ.get("PRISM_ECHO_TOKEN")
+    if not echo_token:
+        logger.error(
+            "PRISM_ECHO_TOKEN environment variable is required for Echo Bridge mode. "
+            "Set it in your .env file or environment."
         )
+        sys.exit(1)
 
     # Commands that don't need logging (high frequency)
     QUIET_COMMANDS = {

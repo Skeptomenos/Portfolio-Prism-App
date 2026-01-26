@@ -1,82 +1,165 @@
 # Implementation Plan
 
-> **Generated:** 2026-01-26
-> **Scope:** Codebase standards compliance from `ralph-wiggum/specs/`
-> **Priority:** Architecture fixes before safety fixes before observability fixes
+> **Generated:** 2026-01-26  
+> **Version:** 2.0  
+> **Scope:** Remaining work from specs 07-16 plus codebase TODOs  
+> **Approach:** Security first, then architecture, then testing, then polish
 
 ---
 
 ## Summary
 
-This plan addresses 8 specification documents to bring the codebase into full compliance with 2026 standards. The work is organized into 3 phases with 22 tasks total, grouped by cohesive units of work.
+**Phase 1 (v1.0):** 22 tasks across Tooling, Architecture, Safety - **100% COMPLETE**
 
-**Phase Overview:**
-- **Phase 1: Tooling & Infrastructure** (5 tasks) - Foundation work enabling verification
-- **Phase 2: Architecture Refactors** (9 tasks) - Structural changes to frontend and backend  
-- **Phase 3: Safety & Observability** (8 tasks) - Type safety, validation, logging fixes
+This plan (v2.0) addresses **21 remaining tasks** organized into **5 phases** targeting:
+- 2 Critical security vulnerabilities (hardcoded secrets, custom crypto)
+- 6 Architecture fixes (validation, IO separation, FSD compliance)
+- 4 Testing improvements (mock strategy, test organization)
+- 4 Observability improvements (logging, type annotations)
+- 5 Enhancement tasks (TODOs, polish)
 
----
-
-## Phase 1: Tooling & Infrastructure
-
-| Status | Task | Spec Reference | Notes |
-|--------|------|----------------|-------|
-| [x] | **Task 1.1**: Complete pnpm migration - update lingering `npm` references in `package.json` scripts | `specs/00-pnpm-migration.md:L23-27` | Done in v0.9.4: Fixed dev:browser script, updated CI/release workflows |
-| [x] | **Task 1.2**: Install and configure Ruff linter for Python | `specs/06-python-tooling.md:L31-41` | Done in v0.10.3: Added ruff to dev deps, configured E,F,I,B,UP rules. 1073 existing issues found (914 auto-fixable) |
-| [x] | **Task 1.3**: Install and configure Mypy type checker for Python | `specs/06-python-tooling.md:L18-29` | Done in v0.10.4: Added mypy 1.19.1, configured with `strict=false` (170 existing errors), `ignore_missing_imports=true` |
-| [x] | **Task 1.4**: Initialize Tach for architecture boundary enforcement | `specs/06-python-tooling.md:L43-61` | Done in v0.10.5: Created `tach.toml` with 3-layer architecture (presentation->service->data). All modules validated, no violations. |
-| [x] | **Task 1.5**: Update pytest configuration for test co-location discovery | `specs/05-testing-organization.md:L26-28` | Done in v0.10.6: Added `[tool.pytest.ini_options]` with testpaths, added pytest-asyncio, fixed pre-existing telemetry test mocks. |
+**Effort estimate:** ~8 hours (1-2 days)
 
 ---
 
-## Phase 2: Architecture Refactors
+## Phase Dependencies
 
-### Backend Service Layer (Spec 02)
+```
+Phase 1 (Security) ─────────────────────┐
+   ↓                                    │
+Phase 2 (Backend) ──────────────────────┤──→ Sequential by phase
+   ↓                                    │
+Phase 3 (Frontend) ─────────────────────┤
+   ↓                                    │
+Phase 4 (Testing) ──────────────────────┤
+   ↓                                    │
+Phase 5 (Polish) ───────────────────────┘
 
-| Status | Task | Spec Reference | Notes |
-|--------|------|----------------|-------|
-| [x] | **Task 2.1**: Create `dashboard_service.py` and extract P&L logic from `handlers/dashboard.py` | `specs/02-backend-architecture.md:L24-31` | Done in v0.10.7: Created `models/dashboard.py` with DTOs, `core/services/dashboard_service.py` with P&L/weight logic. Handler is now thin presentation layer. |
-| [x] | **Task 2.2**: Create `sync_service.py` and extract TR sync logic from `handlers/sync.py` | `specs/02-backend-architecture.md:L34-37` | Done in v0.10.8: Created `models/sync.py` with DTOs, `core/services/sync_service.py` with asset classification, TR sync, and pipeline logic. Handler is thin. Fixed pre-existing STOCK_ENTITY_TYPES undefined bug. |
-| [x] | **Task 2.3**: Update `headless/state.py` to provide service accessors | `specs/02-backend-architecture.md:L39-40` | Done: Added `get_sync_service()` singleton accessor. SyncService is stateful (has AssetClassifier). DashboardService remains per-request (stateless). Updated handler tests to mock service layer. |
-
-### Frontend Architecture (Spec 01)
-
-| Status | Task | Spec Reference | Notes |
-|--------|------|----------------|-------|
-| [x] | **Task 2.4**: Create FSD directory structure and move auth feature components | `specs/01-frontend-architecture.md:L39-44` | Done in v0.10.9: Created `src/features/{auth,dashboard,portfolio,xray,integrations}`, moved auth components, tests, created api.ts and types.ts re-exports. |
-| [x] | **Task 2.5**: Move dashboard feature components and create contracts | `specs/01-frontend-architecture.md:L47-50` | Done in v0.10.10: Moved Dashboard, MetricCard, TopHoldingsCard, TrueExposureCard to `src/features/dashboard/components/`. Created api.ts, types.ts, index.ts barrel exports. |
-| [x] | **Task 2.6**: Move portfolio feature components and create contracts | `specs/01-frontend-architecture.md:L53-55` | Done in v0.10.11: Moved HoldingsView, PortfolioTable, PortfolioChart to `src/features/portfolio/components/`. Created api.ts, types.ts, index.ts barrel exports. Updated consumers (App.tsx, TradeRepublicView, Dashboard). |
-| [x] | **Task 2.7**: Move xray feature components and create contracts | `specs/01-frontend-architecture.md:L58-59` | Done in v0.10.12: Moved XRayView + 14 xray subcomponents to `src/features/xray/components/`. Created api.ts, types.ts, index.ts barrel exports. Updated all consumers. |
-| [x] | **Task 2.8**: Move integrations feature components and create contracts | `specs/01-frontend-architecture.md:L62-63` | Done in v0.10.13: Moved TradeRepublicView, HoldingsUpload to `src/features/integrations/components/`. Created api.ts, types.ts, index.ts barrel exports. |
-| [x] | **Task 2.9**: Update App.tsx and fix all import paths across codebase | `specs/01-frontend-architecture.md:L73-75` | Done in v0.10.14: Verified all feature imports use barrels, no circular deps (madge check passed). HealthView remains in components/views/ as system view. |
+Within phases: Tasks can run in parallel where noted
+```
 
 ---
 
-## Phase 3: Safety & Observability
+## Phase 1: Security Hardening (CRITICAL)
 
-### Backend Standards (Spec 04)
-
-| Status | Task | Spec Reference | Notes |
-|--------|------|----------------|-------|
-| [x] | **Task 3.1**: Update `responses.py` envelope from `status` to `success` boolean | `specs/04-backend-standards.md:L11-20` | Done in v0.10.15: Updated `responses.py`, `contracts.py`, `dispatcher.py`, `stdin_loop.py`, `echo_bridge.py`. Also updated Rust `EngineResponse.success: bool` and `commands.rs`. |
-| [x] | **Task 3.2**: Replace `print()` with structured logging in Python sidecar | `specs/04-backend-standards.md:L26-35` | Done: Created `protocol.py` with `write_protocol()` for IPC output. Updated `stdin_loop.py`, `sync.py` to use it. `tr_daemon.py` already correct (uses `protocol_stdout`). Converted `diag_hive.py` to use logger. |
-| [x] | **Task 3.3**: Update frontend IPC handler to expect `success` boolean | `specs/04-backend-standards.md:L22-24` | Done in v0.10.15: Updated `ipc.ts` to check `!result.success` instead of `result.status === 'error'`. Updated all frontend mocks and tests. |
-
-### Frontend Type Safety (Spec 03)
+**Priority:** P0 - Must fix before any deployment  
+**Parallelizable:** Tasks 1.1 and 1.2 are independent
 
 | Status | Task | Spec Reference | Notes |
 |--------|------|----------------|-------|
-| [x] | **Task 3.4**: Install Zod and create IPC validation wrapper | `specs/03-frontend-safety.md:L11-18` | Done: Zod 4.3.6 already installed. Created `validateResponse<T>()` helper and `IPCValidationError` class in `ipc.ts`. |
-| [x] | **Task 3.5**: Define Zod schemas for all IPC responses | `specs/03-frontend-safety.md:L21-29` | Done in v0.10.16: Created `DashboardDataSchema`, `EngineHealthSchema`, `AuthResponseSchema` etc. in feature/lib schemas. Types now inferred from Zod via z.infer. |
-| [x] | **Task 3.6**: Remove all `any` types (16 violations in 7 files) | `specs/03-frontend-safety.md:L31-39` | Done in v0.10.16: Replaced all `any` with `unknown` or proper types. Updated scrubber.ts, ipc.ts, HealthView.tsx, XRayView.tsx, feedback.ts, ErrorBoundary.tsx, and all related tests. |
-| [x] | **Task 3.7**: Replace `console.log` with structured logger (19 instances) | `specs/03-frontend-safety.md#review-fixes` | Done in v0.10.18: Created `src/lib/logger.ts` with level-based logging. Replaced 65 console.* calls across 14 files. Production mode suppresses debug/info. |
-| [x] | **Task 3.8**: Refactor `.then()` chains to async/await (5 instances) | `specs/03-frontend-safety.md:L41-43` | Done in v0.10.19: Converted 4 `.then()` chains in useTauriEvents.ts (2) and HealthView.tsx (1) to async/await with IIFE pattern. Test file .then() chains kept as-is per spec. |
+| [x] | **Task 1.1**: Remove hardcoded `dev-echo-bridge-secret` fallbacks | `specs/07-security-hardcoded-secrets.md` | Done in v0.10.21 — `ipc.ts`, `echo_bridge.py` now fail-fast if tokens missing |
+| [ ] | **Task 1.2**: Replace custom SHA-256 with Web Crypto API | `specs/16-replace-custom-crypto.md` | `scrubber.ts:106-203` — 100 lines manual crypto → ~10 lines using `crypto.subtle.digest()` |
 
-### Test Co-location (Spec 05)
+**Verification:**
+```bash
+# No fallback secrets
+grep -r "dev-echo-bridge-secret" src/ src-tauri/ && echo "FAIL: Hardcoded secret found" || echo "PASS"
+# No manual crypto
+grep -c "0x428a2f98" src/lib/scrubber.ts && echo "FAIL: Custom SHA-256 found" || echo "PASS"
+# Build passes
+pnpm build && pnpm typecheck
+```
+
+---
+
+## Phase 2: Backend Architecture
+
+**Priority:** P1 - Data integrity  
+**Parallelizable:** 2.1 → 2.2 sequential; 2.3 and 2.4 can run parallel after
 
 | Status | Task | Spec Reference | Notes |
 |--------|------|----------------|-------|
-| [x] | **Task 3.9**: Move Python unit tests to co-located positions | `specs/05-testing-organization.md:L12-21` | Done in v0.10.20: Moved 19 unit test files to co-located positions in portfolio_src/. Created portfolio_src/conftest.py fixture bridge. 357 unit tests pass. Integration/E2E tests remain in tests/. |
+| [ ] | **Task 2.1**: Create Pydantic models for external API responses | `specs/09-pydantic-external-api-validation.md:L18-35` | Create `data/schemas/external_api.py` with `WikidataResponse`, `YFinanceQuote`, `FinnhubProfile` models |
+| [ ] | **Task 2.2**: Add Pydantic validation to enrichment external API calls | `specs/09-pydantic-external-api-validation.md:L38-52` | Update `enrichment.py` to use `model_validate(response.json())` instead of raw dict access |
+| [ ] | **Task 2.3**: Extract file IO from `pipeline.py` to Data layer | `specs/13-backend-io-separation.md:L15-32` | Move `_write_reports()`, `_write_errors()`, `_write_health_report()` to `data/repositories/snapshot_repo.py` |
+| [ ] | **Task 2.4**: Convert Python f-string logging to structured `extra=` | `specs/14-python-structured-logging.md:L12-28` | Replace `logger.info(f"Saved {n} items")` with `logger.info("Saved items", extra={"count": n})` |
+
+**Verification:**
+```bash
+# Type check new models
+uv run mypy portfolio_src/data/schemas/external_api.py --strict
+# Tach boundary check
+uv run tach check
+# No f-strings in logging
+grep -rn 'logger\.\(info\|debug\|warning\|error\)(f"' portfolio_src/ && echo "FAIL" || echo "PASS"
+# Tests pass
+uv run pytest portfolio_src/
+```
+
+---
+
+## Phase 3: Frontend Architecture
+
+**Priority:** P1 - Maintainability  
+**Parallelizable:** 3.1/3.2 can run parallel; 3.3/3.4 can run parallel after
+
+| Status | Task | Spec Reference | Notes |
+|--------|------|----------------|-------|
+| [ ] | **Task 3.1**: Add explicit `: JSX.Element` return types to React components | `specs/12-frontend-explicit-return-types.md:L11-22` | Add ESLint rule `@typescript-eslint/explicit-function-return-type: warn` and fix 7+ components |
+| [ ] | **Task 3.2**: Move orphan hooks to feature slices | `specs/15-fsd-hooks-and-store.md:L14-25` | `usePortfolioData` → `features/portfolio/hooks/`, `usePipelineProgress` → `features/xray/hooks/` |
+| [ ] | **Task 3.3**: Split monolithic `useAppStore.ts` into feature slices | `specs/15-fsd-hooks-and-store.md:L28-42` | Extract `authSlice.ts`, `syncSlice.ts`, `uiSlice.ts` with Zustand `combine()` pattern |
+| [ ] | **Task 3.4**: Move `usePipelineDiagnostics.ts` to xray feature | `specs/15-fsd-hooks-and-store.md:L14-25` | Final orphan hook migration |
+
+**Verification:**
+```bash
+# Only shared hooks remain
+ls src/hooks/ | wc -l  # Should be 1 (useTauriEvents only)
+# Build + type check
+pnpm typecheck && pnpm build && pnpm lint
+```
+
+---
+
+## Phase 4: Testing Infrastructure
+
+**Priority:** P2 - Developer experience  
+**Parallelizable:** 4.1/4.2 can run parallel; 4.3 depends on 4.1
+
+| Status | Task | Spec Reference | Notes |
+|--------|------|----------------|-------|
+| [ ] | **Task 4.1**: Set up MSW for transport-layer mocking | `specs/10-testing-mocking-refactor.md:L18-32` | Install `msw`, create `src/test/mocks/handlers.ts` with Tauri IPC mocks |
+| [ ] | **Task 4.2**: Move `/e2e/` to `/tests/e2e/` | `specs/11-testing-e2e-location-integration.md:L12-18` | Rename directory, update `playwright.config.ts` testDir, verify CI paths |
+| [ ] | **Task 4.3**: Refactor 3 high-impact tests to use MSW | `specs/10-testing-mocking-refactor.md:L35-48` | Convert `Dashboard.test.tsx`, `LoginForm.test.tsx`, `XRayView.test.tsx` to use `setupTauriMock()` |
+| [ ] | **Task 4.4**: Create integration test directory with setup | `specs/11-testing-e2e-location-integration.md:L22-35` | Create `/tests/integration/setup.ts` spawning real Python sidecar, add `test:integration` script |
+
+**Verification:**
+```bash
+# MSW installed
+grep "msw" package.json
+# E2E moved
+ls tests/e2e/*.spec.ts && ! ls e2e/ 2>/dev/null
+# No internal mocks in converted tests
+grep -c "vi.mock.*ipc" src/features/*/components/*.test.tsx && echo "FAIL" || echo "PASS"
+# Tests pass
+pnpm test
+```
+
+---
+
+## Phase 5: Polish & TODOs
+
+**Priority:** P3 - Complete features  
+**Parallelizable:** All tasks are independent
+
+| Status | Task | Spec Reference | Notes |
+|--------|------|----------------|-------|
+| [ ] | **Task 5.1**: Implement X-Ray action modals (Upload CSV, Ignore list) | `src/features/xray/components/XRayView.tsx:92` | Create `ActionModal.tsx` component with upload/ignore forms, wire to existing buttons |
+| [ ] | **Task 5.2**: Implement Rust event listening from Python engine | `src-tauri/src/commands.rs:536` | Complete `engine.listen_events()` for real-time sync progress via Tauri events |
+| [ ] | **Task 5.3**: Add feature-specific ErrorBoundary to X-Ray | `CODE_REVIEW_REPORT.md` | Wrap XRayView in ErrorBoundary with graceful fallback UI |
+| [ ] | **Task 5.4**: Create `CONTRIBUTING.md` with testing patterns | `CODE_REVIEW_REPORT.md` | Document MSW usage, test organization, FSD patterns for contributors |
+| [ ] | **Task 5.5**: Address remaining Low-severity code review items | `CODE_REVIEW_REPORT.md:L509-514` | 13 low-priority fixes: default exports, MD5 replacement, etc. |
+
+**Verification:**
+```bash
+# Modal exists
+ls src/features/xray/components/ActionModal.tsx
+# Event listening implemented
+grep -v "^//" src-tauri/src/commands.rs | grep "listen_events" || echo "TODO: Implement"
+# Docs exist
+ls CONTRIBUTING.md
+# Full verification
+pnpm build && pnpm lint && uv run pytest && uv run ruff check . && uv run tach check
+```
 
 ---
 
@@ -88,33 +171,103 @@ This plan addresses 8 specification documents to bring the codebase into full co
 
 ---
 
-## Dependencies
+## Task Sizing
+
+| Phase | Tasks | Estimated Time | Parallelizable |
+|-------|-------|----------------|----------------|
+| Phase 1: Security | 2 | 45 min | Both parallel |
+| Phase 2: Backend | 4 | 2 hours | Partial |
+| Phase 3: Frontend | 4 | 1.5 hours | Partial |
+| Phase 4: Testing | 4 | 1.5 hours | Partial |
+| Phase 5: Polish | 5 | 2 hours | All parallel |
+| **Total** | **21** | **~8 hours** | |
+
+---
+
+## Critical Path
 
 ```
-Phase 1 (Tooling) → unlocks verification for all phases
-                 ↓
-Phase 2 (Architecture) → can run in parallel: Backend (2.1-2.3) || Frontend (2.4-2.9)
-                 ↓
-Phase 3 (Safety) → depends on 2.9 for import paths; 3.1-3.3 must be done together
+Security (1.1, 1.2) → Backend Validation (2.1-2.2) → Testing (4.1, 4.3)
+                   ↘                              ↗
+                     Frontend (3.1-3.4) ─────────
+```
+
+**Minimum viable: 6 tasks (Phase 1 + Tasks 2.1-2.2)** — Fixes all P0/P1 security issues
+
+---
+
+## Verification Checklist (Run After Each Phase)
+
+```bash
+# Quick check (after each task)
+pnpm dev  # App starts
+
+# Phase completion check
+pnpm typecheck              # No TS errors
+pnpm build                  # Production build works
+pnpm lint                   # ESLint clean
+uv run pytest portfolio_src # Python tests pass
+uv run ruff check .         # Ruff clean
+uv run tach check           # No architecture violations
 ```
 
 ---
 
-## Verification Checklist
+## Completed Work (v1.0 Plan)
 
-After each task:
-- [ ] `pnpm dev` - App starts without errors
-- [ ] `pnpm typecheck` - No TypeScript errors
-- [ ] `uv run pytest` - All tests pass
-- [ ] `uv run ruff check .` - No lint errors (after Task 1.2)
-- [ ] `uv run mypy portfolio_src` - Type check passes (after Task 1.3)
-- [ ] `uv run tach check` - No architecture violations (after Task 1.4)
+<details>
+<summary>Phase 1: Tooling & Infrastructure (5/5 Complete)</summary>
+
+| Status | Task | Notes |
+|--------|------|-------|
+| [x] | **Task 1.1**: Complete pnpm migration | Done in v0.9.4 |
+| [x] | **Task 1.2**: Install Ruff linter | Done in v0.10.3 |
+| [x] | **Task 1.3**: Install Mypy type checker | Done in v0.10.4 |
+| [x] | **Task 1.4**: Initialize Tach | Done in v0.10.5 |
+| [x] | **Task 1.5**: Update pytest config | Done in v0.10.6 |
+
+</details>
+
+<details>
+<summary>Phase 2: Architecture Refactors (9/9 Complete)</summary>
+
+| Status | Task | Notes |
+|--------|------|-------|
+| [x] | **Task 2.1**: Create dashboard_service.py | Done in v0.10.7 |
+| [x] | **Task 2.2**: Create sync_service.py | Done in v0.10.8 |
+| [x] | **Task 2.3**: Update state.py accessors | Done |
+| [x] | **Task 2.4**: Create FSD structure + auth | Done in v0.10.9 |
+| [x] | **Task 2.5**: Move dashboard feature | Done in v0.10.10 |
+| [x] | **Task 2.6**: Move portfolio feature | Done in v0.10.11 |
+| [x] | **Task 2.7**: Move xray feature | Done in v0.10.12 |
+| [x] | **Task 2.8**: Move integrations feature | Done in v0.10.13 |
+| [x] | **Task 2.9**: Fix all import paths | Done in v0.10.14 |
+
+</details>
+
+<details>
+<summary>Phase 3: Safety & Observability (8/8 Complete)</summary>
+
+| Status | Task | Notes |
+|--------|------|-------|
+| [x] | **Task 3.1**: Update response envelope | Done in v0.10.15 |
+| [x] | **Task 3.2**: Replace print() with logging | Done |
+| [x] | **Task 3.3**: Update frontend IPC handler | Done in v0.10.15 |
+| [x] | **Task 3.4**: Install Zod + validation wrapper | Done |
+| [x] | **Task 3.5**: Define Zod schemas | Done in v0.10.16 |
+| [x] | **Task 3.6**: Remove all `any` types | Done in v0.10.16 |
+| [x] | **Task 3.7**: Replace console.log with logger | Done in v0.10.18 |
+| [x] | **Task 3.8**: Refactor .then() to async/await | Done in v0.10.19 |
+| [x] | **Task 3.9**: Co-locate Python unit tests | Done in v0.10.20 |
+
+</details>
 
 ---
 
 ## Notes
 
-1. **Task Granularity**: Tasks are scoped to ~30 min each. FSD migration is grouped by feature, not by file type.
-2. **Backend/Frontend Parallel**: Tasks 2.1-2.3 (backend) can run in parallel with 2.4-2.9 (frontend).
-3. **Envelope Coordination**: Tasks 3.1 and 3.3 MUST be deployed together to avoid IPC breakage.
-4. **Test Movement**: Task 3.9 can be done incrementally per module without blocking other work.
+1. **Security First**: Phase 1 must complete before any production deployment
+2. **Backend/Frontend Parallel**: After Phase 1, Phases 2 and 3 can run in parallel by different developers
+3. **Testing Last**: Phase 4 depends on Phase 3 (hook locations) for test paths
+4. **Web Crypto is Async**: Task 1.2 requires caller to be async or use Promise handling
+5. **Store Split API**: Task 3.3 maintains same public API via barrel re-exports

@@ -32,10 +32,13 @@ vi.mock('./tauri', () => ({
 const mockFetch = vi.fn()
 global.fetch = mockFetch
 
+const TEST_ECHO_TOKEN = 'test-echo-bridge-token'
+
 describe('IPC Layer', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockFetch.mockReset()
+    vi.stubEnv('VITE_ECHO_BRIDGE_TOKEN', TEST_ECHO_TOKEN)
   })
 
   describe('Browser mode (Echo-Bridge)', () => {
@@ -61,7 +64,7 @@ describe('IPC Layer', () => {
           method: 'POST',
           headers: expect.objectContaining({
             'Content-Type': 'application/json',
-            'X-Echo-Bridge-Token': 'dev-echo-bridge-secret',
+            'X-Echo-Bridge-Token': TEST_ECHO_TOKEN,
           }),
         })
       )

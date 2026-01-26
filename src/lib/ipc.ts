@@ -49,6 +49,30 @@ const AUTH_COMMANDS = ['tr_login', 'tr_submit_2fa', 'tr_get_stored_credentials']
 
 const pendingRequests = new Map<string, Promise<unknown>>()
 
+/**
+ * Get Echo Bridge token from environment.
+ * SECURITY: Fails fast if token is not configured - no hardcoded fallbacks.
+ *
+ * @throws Error if VITE_ECHO_BRIDGE_TOKEN is not set
+ */
+let _cachedEchoToken: string | null = null
+function getEchoBridgeToken(): string {
+  if (_cachedEchoToken !== null) {
+    return _cachedEchoToken
+  }
+
+  const token = import.meta.env.VITE_ECHO_BRIDGE_TOKEN
+  if (!token) {
+    throw new Error(
+      '[IPC] VITE_ECHO_BRIDGE_TOKEN environment variable is required for Echo Bridge mode. ' +
+        'Set it in your .env file or run in Tauri mode instead.'
+    )
+  }
+
+  _cachedEchoToken = token
+  return token
+}
+
 async function deduplicatedCall<T>(key: string, fn: () => Promise<T>): Promise<T> {
   if (pendingRequests.has(key)) {
     return pendingRequests.get(key) as Promise<T>
@@ -73,8 +97,7 @@ async function callCommand<K extends keyof TauriCommands>(
   }
 
   try {
-    // Use environment variable for Echo Bridge token with fallback for local dev
-    const echoToken = import.meta.env.VITE_ECHO_BRIDGE_TOKEN || 'dev-echo-bridge-secret'
+    const echoToken = getEchoBridgeToken()
     const response = await fetch('http://127.0.0.1:5001/command', {
       method: 'POST',
       headers: {
