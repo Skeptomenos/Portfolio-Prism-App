@@ -71,7 +71,7 @@ pnpm build && pnpm typecheck
 |--------|------|----------------|-------|
 | [x] | **Task 2.1**: Create Pydantic models for external API responses | `specs/09-pydantic-external-api-validation.md:L18-35` | Done in v0.10.23 — Created `data/schemas/` with `WikidataResponse`, `YFinanceResponse`, `FinnhubQuoteResponse`, `FinnhubProfileResponse` models + 22 unit tests |
 | [x] | **Task 2.2**: Add Pydantic validation to enrichment external API calls | `specs/09-pydantic-external-api-validation.md:L38-52` | Done in v0.10.24 — `enrichment.py` and `proxy_client.py` now use `validate_response_safe()` with typed Pydantic models |
-| [ ] | **Task 2.3**: Extract file IO from `pipeline.py` to Data layer | `specs/13-backend-io-separation.md:L15-32` | Move `_write_reports()`, `_write_errors()`, `_write_health_report()` to `data/repositories/snapshot_repo.py` |
+| [x] | **Task 2.3**: Extract file IO from `pipeline.py` to Data layer | `specs/13-backend-io-separation.md:L15-32` | Done in v0.10.25 — Created `SnapshotRepository` in `data/snapshot_repo.py`, refactored `pipeline.py` to use DI |
 | [ ] | **Task 2.4**: Convert Python f-string logging to structured `extra=` | `specs/14-python-structured-logging.md:L12-28` | Replace `logger.info(f"Saved {n} items")` with `logger.info("Saved items", extra={"count": n})` |
 
 **Verification:**

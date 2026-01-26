@@ -11,7 +11,6 @@ Thin coordinator that:
 Contains NO business logic — that lives in the services.
 """
 
-import json
 import os
 import time
 from typing import Callable, Optional, List, Dict, Any, Tuple, Set, cast
@@ -40,14 +39,7 @@ from portfolio_src.core.contracts import (
 from portfolio_src.core.services.decomposer import Decomposer
 from portfolio_src.core.services.enricher import Enricher
 from portfolio_src.core.services.aggregator import Aggregator
-from portfolio_src.config import (
-    PIPELINE_ERRORS_PATH,
-    TRUE_EXPOSURE_REPORT,
-    DIRECT_HOLDINGS_REPORT,
-    PIPELINE_HEALTH_PATH,
-    HOLDINGS_BREAKDOWN_PATH,
-    DATA_DIR,
-)
+from portfolio_src.config import DATA_DIR
 from portfolio_src.prism_utils.logging_config import get_logger
 from portfolio_src.prism_utils.telemetry import get_telemetry
 from portfolio_src.core.utils import (
@@ -56,8 +48,9 @@ from portfolio_src.core.utils import (
     get_weight_column,
     get_isin_column,
     get_name_column,
-    get_total_value_column,
-    get_unit_price_column,
+)
+from portfolio_src.data.snapshot_repo import (
+    SnapshotRepository,
     write_json_atomic,
     write_csv_atomic,
 )
@@ -142,6 +135,7 @@ class Pipeline:
         data_dir: Optional[Path] = None,
         debug: bool = False,
         portfolio_id: int = 1,
+        snapshot_repo: Optional[SnapshotRepository] = None,
     ):
         """
         Initialize the pipeline.
@@ -150,6 +144,7 @@ class Pipeline:
             data_dir: Optional override for data directory
             debug: Enable debug mode (writes intermediate snapshots)
             portfolio_id: Portfolio ID to load positions from (default: 1)
+            snapshot_repo: Repository for writing snapshots (injected for testing)
         """
         # Dev-only: load .env if not in production
         if not os.getenv("PRISM_DATA_DIR"):
@@ -163,6 +158,7 @@ class Pipeline:
         self.data_dir = data_dir or DATA_DIR
         self.debug = debug or os.getenv("DEBUG_PIPELINE", "false").lower() == "true"
         self._portfolio_id = portfolio_id
+        self._snapshot_repo = snapshot_repo or SnapshotRepository()
 
         # Services are initialized lazily when run() is called
         self._decomposer: Optional[Decomposer] = None
@@ -261,9 +257,7 @@ class Pipeline:
         for isin, holdings_df in holdings_map.items():
             holdings_list, holdings_issues = dataframe_to_holdings(holdings_df)
             if self._validation_gates:
-                self._validation_gates._pipeline_quality.issues.extend(
-                    holdings_issues.issues
-                )
+                self._validation_gates._pipeline_quality.issues.extend(holdings_issues.issues)
 
             decompositions.append(
                 ETFDecomposition(
@@ -276,9 +270,7 @@ class Pipeline:
             )
 
         etfs_failed = sum(1 for e in errors if e.phase == ErrorPhase.ETF_DECOMPOSITION)
-        return DecomposePhaseOutput(
-            decompositions=decompositions, etfs_failed=etfs_failed
-        )
+        return DecomposePhaseOutput(decompositions=decompositions, etfs_failed=etfs_failed)
 
     def _build_enrich_phase_output(
         self,
@@ -290,9 +282,7 @@ class Pipeline:
         for isin, holdings_df in enriched_holdings.items():
             holdings_list, holdings_issues = dataframe_to_holdings(holdings_df)
             if self._validation_gates:
-                self._validation_gates._pipeline_quality.issues.extend(
-                    holdings_issues.issues
-                )
+                self._validation_gates._pipeline_quality.issues.extend(holdings_issues.issues)
 
             enriched_decompositions.append(
                 ETFDecomposition(
@@ -313,9 +303,7 @@ class Pipeline:
             enriched_direct=direct_list,
         )
 
-    def _build_aggregate_phase_output(
-        self, exposure_df: pd.DataFrame
-    ) -> AggregatePhaseOutput:
+    def _build_aggregate_phase_output(self, exposure_df: pd.DataFrame) -> AggregatePhaseOutput:
         exposures = []
         total_value = 0.0
 
@@ -335,9 +323,7 @@ class Pipeline:
             except Exception as e:
                 logger.warning(f"Failed to convert exposure row: {e}")
 
-        return AggregatePhaseOutput(
-            exposures=exposures, total_portfolio_value=total_value
-        )
+        return AggregatePhaseOutput(exposures=exposures, total_portfolio_value=total_value)
 
     def run(
         self, progress_callback: Optional[Callable[[str, float, str], None]] = None
@@ -391,9 +377,7 @@ class Pipeline:
             stock_count = len(direct_positions)
             etf_count = len(etf_positions)
             total_holdings = stock_count + etf_count
-            portfolio_value = calculate_portfolio_total_value(
-                direct_positions, etf_positions
-            )
+            portfolio_value = calculate_portfolio_total_value(direct_positions, etf_positions)
             if total_holdings > 0:
                 value_str = f"€{portfolio_value:,.0f}" if portfolio_value > 0 else ""
                 msg = f"Found {total_holdings} holdings ({stock_count} stocks, {etf_count} ETFs)"
@@ -429,9 +413,7 @@ class Pipeline:
             # Phase 2: Decompose ETFs (via service)
             start = time.time()
             if etf_count > 0:
-                progress_callback(
-                    f"Decomposing {etf_count} ETFs...", 0.25, "decomposition"
-                )
+                progress_callback(f"Decomposing {etf_count} ETFs...", 0.25, "decomposition")
             else:
                 progress_callback("No ETFs to decompose", 0.25, "decomposition")
 
@@ -470,13 +452,9 @@ class Pipeline:
             decompose_output = self._build_decompose_phase_output(
                 holdings_map, etf_positions, errors
             )
-            decompose_result = self._validation_gates.validate_decompose_output(
-                decompose_output
-            )
+            decompose_result = self._validation_gates.validate_decompose_output(decompose_output)
             if not decompose_result.passed:
-                self._log_validation_issues(
-                    decompose_result.quality, "ETF_DECOMPOSITION"
-                )
+                self._log_validation_issues(decompose_result.quality, "ETF_DECOMPOSITION")
 
             etf_sources = self._decomposer.get_etf_sources() if self._decomposer else {}
             weight_issue_codes = {
@@ -509,9 +487,7 @@ class Pipeline:
                 "enrichment",
             )
 
-            def enrich_progress(
-                msg: str, pct: float, processed: int, total: int
-            ) -> None:
+            def enrich_progress(msg: str, pct: float, processed: int, total: int) -> None:
                 scaled = 0.50 + (pct * 0.10)
                 progress_callback(msg, scaled, "enrichment")
 
@@ -529,17 +505,11 @@ class Pipeline:
 
             self._dump_debug_snapshot("03_enriched_direct", direct_positions)
 
-            enriched_count = sum(len(h) for h in enriched_holdings.values()) + len(
-                direct_positions
-            )
-            progress_callback(
-                f"Enriched {enriched_count} securities", 0.6, "enrichment"
-            )
+            enriched_count = sum(len(h) for h in enriched_holdings.values()) + len(direct_positions)
+            progress_callback(f"Enriched {enriched_count} securities", 0.6, "enrichment")
             monitor.record_phase("enrichment", time.time() - start)
 
-            enrich_output = self._build_enrich_phase_output(
-                enriched_holdings, direct_positions
-            )
+            enrich_output = self._build_enrich_phase_output(enriched_holdings, direct_positions)
             enrich_result = self._validation_gates.validate_enrich_output(enrich_output)
             if not enrich_result.passed:
                 self._log_validation_issues(enrich_result.quality, "ENRICHMENT")
@@ -568,9 +538,7 @@ class Pipeline:
             monitor.record_phase("aggregation", time.time() - start)
 
             aggregate_output = self._build_aggregate_phase_output(exposure_df)
-            expected_total = calculate_portfolio_total_value(
-                direct_positions, etf_positions
-            )
+            expected_total = calculate_portfolio_total_value(direct_positions, etf_positions)
             aggregate_result = self._validation_gates.validate_aggregate_output(
                 aggregate_output, expected_total
             )
@@ -589,9 +557,7 @@ class Pipeline:
 
             progress_callback("Analysis complete!", 1.0, "complete")
 
-            total_value = calculate_portfolio_total_value(
-                direct_positions, etf_positions
-            )
+            total_value = calculate_portfolio_total_value(direct_positions, etf_positions)
 
             summary = self._build_summary(
                 direct_positions=direct_positions,
@@ -651,9 +617,7 @@ class Pipeline:
 
                 report_holdings = locals().get("enriched_holdings") or holdings_map
 
-                self._write_breakdown_report(
-                    direct_positions, etf_positions, report_holdings
-                )
+                self._write_breakdown_report(direct_positions, etf_positions, report_holdings)
 
                 self._write_errors(errors)
 
@@ -688,34 +652,22 @@ class Pipeline:
             logger.warning(f"Harvesting failed: {e}")
             return 0
 
-    def _write_reports(self, exposure_df, direct_positions, etf_positions):
-        """Write exposure report and direct holdings report."""
-        TRUE_EXPOSURE_REPORT.parent.mkdir(parents=True, exist_ok=True)
+    def _write_reports(
+        self,
+        exposure_df: pd.DataFrame,
+        direct_positions: pd.DataFrame,
+        etf_positions: pd.DataFrame,
+    ) -> None:
+        self._snapshot_repo.save_exposure_report(exposure_df)
 
-        # Write True Exposure Report
-        write_csv_atomic(TRUE_EXPOSURE_REPORT, exposure_df)
-        logger.info(f"Wrote exposure report to {TRUE_EXPOSURE_REPORT}")
-
-        # Write Direct Holdings Report (Direct + ETFs)
         try:
-            import pandas as pd
-
-            direct_holdings = pd.concat(
-                [direct_positions, etf_positions], ignore_index=True
-            )
-            write_csv_atomic(DIRECT_HOLDINGS_REPORT, direct_holdings)
-            logger.info(f"Wrote direct holdings report to {DIRECT_HOLDINGS_REPORT}")
+            direct_holdings = pd.concat([direct_positions, etf_positions], ignore_index=True)
+            self._snapshot_repo.save_direct_holdings_report(direct_holdings)
         except Exception as e:
-            logger.error(f"Failed to write direct holdings report: {e}")
+            logger.error("Failed to write direct holdings report: %s", e)
 
-    def _write_errors(self, errors):
-        """Write structured errors to JSON for debugging."""
-        PIPELINE_ERRORS_PATH.parent.mkdir(parents=True, exist_ok=True)
-        # Note: We now write health report which includes failures, but keeping this for legacy debug
-        with open(PIPELINE_ERRORS_PATH, "w") as f:
-            json.dump([e.to_dict() for e in errors], f, indent=2)
-        if errors:
-            logger.info(f"Wrote {len(errors)} errors to {PIPELINE_ERRORS_PATH}")
+    def _write_errors(self, errors: List[PipelineError]) -> None:
+        self._snapshot_repo.save_errors([e.to_dict() for e in errors])
 
     def _write_health_report(
         self,
@@ -736,9 +688,7 @@ class Pipeline:
         for isin, holdings in holdings_map.items():
             weight_col = get_weight_column(holdings)
             weight_sum = (
-                float(holdings[weight_col].sum())
-                if weight_col and not holdings.empty
-                else 0.0
+                float(holdings[weight_col].sum()) if weight_col and not holdings.empty else 0.0
             )
 
             per_etf.append(
@@ -779,9 +729,7 @@ class Pipeline:
             "failures": [
                 {
                     "severity": "ERROR",
-                    "stage": e.phase.value
-                    if hasattr(e.phase, "value")
-                    else str(e.phase),
+                    "stage": e.phase.value if hasattr(e.phase, "value") else str(e.phase),
                     "item": e.item,
                     "issue": e.error_type.value
                     if hasattr(e.error_type, "value")
@@ -796,8 +744,7 @@ class Pipeline:
             else {"quality_score": 1.0, "is_trustworthy": True, "issues": []},
         }
 
-        write_json_atomic(PIPELINE_HEALTH_PATH, health_data)
-        logger.info(f"Wrote pipeline health report to {PIPELINE_HEALTH_PATH}")
+        self._snapshot_repo.save_health_report(health_data)
 
     def _get_etf_name(self, etf_positions: pd.DataFrame, isin: str) -> str:
         """Get ETF name from positions DataFrame."""
@@ -857,12 +804,8 @@ class Pipeline:
                             "value_eur": value,
                             "sector": str(row.get("sector", "Unknown")),
                             "geography": str(row.get("geography", "Unknown")),
-                            "resolution_status": str(
-                                row.get("resolution_status", "resolved")
-                            ),
-                            "resolution_source": str(
-                                row.get("resolution_source", "provider")
-                            ),
+                            "resolution_status": str(row.get("resolution_status", "resolved")),
+                            "resolution_source": str(row.get("resolution_source", "provider")),
                             "resolution_confidence": float(
                                 row.get("resolution_confidence", 1.0) or 1.0
                             ),
@@ -883,9 +826,7 @@ class Pipeline:
             isin_col = get_isin_column(etf_positions)
             if isin_col:
                 for idx, row in etf_positions.iterrows():
-                    etf_values[str(row[isin_col])] = float(
-                        etf_position_values.get(idx, 0.0)
-                    )
+                    etf_values[str(row[isin_col])] = float(etf_position_values.get(idx, 0.0))
 
         # Map ISIN -> Name (Fix 25)
         etf_names = {}
@@ -915,9 +856,7 @@ class Pipeline:
 
             for _, row in holdings.iterrows():
                 try:
-                    weight_pct = (
-                        float(row[weight_col]) if pd.notnull(row[weight_col]) else 0.0
-                    )
+                    weight_pct = float(row[weight_col]) if pd.notnull(row[weight_col]) else 0.0
                     value_eur = (weight_pct / 100.0) * parent_value
 
                     rows.append(
@@ -929,18 +868,10 @@ class Pipeline:
                             "weight_percent": weight_pct,
                             "value_eur": value_eur,
                             "sector": row.get("sector", row.get("Sector", "Unknown")),
-                            "geography": row.get(
-                                "geography", row.get("Country", "Unknown")
-                            ),
-                            "resolution_status": row.get(
-                                "resolution_status", "unknown"
-                            ),
-                            "resolution_source": row.get(
-                                "resolution_source", "unknown"
-                            ),
-                            "resolution_confidence": row.get(
-                                "resolution_confidence", 0.0
-                            ),
+                            "geography": row.get("geography", row.get("Country", "Unknown")),
+                            "resolution_status": row.get("resolution_status", "unknown"),
+                            "resolution_source": row.get("resolution_source", "unknown"),
+                            "resolution_confidence": row.get("resolution_confidence", 0.0),
                             "resolution_detail": row.get("resolution_detail", ""),
                             "ticker": row.get("ticker", row.get("Ticker", "")),
                         }
@@ -949,8 +880,7 @@ class Pipeline:
                     continue
 
         df = pd.DataFrame(rows)
-        write_csv_atomic(HOLDINGS_BREAKDOWN_PATH, df)
-        logger.info(f"Wrote holdings breakdown to {HOLDINGS_BREAKDOWN_PATH}")
+        self._snapshot_repo.save_holdings_breakdown(df)
 
     def _build_summary(
         self,
@@ -979,9 +909,7 @@ class Pipeline:
                     isin_val = row.get("isin", "")
                     name_val = row.get(name_col, "Unknown ETF")
                     if isin_val:
-                        etf_names[str(isin_val)] = (
-                            str(name_val) if name_val else "Unknown ETF"
-                        )
+                        etf_names[str(isin_val)] = str(name_val) if name_val else "Unknown ETF"
 
         etf_sources = decomposer.get_etf_sources() if decomposer else {}
 
@@ -1016,9 +944,7 @@ class Pipeline:
             "per_etf": per_etf,
         }
 
-        resolution_stats = (
-            self._decomposer.get_resolution_stats() if self._decomposer else {}
-        )
+        resolution_stats = self._decomposer.get_resolution_stats() if self._decomposer else {}
         by_source_raw = resolution_stats.get("by_source", {})
         tier2_skipped = by_source_raw.get("tier2_skipped", 0)
         by_source = {k: v for k, v in by_source_raw.items() if k != "tier2_skipped"}
@@ -1070,11 +996,7 @@ class Pipeline:
 
             for _, row in holdings.iterrows():
                 child_isin = row.get(isin_col) if isin_col else None
-                if (
-                    child_isin
-                    and isinstance(child_isin, str)
-                    and is_valid_isin(child_isin)
-                ):
+                if child_isin and isinstance(child_isin, str) and is_valid_isin(child_isin):
                     continue
 
                 ticker = str(row.get("ticker", "")).strip()
