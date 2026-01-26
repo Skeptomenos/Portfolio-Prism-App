@@ -77,7 +77,19 @@ describe('IPC Layer', () => {
         json: () =>
           Promise.resolve({
             success: true,
-            data: { totalValue: 10000, isEmpty: false },
+            data: {
+              totalValue: 10000,
+              totalGain: 500,
+              gainPercentage: 5.0,
+              dayChange: 100,
+              dayChangePercent: 1.0,
+              history: [],
+              allocations: { sector: {}, region: {} },
+              topHoldings: [],
+              lastUpdated: '2026-01-26T10:00:00Z',
+              isEmpty: false,
+              positionCount: 5,
+            },
           }),
       })
 
@@ -89,13 +101,27 @@ describe('IPC Layer', () => {
     })
 
     it('getHoldings returns topHoldings from dashboard', async () => {
-      const mockHoldings = [{ isin: 'US123', name: 'Test Stock' }]
+      const mockHoldings = [
+        { isin: 'US123', name: 'Test Stock', value: 100, weight: 0.1, pnl: 10, pnlPercentage: 0.1 },
+      ]
       mockFetch.mockResolvedValue({
         ok: true,
         json: () =>
           Promise.resolve({
             success: true,
-            data: { topHoldings: mockHoldings },
+            data: {
+              totalValue: 1000,
+              totalGain: 100,
+              gainPercentage: 10.0,
+              dayChange: 10,
+              dayChangePercent: 1.0,
+              history: [],
+              allocations: { sector: {}, region: {} },
+              topHoldings: mockHoldings,
+              lastUpdated: '2026-01-26T10:00:00Z',
+              isEmpty: false,
+              positionCount: 1,
+            },
           }),
       })
 
@@ -109,7 +135,13 @@ describe('IPC Layer', () => {
         json: () =>
           Promise.resolve({
             success: true,
-            data: { positions: [], totalValue: 0 },
+            data: {
+              positions: [],
+              totalValue: 0,
+              totalCost: 0,
+              totalPnl: 0,
+              totalPnlPercent: 0,
+            },
           }),
       })
 
@@ -125,7 +157,13 @@ describe('IPC Layer', () => {
         json: () =>
           Promise.resolve({
             success: true,
-            data: { syncedPositions: 5 },
+            data: {
+              syncedPositions: 5,
+              newPositions: 2,
+              updatedPositions: 3,
+              totalValue: 10000,
+              durationMs: 500,
+            },
           }),
       })
 
@@ -156,7 +194,7 @@ describe('IPC Layer', () => {
         json: () =>
           Promise.resolve({
             success: true,
-            data: { authState: 'waiting_2fa' },
+            data: { authState: 'waiting_2fa', message: 'Check your phone for 2FA code' },
           }),
       })
 
@@ -177,7 +215,7 @@ describe('IPC Layer', () => {
         json: () =>
           Promise.resolve({
             success: true,
-            data: { authState: 'authenticated' },
+            data: { authState: 'authenticated', message: 'Login successful' },
           }),
       })
 
@@ -263,7 +301,7 @@ describe('IPC Layer', () => {
         json: () =>
           Promise.resolve({
             success: true,
-            data: { version: '1.0.0' },
+            data: { version: '1.0.0', memoryUsageMb: 128, uptime: 3600 },
           }),
       })
 
@@ -315,12 +353,12 @@ describe('IPC Layer', () => {
         json: () =>
           Promise.resolve({
             success: true,
-            data: { hasSession: true, prompt: 'restore' },
+            data: { hasSession: true, prompt: 'restore_session' },
           }),
       })
 
       const result = await trCheckSavedSession()
-      expect(result).toEqual({ hasSession: true, prompt: 'restore' })
+      expect(result).toEqual({ hasSession: true, prompt: 'restore_session' })
     })
 
     it('trGetStoredCredentials returns default on error', async () => {
@@ -351,31 +389,58 @@ describe('IPC Layer', () => {
     })
 
     it('getTrueHoldings returns holdings data', async () => {
+      const mockSummary = {
+        total: 0,
+        resolved: 0,
+        unresolved: 0,
+        skipped: 0,
+        unknown: 0,
+        bySource: {},
+        healthScore: 100,
+      }
       mockFetch.mockResolvedValue({
         ok: true,
         json: () =>
           Promise.resolve({
             success: true,
-            data: { holdings: [], summary: { total: 0 } },
+            data: { holdings: [], summary: mockSummary },
           }),
       })
 
       const result = await getTrueHoldings()
-      expect(result).toEqual({ holdings: [], summary: { total: 0 } })
+      expect(result).toEqual({ holdings: [], summary: mockSummary })
     })
 
     it('getPipelineReport returns report data', async () => {
+      const mockReport = {
+        timestamp: '2026-01-26T10:00:00Z',
+        metrics: {
+          direct_holdings: 5,
+          etf_positions: 3,
+          etfs_processed: 3,
+          tier1_resolved: 100,
+          tier1_failed: 2,
+        },
+        performance: {
+          execution_time_seconds: 5.5,
+          phase_durations: {},
+          hive_hit_rate: 0.85,
+          api_fallback_rate: 0.15,
+          total_assets_processed: 105,
+        },
+        failures: [],
+      }
       mockFetch.mockResolvedValue({
         ok: true,
         json: () =>
           Promise.resolve({
             success: true,
-            data: { status: 'healthy' },
+            data: mockReport,
           }),
       })
 
       const result = await getPipelineReport()
-      expect(result).toEqual({ status: 'healthy' })
+      expect(result).toEqual(mockReport)
     })
 
     it('getRecentReports returns empty array on error', async () => {

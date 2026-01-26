@@ -28,18 +28,14 @@ def set_setting(key: str, value: str) -> None:
         conn.commit()
 
 
-def handle_set_hive_contribution(
-    request_id: int, payload: dict[str, Any]
-) -> dict[str, Any]:
+def handle_set_hive_contribution(request_id: int, payload: dict[str, Any]) -> dict[str, Any]:
     enabled = payload.get("enabled", False)
     set_setting("hive_contribution_enabled", "true" if enabled else "false")
-    logger.info(f"Hive contribution set to: {enabled}")
+    logger.info("Hive contribution set", extra={"enabled": enabled})
     return success_response(request_id, {"enabled": enabled})
 
 
-def handle_get_hive_contribution(
-    request_id: int, payload: dict[str, Any]
-) -> dict[str, Any]:
+def handle_get_hive_contribution(request_id: int, payload: dict[str, Any]) -> dict[str, Any]:
     value = get_setting("hive_contribution_enabled", "true")
     enabled = value.lower() == "true"
     return success_response(request_id, {"enabled": enabled})

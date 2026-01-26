@@ -36,7 +36,8 @@ class CanonicalPosition:
 
         if self.quantity < 0:
             logger.warning(
-                f"Negative quantity for {self.isin}: {self.quantity} (short position)"
+                "Negative quantity detected (short position)",
+                extra={"isin": self.isin, "quantity": str(self.quantity)},
             )
 
         if self.unit_price < 0:
@@ -44,8 +45,8 @@ class CanonicalPosition:
 
         if self.currency != "EUR":
             logger.warning(
-                f"Non-EUR currency for {self.isin}: {self.currency}. "
-                f"Value will be treated as EUR (no conversion)."
+                "Non-EUR currency detected, will be treated as EUR (no conversion)",
+                extra={"isin": self.isin, "currency": self.currency},
             )
 
         return errors
@@ -89,6 +90,6 @@ def validate_positions(
             valid.append(pos)
 
     if errors:
-        logger.warning(f"Validation failed for {len(errors)} positions")
+        logger.warning("Validation failed for positions", extra={"error_count": len(errors)})
 
     return valid, errors

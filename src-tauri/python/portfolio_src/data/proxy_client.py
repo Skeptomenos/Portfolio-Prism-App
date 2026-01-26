@@ -206,7 +206,7 @@ class ProxyClient:
             ProxyResponse with company profile data
         """
         if not is_valid_symbol(symbol):
-            logger.warning(f"Invalid symbol format rejected: {symbol!r}")
+            logger.warning("Invalid symbol format rejected", extra={"symbol": symbol})
             return ProxyResponse(
                 success=False,
                 data=None,
@@ -234,7 +234,7 @@ class ProxyClient:
             ProxyResponse with quote data (c=current, h=high, l=low, o=open, pc=previous close)
         """
         if not is_valid_symbol(symbol):
-            logger.warning(f"Invalid symbol format rejected: {symbol!r}")
+            logger.warning("Invalid symbol format rejected", extra={"symbol": symbol})
             return ProxyResponse(
                 success=False,
                 data=None,
@@ -262,7 +262,7 @@ class ProxyClient:
             ProxyResponse with list of matching symbols
         """
         if not is_valid_query(query):
-            logger.warning(f"Invalid search query rejected: {query!r}")
+            logger.warning("Invalid search query rejected", extra={"query": query})
             return ProxyResponse(
                 success=False,
                 data=None,

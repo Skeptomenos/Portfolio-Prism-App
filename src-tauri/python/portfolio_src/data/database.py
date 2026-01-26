@@ -82,9 +82,14 @@ def init_db(db_path: Optional[str] = None) -> sqlite3.Connection:
     # Read and execute schema
     schema_path = get_schema_path()
 
-    logger.info(f"[DB] Database path: {db_path}")
-    logger.info(f"[DB] Schema path: {schema_path}")
-    logger.info(f"[DB] Schema exists: {schema_path.exists()}")
+    logger.info(
+        "Database initialization",
+        extra={
+            "db_path": str(db_path),
+            "schema_path": str(schema_path),
+            "schema_exists": schema_path.exists(),
+        },
+    )
 
     if schema_path.exists():
         with open(schema_path, "r") as f:
@@ -107,20 +112,24 @@ def init_db(db_path: Optional[str] = None) -> sqlite3.Connection:
 
             for col_name, col_type in new_cols:
                 if col_name not in columns:
-                    logger.info(f"[DB] Migrating: Adding {col_name} to system_logs")
-                    conn.execute(
-                        f"ALTER TABLE system_logs ADD COLUMN {col_name} {col_type}"
+                    logger.info(
+                        "Migrating: adding column to system_logs",
+                        extra={"column_name": col_name},
                     )
+                    conn.execute(f"ALTER TABLE system_logs ADD COLUMN {col_name} {col_type}")
 
             conn.commit()
         except Exception as e:
             conn.rollback()
-            logger.error(f"[DB] Migration error: {e}")
+            logger.error(
+                "Database migration error",
+                extra={"error": str(e), "error_type": type(e).__name__},
+            )
             raise RuntimeError(f"Database migration failed: {e}") from e
 
-        logger.info(f"[DB] Schema applied successfully")
+        logger.info("Schema applied successfully")
     else:
-        logger.error(f"[DB] ERROR: Schema file not found!")
+        logger.error("Schema file not found", extra={"schema_path": str(schema_path)})
         raise FileNotFoundError(f"Schema file not found: {schema_path}")
 
     return conn
@@ -389,9 +398,7 @@ def sync_positions_from_tr(portfolio_id: int, tr_positions: list[dict]) -> dict:
 
     with transaction() as conn:
         # Get existing positions for comparison
-        cursor = conn.execute(
-            "SELECT isin FROM positions WHERE portfolio_id = ?", (portfolio_id,)
-        )
+        cursor = conn.execute("SELECT isin FROM positions WHERE portfolio_id = ?", (portfolio_id,))
         existing_isins = {row[0] for row in cursor.fetchall()}
 
         for pos in tr_positions:

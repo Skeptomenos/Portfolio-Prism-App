@@ -90,14 +90,9 @@ class VanguardAdapter:
         """
         self.isin = isin
         # Check if we have a mapping for this ISIN
-        if (
-            isin
-            and isin not in VANGUARD_US_EQUIVALENTS
-            and isin not in VANGUARD_PRODUCTS
-        ):
+        if isin and isin not in VANGUARD_US_EQUIVALENTS and isin not in VANGUARD_PRODUCTS:
             logger.warning(
-                f"ISIN {isin} not in known Vanguard mappings. "
-                "Will attempt fallback strategies."
+                f"ISIN {isin} not in known Vanguard mappings. Will attempt fallback strategies."
             )
 
     @cache_adapter_data(ttl_hours=24)
@@ -115,10 +110,10 @@ class VanguardAdapter:
         # Validate ISIN format before making any requests
         # Prevents path traversal in manual file lookup and cache key pollution
         if not is_valid_isin(isin):
-            logger.warning(f"Invalid ISIN format: {isin}. Skipping fetch.")
+            logger.warning("Invalid ISIN format, skipping fetch", extra={"isin": isin})
             return pd.DataFrame()
 
-        logger.info(f"--- Running Vanguard holdings acquisition for {isin} ---")
+        logger.info("Running Vanguard holdings acquisition", extra={"isin": isin})
 
         # 1. Try Manual File first
         df = self._fetch_from_manual_file(isin)
@@ -129,7 +124,7 @@ class VanguardAdapter:
         logger.info("  - No manual file found. Trying US Vanguard API...")
         df = self._fetch_via_us_api(isin)
         if df is not None and not df.empty:
-            logger.info(f"  - Success! Got {len(df)} holdings from US API")
+            logger.info("Got holdings from US API", extra={"count": len(df)})
             return df
 
         # 3. Fallback to BeautifulSoup (German site, top 10 only)
@@ -174,12 +169,14 @@ class VanguardAdapter:
         # Look up US equivalent fund
         us_fund = VANGUARD_US_EQUIVALENTS.get(isin)
         if not us_fund:
-            logger.info(f"    No US equivalent mapping for {isin}")
+            logger.info("No US equivalent mapping", extra={"isin": isin})
             return None
 
         fund_id = us_fund["fund_id"]
         us_ticker = us_fund["ticker"]
-        logger.info(f"    Mapped {isin} -> US fund {us_ticker} (ID: {fund_id})")
+        logger.info(
+            "Mapped to US fund", extra={"isin": isin, "us_ticker": us_ticker, "fund_id": fund_id}
+        )
 
         # Fetch holdings with pagination
         # Note: The API uses 1-based 'start' and 'count' params, not 'offset' and 'limit'
@@ -199,7 +196,7 @@ class VanguardAdapter:
                     "sortOrder": "desc",
                 }
 
-                logger.info(f"    Fetching holdings (start={start}, count={count})...")
+                logger.info("Fetching holdings page", extra={"start": start, "count": count})
                 response = requests.get(
                     base_url,
                     params=params,
@@ -213,7 +210,7 @@ class VanguardAdapter:
                 # Get total size from first response
                 if total_size is None:
                     total_size = data.get("size", 0)
-                    logger.info(f"    API reports {total_size} total holdings")
+                    logger.info("API reports holdings count", extra={"total_size": total_size})
 
                 holdings = data.get("fund", {}).get("entity", [])
 
@@ -240,19 +237,23 @@ class VanguardAdapter:
 
             # Convert to DataFrame
             df = self._normalize_us_api_response(all_holdings)
-            logger.info(f"    Total holdings from US API: {len(df)}")
+            logger.info("Normalized US API holdings", extra={"count": len(df)})
             return df
 
         except requests.exceptions.RequestException as e:
-            logger.error(f"    US API request failed: {e}")
+            logger.error(
+                "US API request failed",
+                extra={"error": str(e), "error_type": type(e).__name__},
+            )
             return None
         except (json.JSONDecodeError, KeyError) as e:
-            logger.error(f"    Failed to parse US API response: {e}")
+            logger.error(
+                "Failed to parse US API response",
+                extra={"error": str(e), "error_type": type(e).__name__},
+            )
             return None
 
-    def _normalize_us_api_response(
-        self, holdings: List[Dict[str, Any]]
-    ) -> pd.DataFrame:
+    def _normalize_us_api_response(self, holdings: List[Dict[str, Any]]) -> pd.DataFrame:
         """
         Normalizes the US Vanguard API response to our standard DataFrame format.
 
@@ -322,14 +323,12 @@ class VanguardAdapter:
             import requests
             from bs4 import BeautifulSoup
         except ImportError:
-            logger.error(
-                "BeautifulSoup not available. Install with: pip install beautifulsoup4"
-            )
+            logger.error("BeautifulSoup not available. Install with: pip install beautifulsoup4")
             return None
 
         product_info = VANGUARD_PRODUCTS.get(isin)
         if not product_info:
-            logger.error(f"ISIN {isin} not found in known Vanguard products.")
+            logger.error("ISIN not found in known Vanguard products", extra={"isin": isin})
             return None
 
         product_id, product_slug = product_info
@@ -342,7 +341,7 @@ class VanguardAdapter:
         }
 
         try:
-            logger.info(f"   Fetching page: {url}")
+            logger.info("Fetching Vanguard page", extra={"url": url})
             response = requests.get(url, headers=headers, timeout=30)
             response.raise_for_status()
 
@@ -350,7 +349,9 @@ class VanguardAdapter:
             tables = soup.find_all("table")
 
             if len(tables) < 3:
-                logger.warning(f"   Expected 4 tables, found {len(tables)}")
+                logger.warning(
+                    "Unexpected table count", extra={"expected": 4, "found": len(tables)}
+                )
                 return None
 
             # Holdings table is typically the 3rd table (index 2)
@@ -363,9 +364,7 @@ class VanguardAdapter:
 
             # Parse header
             header_row = rows[0]
-            headers_list = [
-                th.get_text(strip=True) for th in header_row.find_all(["th", "td"])
-            ]
+            headers_list = [th.get_text(strip=True) for th in header_row.find_all(["th", "td"])]
 
             # Parse data rows
             data = []
@@ -402,9 +401,7 @@ class VanguardAdapter:
                     .str.replace("\xa0", "")
                     .str.strip()
                 )
-                df["weight_percentage"] = pd.to_numeric(
-                    df["weight_percentage"], errors="coerce"
-                )
+                df["weight_percentage"] = pd.to_numeric(df["weight_percentage"], errors="coerce")
 
             # Filter valid rows
             df = pd.DataFrame(df.dropna(subset=["name", "weight_percentage"]))
@@ -415,9 +412,7 @@ class VanguardAdapter:
                 if col not in df.columns:
                     df[col] = None
 
-            logger.info(
-                f"   Successfully scraped {len(df)} holdings (top holdings only)"
-            )
+            logger.info("Successfully scraped holdings (top only)", extra={"count": len(df)})
             logger.warning(
                 "   Note: BeautifulSoup only gets top 10 holdings. "
                 "For complete data, provide a manual CSV file."
@@ -426,7 +421,10 @@ class VanguardAdapter:
             return pd.DataFrame(df)
 
         except Exception as e:
-            logger.error(f"   BeautifulSoup scraping failed: {e}")
+            logger.error(
+                "BeautifulSoup scraping failed",
+                extra={"error": str(e), "error_type": type(e).__name__},
+            )
             return None
 
     def _fetch_from_manual_file(self, isin: str) -> Optional[pd.DataFrame]:
@@ -439,12 +437,12 @@ class VanguardAdapter:
 
         # A. Try CSV
         if os.path.exists(csv_path):
-            logger.info(f"  - Found manual file: {csv_path}")
+            logger.info("Found manual CSV file", extra={"path": csv_path})
             df = self._read_manual_csv(csv_path)
 
         # B. Try XLSX
         if df is None and os.path.exists(xlsx_path):
-            logger.info(f"  - Found manual file: {xlsx_path}")
+            logger.info("Found manual XLSX file", extra={"path": xlsx_path})
             df = self._read_manual_xlsx(xlsx_path)
 
         # C. Process DataFrame
@@ -464,7 +462,10 @@ class VanguardAdapter:
             except (ValueError, pd.errors.ParserError):
                 return pd.read_csv(path, sep=",")
         except Exception as e:
-            logger.error(f"    - Failed to read manual CSV: {e}")
+            logger.error(
+                "Failed to read manual CSV",
+                extra={"error": str(e), "error_type": type(e).__name__},
+            )
             return None
 
     def _read_manual_xlsx(self, path: str) -> Optional[pd.DataFrame]:
@@ -476,18 +477,18 @@ class VanguardAdapter:
             for idx in range(len(temp_df)):
                 row = temp_df.iloc[idx]
                 row_str = row.astype(str).str.lower().tolist()
-                if any(
-                    kw in row_str
-                    for kw in ["wertpapiere", "securities", "name", "ticker"]
-                ):
+                if any(kw in row_str for kw in ["wertpapiere", "securities", "name", "ticker"]):
                     header_row_idx = idx
                     break
 
-            logger.info(f"    - Detected header at row {header_row_idx}")
+            logger.info("Detected header row", extra={"row_index": header_row_idx})
             return pd.read_excel(path, header=header_row_idx)
 
         except Exception as e:
-            logger.error(f"    - Failed to read manual XLSX: {e}")
+            logger.error(
+                "Failed to read manual XLSX",
+                extra={"error": str(e), "error_type": type(e).__name__},
+            )
             return None
 
     def _process_manual_dataframe(self, df: pd.DataFrame) -> Optional[pd.DataFrame]:
@@ -529,9 +530,7 @@ class VanguardAdapter:
                 .str.strip()
             )
 
-        df["weight_percentage"] = pd.to_numeric(
-            df["weight_percentage"], errors="coerce"
-        )
+        df["weight_percentage"] = pd.to_numeric(df["weight_percentage"], errors="coerce")
 
         # Drop invalid rows
         df = pd.DataFrame(df.dropna(subset=["name", "weight_percentage"]))
@@ -542,7 +541,7 @@ class VanguardAdapter:
             if col not in df.columns:
                 df[col] = None
 
-        logger.info(f"    - Successfully parsed manual file with {len(df)} rows.")
+        logger.info("Parsed manual file", extra={"row_count": len(df)})
         return pd.DataFrame(
             df[["ticker", "isin", "name", "weight_percentage", "sector", "location"]]
         )
@@ -558,8 +557,13 @@ if __name__ == "__main__":
     holdings = adapter.fetch_holdings(test_isin)
 
     if not holdings.empty:
-        logger.info(f"Successfully fetched {len(holdings)} holdings")
-        logger.info(f"\n{holdings.head(10)}")
-        logger.info(f"Total weight: {holdings['weight_percentage'].sum():.2f}%")
+        logger.info(
+            "Successfully fetched holdings",
+            extra={
+                "count": len(holdings),
+                "total_weight": holdings["weight_percentage"].sum(),
+            },
+        )
+        print(holdings.head(10))
     else:
         logger.warning("Failed to fetch holdings")

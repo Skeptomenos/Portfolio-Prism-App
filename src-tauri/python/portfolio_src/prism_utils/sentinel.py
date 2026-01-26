@@ -20,9 +20,7 @@ FULL_MSG_THRESHOLD = 300
 PRECEDING_WARNINGS_COUNT = 3
 
 
-def _get_preceding_warnings(
-    all_logs: List[dict], error_log: dict, count: int = 3
-) -> List[dict]:
+def _get_preceding_warnings(all_logs: List[dict], error_log: dict, count: int = 3) -> List[dict]:
     """Find warnings that occurred before an error in the same session."""
     session_id = error_log.get("session_id")
     error_ts = error_log.get("timestamp")
@@ -59,12 +57,13 @@ async def audit_previous_session():
         warning_logs = [l for l in logs if l["level"] == "WARNING"]
 
         if not error_logs:
-            logger.info(f"Echo-Sentinel: Found {len(logs)} logs, but no errors.")
+            logger.info("Echo-Sentinel: Found logs but no errors", extra={"log_count": len(logs)})
             mark_logs_processed([l["id"] for l in logs])
             return
 
         logger.info(
-            f"Echo-Sentinel: Found {len(error_logs)} unreported errors. Grouping..."
+            "Echo-Sentinel: Found unreported errors, grouping",
+            extra={"error_count": len(error_logs)},
         )
 
         batches: Dict[str, List[dict]] = {}
@@ -110,9 +109,7 @@ async def audit_previous_session():
                 body += f"| {ts} | `{sid}` | {table_msg} |\n"
 
             if len(unique_errors) > 10:
-                body += (
-                    f"\n*...and {len(unique_errors) - 10} more unique error types*\n"
-                )
+                body += f"\n*...and {len(unique_errors) - 10} more unique error types*\n"
 
             body += "\n### Full Error Messages\n\n"
             for idx, (_, log) in enumerate(list(unique_errors.items())[:5]):
@@ -121,9 +118,7 @@ async def audit_previous_session():
                     body += f"<details><summary>Error {idx + 1}: {full_msg[:80]}...</summary>\n\n"
                     body += f"```\n{full_msg}\n```\n\n"
 
-                    preceding = _get_preceding_warnings(
-                        warning_logs, log, PRECEDING_WARNINGS_COUNT
-                    )
+                    preceding = _get_preceding_warnings(warning_logs, log, PRECEDING_WARNINGS_COUNT)
                     if preceding:
                         body += "**Preceding warnings:**\n"
                         for w in preceding:
@@ -142,7 +137,10 @@ async def audit_previous_session():
             )
 
             if issue_url:
-                logger.info(f"Echo-Sentinel: Reported batch {key} -> {issue_url}")
+                logger.info(
+                    "Echo-Sentinel: Reported batch",
+                    extra={"batch_key": key, "issue_url": issue_url},
+                )
                 successfully_reported_ids.extend([l["id"] for l in batch])
             else:
                 failed_batches.append(key)
@@ -151,9 +149,7 @@ async def audit_previous_session():
                     "Check WORKER_URL configuration or rate limits."
                 )
 
-        non_error_ids = [
-            l["id"] for l in logs if l["level"] not in ("ERROR", "CRITICAL")
-        ]
+        non_error_ids = [l["id"] for l in logs if l["level"] not in ("ERROR", "CRITICAL")]
         mark_logs_processed(non_error_ids + successfully_reported_ids)
 
         if failed_batches:
@@ -162,9 +158,11 @@ async def audit_previous_session():
                 "Will retry on next startup."
             )
         else:
-            logger.info(
-                "Echo-Sentinel: Audit complete. All errors reported successfully."
-            )
+            logger.info("Echo-Sentinel: Audit complete. All errors reported successfully.")
 
     except Exception as e:
-        logger.error(f"Echo-Sentinel: Audit failed: {e}", exc_info=True)
+        logger.error(
+            "Echo-Sentinel: Audit failed",
+            extra={"error": str(e), "error_type": type(e).__name__},
+            exc_info=True,
+        )

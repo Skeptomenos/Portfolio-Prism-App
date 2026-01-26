@@ -170,7 +170,7 @@ class LocalCache:
         )
 
         conn.commit()
-        logger.debug(f"LocalCache schema initialized at {self.db_path}")
+        logger.debug("LocalCache schema initialized", extra={"db_path": str(self.db_path)})
 
     # =========================================================================
     # READ OPERATIONS
@@ -326,7 +326,11 @@ class LocalCache:
             conn.commit()
             return True
         except Exception as e:
-            logger.warning(f"Failed to upsert asset {isin}: {e}")
+            logger.warning(
+                "Failed to upsert asset",
+                extra={"isin": isin, "error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
+            )
             return False
 
     def upsert_listing(
@@ -353,7 +357,11 @@ class LocalCache:
             conn.commit()
             return True
         except Exception as e:
-            logger.warning(f"Failed to upsert listing {ticker}: {e}")
+            logger.warning(
+                "Failed to upsert listing",
+                extra={"ticker": ticker, "error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
+            )
             return False
 
     def upsert_alias(
@@ -380,7 +388,11 @@ class LocalCache:
             conn.commit()
             return True
         except Exception as e:
-            logger.warning(f"Failed to upsert alias {alias}: {e}")
+            logger.warning(
+                "Failed to upsert alias",
+                extra={"alias": alias, "error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
+            )
             return False
 
     def bulk_upsert_assets(self, assets: List[Dict[str, Any]]) -> int:
@@ -405,7 +417,11 @@ class LocalCache:
             conn.commit()
             return len(assets)
         except Exception as e:
-            logger.error(f"Bulk upsert assets failed: {e}")
+            logger.error(
+                "Bulk upsert assets failed",
+                extra={"error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
+            )
             return 0
 
     def bulk_upsert_listings(self, listings: List[Dict[str, Any]]) -> int:
@@ -429,7 +445,11 @@ class LocalCache:
             conn.commit()
             return len(listings)
         except Exception as e:
-            logger.error(f"Bulk upsert listings failed: {e}")
+            logger.error(
+                "Bulk upsert listings failed",
+                extra={"error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
+            )
             return 0
 
     def bulk_upsert_aliases(self, aliases: List[Dict[str, Any]]) -> int:
@@ -453,7 +473,11 @@ class LocalCache:
             conn.commit()
             return len(aliases)
         except Exception as e:
-            logger.error(f"Bulk upsert aliases failed: {e}")
+            logger.error(
+                "Bulk upsert aliases failed",
+                extra={"error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
+            )
             return 0
 
     # =========================================================================
@@ -488,10 +512,12 @@ class LocalCache:
             self._update_sync_metadata("aliases", counts["aliases"])
 
         logger.info(
-            f"LocalCache sync complete: "
-            f"{counts['assets']} assets, "
-            f"{counts['listings']} listings, "
-            f"{counts['aliases']} aliases"
+            "LocalCache sync complete",
+            extra={
+                "assets_count": counts["assets"],
+                "listings_count": counts["listings"],
+                "aliases_count": counts["aliases"],
+            },
         )
 
         return counts
@@ -582,9 +608,7 @@ class LocalCache:
         if last_sync:
             stats["last_sync"] = last_sync.isoformat()
 
-        cursor = conn.execute(
-            "SELECT table_name, last_sync, row_count FROM cache_metadata"
-        )
+        cursor = conn.execute("SELECT table_name, last_sync, row_count FROM cache_metadata")
 
         for row in cursor:
             stats["tables"][row["table_name"]] = {
@@ -708,7 +732,11 @@ class LocalCache:
             conn.commit()
             return True
         except Exception as e:
-            logger.warning(f"Failed to cache resolution for {alias}: {e}")
+            logger.warning(
+                "Failed to cache resolution",
+                extra={"alias": alias, "error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
+            )
             return False
 
     def is_negative_cached(
@@ -746,7 +774,7 @@ class LocalCache:
         conn.commit()
         deleted = cursor.rowcount
         if deleted > 0:
-            logger.debug(f"Cleaned up {deleted} expired cache entries")
+            logger.debug("Cleaned up expired cache entries", extra={"deleted_count": deleted})
         return deleted
 
     def _delete_isin_cache(self, alias: str, alias_type: str) -> None:
@@ -792,7 +820,11 @@ class LocalCache:
             )
             conn.commit()
         except Exception as e:
-            logger.debug(f"Failed to log format attempt: {e}")
+            logger.debug(
+                "Failed to log format attempt",
+                extra={"error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
+            )
 
     def get_format_stats(self) -> Dict[str, Any]:
         """Get summary statistics for format attempts."""
@@ -838,7 +870,7 @@ class LocalCache:
         conn.commit()
         deleted = cursor.rowcount
         if deleted > 0:
-            logger.debug(f"Cleaned up {deleted} old format log entries")
+            logger.debug("Cleaned up old format log entries", extra={"deleted_count": deleted})
         return deleted
 
     def close(self) -> None:

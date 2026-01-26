@@ -17,9 +17,7 @@ def calculate_positions(df: pd.DataFrame) -> pd.DataFrame:
     # Convert columns to numeric, handling comma as decimal separator
     for col in ["QUANTITY", "PRICE", "AMOUNT", "FEE"]:
         if col in buys.columns:
-            buys[col] = pd.to_numeric(
-                buys[col].astype(str).str.replace(",", "."), errors="coerce"
-            )
+            buys[col] = pd.to_numeric(buys[col].astype(str).str.replace(",", "."), errors="coerce")
         if col in sells.columns:
             sells[col] = pd.to_numeric(
                 sells[col].astype(str).str.replace(",", "."), errors="coerce"
@@ -52,8 +50,7 @@ def calculate_positions(df: pd.DataFrame) -> pd.DataFrame:
 
     # Calculate the weighted average purchase price
     positions["average_purchase_price"] = (
-        positions["total_cost"]
-        / positions[positions["total_quantity"] > 0]["total_quantity"]
+        positions["total_cost"] / positions[positions["total_quantity"] > 0]["total_quantity"]
     )
 
     # Clean up the dataframe
@@ -69,18 +66,15 @@ def main():
     trades_file = script_dir.parent / "output" / "trades.csv"
 
     if not trades_file.exists():
-        logger.warning(f"Trades file not found: {trades_file}")
-        logger.info(
-            "Please run the pdf_parser.py script first to generate the trades.csv file."
-        )
+        logger.warning("Trades file not found", extra={"path": str(trades_file)})
+        logger.info("Please run the pdf_parser.py script first to generate the trades.csv file.")
         return
 
     df = pd.read_csv(trades_file)
 
     positions = calculate_positions(df)
 
-    logger.info("Current Positions:")
-    logger.info(f"\n{positions}")
+    logger.info("Current Positions calculated", extra={"count": len(positions)})
 
 
 if __name__ == "__main__":

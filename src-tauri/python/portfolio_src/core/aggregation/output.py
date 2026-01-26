@@ -8,9 +8,7 @@ from portfolio_src.prism_utils.logging_config import get_logger
 logger = get_logger(__name__)
 
 
-def finalize_and_save(
-    exposures: AggregatedExposure, output_filepath: str
-) -> pd.DataFrame:
+def finalize_and_save(exposures: AggregatedExposure, output_filepath: str) -> pd.DataFrame:
     """
     Calculate totals, format output DataFrame, and save to CSV.
 
@@ -42,6 +40,6 @@ def finalize_and_save(
 
     final_df = exposures.to_dataframe()
     final_df.to_csv(output_filepath, index=False)
-    logger.info(f"Report saved to {output_filepath}")
+    logger.info("Report saved", extra={"path": str(output_filepath)})
 
     return final_df

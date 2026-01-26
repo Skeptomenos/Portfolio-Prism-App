@@ -140,7 +140,7 @@ async def add_sse_client(queue: asyncio.Queue) -> None:
     """
     async with _clients_lock:
         _progress_clients.add(queue)
-        logger.debug(f"SSE client connected. Total clients: {len(_progress_clients)}")
+        logger.debug("SSE client connected", extra={"total_clients": len(_progress_clients)})
 
 
 async def remove_sse_client(queue: asyncio.Queue) -> None:
@@ -151,7 +151,7 @@ async def remove_sse_client(queue: asyncio.Queue) -> None:
     """
     async with _clients_lock:
         _progress_clients.discard(queue)
-        logger.debug(f"SSE client disconnected. Total clients: {len(_progress_clients)}")
+        logger.debug("SSE client disconnected", extra={"total_clients": len(_progress_clients)})
 
 
 def broadcast_progress(progress: int, message: str, phase: str = "pipeline") -> None:
@@ -195,7 +195,9 @@ def broadcast_progress(progress: int, message: str, phase: str = "pipeline") -> 
     try:
         _main_loop.call_soon_threadsafe(_broadcast_sync, event_data)
     except RuntimeError as e:
-        logger.warning(f"SSE broadcast failed: {e}")
+        logger.warning(
+            "SSE broadcast failed", extra={"error": str(e), "error_type": type(e).__name__}
+        )
 
 
 def _broadcast_sync(event_data: dict) -> None:
@@ -213,7 +215,9 @@ def _broadcast_sync(event_data: dict) -> None:
         except asyncio.QueueFull:
             logger.warning("SSE client queue full, dropping event")
         except Exception as e:
-            logger.warning(f"Failed to queue SSE event: {e}")
+            logger.warning(
+                "Failed to queue SSE event", extra={"error": str(e), "error_type": type(e).__name__}
+            )
 
 
 def broadcast_summary(summary: PipelineSummaryData) -> None:
@@ -238,7 +242,9 @@ def broadcast_summary(summary: PipelineSummaryData) -> None:
         _main_loop.call_soon_threadsafe(_broadcast_sync, event_data)
         logger.debug("Pipeline summary broadcast sent")
     except RuntimeError as e:
-        logger.warning(f"SSE summary broadcast failed: {e}")
+        logger.warning(
+            "SSE summary broadcast failed", extra={"error": str(e), "error_type": type(e).__name__}
+        )
 
 
 # Check if HTTP dependencies are available
@@ -280,7 +286,7 @@ def run_echo_bridge(host: str = "0.0.0.0", port: int = 5001) -> None:
 
         set_main_loop(asyncio.get_running_loop())
         asyncio.create_task(audit_previous_session())
-        logger.info(f"Echo-Bridge started, session: {get_session_id()}")
+        logger.info("Echo-Bridge started", extra={"session_id": get_session_id()})
         yield
         logger.info("Echo-Bridge shutting down")
 
@@ -347,11 +353,15 @@ def run_echo_bridge(host: str = "0.0.0.0", port: int = 5001) -> None:
 
             # Log non-quiet commands
             if command not in QUIET_COMMANDS:
-                logger.info(f"Echo-Bridge: {command}")
+                logger.info("Echo-Bridge command received", extra={"command": command})
 
             return await dispatch(cmd)
         except Exception as e:
-            logger.error(f"Echo-Bridge Error: {e}", exc_info=True)
+            logger.error(
+                "Echo-Bridge error",
+                extra={"error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
+            )
             return {
                 "id": 0,
                 "success": False,
@@ -431,5 +441,5 @@ def run_echo_bridge(host: str = "0.0.0.0", port: int = 5001) -> None:
             },
         )
 
-    logger.info(f"Starting Echo-Bridge on http://{host}:{port}")
+    logger.info("Starting Echo-Bridge", extra={"host": host, "port": port})
     uvicorn.run(app, host=host, port=port, log_config=None)

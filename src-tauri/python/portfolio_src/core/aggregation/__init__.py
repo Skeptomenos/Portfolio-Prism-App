@@ -60,23 +60,18 @@ def run_aggregation(
 
     # Calculate True Portfolio Value (Top-Down) for correct percentage calculations
     # This prevents "leakage" from decomposition affecting portfolio-wide stats
-    direct_val = (
-        direct_positions["market_value"].sum() if not direct_positions.empty else 0.0
-    )
+    direct_val = direct_positions["market_value"].sum() if not direct_positions.empty else 0.0
     etf_val = etf_positions["market_value"].sum() if not etf_positions.empty else 0.0
     true_total = direct_val + etf_val
 
     exposures.true_total_value = true_total
-    logger.info(
-        f"Aggregation initialized with True Portfolio Value: €{true_total:,.2f}"
-    )
+    logger.info("Aggregation initialized", extra={"true_total_value": true_total})
 
     # Step 1: Process direct holdings
     process_direct_holdings(direct_positions, exposures)
 
     # Step 2: Process ETF holdings
-    logger.info("Processing indirect holdings (via ETFs)...")
-    logger.info(f"Total ETFs to process: {len(etf_positions)}")
+    logger.info("Processing indirect holdings via ETFs", extra={"etf_count": len(etf_positions)})
 
     all_holdings = pd.DataFrame()
 
@@ -99,14 +94,18 @@ def run_aggregation(
             )
 
             logger.info(
-                f"  - Processing ETF: {etf_name} "
-                f"(ISIN: {etf_isin}, Value: €{etf_market_value:,.2f})"
+                "Processing ETF",
+                extra={
+                    "etf_name": etf_name,
+                    "etf_isin": etf_isin,
+                    "market_value": etf_market_value,
+                },
             )
 
             # Get holdings for this ETF
             holdings = etf_holdings_map.get(etf_isin)
             if holdings is None or holdings.empty:
-                logger.warning(f"    - No holdings found for {etf_isin}. Skipping.")
+                logger.warning("No holdings found for ETF", extra={"etf_isin": etf_isin})
                 continue
 
             # Process: Classify -> Enrich -> Calculate values
@@ -189,10 +188,15 @@ def run_aggregation(
 
             output_breakdown.to_csv(HOLDINGS_BREAKDOWN_PATH, index=False)
             logger.info(
-                f"Saved detailed holdings breakdown to {HOLDINGS_BREAKDOWN_PATH}"
+                "Saved detailed holdings breakdown",
+                extra={"path": str(HOLDINGS_BREAKDOWN_PATH)},
             )
         except Exception as e:
-            logger.error(f"Failed to save breakdown CSV: {e}")
+            logger.error(
+                "Failed to save breakdown CSV",
+                extra={"error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
+            )
 
     # Step 3: Aggregate all indirect holdings
     aggregate_indirect_holdings(all_holdings, exposures)
@@ -213,10 +217,21 @@ def _log_large_holdings(holdings: pd.DataFrame, etf_isin: str, etf_name: str) ->
     if large.empty:
         return
 
-    logger.info(f"🔎 FOUND LARGE HOLDING in ETF {etf_isin} ({etf_name}):")
+    logger.info(
+        "Found large holdings in ETF",
+        extra={"etf_isin": etf_isin, "etf_name": etf_name, "count": len(large)},
+    )
     for _, row in large.iterrows():
         weight = row.get("weight_percentage", 0)
         indirect = row.get("indirect", 0)
         name = row.get("name", "Unknown")
         isin = row.get("isin", "No ISIN")
-        logger.info(f"    -> {name} ({isin}): {weight:.2f}% = €{indirect:,.2f}")
+        logger.info(
+            "Large holding detail",
+            extra={
+                "name": name,
+                "isin": isin,
+                "weight_percent": round(weight, 2),
+                "value_eur": round(indirect, 2),
+            },
+        )

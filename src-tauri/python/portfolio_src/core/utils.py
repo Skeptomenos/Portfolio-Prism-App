@@ -130,9 +130,7 @@ def calculate_position_values(df: pd.DataFrame) -> pd.Series:
             )
 
         if "currency" in normalized_df.columns:
-            non_eur = normalized_df[
-                normalized_df["currency"].fillna("EUR").str.upper() != "EUR"
-            ]
+            non_eur = normalized_df[normalized_df["currency"].fillna("EUR").str.upper() != "EUR"]
             if not non_eur.empty:
                 logger.warning(
                     f"Found {len(non_eur)} positions with non-EUR currency. "
@@ -239,9 +237,7 @@ class SchemaNormalizer:
     }
 
     @staticmethod
-    def normalize_columns(
-        df: pd.DataFrame, provider: Optional[str] = None
-    ) -> pd.DataFrame:
+    def normalize_columns(df: pd.DataFrame, provider: Optional[str] = None) -> pd.DataFrame:
         """Normalize DataFrame columns to standard lowercase names."""
         normalized_df = df.copy()
 
@@ -249,7 +245,7 @@ class SchemaNormalizer:
         if provider and provider.lower() in SchemaNormalizer.PROVIDER_MAPPINGS:
             provider_mapping = SchemaNormalizer.PROVIDER_MAPPINGS[provider.lower()]
             normalized_df = normalized_df.rename(columns=provider_mapping)
-            logger.debug(f"Applied {provider} column mappings")
+            logger.debug("Applied provider column mappings", extra={"provider": provider})
 
         # Apply standard mappings - convert any remaining columns to lowercase
         # and map common variations to standard names
@@ -296,9 +292,7 @@ class SchemaNormalizer:
             elif "price" in col_lower:
                 target = "price"
             elif (
-                "asset_class" in col_lower
-                or "asset type" in col_lower
-                or "asset_type" in col_lower
+                "asset_class" in col_lower or "asset type" in col_lower or "asset_type" in col_lower
             ):
                 target = "asset_class"
 
@@ -310,7 +304,10 @@ class SchemaNormalizer:
             normalized_df = normalized_df.rename(columns=column_mapping)
             # Drop duplicate columns if any (keep first)
             normalized_df = normalized_df.loc[:, ~normalized_df.columns.duplicated()]
-            logger.debug(f"Normalized columns: {column_mapping}")
+            logger.debug(
+                "Normalized columns",
+                extra={"column_mapping": column_mapping},
+            )
 
         return normalized_df
 
@@ -326,9 +323,7 @@ class SchemaNormalizer:
             raise SchemaError(df_columns, required_columns, context)
 
     @staticmethod
-    def get_standard_columns(
-        df: pd.DataFrame, column_keys: List[str]
-    ) -> Dict[str, Optional[str]]:
+    def get_standard_columns(df: pd.DataFrame, column_keys: List[str]) -> Dict[str, Optional[str]]:
         """Get standard column names from DataFrame."""
         normalized_df = SchemaNormalizer.normalize_columns(df)
         available_columns = normalized_df.columns.tolist()
@@ -372,10 +367,7 @@ def calculate_portfolio_total_value(
             if isinstance(vals, pd.DataFrame):
                 vals = vals.iloc[:, 0]
             direct_value = float(vals.sum())
-        elif (
-            "price" in normalized_direct.columns
-            and "quantity" in normalized_direct.columns
-        ):
+        elif "price" in normalized_direct.columns and "quantity" in normalized_direct.columns:
             prices = normalized_direct["price"]
             qtys = normalized_direct["quantity"]
             if isinstance(prices, pd.DataFrame):
@@ -467,7 +459,7 @@ def write_csv_atomic(path, df: pd.DataFrame, **kwargs) -> None:
             os.fsync(f.fileno())
 
         os.replace(temp_path, path)
-        logger.debug(f"Wrote CSV atomically: {path}")
+        logger.debug("Wrote CSV atomically", extra={"path": str(path)})
     except Exception:
         if os.path.exists(temp_path):
             os.unlink(temp_path)

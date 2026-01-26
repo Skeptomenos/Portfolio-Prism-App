@@ -48,11 +48,7 @@ class TRBridge:
 
     def _ensure_daemon_running(self) -> None:
         """Ensure daemon subprocess is running, start if needed."""
-        if (
-            self._is_running
-            and self._daemon_process
-            and self._daemon_process.poll() is None
-        ):
+        if self._is_running and self._daemon_process and self._daemon_process.poll() is None:
             return  # Already running
 
         # Clean up any dead process
@@ -86,16 +82,14 @@ class TRBridge:
                 ready_data = json.loads(ready_line.strip())
                 if ready_data.get("status") != "ready":
                     raise RuntimeError(f"Daemon not ready: {ready_data}")
-                logger.info(f"Daemon ready (PID: {ready_data.get('pid')})")
+                logger.info("Daemon ready", extra={"pid": ready_data.get("pid")})
             except json.JSONDecodeError:
                 raise RuntimeError(f"Invalid ready signal: {ready_line}")
 
             self._is_running = True
 
             # Start stderr monitoring thread
-            self._daemon_thread = threading.Thread(
-                target=self._monitor_stderr, daemon=True
-            )
+            self._daemon_thread = threading.Thread(target=self._monitor_stderr, daemon=True)
             self._daemon_thread.start()
 
         except Exception as e:
@@ -124,9 +118,7 @@ class TRBridge:
         machine = platform.machine()
 
         if system == "Darwin":
-            suffix = (
-                "aarch64-apple-darwin" if machine == "arm64" else "x86_64-apple-darwin"
-            )
+            suffix = "aarch64-apple-darwin" if machine == "arm64" else "x86_64-apple-darwin"
         elif system == "Windows":
             suffix = "x86_64-pc-windows-msvc.exe"
         else:
@@ -137,19 +129,26 @@ class TRBridge:
 
         # Try with platform suffix first (production build)
         sidecar_path = base_dir / f"{name}-{suffix}"
-        logger.debug(f"sys.executable: {sys.executable}")
-        logger.debug(f"Base dir: {base_dir}")
-        logger.debug(f"Looking for sidecar at {sidecar_path}")
+        logger.debug(
+            "Sidecar lookup",
+            extra={
+                "sys_executable": sys.executable,
+                "base_dir": str(base_dir),
+                "sidecar_path": str(sidecar_path),
+            },
+        )
 
         if sidecar_path.exists():
-            logger.debug(f"Found sidecar at {sidecar_path}")
+            logger.debug("Found sidecar", extra={"path": str(sidecar_path)})
             return str(sidecar_path)
 
         # Try without suffix (Tauri dev mode)
         sidecar_path_no_suffix = base_dir / name
-        logger.debug(f"Looking for sidecar at {sidecar_path_no_suffix}")
+        logger.debug(
+            "Looking for sidecar without suffix", extra={"path": str(sidecar_path_no_suffix)}
+        )
         if sidecar_path_no_suffix.exists():
-            logger.debug(f"Found sidecar at {sidecar_path_no_suffix}")
+            logger.debug("Found sidecar", extra={"path": str(sidecar_path_no_suffix)})
             return str(sidecar_path_no_suffix)
 
         logger.error(
@@ -169,7 +168,7 @@ class TRBridge:
                 assert self._daemon_process.stderr is not None
                 line = self._daemon_process.stderr.readline()
                 if line:
-                    logger.debug(f"[TR Daemon] {line.strip()}")
+                    logger.debug("TR Daemon stderr", extra={"line": line.strip()})
         except Exception:
             pass  # Ignore monitoring errors
 
@@ -220,7 +219,10 @@ class TRBridge:
                 try:
                     response_line = self._read_response_with_timeout(timeout=90.0)
                 except RuntimeError as e:
-                    logger.warning(f"Protocol desync risk: {e}. Resetting daemon.")
+                    logger.warning(
+                        "Protocol desync risk, resetting daemon",
+                        extra={"error": str(e)},
+                    )
                     self.shutdown()
                     raise
 

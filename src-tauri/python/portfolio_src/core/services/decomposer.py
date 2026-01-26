@@ -23,13 +23,17 @@ def _contribute_to_hive_async(isin: str, holdings: pd.DataFrame) -> None:
             hive_client = get_hive_client()
             if hive_client.is_configured:
                 hive_client.contribute_etf_holdings(isin, holdings)
-                logger.debug(f"Async Hive contribution completed for {isin}")
+                logger.debug("Async Hive contribution completed", extra={"isin": isin})
         except Exception as e:
-            logger.debug(f"Async Hive contribution failed for {isin}: {e}")
+            logger.debug(
+                "Async Hive contribution failed",
+                extra={"isin": isin, "error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
+            )
 
     thread = threading.Thread(target=_do_contribute, daemon=True)
     thread.start()
-    logger.debug(f"Started async Hive contribution for {isin}")
+    logger.debug("Started async Hive contribution", extra={"isin": isin})
 
 
 def _normalize_weight_format(holdings: pd.DataFrame, etf_isin: str) -> pd.DataFrame:
@@ -58,8 +62,8 @@ def _normalize_weight_format(holdings: pd.DataFrame, etf_isin: str) -> pd.DataFr
 
     if max_weight <= 1.0 and sum_weight <= 2.0:
         logger.info(
-            f"Detected decimal weight format for {etf_isin} "
-            f"(max={max_weight:.4f}, sum={sum_weight:.4f}). Converting to percentage."
+            "Detected decimal weight format, converting to percentage",
+            extra={"isin": etf_isin, "max_weight": max_weight, "sum_weight": sum_weight},
         )
         holdings = holdings.copy()
         holdings[weight_col] = weights * 100
@@ -118,9 +122,7 @@ class Decomposer:
 
         # Validate required columns
         try:
-            SchemaNormalizer.validate_schema(
-                normalized_etf_positions, ["isin"], "decomposer"
-            )
+            SchemaNormalizer.validate_schema(normalized_etf_positions, ["isin"], "decomposer")
         except Exception as e:
             errors.append(
                 PipelineError(
@@ -155,7 +157,8 @@ class Decomposer:
                     holdings_map[isin] = holdings
                     self._etf_sources[isin] = source or "unknown"
                     logger.info(
-                        f"Decomposed ETF {isin}: {len(holdings)} holdings extracted (source: {source})"
+                        "ETF decomposed",
+                        extra={"isin": isin, "holdings_count": len(holdings), "source": source},
                     )
                 else:
                     errors.append(
@@ -179,7 +182,8 @@ class Decomposer:
                 )
 
         logger.info(
-            f"Decomposition complete: {len(holdings_map)} ETFs, {len(errors)} errors"
+            "Decomposition complete",
+            extra={"etf_count": len(holdings_map), "error_count": len(errors)},
         )
         return holdings_map, errors
 
@@ -199,14 +203,15 @@ class Decomposer:
         source = None
 
         try:
-            cached = self.holdings_cache.get_holdings(
-                isin, adapter_registry=self.adapter_registry
-            )
+            cached = self.holdings_cache.get_holdings(isin, adapter_registry=self.adapter_registry)
             if cached is not None and not cached.empty:
                 holdings = cached
                 source = "cached"
         except Exception as e:
-            logger.warning(f"Local cache lookup failed for {isin}: {e}")
+            logger.warning(
+                "Local cache lookup failed",
+                extra={"isin": isin, "error": str(e), "error_type": type(e).__name__},
+            )
 
         if holdings is None:
             try:
@@ -214,14 +219,15 @@ class Decomposer:
                 if hive_client.is_configured:
                     hive_holdings = hive_client.get_etf_holdings(isin)
                     if hive_holdings is not None and not hive_holdings.empty:
-                        logger.info(f"Resolved {isin} via Hive Community")
-                        self.holdings_cache._save_to_local_cache(
-                            isin, hive_holdings, source="hive"
-                        )
+                        logger.info("Resolved via Hive Community", extra={"isin": isin})
+                        self.holdings_cache._save_to_local_cache(isin, hive_holdings, source="hive")
                         holdings = hive_holdings
                         source = "hive"
             except Exception as e:
-                logger.warning(f"Hive lookup failed for {isin}: {e}")
+                logger.warning(
+                    "Hive lookup failed",
+                    extra={"isin": isin, "error": str(e), "error_type": type(e).__name__},
+                )
 
         if holdings is None:
             try:
@@ -246,7 +252,10 @@ class Decomposer:
                             isin, adapter_holdings, source="adapter"
                         )
                     except Exception as e:
-                        logger.warning(f"Failed to cache result for {isin}: {e}")
+                        logger.warning(
+                            "Failed to cache result",
+                            extra={"isin": isin, "error": str(e), "error_type": type(e).__name__},
+                        )
 
                     _contribute_to_hive_async(isin, adapter_holdings)
 
@@ -267,7 +276,10 @@ class Decomposer:
                     )
 
             except Exception as e:
-                logger.warning(f"Adapter failed for {isin}: {e}")
+                logger.warning(
+                    "Adapter failed",
+                    extra={"isin": isin, "error": str(e), "error_type": type(e).__name__},
+                )
                 return (
                     None,
                     None,
@@ -294,7 +306,7 @@ class Decomposer:
     ) -> Tuple[pd.DataFrame, Dict[str, Any]]:
         if self.isin_resolver is None:
             logger.debug(
-                f"No ISINResolver configured, skipping resolution for {etf_isin}"
+                "No ISINResolver configured, skipping resolution", extra={"isin": etf_isin}
             )
             return holdings, {"skipped": True}
 
@@ -303,7 +315,7 @@ class Decomposer:
 
         if "ticker" not in holdings.columns:
             logger.warning(
-                f"Holdings for {etf_isin} missing 'ticker' column, skipping resolution"
+                "Holdings missing ticker column, skipping resolution", extra={"isin": etf_isin}
             )
             return holdings, {"skipped": True, "reason": "no_ticker_column"}
 
@@ -336,22 +348,14 @@ class Decomposer:
             ticker = str(row.get("ticker", "")).strip()
             name = str(row.get("name", "")).strip()
             try:
-                weight = (
-                    float(row[weight_col]) if weight_col and weight_col in row else 0.0
-                )
+                weight = float(row[weight_col]) if weight_col and weight_col in row else 0.0
             except (ValueError, TypeError):
                 weight = 0.0
 
             existing_isin = row.get("isin")
-            if (
-                existing_isin
-                and isinstance(existing_isin, str)
-                and is_valid_isin(existing_isin)
-            ):
+            if existing_isin and isinstance(existing_isin, str) and is_valid_isin(existing_isin):
                 resolved_count += 1
-                resolution_sources["existing"] = (
-                    resolution_sources.get("existing", 0) + 1
-                )
+                resolution_sources["existing"] = resolution_sources.get("existing", 0) + 1
                 holdings.at[idx, "resolution_status"] = "resolved"
                 holdings.at[idx, "resolution_detail"] = "existing"
                 holdings.at[idx, "resolution_source"] = "provider"
@@ -385,12 +389,13 @@ class Decomposer:
                 source = result.source or result.detail or "unknown"
                 resolution_sources[source] = resolution_sources.get(source, 0) + 1
             elif result.status == "skipped":
-                resolution_sources["tier2_skipped"] = (
-                    resolution_sources.get("tier2_skipped", 0) + 1
-                )
+                resolution_sources["tier2_skipped"] = resolution_sources.get("tier2_skipped", 0) + 1
             else:
                 unresolved_count += 1
-                logger.debug(f"Failed to resolve {ticker} ({name}): {result.detail}")
+                logger.debug(
+                    "Failed to resolve ticker",
+                    extra={"ticker": ticker, "name": name, "detail": result.detail},
+                )
 
         stats = {
             "total": len(holdings),
@@ -400,8 +405,13 @@ class Decomposer:
         }
 
         logger.info(
-            f"Resolution for {etf_isin}: {resolved_count}/{len(holdings)} resolved, "
-            f"{unresolved_count} unresolved"
+            "ISIN resolution complete",
+            extra={
+                "isin": etf_isin,
+                "total": len(holdings),
+                "resolved": resolved_count,
+                "unresolved": unresolved_count,
+            },
         )
 
         return holdings, stats
@@ -429,9 +439,7 @@ class Decomposer:
             "total": total,
             "resolved": resolved,
             "unresolved": unresolved,
-            "resolution_rate": f"{(resolved / total * 100):.1f}%"
-            if total > 0
-            else "N/A",
+            "resolution_rate": f"{(resolved / total * 100):.1f}%" if total > 0 else "N/A",
             "by_source": all_sources,
             "etfs": self._resolution_stats,
         }

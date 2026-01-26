@@ -47,7 +47,7 @@ class TRDataFetcher:
 
             if response.get("status") != "success":
                 msg = response.get("message") or "Unknown daemon error"
-                logger.error(f"Trade Republic fetch failed: {msg}")
+                logger.error("Trade Republic fetch failed", extra={"message": msg})
                 raise RuntimeError(msg)
 
             data = response.get("data", {})
@@ -59,9 +59,7 @@ class TRDataFetcher:
                     logger.info("Portfolio is empty but cash found.")
                     return []
                 else:
-                    logger.warning(
-                        "No positions or cash found in Trade Republic portfolio"
-                    )
+                    logger.warning("No positions or cash found in Trade Republic portfolio")
                     return []
 
             positions = []
@@ -86,22 +84,24 @@ class TRDataFetcher:
                         }
                     )
                 except (KeyError, ValueError) as e:
-                    logger.warning(f"Skipping malformed position: {e}")
+                    logger.warning(
+                        "Skipping malformed position",
+                        extra={"error": str(e), "error_type": type(e).__name__},
+                    )
                     continue
 
             logger.info(
-                f"Successfully fetched {len(positions)} positions from Trade Republic"
+                "Successfully fetched positions from Trade Republic",
+                extra={"position_count": len(positions)},
             )
             return positions
 
         except Exception as e:
             err_msg = str(e)
-            if any(
-                x in err_msg.lower() for x in ["session", "expired", "unauthorized"]
-            ):
-                logger.error(f"Trade Republic session invalid: {err_msg}")
+            if any(x in err_msg.lower() for x in ["session", "expired", "unauthorized"]):
+                logger.error("Trade Republic session invalid", extra={"error": err_msg})
             else:
-                logger.error(f"Sync error: {err_msg}")
+                logger.error("Sync error", extra={"error": err_msg})
             raise
 
     def save_to_csv(self, positions: List[Dict], output_path: Path) -> int:
@@ -126,9 +126,7 @@ class TRDataFetcher:
         # Use newline="" per csv module docs to prevent extra blank lines on Windows
         with open(output_path, "w", encoding="utf-8", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow(
-                ["ISIN", "Quantity", "AvgCost", "CurrentPrice", "NetValue", "TR_Name"]
-            )
+            writer.writerow(["ISIN", "Quantity", "AvgCost", "CurrentPrice", "NetValue", "TR_Name"])
             for pos in positions:
                 writer.writerow(
                     [
@@ -141,5 +139,5 @@ class TRDataFetcher:
                     ]
                 )
 
-        logger.info(f"Saved {len(positions)} positions to {output_path}")
+        logger.info("Saved positions", extra={"count": len(positions), "path": str(output_path)})
         return len(positions)

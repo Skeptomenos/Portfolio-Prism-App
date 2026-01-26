@@ -45,7 +45,10 @@ class AssetClassifier:
         """
         cached = self._get_from_cache(isin)
         if cached is not None:
-            logger.debug(f"Asset class for {isin} from cache: {cached.value}")
+            logger.debug(
+                "Asset class from cache",
+                extra={"isin": isin, "asset_class": cached.value},
+            )
             return cached
 
         wikidata = self._query_wikidata(isin)
@@ -54,7 +57,10 @@ class AssetClassifier:
             return wikidata
 
         heuristic = self._detect_by_heuristics(isin, name)
-        logger.debug(f"Asset class for {isin} from heuristics: {heuristic.value}")
+        logger.debug(
+            "Asset class from heuristics",
+            extra={"isin": isin, "asset_class": heuristic.value},
+        )
         return heuristic
 
     def _get_from_cache(self, isin: str) -> AssetClass | None:
@@ -66,7 +72,11 @@ class AssetClassifier:
             if asset:
                 return self._parse_asset_class_string(asset.asset_class)
         except Exception as e:
-            logger.debug(f"Cache lookup failed for {isin}: {e}")
+            logger.debug(
+                "Cache lookup failed",
+                extra={"isin": isin, "error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
+            )
         return None
 
     def _parse_asset_class_string(self, asset_class_str: str) -> AssetClass:
@@ -96,9 +106,13 @@ class AssetClassifier:
                 AssetClass.DERIVATIVE: "Derivative",
             }.get(asset_class, "Equity")
             cache.upsert_asset(isin, name, display_name, "EUR")
-            logger.debug(f"Cached asset class for {isin}: {display_name}")
+            logger.debug("Cached asset class", extra={"isin": isin, "display_name": display_name})
         except Exception as e:
-            logger.debug(f"Failed to cache asset class for {isin}: {e}")
+            logger.debug(
+                "Failed to cache asset class",
+                extra={"isin": isin, "error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
+            )
 
     def _query_wikidata(self, isin: str) -> AssetClass | None:
         query = f"""
@@ -121,7 +135,7 @@ class AssetClassifier:
 
             bindings = data.get("results", {}).get("bindings", [])
             if not bindings:
-                logger.debug(f"Wikidata: No results for ISIN {isin}")
+                logger.debug("Wikidata: No results for ISIN", extra={"isin": isin})
                 return None
 
             for binding in bindings:
@@ -129,17 +143,27 @@ class AssetClassifier:
                 if "/entity/" in type_uri:
                     q_id = type_uri.split("/entity/")[-1]
                     if q_id in STOCK_ENTITY_TYPES:
-                        logger.info(f"Wikidata: {isin} classified as STOCK (type: {q_id})")
+                        logger.info(
+                            "Wikidata: classified as STOCK", extra={"isin": isin, "type_id": q_id}
+                        )
                         return AssetClass.STOCK
                     if q_id in ETF_ENTITY_TYPES:
-                        logger.info(f"Wikidata: {isin} classified as ETF (type: {q_id})")
+                        logger.info(
+                            "Wikidata: classified as ETF", extra={"isin": isin, "type_id": q_id}
+                        )
                         return AssetClass.ETF
 
-            logger.debug(f"Wikidata: {isin} found but no definitive type, assuming STOCK")
+            logger.debug(
+                "Wikidata: found but no definitive type, assuming STOCK", extra={"isin": isin}
+            )
             return AssetClass.STOCK
 
         except Exception as e:
-            logger.debug(f"Wikidata query failed for {isin}: {e}")
+            logger.debug(
+                "Wikidata query failed",
+                extra={"isin": isin, "error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
+            )
             return None
 
     def _detect_by_heuristics(self, isin: str, name: str) -> AssetClass:
@@ -259,7 +283,9 @@ class SyncService:
                 emit(5, "Session restored.", "sync")
                 status = self._get_bridge_status_sync(bridge, executor)
             else:
-                logger.warning(f"Session restoration failed: {restore_result.message}")
+                logger.warning(
+                    "Session restoration failed", extra={"message": restore_result.message}
+                )
 
         if status.get("status") != "authenticated":
             raise AuthenticationError("Please authenticate with Trade Republic first")
@@ -302,7 +328,11 @@ class SyncService:
         emit(100, "Sync complete!", "sync")
 
         logger.info(
-            f"Portfolio sync complete: {sync_result['synced_positions']} positions in {duration_ms}ms"
+            "Portfolio sync complete",
+            extra={
+                "synced_positions": sync_result["synced_positions"],
+                "duration_ms": duration_ms,
+            },
         )
 
         return PortfolioSyncResult(
@@ -348,7 +378,9 @@ class SyncService:
 
         if not result.success:
             emit(100, "Analytics completed with warnings.", "complete")
-            logger.warning(f"Pipeline completed with {len(result.errors)} errors")
+            logger.warning(
+                "Pipeline completed with errors", extra={"error_count": len(result.errors)}
+            )
             return PipelineResult(
                 success=False,
                 errors=[str(e) for e in result.errors],
@@ -356,7 +388,7 @@ class SyncService:
             )
 
         emit(100, "Analytics complete!", "complete")
-        logger.info(f"Pipeline complete in {duration_ms}ms")
+        logger.info("Pipeline complete", extra={"duration_ms": duration_ms})
         return PipelineResult(success=True, errors=[], duration_ms=duration_ms)
 
     def _get_bridge_status_sync(self, bridge: Any, executor: ThreadPoolExecutor) -> dict[str, Any]:
@@ -401,8 +433,13 @@ class SyncService:
             )
 
         logger.info(
-            f"Classified {len(classified)} positions: "
-            f"{counts['etf']} ETFs, {counts['crypto']} crypto, {counts['stock']} stocks"
+            "Classified positions",
+            extra={
+                "total_classified": len(classified),
+                "etf_count": counts["etf"],
+                "crypto_count": counts["crypto"],
+                "stock_count": counts["stock"],
+            },
         )
         return classified, counts
 

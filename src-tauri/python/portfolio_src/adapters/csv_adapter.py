@@ -54,16 +54,14 @@ class ManualCSVAdapter:
             try:
                 isin = str(row[isin_col]).strip().upper()
                 name = str(row.get(name_col, "Unknown")) if name_col else "Unknown"
-                currency = (
-                    str(row.get(currency_col, "EUR")).upper() if currency_col else "EUR"
-                )
+                currency = str(row.get(currency_col, "EUR")).upper() if currency_col else "EUR"
 
                 quantity, unit_price = self._extract_value_components(
                     row, qty_col, price_col, value_col
                 )
 
                 if quantity is None or unit_price is None:
-                    logger.error(f"Cannot determine value for {isin}")
+                    logger.error("Cannot determine value", extra={"isin": isin})
                     continue
 
                 canonical = CanonicalPosition(
@@ -78,19 +76,22 @@ class ManualCSVAdapter:
 
                 errors = canonical.validate()
                 if errors:
-                    if any(
-                        "Invalid ISIN" in e or "Negative price" in e for e in errors
-                    ):
-                        logger.warning(f"Skipping {isin}: {errors}")
+                    if any("Invalid ISIN" in e or "Negative price" in e for e in errors):
+                        logger.warning(
+                            "Skipping invalid position", extra={"isin": isin, "errors": errors}
+                        )
                         continue
 
                 result.append(canonical)
 
             except Exception as e:
-                logger.error(f"Failed to parse CSV row {idx}: {e}")
+                logger.error(
+                    "Failed to parse CSV row",
+                    extra={"row_idx": idx, "error": str(e), "error_type": type(e).__name__},
+                )
                 continue
 
-        logger.info(f"Normalized {len(result)} positions from CSV")
+        logger.info("Normalized positions from CSV", extra={"count": len(result)})
         return result
 
     def _find_column(self, df: pd.DataFrame, candidates: List[str]) -> Optional[str]:
@@ -131,5 +132,8 @@ class ManualCSVAdapter:
                 return None, None
 
         except (InvalidOperation, ValueError) as e:
-            logger.error(f"Failed to extract value components: {e}")
+            logger.error(
+                "Failed to extract value components",
+                extra={"error": str(e), "error_type": type(e).__name__},
+            )
             return None, None

@@ -56,7 +56,7 @@ class ResolutionResult:
 
     def __post_init__(self):
         if self.isin and not is_valid_isin(self.isin):
-            logger.warning(f"Invalid ISIN format in resolution result: {self.isin}")
+            logger.warning("Invalid ISIN format in resolution result", extra={"isin": self.isin})
             self.isin = None
             self.status = "unresolved"
             self.detail = "isin_format_invalid"
@@ -82,16 +82,18 @@ class ISINResolver:
 
         if self._local_cache and self._local_cache.is_stale():
             logger.info("Local cache stale, starting background sync...")
-            threading.Thread(
-                target=self._background_sync, daemon=True, name="hive_sync_bg"
-            ).start()
+            threading.Thread(target=self._background_sync, daemon=True, name="hive_sync_bg").start()
 
     def _background_sync(self) -> None:
         try:
             if self._local_cache and self._hive_client:
                 self._local_cache.sync_from_hive(self._hive_client)
         except Exception as e:
-            logger.warning(f"Background Hive sync failed: {e}")
+            logger.warning(
+                "Background Hive sync failed",
+                extra={"error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
+            )
 
     def _is_negative_cached(self, alias: str, alias_type: str = "ticker") -> bool:
         """Check if alias has unexpired negative cache entry in SQLite."""
@@ -235,9 +237,7 @@ class ISINResolver:
             )
 
         # Try all ticker variants against local cache
-        tickers_to_try = (
-            ticker_variants if ticker_variants else ([ticker] if ticker else [])
-        )
+        tickers_to_try = ticker_variants if ticker_variants else ([ticker] if ticker else [])
         for t in tickers_to_try:
             isin = self._local_cache.get_isin_by_ticker(t)
             if isin:
@@ -296,9 +296,7 @@ class ISINResolver:
                         confidence=CONFIDENCE_HIVE,
                     )
 
-        return ResolutionResult(
-            isin=None, status="unresolved", detail="hive_miss", confidence=0.0
-        )
+        return ResolutionResult(isin=None, status="unresolved", detail="hive_miss", confidence=0.0)
 
     def _push_to_hive(
         self,
@@ -330,10 +328,17 @@ class ISINResolver:
                 )
                 self._local_cache.upsert_alias(name, isin)
 
-            logger.debug(f"Pushed to Hive: {ticker} -> {isin} (source: {source})")
+            logger.debug(
+                "Pushed to Hive",
+                extra={"ticker": ticker, "isin": isin, "source": source},
+            )
 
         except Exception as e:
-            logger.warning(f"Failed to push to Hive: {e}")
+            logger.warning(
+                "Failed to push to Hive",
+                extra={"error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
+            )
 
     def _resolve_via_api(
         self,
@@ -423,9 +428,7 @@ class ISINResolver:
                 )
 
             if isin:
-                self._cache_positive_result(
-                    t, "ticker", isin, "api_yfinance", CONFIDENCE_YFINANCE
-                )
+                self._cache_positive_result(t, "ticker", isin, "api_yfinance", CONFIDENCE_YFINANCE)
                 return ResolutionResult(
                     isin=isin,
                     status="resolved",
@@ -456,18 +459,25 @@ class ISINResolver:
             if response.success and response.data:
                 isin = response.data.get("isin")
                 if isin and is_valid_isin(isin):
-                    logger.debug(f"Finnhub proxy resolved {ticker} -> {isin}")
+                    logger.debug("Finnhub proxy resolved", extra={"ticker": ticker, "isin": isin})
                     return isin, False
             elif not response.success:
                 if "rate" in str(response.error).lower():
-                    logger.debug(f"Finnhub rate limit for {ticker}")
+                    logger.debug("Finnhub rate limit", extra={"ticker": ticker})
                     return None, True
-                logger.debug(f"Finnhub proxy error for {ticker}: {response.error}")
+                logger.debug(
+                    "Finnhub proxy error",
+                    extra={"ticker": ticker, "error": response.error},
+                )
 
             time.sleep(0.5)
 
         except Exception as e:
-            logger.debug(f"Finnhub proxy error for {ticker}: {e}")
+            logger.debug(
+                "Finnhub proxy error",
+                extra={"ticker": ticker, "error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
+            )
 
         # SECURITY: All Finnhub calls MUST go through the proxy - no direct API fallback
         return None, False
@@ -532,11 +542,15 @@ class ISINResolver:
                 if results:
                     isin = results[0].get("isin", {}).get("value")
                     if isin and is_valid_isin(isin):
-                        logger.debug(f"Wikidata SPARQL resolved -> {isin}")
+                        logger.debug("Wikidata SPARQL resolved", extra={"isin": isin})
                         return isin
 
         except Exception as e:
-            logger.debug(f"Wikidata SPARQL error: {e}")
+            logger.debug(
+                "Wikidata SPARQL error",
+                extra={"error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
+            )
 
         # Fallback to entity search if SPARQL fails
         if name_variants:
@@ -561,9 +575,7 @@ class ISINResolver:
                 "limit": 3,
             }
 
-            response = requests.get(
-                search_url, params=params, headers=headers, timeout=10
-            )
+            response = requests.get(search_url, params=params, headers=headers, timeout=10)
             if response.status_code != 200:
                 return None
 
@@ -596,7 +608,11 @@ class ISINResolver:
                         return isin
 
         except Exception as e:
-            logger.debug(f"Wikidata entity search error for {name}: {e}")
+            logger.debug(
+                "Wikidata entity search error",
+                extra={"name": name, "error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
+            )
 
         return None
 
@@ -613,13 +629,19 @@ class ISINResolver:
             if isin and is_valid_isin(isin):
                 return isin
         except Exception as e:
-            logger.debug(f"YFinance error for {ticker}: {e}")
+            logger.debug(
+                "YFinance error",
+                extra={
+                    "ticker": ticker,
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                },
+                exc_info=True,
+            )
 
         return None
 
-    def _record_resolution(
-        self, ticker: str, name: str, result: ResolutionResult
-    ) -> None:
+    def _record_resolution(self, ticker: str, name: str, result: ResolutionResult) -> None:
         self.stats[result.status] += 1
 
         source = result.detail
@@ -654,9 +676,7 @@ class ISINResolver:
             "By source:",
         ]
 
-        for source, count in sorted(
-            self.stats["by_source"].items(), key=lambda x: -x[1]
-        ):
+        for source, count in sorted(self.stats["by_source"].items(), key=lambda x: -x[1]):
             lines.append(f"  - {source}: {count}")
 
         return "\n".join(lines)

@@ -57,9 +57,7 @@ class MetricsTracker:
 
     def end_run(self):
         """Calculates duration."""
-        self.metrics["duration_seconds"] = (
-            datetime.now() - self._start_time
-        ).total_seconds()
+        self.metrics["duration_seconds"] = (datetime.now() - self._start_time).total_seconds()
 
     def set_funnel_metric(self, key: str, value: int):
         """Sets a specific funnel metric (absolute value)."""
@@ -82,7 +80,9 @@ class MetricsTracker:
             with open(output_path, "w") as f:
                 json.dump(self.metrics, f, indent=4)
         except Exception as e:
-            logger.error(f"Failed to save metrics: {e}")
+            logger.error(
+                "Failed to save metrics", extra={"error": str(e), "error_type": type(e).__name__}
+            )
 
 
 # Global instance

@@ -171,10 +171,14 @@ def enrich_etf_holdings(
 
     # Log summary
     logger.info(
-        f"    - Resolution: {tier1_count} Tier1 (>{threshold}%), "
-        f"{tier2_count} Tier2 (≤{threshold}%)"
+        "Resolution summary",
+        extra={
+            "tier1_count": tier1_count,
+            "tier2_count": tier2_count,
+            "threshold": threshold,
+            "resolved_count": resolved_count,
+        },
     )
-    logger.info(f"    - Resolved: {resolved_count} holdings with valid ISIN")
 
     # Record health metrics
     health.record_metric("tier1_holdings", tier1_count)
@@ -221,8 +225,11 @@ def _log_tier1_failures(
 
     health.record_metric("tier1_failed", len(tier1_failed))
     logger.warning(
-        f"    ⚠️  {len(tier1_failed)} major holdings (>{threshold}%) "
-        "FAILED ISIN resolution:"
+        "Major holdings failed ISIN resolution",
+        extra={
+            "failed_count": len(tier1_failed),
+            "threshold": threshold,
+        },
     )
 
     gap_collector = get_gap_collector()
@@ -238,9 +245,15 @@ def _log_tier1_failures(
 
         # Log first 10 only
         if i < 10:
-            logger.warning(f"        - {ticker} ({detail})")
+            logger.warning(
+                "Unresolved ticker",
+                extra={"ticker": ticker, "detail": detail},
+            )
         elif i == 10:
-            logger.warning(f"        ... and {len(tier1_failed) - 10} more")
+            logger.warning(
+                "Additional unresolved tickers",
+                extra={"remaining_count": len(tier1_failed) - 10},
+            )
 
         # Record health failure
         health.record_failure(

@@ -45,15 +45,13 @@ class AmundiAdapter:
         Fetches holdings for an Amundi ETF.
         Looks for manual files first, raises ManualUploadRequired if not found.
         """
-        logger.info(f"--- Running Amundi holdings acquisition for {isin} ---")
+        logger.info("Running Amundi holdings acquisition", extra={"isin": isin})
 
         df = self._fetch_from_manual_file(isin)
         if df is not None:
             return df
 
-        download_url = (
-            f"https://www.amundietf.de/de/privatanleger/products/equity/{isin}"
-        )
+        download_url = f"https://www.amundietf.de/de/privatanleger/products/equity/{isin}"
         raise ManualUploadRequired(
             isin=isin,
             provider="Amundi",
@@ -71,12 +69,12 @@ class AmundiAdapter:
 
         # A. Try XLSX
         if os.path.exists(xlsx_path):
-            logger.info(f"  - Found manual file: {xlsx_path}")
+            logger.info("Found manual XLSX file", extra={"path": xlsx_path})
             df = self._read_manual_xlsx(xlsx_path)
 
         # B. Try CSV
         if df is None and os.path.exists(csv_path):
-            logger.info(f"  - Found manual file: {csv_path}")
+            logger.info("Found manual CSV file", extra={"path": csv_path})
             df = self._read_manual_csv(csv_path)
 
         # C. Process Dataframe
@@ -97,9 +95,7 @@ class AmundiAdapter:
                     logger.warning(
                         f"    - Default engine failed ({e_default}). Retrying with 'calamine'..."
                     )
-                    temp_df = pd.read_excel(
-                        path, header=None, nrows=30, engine="calamine"
-                    )
+                    temp_df = pd.read_excel(path, header=None, nrows=30, engine="calamine")
                 else:
                     raise e_default
 
@@ -113,11 +109,14 @@ class AmundiAdapter:
 
             engine = "calamine" if CALAMINE_AVAILABLE else None
 
-            logger.info(f"    - Detected header at row {header_row_idx}")
+            logger.info("Detected header row", extra={"row_index": header_row_idx})
             return pd.read_excel(path, header=header_row_idx, engine=engine)
 
         except Exception as e:
-            logger.error(f"    - Failed to read manual XLSX: {e}")
+            logger.error(
+                "Failed to read manual XLSX",
+                extra={"error": str(e), "error_type": type(e).__name__},
+            )
             return None
 
     def _read_manual_csv(self, path: str) -> Optional[pd.DataFrame]:
@@ -131,7 +130,10 @@ class AmundiAdapter:
             except (ValueError, pd.errors.ParserError):
                 return pd.read_csv(path, sep=",")
         except Exception as e:
-            logger.error(f"    - Failed to read manual CSV: {e}")
+            logger.error(
+                "Failed to read manual CSV",
+                extra={"error": str(e), "error_type": type(e).__name__},
+            )
             return None
 
     def _process_manual_dataframe(self, df: pd.DataFrame) -> Optional[pd.DataFrame]:
@@ -162,15 +164,11 @@ class AmundiAdapter:
         initial_len = len(df)
         df = pd.DataFrame(df.dropna(subset=["name", "weight_percentage"]))
         df = pd.DataFrame(df[df["isin"].astype(str).str.len() > 5])
-        df = pd.DataFrame(
-            df[~df["name"].astype(str).str.contains("Total", case=False, na=False)]
-        )
-        df = pd.DataFrame(
-            df[~df["name"].astype(str).str.contains("Assets", case=False, na=False)]
-        )
+        df = pd.DataFrame(df[~df["name"].astype(str).str.contains("Total", case=False, na=False)])
+        df = pd.DataFrame(df[~df["name"].astype(str).str.contains("Assets", case=False, na=False)])
 
         if len(df) < initial_len:
-            logger.info(f"    - Dropped {initial_len - len(df)} footer/invalid rows.")
+            logger.info("Dropped footer/invalid rows", extra={"count": initial_len - len(df)})
 
         # Clean Weight
         if df["weight_percentage"].dtype == object:
@@ -182,15 +180,13 @@ class AmundiAdapter:
                 .str.strip()
             )
 
-        df["weight_percentage"] = pd.to_numeric(
-            df["weight_percentage"], errors="coerce"
-        )
+        df["weight_percentage"] = pd.to_numeric(df["weight_percentage"], errors="coerce")
 
         # Auto-Scale
         total_weight = df["weight_percentage"].sum()
         if 0.0 < total_weight <= 1.5:
             logger.info(
-                f"    - Detected decimal weights (Sum={total_weight:.4f}). Scaling by 100."
+                "Detected decimal weights, scaling by 100", extra={"total_weight": total_weight}
             )
             df["weight_percentage"] = df["weight_percentage"] * 100
 
@@ -210,7 +206,7 @@ class AmundiAdapter:
             "country",
             "currency",
         ]
-        logger.info(f"    - Successfully parsed manual file with {len(df)} rows.")
+        logger.info("Parsed manual file", extra={"row_count": len(df)})
         return pd.DataFrame(df[cols_to_return])
 
 
@@ -223,7 +219,7 @@ if __name__ == "__main__":
     adapter = AmundiAdapter()
     holdings = adapter.fetch_holdings(isin_arg)
     if not holdings.empty:
-        logger.info(f"Successfully fetched {len(holdings)} holdings.")
-        logger.info(f"\n{holdings.head()}")
+        logger.info("Successfully fetched holdings", extra={"count": len(holdings)})
+        print(holdings.head())
     else:
         logger.warning("Failed to fetch holdings.")

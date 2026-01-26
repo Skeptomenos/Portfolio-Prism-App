@@ -19,7 +19,11 @@ def load_ticker_map() -> Dict[str, str]:
             with open(TICKER_MAP_PATH, "r") as f:
                 return json.load(f)
         except Exception as e:
-            logger.error(f"Failed to load ticker map: {e}")
+            logger.error(
+                "Failed to load ticker map",
+                extra={"error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
+            )
     return {}
 
 
@@ -29,7 +33,11 @@ def save_ticker_map(map_data: Dict[str, str]) -> None:
         with open(TICKER_MAP_PATH, "w") as f:
             json.dump(map_data, f, indent=4)
     except Exception as e:
-        logger.error(f"Failed to save ticker map: {e}")
+        logger.error(
+            "Failed to save ticker map",
+            extra={"error": str(e), "error_type": type(e).__name__},
+            exc_info=True,
+        )
 
 
 def resolve_ticker(isin: str) -> Optional[str]:
@@ -47,7 +55,7 @@ def resolve_ticker(isin: str) -> Optional[str]:
     if isin in ticker_map:
         ticker = ticker_map[isin]
         if ticker == "UNTRADEABLE":
-            logger.warning(f"Skipping untradeable security: {isin}")
+            logger.warning("Skipping untradeable security", extra={"isin": isin})
             return None
         return ticker
 
@@ -55,7 +63,7 @@ def resolve_ticker(isin: str) -> Optional[str]:
     hive_client = get_hive_client()
     asset = hive_client.lookup(isin)
     if asset and asset.ticker:
-        logger.info(f"Resolved {isin} via Hive: {asset.ticker}")
+        logger.info("Resolved via Hive", extra={"isin": isin, "ticker": asset.ticker})
         ticker_map[isin] = asset.ticker
         save_ticker_map(ticker_map)
         return asset.ticker
@@ -65,7 +73,7 @@ def resolve_ticker(isin: str) -> Optional[str]:
     try:
         t = yf.Ticker(isin)
         if hasattr(t, "fast_info") and t.fast_info.get("last_price") is not None:
-            logger.info(f"Found direct match for {isin}")
+            logger.info("Found direct match", extra={"isin": isin})
             found_ticker = isin
     except Exception:
         pass
@@ -77,11 +85,11 @@ def resolve_ticker(isin: str) -> Optional[str]:
             potential_ticker = f"{isin}{suffix}"
             try:
                 t = yf.Ticker(potential_ticker)
-                if (
-                    hasattr(t, "fast_info")
-                    and t.fast_info.get("last_price") is not None
-                ):
-                    logger.info(f"Auto-resolved {isin} with suffix: {potential_ticker}")
+                if hasattr(t, "fast_info") and t.fast_info.get("last_price") is not None:
+                    logger.info(
+                        "Auto-resolved with suffix",
+                        extra={"isin": isin, "potential_ticker": potential_ticker},
+                    )
                     found_ticker = potential_ticker
                     break
             except Exception:
@@ -91,7 +99,7 @@ def resolve_ticker(isin: str) -> Optional[str]:
     if not found_ticker:
         # In a headless environment, we can't use input().
         # We'll log it and return None, allowing the UI to handle it later.
-        logger.warning(f"Could not auto-resolve ticker for {isin}")
+        logger.warning("Could not auto-resolve ticker", extra={"isin": isin})
 
     # 6. Save and Contribute
     if found_ticker:
@@ -110,7 +118,11 @@ def resolve_ticker(isin: str) -> Optional[str]:
             )
             hive_client.contribute_listing(isin, found_ticker, exchange, currency)
         except Exception as e:
-            logger.debug(f"Failed to contribute discovery to Hive: {e}")
+            logger.debug(
+                "Failed to contribute discovery to Hive",
+                extra={"error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
+            )
 
         return found_ticker
 
@@ -150,7 +162,7 @@ def _get_fx_rate(from_currency: str, to_currency: str = "EUR") -> float:
         if not hist.empty:
             return float(hist["Close"].iloc[-1])
     except Exception:
-        logger.warning(f"Could not fetch FX rate for {pair}")
+        logger.warning("Could not fetch FX rate", extra={"pair": pair})
 
     return 1.0
 
@@ -196,10 +208,7 @@ def _fetch_prices_batch(tickers: List[str]) -> Dict[str, float]:
                 try:
                     if ticker in data.columns:
                         ticker_data = data[ticker]
-                        if (
-                            isinstance(ticker_data, pd.DataFrame)
-                            and "Close" in ticker_data.columns
-                        ):
+                        if isinstance(ticker_data, pd.DataFrame) and "Close" in ticker_data.columns:
                             series = ticker_data["Close"].dropna()
                             if not series.empty:
                                 raw_prices[ticker] = float(series.iloc[-1])
@@ -207,12 +216,14 @@ def _fetch_prices_batch(tickers: List[str]) -> Dict[str, float]:
                 except Exception:
                     continue
 
-            remaining_tickers = [
-                t for t in remaining_tickers if t not in found_in_batch
-            ]
+            remaining_tickers = [t for t in remaining_tickers if t not in found_in_batch]
 
         except Exception as e:
-            logger.error(f"Batch fetch failed for period {period}: {e}")
+            logger.error(
+                "Batch fetch failed for period",
+                extra={"period": period, "error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
+            )
 
     # Fallback: Individual Fetch
     for ticker in remaining_tickers:
@@ -235,7 +246,7 @@ def _fetch_prices_batch(tickers: List[str]) -> Dict[str, float]:
 
 def get_price_map(isins: List[str]) -> Dict[str, float]:
     """Returns a dictionary {isin: price} using Hive-aware resolution."""
-    logger.info(f"Resolving and fetching prices for {len(isins)} assets")
+    logger.info("Resolving and fetching prices", extra={"asset_count": len(isins)})
 
     ticker_map = load_ticker_map()
     missing_locally = [isin for isin in isins if isin not in ticker_map]

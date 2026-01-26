@@ -52,7 +52,7 @@ async def run_stdin_loop() -> None:
     }
     write_protocol(ready_signal)
 
-    logger.info(f"Stdin loop started, session: {get_session_id()}")
+    logger.info("Stdin loop started", extra={"session_id": get_session_id()})
 
     loop = asyncio.get_event_loop()
     executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="stdin")
@@ -74,7 +74,9 @@ async def run_stdin_loop() -> None:
             try:
                 cmd = json.loads(line)
             except json.JSONDecodeError as e:
-                logger.warning(f"Invalid JSON received: {e}")
+                logger.warning(
+                    "Invalid JSON received", extra={"error": str(e), "error_type": type(e).__name__}
+                )
                 write_protocol(
                     {
                         "id": 0,
@@ -94,7 +96,11 @@ async def run_stdin_loop() -> None:
             logger.info("Keyboard interrupt, shutting down")
             break
         except Exception as e:
-            logger.error(f"Stdin loop error: {e}", exc_info=True)
+            logger.error(
+                "Stdin loop error",
+                extra={"error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
+            )
             write_protocol(
                 {
                     "id": 0,

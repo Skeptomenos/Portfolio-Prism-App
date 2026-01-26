@@ -108,9 +108,7 @@ def _get_ticker_currency(ticker: str) -> str:
     return "USD"  # Safe default
 
 
-def _get_fx_rate(
-    from_currency: str, to_currency: str = "EUR", date: Optional[str] = None
-) -> float:
+def _get_fx_rate(from_currency: str, to_currency: str = "EUR", date: Optional[str] = None) -> float:
     """
     Get FX rate for currency conversion.
 
@@ -139,9 +137,7 @@ def _get_fx_rate(
             # Historical rate
             date_dt = datetime.strptime(date, "%Y-%m-%d")
             end_dt = date_dt + timedelta(days=1)
-            hist = t.history(
-                start=date_dt.strftime("%Y-%m-%d"), end=end_dt.strftime("%Y-%m-%d")
-            )
+            hist = t.history(start=date_dt.strftime("%Y-%m-%d"), end=end_dt.strftime("%Y-%m-%d"))
             if not hist.empty:
                 return float(hist["Close"].iloc[-1])
 
@@ -151,7 +147,10 @@ def _get_fx_rate(
             return float(hist["Close"].iloc[-1])
 
     except Exception as e:
-        logger.warning(f"Could not fetch FX rate for {pair}: {e}")
+        logger.warning(
+            "Could not fetch FX rate",
+            extra={"pair": pair, "error": str(e), "error_type": type(e).__name__},
+        )
 
     # Hardcoded fallbacks for common pairs (approximate)
     fallback_rates = {
@@ -163,7 +162,7 @@ def _get_fx_rate(
 
     key = f"{from_currency}{to_currency}"
     if key in fallback_rates:
-        logger.warning(f"Using fallback FX rate for {key}")
+        logger.warning("Using fallback FX rate", extra={"key": key, "rate": fallback_rates[key]})
         return fallback_rates[key]
 
     return 1.0  # Last resort fallback
@@ -212,9 +211,7 @@ def fetch_historical_price(
             start_dt = date_dt - timedelta(days=days_back)
             end_dt = date_dt + timedelta(days=1)
 
-            hist = t.history(
-                start=start_dt.strftime("%Y-%m-%d"), end=end_dt.strftime("%Y-%m-%d")
-            )
+            hist = t.history(start=start_dt.strftime("%Y-%m-%d"), end=end_dt.strftime("%Y-%m-%d"))
 
             if not hist.empty:
                 # Get the last available price in range
@@ -282,7 +279,7 @@ def get_historical_price_map(
     results = {}
     ticker_overrides = ticker_overrides or {}
 
-    logger.info(f"Fetching historical prices for {len(isins)} ISINs as of {date}")
+    logger.info("Fetching historical prices", extra={"isin_count": len(isins), "date": date})
 
     for isin in isins:
         ticker = ticker_overrides.get(isin)
@@ -290,7 +287,9 @@ def get_historical_price_map(
         results[isin] = result
 
         if result.source == "error":
-            logger.warning(f"  - {isin}: ERROR - {result.error}")
+            logger.warning(
+                "Historical price fetch error", extra={"isin": isin, "error": result.error}
+            )
         else:
             logger.debug(
                 f"  - {isin} ({result.ticker}): {result.raw_price:.2f} {result.currency} "
@@ -299,14 +298,15 @@ def get_historical_price_map(
 
     # Summary
     success = sum(1 for r in results.values() if r.source != "error")
-    logger.info(f"Historical price fetch complete: {success}/{len(isins)} successful")
+    logger.info(
+        "Historical price fetch complete",
+        extra={"success_count": success, "total_count": len(isins)},
+    )
 
     return results
 
 
-def calculate_position_value(
-    quantity: float, price_result: HistoricalPriceResult
-) -> float:
+def calculate_position_value(quantity: float, price_result: HistoricalPriceResult) -> float:
     """
     Calculate position value from quantity and price result.
 

@@ -1,8 +1,8 @@
 # Implementation Plan
 
 > **Generated:** 2026-01-26  
-> **Version:** 2.0  
-> **Scope:** Remaining work from specs 07-16 plus codebase TODOs  
+> **Version:** 2.2  
+> **Scope:** Remaining work from specs 03-16 plus codebase TODOs  
 > **Approach:** Security first, then architecture, then testing, then polish
 
 ---
@@ -11,79 +11,72 @@
 
 **Phase 1 (v1.0):** 22 tasks across Tooling, Architecture, Safety - **100% COMPLETE**
 
-This plan (v2.0) addresses **21 remaining tasks** organized into **5 phases** targeting:
-- 2 Critical security vulnerabilities (hardcoded secrets, custom crypto)
-- 6 Architecture fixes (validation, IO separation, FSD compliance)
-- 4 Testing improvements (mock strategy, test organization)
-- 4 Observability improvements (logging, type annotations)
+This plan (v2.2) addresses **13 remaining tasks** organized into **4 phases** targeting:
+- 2 Critical security vulnerabilities (**COMPLETE**)
+- 5 Architecture fixes (IPC validation, IO separation, FSD compliance)
+- 3 Testing improvements (mock strategy, test organization)
 - 5 Enhancement tasks (TODOs, polish)
 
-**Effort estimate:** ~8 hours (1-2 days)
+**Effort estimate:** ~6 hours (1 day)
 
 ---
 
 ## Phase Dependencies
 
 ```
-Phase 1 (Security) ─────────────────────┐
-   ↓                                    │
-Phase 2 (Backend) ──────────────────────┤──→ Sequential by phase
-   ↓                                    │
-Phase 3 (Frontend) ─────────────────────┤
-   ↓                                    │
-Phase 4 (Testing) ──────────────────────┤
-   ↓                                    │
-Phase 5 (Polish) ───────────────────────┘
+Phase 1 (Security) COMPLETE ──────────────────┐
+   |                                          |
+Phase 2 (Backend + IPC) ──────────────────────┤──> Sequential by phase
+   |                                          |
+Phase 3 (Frontend) ───────────────────────────┤
+   |                                          |
+Phase 4 (Testing) ────────────────────────────┤
+   |                                          |
+Phase 5 (Polish) ─────────────────────────────┘
 
 Within phases: Tasks can run in parallel where noted
 ```
 
 ---
 
-## Phase 1: Security Hardening (CRITICAL)
+## Phase 1: Security Hardening (CRITICAL) - COMPLETE
 
 **Priority:** P0 - Must fix before any deployment  
-**Parallelizable:** Tasks 1.1 and 1.2 are independent
+**Status:** 100% COMPLETE
 
 | Status | Task | Spec Reference | Notes |
 |--------|------|----------------|-------|
-| [x] | **Task 1.1**: Remove hardcoded `dev-echo-bridge-secret` fallbacks | `specs/07-security-hardcoded-secrets.md` | Done in v0.10.21 — `ipc.ts`, `echo_bridge.py` now fail-fast if tokens missing |
-| [x] | **Task 1.2**: Replace custom SHA-256 with Web Crypto API | `specs/16-replace-custom-crypto.md` | Done in v0.10.22 — 100-line manual SHA-256 replaced with `js-sha256` library |
-
-**Verification:**
-```bash
-# No fallback secrets
-grep -r "dev-echo-bridge-secret" src/ src-tauri/ && echo "FAIL: Hardcoded secret found" || echo "PASS"
-# No manual crypto
-grep -c "0x428a2f98" src/lib/scrubber.ts && echo "FAIL: Custom SHA-256 found" || echo "PASS"
-# Build passes
-pnpm build && pnpm typecheck
-```
+| [x] | **Task 1.1**: Remove hardcoded `dev-echo-bridge-secret` fallbacks | `specs/07-security-hardcoded-secrets.md` | Done in v0.10.21 |
+| [x] | **Task 1.2**: Replace custom SHA-256 with Web Crypto API | `specs/16-replace-custom-crypto.md` | Done in v0.10.22 |
 
 ---
 
-## Phase 2: Backend Architecture
+## Phase 2: Backend & IPC Architecture
 
 **Priority:** P1 - Data integrity  
-**Parallelizable:** 2.1 → 2.2 sequential; 2.3 and 2.4 can run parallel after
+**Status:** 100% COMPLETE
 
 | Status | Task | Spec Reference | Notes |
 |--------|------|----------------|-------|
-| [x] | **Task 2.1**: Create Pydantic models for external API responses | `specs/09-pydantic-external-api-validation.md:L18-35` | Done in v0.10.23 — Created `data/schemas/` with `WikidataResponse`, `YFinanceResponse`, `FinnhubQuoteResponse`, `FinnhubProfileResponse` models + 22 unit tests |
-| [x] | **Task 2.2**: Add Pydantic validation to enrichment external API calls | `specs/09-pydantic-external-api-validation.md:L38-52` | Done in v0.10.24 — `enrichment.py` and `proxy_client.py` now use `validate_response_safe()` with typed Pydantic models |
-| [x] | **Task 2.3**: Extract file IO from `pipeline.py` to Data layer | `specs/13-backend-io-separation.md:L15-32` | Done in v0.10.25 — Created `SnapshotRepository` in `data/snapshot_repo.py`, refactored `pipeline.py` to use DI |
-| [ ] | **Task 2.4**: Convert Python f-string logging to structured `extra=` | `specs/14-python-structured-logging.md:L12-28` | Replace `logger.info(f"Saved {n} items")` with `logger.info("Saved items", extra={"count": n})` |
+| [x] | **Task 2.1**: Create Pydantic models for external API responses | `specs/09-pydantic-external-api-validation.md:L18-35` | Done in v0.10.23 |
+| [x] | **Task 2.2**: Add Pydantic validation to enrichment external API calls | `specs/09-pydantic-external-api-validation.md:L38-52` | Done in v0.10.24 |
+| [x] | **Task 2.3**: Extract file IO from `pipeline.py` to Data layer | `specs/13-backend-io-separation.md:L15-32` | Done in v0.10.25 |
+| [x] | **Task 2.4**: Convert Python f-string logging to structured `extra=` | `specs/14-python-structured-logging.md:L12-28` | Done in v0.10.26 |
+| [x] | **Task 2.5**: Wire Zod validation to ALL IPC functions | `specs/08-ipc-zod-validation.md` | Done in v0.10.27 |
 
 **Verification:**
 ```bash
-# Type check new models
-uv run mypy portfolio_src/data/schemas/external_api.py --strict
-# Tach boundary check
-uv run tach check
-# No f-strings in logging
-grep -rn 'logger\.\(info\|debug\|warning\|error\)(f"' portfolio_src/ && echo "FAIL" || echo "PASS"
+# Task 2.4: No f-strings in logging
+grep -rn 'logger\.\(info\|debug\|warning\|error\)(f"' src-tauri/python/portfolio_src/ && echo "FAIL" || echo "PASS"
+
+# Task 2.5: All IPC calls validated (MUST: validations >= calls)
+CALLS=$(grep -c "await callCommand" src/lib/ipc.ts)
+VALIDATIONS=$(grep -c "validateResponse" src/lib/ipc.ts)
+[ "$VALIDATIONS" -ge "$CALLS" ] && echo "PASS: $VALIDATIONS validations for $CALLS calls" || echo "FAIL: Only $VALIDATIONS validations for $CALLS calls"
+
 # Tests pass
-uv run pytest portfolio_src/
+uv run pytest src-tauri/python/portfolio_src/
+pnpm test
 ```
 
 ---
@@ -91,19 +84,22 @@ uv run pytest portfolio_src/
 ## Phase 3: Frontend Architecture
 
 **Priority:** P1 - Maintainability  
-**Parallelizable:** 3.1/3.2 can run parallel; 3.3/3.4 can run parallel after
+**Parallelizable:** 3.1 can run parallel with Phase 2; 3.2/3.3 must be sequential
 
 | Status | Task | Spec Reference | Notes |
 |--------|------|----------------|-------|
-| [ ] | **Task 3.1**: Add explicit `: JSX.Element` return types to React components | `specs/12-frontend-explicit-return-types.md:L11-22` | Add ESLint rule `@typescript-eslint/explicit-function-return-type: warn` and fix 7+ components |
-| [ ] | **Task 3.2**: Move orphan hooks to feature slices | `specs/15-fsd-hooks-and-store.md:L14-25` | `usePortfolioData` → `features/portfolio/hooks/`, `usePipelineProgress` → `features/xray/hooks/` |
-| [ ] | **Task 3.3**: Split monolithic `useAppStore.ts` into feature slices | `specs/15-fsd-hooks-and-store.md:L28-42` | Extract `authSlice.ts`, `syncSlice.ts`, `uiSlice.ts` with Zustand `combine()` pattern |
-| [ ] | **Task 3.4**: Move `usePipelineDiagnostics.ts` to xray feature | `specs/15-fsd-hooks-and-store.md:L14-25` | Final orphan hook migration |
+| [ ] | **Task 3.1**: Add explicit `: JSX.Element` return types to React components | `specs/12-frontend-explicit-return-types.md:L11-22` | **INCLUDES:** Enable ESLint rule `@typescript-eslint/explicit-function-return-type: warn` in `eslint.config.js`, then fix ~7+ components |
+| [ ] | **Task 3.2**: Move ALL orphan hooks to feature slices | `specs/15-fsd-hooks-and-store.md:L14-25` | Move: `usePortfolioData` -> `features/portfolio/hooks/`, `usePipelineProgress` + `usePipelineDiagnostics` -> `features/xray/hooks/`. Only `useTauriEvents` stays in `src/hooks/` |
+| [ ] | **Task 3.3**: Split monolithic `useAppStore.ts` into feature slices | `specs/15-fsd-hooks-and-store.md:L28-42` | 366 lines -> Extract `authSlice.ts`, `syncSlice.ts`, `uiSlice.ts` with Zustand `combine()`. Maintain `useAppStore` as public facade API via barrel re-exports |
 
 **Verification:**
 ```bash
-# Only shared hooks remain
-ls src/hooks/ | wc -l  # Should be 1 (useTauriEvents only)
+# Only shared hooks remain in root
+ls src/hooks/ | grep -v "useTauriEvents" | wc -l  # Should be 0
+
+# Feature hooks exist
+ls src/features/portfolio/hooks/ src/features/xray/hooks/
+
 # Build + type check
 pnpm typecheck && pnpm build && pnpm lint
 ```
@@ -113,25 +109,27 @@ pnpm typecheck && pnpm build && pnpm lint
 ## Phase 4: Testing Infrastructure
 
 **Priority:** P2 - Developer experience  
-**Parallelizable:** 4.1/4.2 can run parallel; 4.3 depends on 4.1
+**Parallelizable:** 4.1 must complete first; 4.2 can run parallel with 4.1
 
 | Status | Task | Spec Reference | Notes |
 |--------|------|----------------|-------|
-| [ ] | **Task 4.1**: Set up MSW for transport-layer mocking | `specs/10-testing-mocking-refactor.md:L18-32` | Install `msw`, create `src/test/mocks/handlers.ts` with Tauri IPC mocks |
-| [ ] | **Task 4.2**: Move `/e2e/` to `/tests/e2e/` | `specs/11-testing-e2e-location-integration.md:L12-18` | Rename directory, update `playwright.config.ts` testDir, verify CI paths |
-| [ ] | **Task 4.3**: Refactor 3 high-impact tests to use MSW | `specs/10-testing-mocking-refactor.md:L35-48` | Convert `Dashboard.test.tsx`, `LoginForm.test.tsx`, `XRayView.test.tsx` to use `setupTauriMock()` |
-| [ ] | **Task 4.4**: Create integration test directory with setup | `specs/11-testing-e2e-location-integration.md:L22-35` | Create `/tests/integration/setup.ts` spawning real Python sidecar, add `test:integration` script |
+| [ ] | **Task 4.1**: Set up Tauri transport mocking for tests | `specs/10-testing-mocking-refactor.md:L18-32` | MSW already installed. Create `setupTauriMock()` in `src/test/mocks/tauri.ts` to intercept `window.__TAURI__.core.invoke`. MSW optional for Echo Bridge HTTP. |
+| [ ] | **Task 4.2**: Reorganize test directories + integration setup | `specs/11-testing-e2e-location-integration.md:L12-18` | Move `/e2e/` to `/tests/e2e/`, update `playwright.config.ts`. Create `/tests/integration/setup.ts` with Python sidecar spawn, add `test:integration` script |
+| [ ] | **Task 4.3**: Refactor 3 high-impact tests to use transport mocks | `specs/10-testing-mocking-refactor.md:L35-48` | Convert `Dashboard.test.tsx`, `LoginForm.test.tsx`, `XRayView.test.tsx`. Remove `vi.mock('../lib/ipc')` calls, use `setupTauriMock()` instead |
 
 **Verification:**
 ```bash
-# MSW installed
-grep "msw" package.json
-# E2E moved
+# MSW configured
+grep "setupTauriMock" src/test/mocks/tauri.ts
+
+# E2E moved (old dir gone)
 ls tests/e2e/*.spec.ts && ! ls e2e/ 2>/dev/null
+
 # No internal mocks in converted tests
-grep -c "vi.mock.*ipc" src/features/*/components/*.test.tsx && echo "FAIL" || echo "PASS"
+grep -c "vi.mock.*lib/ipc" src/features/*/components/*.test.tsx && echo "FAIL" || echo "PASS"
+
 # Tests pass
-pnpm test
+pnpm test && pnpm test:e2e
 ```
 
 ---
@@ -147,16 +145,22 @@ pnpm test
 | [ ] | **Task 5.2**: Implement Rust event listening from Python engine | `src-tauri/src/commands.rs:536` | Complete `engine.listen_events()` for real-time sync progress via Tauri events |
 | [ ] | **Task 5.3**: Add feature-specific ErrorBoundary to X-Ray | `CODE_REVIEW_REPORT.md` | Wrap XRayView in ErrorBoundary with graceful fallback UI |
 | [ ] | **Task 5.4**: Create `CONTRIBUTING.md` with testing patterns | `CODE_REVIEW_REPORT.md` | Document MSW usage, test organization, FSD patterns for contributors |
-| [ ] | **Task 5.5**: Address remaining Low-severity code review items | `CODE_REVIEW_REPORT.md:L509-514` | 13 low-priority fixes: default exports, MD5 replacement, etc. |
+| [ ] | **Task 5.5**: Address remaining low-severity code review items | `CODE_REVIEW_REPORT.md:L509-514` | **INCLUDES:** MD5->SHA256 in Python (`logging_config.py`, `telemetry.py`), default exports, etc. |
 
 **Verification:**
 ```bash
 # Modal exists
 ls src/features/xray/components/ActionModal.tsx
+
 # Event listening implemented
 grep -v "^//" src-tauri/src/commands.rs | grep "listen_events" || echo "TODO: Implement"
+
+# No MD5 remaining
+grep -r "hashlib.md5" src-tauri/python/ && echo "FAIL" || echo "PASS"
+
 # Docs exist
 ls CONTRIBUTING.md
+
 # Full verification
 pnpm build && pnpm lint && uv run pytest && uv run ruff check . && uv run tach check
 ```
@@ -173,26 +177,32 @@ pnpm build && pnpm lint && uv run pytest && uv run ruff check . && uv run tach c
 
 ## Task Sizing
 
-| Phase | Tasks | Estimated Time | Parallelizable |
-|-------|-------|----------------|----------------|
-| Phase 1: Security | 2 | 45 min | Both parallel |
-| Phase 2: Backend | 4 | 2 hours | Partial |
-| Phase 3: Frontend | 4 | 1.5 hours | Partial |
-| Phase 4: Testing | 4 | 1.5 hours | Partial |
-| Phase 5: Polish | 5 | 2 hours | All parallel |
-| **Total** | **21** | **~8 hours** | |
+| Phase | Tasks Total | Tasks Remaining | Estimated Time | Parallelizable |
+|-------|-------------|-----------------|----------------|----------------|
+| Phase 1: Security | 2 | 0 | COMPLETE | - |
+| Phase 2: Backend | 5 | 0 | COMPLETE | - |
+| Phase 3: Frontend | 3 | 3 | 1.5 hours | 3.1 parallel with Phase 2 |
+| Phase 4: Testing | 3 | 3 | 1 hour | Partial |
+| Phase 5: Polish | 5 | 5 | 2 hours | All parallel |
+| **Total** | **18** | **13** | **~6 hours** | |
 
 ---
 
 ## Critical Path
 
 ```
-Security (1.1, 1.2) → Backend Validation (2.1-2.2) → Testing (4.1, 4.3)
-                   ↘                              ↗
-                     Frontend (3.1-3.4) ─────────
+Security (1.1, 1.2) COMPLETE
+        |
+        v
+IPC Validation (2.5) ──────> Test Mocks (4.1) ──────> Test Refactor (4.3)
+        |                           
+        |                    Frontend Types (3.1) ────> Store Split (3.3)
+        |                           |
+        v                           v
+   Py Logging (2.4)           Hook Migration (3.2)
 ```
 
-**Minimum viable: 6 tasks (Phase 1 + Tasks 2.1-2.2)** — Fixes all P0/P1 security issues
+**Minimum viable path:** Task 2.5 (IPC Validation) -> Task 4.1 (Transport Mocks) -> Task 4.3 (Test Refactor)
 
 ---
 
@@ -206,7 +216,7 @@ pnpm dev  # App starts
 pnpm typecheck              # No TS errors
 pnpm build                  # Production build works
 pnpm lint                   # ESLint clean
-uv run pytest portfolio_src # Python tests pass
+uv run pytest src-tauri/python/portfolio_src/  # Python tests pass
 uv run ruff check .         # Ruff clean
 uv run tach check           # No architecture violations
 ```
@@ -246,7 +256,7 @@ uv run tach check           # No architecture violations
 </details>
 
 <details>
-<summary>Phase 3: Safety & Observability (8/8 Complete)</summary>
+<summary>Phase 3: Safety & Observability (9/9 Complete)</summary>
 
 | Status | Task | Notes |
 |--------|------|-------|
@@ -266,8 +276,19 @@ uv run tach check           # No architecture violations
 
 ## Notes
 
-1. **Security First**: Phase 1 must complete before any production deployment
-2. **Backend/Frontend Parallel**: After Phase 1, Phases 2 and 3 can run in parallel by different developers
-3. **Testing Last**: Phase 4 depends on Phase 3 (hook locations) for test paths
-4. **Web Crypto is Async**: Task 1.2 requires caller to be async or use Promise handling
-5. **Store Split API**: Task 3.3 maintains same public API via barrel re-exports
+1. **IPC Validation Critical**: Task 2.5 addresses the biggest type-safety gap - 12 IPC calls with only 1 validation
+2. **Hook Migration Consolidated**: Tasks 3.2+3.4 merged - all 3 orphan hooks moved in single task
+3. **Test Reorg Consolidated**: Tasks 4.2+4.4 merged - directory restructure + integration setup together
+4. **Store Split API**: Task 3.3 maintains same public API via barrel re-exports (facade pattern)
+5. **ESLint Rule**: Task 3.1 now explicitly includes enabling the TypeScript return type rule
+
+---
+
+## Changelog
+
+| Version | Date | Changes |
+|---------|------|---------|
+| v2.2 | 2026-01-26 | Consolidated 3.2+3.4 (hooks) and 4.2+4.4 (tests). Added ESLint rule to 3.1. Added MD5 note to 5.5. Reduced to 13 tasks. |
+| v2.1 | 2026-01-26 | Added Task 2.5 (IPC Zod Validation) from spec 08 - was CRITICAL but missing from plan |
+| v2.0 | 2026-01-26 | Initial v2.0 plan addressing remaining 21 tasks from code review |
+| v1.0 | 2026-01-25 | Original 22-task plan (Tooling, Architecture, Safety) - 100% complete |

@@ -183,7 +183,14 @@ def load_enrichment_gaps(path: Optional[str] = None) -> Dict[str, Any]:
         with open(input_path, "r") as f:
             return json.load(f)
     except (json.JSONDecodeError, IOError) as e:
-        logger.error(f"Failed to load enrichment gaps from {input_path}: {e}")
+        logger.error(
+            "Failed to load enrichment gaps",
+            extra={
+                "path": str(input_path),
+                "error": str(e),
+                "error_type": type(e).__name__,
+            },
+        )
         return {
             "generated_at": None,
             "summary": {

@@ -59,7 +59,11 @@ async def handle_sync_portfolio(cmd_id: int, payload: dict[str, Any]) -> dict[st
     except AuthenticationError as e:
         return error_response(cmd_id, "TR_AUTH_REQUIRED", str(e))
     except Exception as e:
-        logger.error(f"Portfolio sync failed: {e}", exc_info=True)
+        logger.error(
+            "Portfolio sync failed",
+            extra={"error": str(e), "error_type": type(e).__name__},
+            exc_info=True,
+        )
         service.record_sync_error(str(e))
         return error_response(cmd_id, "TR_SYNC_FAILED", str(e))
 
@@ -83,5 +87,9 @@ async def handle_run_pipeline(cmd_id: int, payload: dict[str, Any]) -> dict[str,
             },
         )
     except Exception as e:
-        logger.error(f"Failed to run pipeline: {e}", exc_info=True)
+        logger.error(
+            "Failed to run pipeline",
+            extra={"error": str(e), "error_type": type(e).__name__},
+            exc_info=True,
+        )
         return error_response(cmd_id, "PIPELINE_ERROR", str(e))

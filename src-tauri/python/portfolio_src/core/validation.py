@@ -31,10 +31,14 @@ def validate_final_report(positions_df: pd.DataFrame, report_df: pd.DataFrame) -
     # 2. Cash Drag: Cash components in ETFs often not listed in holdings.
     # 3. Rounding: Weight percentages often truncated to 2 decimals.
     if not np.isclose(initial_total_value, final_total_value, rtol=0.02):
-        logger.warning("FAILED: Value Conservation Check")
-        logger.warning(f"  Initial total market value: €{initial_total_value:,.2f}")
-        logger.warning(f"  Final total exposure value: €{final_total_value:,.2f}")
-        logger.warning(f"  Difference: €{final_total_value - initial_total_value:,.2f}")
+        logger.warning(
+            "Value conservation check failed",
+            extra={
+                "initial_value": initial_total_value,
+                "final_value": final_total_value,
+                "difference": final_total_value - initial_total_value,
+            },
+        )
         is_valid = False
     else:
         logger.info("PASSED: Value Conservation Check (within 2% tolerance)")
@@ -59,15 +63,15 @@ def validate_final_report(positions_df: pd.DataFrame, report_df: pd.DataFrame) -
         missing_direct = initial_direct_isins - report_isins
 
         if missing_direct:
-            logger.warning("FAILED: Completeness Check")
-            logger.warning(f"  Missing Direct Holdings in report: {missing_direct}")
+            logger.warning(
+                "Completeness check failed",
+                extra={"missing_direct_holdings": list(missing_direct)},
+            )
             is_valid = False
         else:
             logger.info("PASSED: Completeness Check (Direct Holdings verified)")
     else:
-        logger.info(
-            "SKIPPED: Completeness Check (Missing 'asset_type' in positions data)"
-        )
+        logger.info("SKIPPED: Completeness Check (Missing 'asset_type' in positions data)")
 
     if is_valid:
         logger.info("Validation Successful")
@@ -79,9 +83,7 @@ def validate_final_report(positions_df: pd.DataFrame, report_df: pd.DataFrame) -
 
 if __name__ == "__main__":
     # Standalone test for the validation module
-    mock_positions = pd.DataFrame(
-        {"isin": ["A", "B", "C"], "market_value": [100, 200, 300]}
-    )
+    mock_positions = pd.DataFrame({"isin": ["A", "B", "C"], "market_value": [100, 200, 300]})
 
     # Test Case 1: Success
     logger.info("Running Test Case 1: Success")

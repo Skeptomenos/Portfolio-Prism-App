@@ -32,18 +32,19 @@ def generate_report(
         total_portfolio_value: Optional true total value of the portfolio.
                                If not provided, uses sum of exposed assets.
     """
-    logger.info(f"--- Generating analysis from {input_filepath} ---")
+    logger.info("Generating analysis report", extra={"input_filepath": input_filepath})
 
     try:
         # Load the main report
         exposure_df = pd.read_csv(input_filepath)
-        logger.info(f"  - Loaded exposure report with {len(exposure_df)} entries.")
+        logger.info("Loaded exposure report", extra={"entry_count": len(exposure_df)})
 
         # Separate resolved and unresolved holdings
         resolved_df, unresolved_df = _split_by_resolution(exposure_df)
 
         logger.info(
-            f"  - Resolved: {len(resolved_df)}, Unresolved: {len(unresolved_df)}"
+            "Split by resolution status",
+            extra={"resolved": len(resolved_df), "unresolved": len(unresolved_df)},
         )
 
         # Generate unresolved report for user action
@@ -68,7 +69,7 @@ def generate_report(
         _generate_analysis_reports(final_df, calc_total)
 
     except FileNotFoundError:
-        logger.error(f"Input file not found at {input_filepath}")
+        logger.error("Input file not found", extra={"input_filepath": input_filepath})
     except Exception as e:
         logger.error(f'Error during reporting: "{e}"')
         raise
@@ -84,9 +85,7 @@ def _split_by_resolution(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
         resolved_mask = df["resolution_status"] == "resolved"
     else:
         # Fallback: check ISIN validity
-        resolved_mask = df["isin"].apply(
-            lambda x: is_valid_isin(str(x)) if pd.notna(x) else False
-        )
+        resolved_mask = df["isin"].apply(lambda x: is_valid_isin(str(x)) if pd.notna(x) else False)
 
     return df[resolved_mask].copy(), df[~resolved_mask].copy()
 
@@ -110,16 +109,20 @@ def _generate_unresolved_report(unresolved_df: pd.DataFrame) -> None:
 
     output.to_csv("outputs/unresolved_holdings.csv", index=False)
     logger.info(
-        f"  - Saved {len(output)} unresolved holdings to outputs/unresolved_holdings.csv"
+        "Saved unresolved holdings",
+        extra={"count": len(output), "path": "outputs/unresolved_holdings.csv"},
     )
 
     # Log top 5 for visibility
     if len(output) > 0:
-        logger.info("  - Top 5 unresolved by value:")
+        logger.info("Top 5 unresolved by value")
         for i, (_, row) in enumerate(output.head(5).iterrows()):
             value = row.get("total_exposure", 0)
             name = row.get("name", "Unknown")
-            logger.info(f"      {i + 1}. {name}: €{value:,.2f}")
+            logger.info(
+                "Unresolved holding",
+                extra={"rank": i + 1, "name": name, "value": value},
+            )
 
 
 def _enrich_resolved_holdings(
@@ -145,7 +148,7 @@ def _enrich_resolved_holdings(
     unique_isins = valid_df["isin"].drop_duplicates().tolist()
     securities_to_enrich = [{"isin": isin} for isin in unique_isins]
 
-    logger.info(f"  - Enriching {len(securities_to_enrich)} unique ISINs...")
+    logger.info("Enriching ISINs", extra={"count": len(securities_to_enrich)})
 
     enriched_data = enrich_securities(securities_to_enrich)
 
@@ -182,19 +185,13 @@ def _fill_missing_metadata(df: pd.DataFrame) -> pd.DataFrame:
     if "asset_class" in df.columns:
         # Cash
         cash_mask = df["asset_class"] == "Cash"
-        df.loc[cash_mask, "sector"] = df.loc[cash_mask, "sector"].fillna(
-            "Cash & Equivalents"
-        )
+        df.loc[cash_mask, "sector"] = df.loc[cash_mask, "sector"].fillna("Cash & Equivalents")
         df.loc[cash_mask, "geography"] = df.loc[cash_mask, "geography"].fillna("Global")
 
         # Derivatives
         deriv_mask = df["asset_class"] == "Derivative"
-        df.loc[deriv_mask, "sector"] = df.loc[deriv_mask, "sector"].fillna(
-            "Derivatives"
-        )
-        df.loc[deriv_mask, "geography"] = df.loc[deriv_mask, "geography"].fillna(
-            "Global"
-        )
+        df.loc[deriv_mask, "sector"] = df.loc[deriv_mask, "sector"].fillna("Derivatives")
+        df.loc[deriv_mask, "geography"] = df.loc[deriv_mask, "geography"].fillna("Global")
 
     # Fill remaining gaps
     df["sector"] = df["sector"].fillna("Unknown")
@@ -236,7 +233,7 @@ def _save_enriched_report(df: pd.DataFrame) -> None:
 
 def _generate_analysis_reports(df: pd.DataFrame, total_value: float) -> None:
     """Generate sector, geography, and top holdings reports."""
-    logger.info(f"  - Using Total Portfolio Value: €{total_value:,.2f}")
+    logger.info("Using total portfolio value", extra={"total_value": total_value})
 
     # Fill NaN values for aggregation
     df = df.copy()
@@ -252,9 +249,7 @@ def _generate_analysis_reports(df: pd.DataFrame, total_value: float) -> None:
     # 2. Sector Exposure
     sector_exp = df.groupby("sector")["total_exposure"].sum().reset_index()
     if total_value > 0:
-        sector_exp["portfolio_percentage"] = (
-            sector_exp["total_exposure"] / total_value * 100
-        )
+        sector_exp["portfolio_percentage"] = sector_exp["total_exposure"] / total_value * 100
     else:
         sector_exp["portfolio_percentage"] = 0.0
     sector_exp.to_csv("outputs/sector_exposure.csv", index=False)

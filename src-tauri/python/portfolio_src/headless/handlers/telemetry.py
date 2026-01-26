@@ -43,9 +43,7 @@ async def handle_log_event(cmd_id: int, payload: dict[str, Any]) -> dict[str, An
     return success_response(cmd_id, True)
 
 
-async def handle_get_recent_reports(
-    cmd_id: int, payload: dict[str, Any]
-) -> dict[str, Any]:
+async def handle_get_recent_reports(cmd_id: int, payload: dict[str, Any]) -> dict[str, Any]:
     """Get recently processed error reports.
 
     Args:
@@ -63,13 +61,11 @@ async def handle_get_recent_reports(
         )
         reports = [dict(row) for row in cursor.fetchall()]
 
-    logger.debug(f"Returning {len(reports)} recent reports")
+    logger.debug("Returning recent reports", extra={"count": len(reports)})
     return success_response(cmd_id, reports)
 
 
-async def handle_get_pending_reviews(
-    cmd_id: int, payload: dict[str, Any]
-) -> dict[str, Any]:
+async def handle_get_pending_reviews(cmd_id: int, payload: dict[str, Any]) -> dict[str, Any]:
     """Get pending error reports awaiting review.
 
     Args:
@@ -87,5 +83,5 @@ async def handle_get_pending_reviews(
         )
         pending = [dict(row) for row in cursor.fetchall()]
 
-    logger.debug(f"Returning {len(pending)} pending reviews")
+    logger.debug("Returning pending reviews", extra={"count": len(pending)})
     return success_response(cmd_id, pending)

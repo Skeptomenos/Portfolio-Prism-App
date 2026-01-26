@@ -34,7 +34,7 @@ class ISharesAdapter:
             with open(CONFIG_PATH, "r") as f:
                 return json.load(f)
         except json.JSONDecodeError:
-            logger.error(f"Error decoding JSON from {CONFIG_PATH}")
+            logger.error("Error decoding JSON from config", extra={"path": str(CONFIG_PATH)})
             return {}
 
     def _save_config(self):
@@ -42,16 +42,21 @@ class ISharesAdapter:
             os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
             with open(CONFIG_PATH, "w") as f:
                 json.dump(self.config, f, indent=4)
-            logger.info(f"Updated iShares config saved to {CONFIG_PATH}")
+            logger.info("Updated iShares config saved", extra={"path": str(CONFIG_PATH)})
         except Exception as e:
-            logger.error(f"Failed to save iShares config: {e}")
+            logger.error(
+                "Failed to save iShares config",
+                extra={"error": str(e), "error_type": type(e).__name__},
+            )
 
     def _discover_product_id(self, isin: str) -> str:
         """
         Automated discovery of the iShares Product ID using the site's search feature.
         """
-        logger.info(f"Attempting to auto-discover Product ID for {isin}...")
-        search_url = f"https://www.ishares.com/de/privatanleger/de/suche/search-results?searchTerm={isin}"
+        logger.info("Attempting to auto-discover Product ID", extra={"isin": isin})
+        search_url = (
+            f"https://www.ishares.com/de/privatanleger/de/suche/search-results?searchTerm={isin}"
+        )
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         }
@@ -66,34 +71,29 @@ class ISharesAdapter:
 
             if match:
                 product_id = match.group(1)
-                logger.info(f"✅ Auto-discovered Product ID: {product_id}")
+                logger.info("Auto-discovered Product ID", extra={"product_id": product_id})
                 return product_id
             else:
-                logger.warning(
-                    f"Could not find Product ID in search results for {isin}."
-                )
+                logger.warning("Could not find Product ID in search results", extra={"isin": isin})
                 return None
         except Exception as e:
-            logger.error(f"Auto-discovery failed: {e}")
+            logger.error(
+                "Auto-discovery failed",
+                extra={"error": str(e), "error_type": type(e).__name__},
+            )
             return None
 
     def _prompt_for_product_id(self, isin: str) -> str:
         """
         Interactively prompts the user for the missing Product ID.
         """
-        logger.warning(f"Missing Product ID for iShares ETF: {isin}")
-        logger.info(
-            "Please visit the iShares website, find the ETF page, and look at the URL."
-        )
-        logger.info(
-            "Example URL: .../produkte/251882/ishares-msci-world-ucits-etf-acc-fund"
-        )
+        logger.warning("Missing Product ID for iShares ETF", extra={"isin": isin})
+        logger.info("Please visit the iShares website, find the ETF page, and look at the URL.")
+        logger.info("Example URL: .../produkte/251882/ishares-msci-world-ucits-etf-acc-fund")
         logger.info("The Product ID is the number (e.g., 251882).")
 
         while True:
-            product_id = input(
-                f"   Enter Product ID for {isin} (or 's' to skip): "
-            ).strip()
+            product_id = input(f"   Enter Product ID for {isin} (or 's' to skip): ").strip()
             if product_id.lower() == "s":
                 return None
             if product_id.isdigit():
@@ -113,10 +113,10 @@ class ISharesAdapter:
         """
         # Validate ISIN format before making any requests
         if not is_valid_isin(isin):
-            logger.warning(f"Invalid ISIN format: {isin}. Skipping fetch.")
+            logger.warning("Invalid ISIN format, skipping fetch", extra={"isin": isin})
             return pd.DataFrame()
 
-        logger.info(f"--- Fetching holdings for {isin} ---")
+        logger.info("Fetching iShares holdings", extra={"isin": isin})
 
         # 1. Check Config
         etf_info = self.config.get(isin)
@@ -140,7 +140,7 @@ class ISharesAdapter:
                 self._save_config()
                 etf_info = self.config[isin]
             else:
-                logger.warning(f"Skipped configuration for {isin}. Cannot fetch data.")
+                logger.warning("Skipped configuration, cannot fetch data", extra={"isin": isin})
                 return pd.DataFrame()
 
         product_id = etf_info.get("product_id")
@@ -160,7 +160,7 @@ class ISharesAdapter:
             f"https://www.ishares.com/{region}/{user_type}/{region}/produkte/"
             f"{product_id}/fund/1478358465952.ajax?fileType=csv&fileName={isin}_holdings&dataType=fund"
         )
-        logger.info(f"1. Constructed URL: {url}")
+        logger.info("Constructed URL", extra={"url": url})
 
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
@@ -177,7 +177,7 @@ class ISharesAdapter:
 
             # Skip initial rows and parse the main data
             holdings_df = pd.read_csv(csv_data, skiprows=2)
-            logger.info(f"   - Successfully parsed CSV. Found {len(holdings_df)} rows.")
+            logger.info("Parsed CSV", extra={"row_count": len(holdings_df)})
 
             # We need: Ticker (raw from provider), Name, Weight, Location, and Exchange.
             # Note: iShares CSV does NOT contain ISIN, so we preserve raw ticker and construct Yahoo-compatible ticker.
@@ -215,13 +215,11 @@ class ISharesAdapter:
             negative_count = negative_weights_mask.sum()
             if negative_count > 0:
                 logger.warning(
-                    f"Clipped {negative_count} negative weight(s) to 0 for {isin}"
+                    "Clipped negative weights to 0", extra={"count": negative_count, "isin": isin}
                 )
 
             # Clip negative weights to 0.0
-            holdings_df["weight_percentage"] = holdings_df["weight_percentage"].clip(
-                lower=0.0
-            )
+            holdings_df["weight_percentage"] = holdings_df["weight_percentage"].clip(lower=0.0)
 
             # --- Ticker Suffixing for YFinance ---
             # Map iShares "Börse" / "Standort" to Yahoo Finance Suffixes
@@ -283,11 +281,7 @@ class ISharesAdapter:
                     ticker = ticker.zfill(4)
 
                 # 4. Handle Canadian/UK Internal Dots (GIB.A -> GIB-A)
-                if (
-                    suffix in [".TO", ".L"]
-                    and "." in ticker
-                    and not ticker.endswith(".")
-                ):
+                if suffix in [".TO", ".L"] and "." in ticker and not ticker.endswith("."):
                     ticker = ticker.replace(".", "-")
 
                 # 5. Apply Suffix
@@ -308,12 +302,14 @@ class ISharesAdapter:
 
         except requests.exceptions.RequestException as e:
             logger.error(
-                f"Network request failed for {isin} (ID: {product_id}). Details: {e}"
+                "Network request failed",
+                extra={"isin": isin, "product_id": product_id, "error": str(e)},
             )
             return pd.DataFrame()
         except Exception as e:
             logger.error(
-                f"An unexpected error occurred in ISharesAdapter for {isin}: {e}"
+                "Unexpected error in ISharesAdapter",
+                extra={"isin": isin, "error": str(e), "error_type": type(e).__name__},
             )
             return pd.DataFrame()
 

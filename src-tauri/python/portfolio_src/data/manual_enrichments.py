@@ -52,7 +52,10 @@ def load_manual_enrichments() -> Dict[str, str]:
         return {k.upper(): v for k, v in data.items() if v}
 
     except (json.JSONDecodeError, IOError) as e:
-        logger.error(f"Failed to load manual enrichments: {e}")
+        logger.error(
+            "Failed to load manual enrichments",
+            extra={"error": str(e), "error_type": type(e).__name__},
+        )
         return {}
 
 
@@ -91,7 +94,7 @@ def save_manual_enrichment(ticker: str, isin: str) -> Tuple[bool, Optional[str]]
         with open(MANUAL_ENRICHMENTS_PATH, "w") as f:
             json.dump(mappings, f, indent=2, sort_keys=True)
 
-        logger.info(f"Saved manual enrichment: {ticker} -> {isin}")
+        logger.info("Saved manual enrichment", extra={"ticker": ticker, "isin": isin})
         return True, None
 
     except IOError as e:
@@ -138,7 +141,7 @@ def save_manual_enrichments_bulk(mappings: Dict[str, str]) -> Tuple[int, List[st
             with open(MANUAL_ENRICHMENTS_PATH, "w") as f:
                 json.dump(existing, f, indent=2, sort_keys=True)
 
-            logger.info(f"Saved {success_count} manual enrichments")
+            logger.info("Saved manual enrichments", extra={"count": success_count})
 
         except IOError as e:
             errors.append(f"Failed to save file: {e}")
@@ -187,7 +190,10 @@ def load_suggested_isins() -> Dict[str, Dict[str, str]]:
         with open(SUGGESTED_ISINS_PATH, "r") as f:
             return json.load(f)
     except (json.JSONDecodeError, IOError) as e:
-        logger.error(f"Failed to load suggested ISINs: {e}")
+        logger.error(
+            "Failed to load suggested ISINs",
+            extra={"error": str(e), "error_type": type(e).__name__},
+        )
         return {}
 
 

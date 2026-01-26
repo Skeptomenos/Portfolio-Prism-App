@@ -38,17 +38,20 @@ class TradeRepublicAdapter:
 
                 errors = canonical.validate()
                 if errors:
-                    logger.warning(f"Validation errors for {isin}: {errors}")
+                    logger.warning("Validation errors", extra={"isin": isin, "errors": errors})
                     if any("Invalid" in e or "Negative price" in e for e in errors):
                         continue
 
                 result.append(canonical)
 
             except (KeyError, ValueError, InvalidOperation) as e:
-                logger.error(f"Failed to parse TR position: {e}, data: {pos}")
+                logger.error(
+                    "Failed to parse TR position",
+                    extra={"error": str(e), "error_type": type(e).__name__, "data": str(pos)},
+                )
                 continue
 
-        logger.info(f"Normalized {len(result)} positions from Trade Republic")
+        logger.info("Normalized positions from Trade Republic", extra={"count": len(result)})
         return result
 
     def _detect_asset_type(self, pos: dict) -> str:

@@ -23,7 +23,7 @@ def get_bundled_defaults_path() -> Path:
 
 
 def initialize_user_data_dir(data_dir: Path) -> None:
-    logger.info(f"Initializing user data directory: {data_dir}")
+    logger.info("Initializing user data directory", extra={"path": str(data_dir)})
 
     dirs_to_create = [
         data_dir,
@@ -38,7 +38,7 @@ def initialize_user_data_dir(data_dir: Path) -> None:
 
     for directory in dirs_to_create:
         directory.mkdir(parents=True, exist_ok=True)
-        logger.debug(f"Created directory: {directory}")
+        logger.debug("Created directory", extra={"path": str(directory)})
 
     bundled_defaults = get_bundled_defaults_path()
     user_config_dir = data_dir / "config"
@@ -53,9 +53,9 @@ def initialize_user_data_dir(data_dir: Path) -> None:
 
         if src.exists() and not dst.exists():
             shutil.copy2(src, dst)
-            logger.info(f"Copied default config: {filename}")
+            logger.info("Copied default config", extra={"filename": filename})
         elif not src.exists():
-            logger.warning(f"Bundled default not found: {src}")
+            logger.warning("Bundled default not found", extra={"path": str(src)})
 
     ticker_map_src = bundled_defaults / "ticker_map.json"
     ticker_map_dst = CONFIG_DIR / "ticker_map.json"
@@ -64,9 +64,12 @@ def initialize_user_data_dir(data_dir: Path) -> None:
         try:
             ticker_map_dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(ticker_map_src, ticker_map_dst)
-            logger.info(f"Migrated ticker map to {ticker_map_dst}")
+            logger.info("Migrated ticker map", extra={"path": str(ticker_map_dst)})
         except Exception as e:
-            logger.error(f"Failed to migrate ticker map: {e}")
+            logger.error(
+                "Failed to migrate ticker map",
+                extra={"error": str(e), "error_type": type(e).__name__},
+            )
 
     version_file = data_dir / "version.txt"
     if not version_file.exists():
@@ -94,5 +97,5 @@ def run_migration_if_needed() -> None:
         initialize_user_data_dir(data_dir)
     else:
         current_version = version_file.read_text().strip()
-        logger.debug(f"Existing installation detected: v{current_version}")
+        logger.debug("Existing installation detected", extra={"version": current_version})
         # Future: Add upgrade logic here when schema changes

@@ -25,6 +25,25 @@ import type {
   PipelineHealthReport,
 } from '../types'
 
+import { EngineHealthSchema } from './schemas/health'
+import { DashboardDataSchema, TrueHoldingsResponseSchema } from '../features/dashboard/schemas'
+import {
+  AuthStatusSchema,
+  SessionCheckSchema,
+  AuthResponseSchema,
+  LogoutResponseSchema,
+  StoredCredentialsSchema,
+} from '../features/auth/schemas'
+import {
+  PortfolioSyncResultSchema,
+  PositionsResponseSchema,
+  UploadHoldingsResultSchema,
+  SystemLogReportSchema,
+  RunPipelineResultSchema,
+  HiveContributionResultSchema,
+  PipelineHealthReportSchema,
+} from './schemas/ipc'
+
 export class IPCValidationError extends Error {
   constructor(
     public readonly command: string,
@@ -158,7 +177,10 @@ async function callCommand<K extends keyof TauriCommands>(
  */
 export async function getEngineHealth(): Promise<EngineHealth> {
   try {
-    return await deduplicatedCall('get_engine_health', () => callCommand('get_engine_health', {}))
+    const data = await deduplicatedCall('get_engine_health', () =>
+      callCommand('get_engine_health', {})
+    )
+    return validateResponse('get_engine_health', data, EngineHealthSchema)
   } catch (error) {
     logger.error('[IPC] get_health failed', error instanceof Error ? error : undefined)
     throw error
@@ -171,7 +193,10 @@ export async function getEngineHealth(): Promise<EngineHealth> {
 export async function getDashboardData(portfolioId: number): Promise<DashboardData> {
   try {
     const key = `get_dashboard_data:${portfolioId}`
-    return await deduplicatedCall(key, () => callCommand('get_dashboard_data', { portfolioId }))
+    const data = await deduplicatedCall(key, () =>
+      callCommand('get_dashboard_data', { portfolioId })
+    )
+    return validateResponse('get_dashboard_data', data, DashboardDataSchema)
   } catch (error) {
     logger.error('[IPC] get_dashboard_data failed', error instanceof Error ? error : undefined)
     throw error
@@ -197,7 +222,8 @@ export async function getHoldings(portfolioId: number): Promise<Holding[]> {
 export async function getPositions(portfolioId: number): Promise<PositionsResponse> {
   try {
     const key = `get_positions:${portfolioId}`
-    return await deduplicatedCall(key, () => callCommand('get_positions', { portfolioId }))
+    const data = await deduplicatedCall(key, () => callCommand('get_positions', { portfolioId }))
+    return validateResponse('get_positions', data, PositionsResponseSchema)
   } catch (error) {
     logger.error('[IPC] get_positions failed', error instanceof Error ? error : undefined)
     throw error
@@ -213,7 +239,10 @@ export async function syncPortfolio(
 ): Promise<PortfolioSyncResult> {
   try {
     const key = `sync_portfolio:${portfolioId}:${force}`
-    return await deduplicatedCall(key, () => callCommand('sync_portfolio', { portfolioId, force }))
+    const data = await deduplicatedCall(key, () =>
+      callCommand('sync_portfolio', { portfolioId, force })
+    )
+    return validateResponse('sync_portfolio', data, PortfolioSyncResultSchema)
   } catch (error) {
     logger.error('[IPC] sync_portfolio failed', error instanceof Error ? error : undefined)
     throw error
@@ -229,7 +258,8 @@ export async function runPipeline(): Promise<{
   durationMs: number
 }> {
   try {
-    return await callCommand('run_pipeline', {})
+    const data = await callCommand('run_pipeline', {})
+    return validateResponse('run_pipeline', data, RunPipelineResultSchema)
   } catch (error) {
     logger.error('[IPC] run_pipeline failed', error instanceof Error ? error : undefined)
     throw error
@@ -241,7 +271,10 @@ export async function runPipeline(): Promise<{
  */
 export async function trGetAuthStatus(): Promise<AuthStatus> {
   try {
-    return await deduplicatedCall('tr_get_auth_status', () => callCommand('tr_get_auth_status', {}))
+    const data = await deduplicatedCall('tr_get_auth_status', () =>
+      callCommand('tr_get_auth_status', {})
+    )
+    return validateResponse('tr_get_auth_status', data, AuthStatusSchema)
   } catch (error) {
     logger.error('[IPC] tr_get_auth_status failed', error instanceof Error ? error : undefined)
     throw error
@@ -253,9 +286,10 @@ export async function trGetAuthStatus(): Promise<AuthStatus> {
  */
 export async function trCheckSavedSession(): Promise<SessionCheck> {
   try {
-    return await deduplicatedCall('tr_check_saved_session', () =>
+    const data = await deduplicatedCall('tr_check_saved_session', () =>
       callCommand('tr_check_saved_session', {})
     )
+    return validateResponse('tr_check_saved_session', data, SessionCheckSchema)
   } catch (error) {
     logger.error('[IPC] tr_check_saved_session failed', error instanceof Error ? error : undefined)
     throw error
@@ -271,7 +305,8 @@ export async function trGetStoredCredentials(): Promise<{
   maskedPhone: string | null
 }> {
   try {
-    return await callCommand('tr_get_stored_credentials', {})
+    const data = await callCommand('tr_get_stored_credentials', {})
+    return validateResponse('tr_get_stored_credentials', data, StoredCredentialsSchema)
   } catch (error) {
     logger.error(
       '[IPC] tr_get_stored_credentials failed',
@@ -290,7 +325,8 @@ export async function trLogin(
   remember: boolean = true
 ): Promise<AuthResponse> {
   try {
-    return await callCommand('tr_login', { phone, pin, remember })
+    const data = await callCommand('tr_login', { phone, pin, remember })
+    return validateResponse('tr_login', data, AuthResponseSchema)
   } catch (error) {
     logger.error('[IPC] tr_login failed', error instanceof Error ? error : undefined)
     throw error
@@ -303,7 +339,8 @@ export async function trLogin(
  */
 export async function trLoginWithStoredCredentials(): Promise<AuthResponse> {
   try {
-    return await callCommand('tr_login', { useStoredCredentials: true })
+    const data = await callCommand('tr_login', { useStoredCredentials: true })
+    return validateResponse('tr_login', data, AuthResponseSchema)
   } catch (error) {
     logger.error('[IPC] tr_login (stored) failed', error instanceof Error ? error : undefined)
     throw error
@@ -315,7 +352,8 @@ export async function trLoginWithStoredCredentials(): Promise<AuthResponse> {
  */
 export async function trSubmit2FA(code: string): Promise<AuthResponse> {
   try {
-    return await callCommand('tr_submit_2fa', { code })
+    const data = await callCommand('tr_submit_2fa', { code })
+    return validateResponse('tr_submit_2fa', data, AuthResponseSchema)
   } catch (error) {
     logger.error('[IPC] tr_submit_2fa failed', error instanceof Error ? error : undefined)
     throw error
@@ -327,7 +365,8 @@ export async function trSubmit2FA(code: string): Promise<AuthResponse> {
  */
 export async function trLogout(): Promise<LogoutResponse> {
   try {
-    return await callCommand('tr_logout', {})
+    const data = await callCommand('tr_logout', {})
+    return validateResponse('tr_logout', data, LogoutResponseSchema)
   } catch (error) {
     logger.error('[IPC] tr_logout failed', error instanceof Error ? error : undefined)
     throw error
@@ -361,7 +400,8 @@ export async function uploadHoldings(
   etfIsin: string
 ): Promise<UploadHoldingsResult> {
   try {
-    return await callCommand('upload_holdings', { filePath, etfIsin })
+    const data = await callCommand('upload_holdings', { filePath, etfIsin })
+    return validateResponse('upload_holdings', data, UploadHoldingsResultSchema)
   } catch (error) {
     logger.error('[IPC] upload_holdings failed', error instanceof Error ? error : undefined)
     throw error
@@ -373,7 +413,10 @@ export async function uploadHoldings(
  */
 export async function getTrueHoldings(): Promise<TrueHoldingsResponse> {
   try {
-    return await deduplicatedCall('get_true_holdings', () => callCommand('get_true_holdings', {}))
+    const data = await deduplicatedCall('get_true_holdings', () =>
+      callCommand('get_true_holdings', {})
+    )
+    return validateResponse('get_true_holdings', data, TrueHoldingsResponseSchema)
   } catch (error) {
     logger.error('[IPC] get_true_holdings failed', error instanceof Error ? error : undefined)
     throw error
@@ -400,7 +443,8 @@ export async function logEvent(
 
 export async function getRecentReports(): Promise<SystemLogReport[]> {
   try {
-    return await callCommand('get_recent_reports', {})
+    const data = await callCommand('get_recent_reports', {})
+    return validateResponse('get_recent_reports', data, z.array(SystemLogReportSchema))
   } catch (error) {
     logger.error('[IPC] get_recent_reports failed', error instanceof Error ? error : undefined)
     return []
@@ -412,7 +456,8 @@ export async function getRecentReports(): Promise<SystemLogReport[]> {
  */
 export async function getPendingReviews(): Promise<SystemLogReport[]> {
   try {
-    return await callCommand('get_pending_reviews', {})
+    const data = await callCommand('get_pending_reviews', {})
+    return validateResponse('get_pending_reviews', data, z.array(SystemLogReportSchema))
   } catch (error) {
     logger.error('[IPC] get_pending_reviews failed', error instanceof Error ? error : undefined)
     return []
@@ -424,9 +469,10 @@ export async function getPendingReviews(): Promise<SystemLogReport[]> {
  */
 export async function getPipelineReport(): Promise<PipelineHealthReport> {
   try {
-    return await deduplicatedCall('get_pipeline_report', () =>
+    const data = await deduplicatedCall('get_pipeline_report', () =>
       callCommand('get_pipeline_report', {})
     )
+    return validateResponse('get_pipeline_report', data, PipelineHealthReportSchema)
   } catch (error) {
     logger.error('[IPC] get_pipeline_report failed', error instanceof Error ? error : undefined)
     throw error
@@ -449,8 +495,9 @@ export async function setHiveContribution(enabled: boolean): Promise<void> {
  */
 export async function getHiveContribution(): Promise<boolean> {
   try {
-    const result = await callCommand('get_hive_contribution', {})
-    return result?.enabled ?? false
+    const data = await callCommand('get_hive_contribution', {})
+    const result = validateResponse('get_hive_contribution', data, HiveContributionResultSchema)
+    return result.enabled
   } catch (error) {
     logger.error('[IPC] get_hive_contribution failed', error instanceof Error ? error : undefined)
     return false

@@ -189,11 +189,11 @@ class TRDaemon:
                 }
             except Exception as e:
                 error_msg = str(e).lower()
-                if any(
-                    x in error_msg
-                    for x in ["401", "unauthorized", "session", "expired"]
-                ):
-                    logger.error(f"Auth error during fetch: {e}")
+                if any(x in error_msg for x in ["401", "unauthorized", "session", "expired"]):
+                    logger.error(
+                        "Auth error during fetch",
+                        extra={"error": str(e), "error_type": type(e).__name__},
+                    )
                     self.api = None
                     self._cached_auth_status = "idle"
                 return {

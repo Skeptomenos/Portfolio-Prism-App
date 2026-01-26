@@ -26,7 +26,14 @@ import type {
   LogoutResponse as _LogoutResponse,
 } from '../features/auth/schemas'
 
-import type { PipelineHealthReport } from '../hooks/usePipelineDiagnostics'
+import type {
+  PortfolioSyncResult as _PortfolioSyncResult,
+  Position as _Position,
+  PositionsResponse as _PositionsResponse,
+  UploadHoldingsResult as _UploadHoldingsResult,
+  SystemLogReport as _SystemLogReport,
+  PipelineHealthReport as _PipelineHealthReport,
+} from '../lib/schemas/ipc'
 
 // =============================================================================
 // Zod Schema Re-exports (Single Source of Truth)
@@ -44,8 +51,12 @@ export type AuthStatus = _AuthStatus
 export type SessionCheck = _SessionCheck
 export type AuthResponse = _AuthResponse
 export type LogoutResponse = _LogoutResponse
-
-export type { PipelineHealthReport } from '../hooks/usePipelineDiagnostics'
+export type PortfolioSyncResult = _PortfolioSyncResult
+export type Position = _Position
+export type PositionsResponse = _PositionsResponse
+export type UploadHoldingsResult = _UploadHoldingsResult
+export type SystemLogReport = _SystemLogReport
+export type PipelineHealthReport = _PipelineHealthReport
 
 export { EngineHealthSchema } from '../lib/schemas/health'
 export {
@@ -65,6 +76,16 @@ export {
   LogoutResponseSchema,
   StoredCredentialsSchema,
 } from '../features/auth/schemas'
+export {
+  PortfolioSyncResultSchema,
+  PositionSchema,
+  PositionsResponseSchema,
+  UploadHoldingsResultSchema,
+  SystemLogReportSchema,
+  RunPipelineResultSchema,
+  HiveContributionResultSchema,
+  PipelineHealthReportSchema,
+} from '../lib/schemas/ipc'
 
 // =============================================================================
 // Navigation
@@ -131,60 +152,6 @@ export interface Notification {
   message?: string
   dismissable?: boolean
   duration?: number // ms, undefined = persistent
-}
-
-// =============================================================================
-// Portfolio Sync Types
-// =============================================================================
-
-export interface PortfolioSyncResult {
-  syncedPositions: number
-  newPositions: number
-  updatedPositions: number
-  totalValue: number
-  durationMs: number
-}
-
-// =============================================================================
-// Upload Holdings Result
-// =============================================================================
-
-export interface UploadHoldingsResult {
-  success: boolean
-  holdingsCount: number
-  isin: string
-  message?: string
-}
-
-// =============================================================================
-// Position Data (Full Trade Republic Export)
-// =============================================================================
-
-export interface Position {
-  isin: string
-  name: string
-  ticker?: string
-  instrumentType: 'stock' | 'etf' | 'crypto' | 'bond' | 'derivative' | 'other'
-  quantity: number
-  avgBuyPrice: number
-  currentPrice: number
-  currentValue: number
-  totalCost: number
-  pnlEur: number
-  pnlPercent: number
-  weight: number
-  currency: string
-  notes?: string
-  lastUpdated: string
-}
-
-export interface PositionsResponse {
-  positions: Position[]
-  totalValue: number
-  totalCost: number
-  totalPnl: number
-  totalPnlPercent: number
-  lastSyncTime?: string
 }
 
 // =============================================================================
@@ -337,22 +304,3 @@ export type ResolutionSource =
   | (string & {})
 
 export type ResolutionStatus = 'resolved' | 'unresolved' | 'skipped' | 'unknown'
-
-// =============================================================================
-// System Logs / Telemetry
-// =============================================================================
-
-export interface SystemLogReport {
-  id: number
-  session_id: string
-  timestamp: string
-  level: 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR' | 'CRITICAL'
-  source: string
-  component: string | null
-  category: string | null
-  message: string
-  context: string | null
-  error_hash: string | null
-  processed: number
-  reported_at: string | null
-}

@@ -42,5 +42,8 @@ def load_portfolio_state() -> Tuple[pd.DataFrame, pd.DataFrame]:
 
         return direct, etfs
     except Exception as e:
-        logger.error(f"Failed to load portfolio from database: {e}")
+        logger.error(
+            "Failed to load portfolio from database",
+            extra={"error": str(e), "error_type": type(e).__name__},
+        )
         return pd.DataFrame(), pd.DataFrame()

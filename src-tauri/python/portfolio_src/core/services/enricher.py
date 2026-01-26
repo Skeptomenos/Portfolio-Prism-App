@@ -74,7 +74,9 @@ class HiveEnrichmentService:
 
         cache_hits = len(isins) - len(remaining_isins)
         if cache_hits > 0:
-            logger.debug(f"LocalCache hit for {cache_hits}/{len(isins)} ISINs")
+            logger.debug(
+                "LocalCache hit", extra={"cache_hits": cache_hits, "total_isins": len(isins)}
+            )
 
         # Step 2: Try HiveClient.batch_lookup for remaining ISINs
         missing_isins = []
@@ -92,15 +94,10 @@ class HiveEnrichmentService:
                         "asset_class": asset.asset_class,
                     }
                     sources[isin] = (
-                        asset.resolution_source
-                        if hasattr(asset, "resolution_source")
-                        else "hive"
+                        asset.resolution_source if hasattr(asset, "resolution_source") else "hive"
                     )
 
-                    if (
-                        hasattr(asset, "needs_manual_resolution")
-                        and asset.needs_manual_resolution
-                    ):
+                    if hasattr(asset, "needs_manual_resolution") and asset.needs_manual_resolution:
                         health.record_failure(
                             stage="ASSET_CLASSIFICATION",
                             item=isin,
@@ -114,8 +111,10 @@ class HiveEnrichmentService:
         contributed_isins: List[str] = []
 
         if missing_isins:
+            examples = ", ".join(missing_isins[:3]) + ("..." if len(missing_isins) > 3 else "")
             logger.info(
-                f"Hive miss for {len(missing_isins)} assets. Calling fallback APIs for: {', '.join(missing_isins[:3])}{'...' if len(missing_isins) > 3 else ''}"
+                "Hive miss, calling fallback APIs",
+                extra={"miss_count": len(missing_isins), "examples": examples},
             )
             fallback_results = self.fallback_service.get_metadata_batch(missing_isins)
 
@@ -136,12 +135,12 @@ class HiveEnrichmentService:
                 contributed_isins.append(isin)
 
             if new_contributions:
-                logger.info(f"Contributing {len(new_contributions)} new assets to Hive")
+                logger.info(
+                    "Contributing new assets to Hive", extra={"count": len(new_contributions)}
+                )
                 self.hive_client.batch_contribute(new_contributions)
 
-        return EnrichmentResult(
-            data=metadata, sources=sources, contributions=contributed_isins
-        )
+        return EnrichmentResult(data=metadata, sources=sources, contributions=contributed_isins)
 
 
 class Enricher:
@@ -190,7 +189,8 @@ class Enricher:
 
         all_unique_isins = self._collect_unique_isins(holdings_map)
         logger.info(
-            f"Enrichment: {len(all_unique_isins)} unique ISINs from {total_securities} total holdings"
+            "Enrichment stats",
+            extra={"unique_isins": len(all_unique_isins), "total_securities": total_securities},
         )
 
         enrichment_data: Dict[str, Dict[str, Any]] = {}
@@ -201,7 +201,11 @@ class Enricher:
                 self._contributions.extend(result.contributions)
                 self._sources.update(result.sources)
             except Exception as e:
-                logger.warning(f"Batch enrichment failed: {e}")
+                logger.warning(
+                    "Batch enrichment failed",
+                    extra={"error": str(e), "error_type": type(e).__name__},
+                    exc_info=True,
+                )
 
         processed_securities = 0
         for idx, (etf_isin, holdings) in enumerate(holdings_map.items()):
@@ -217,7 +221,9 @@ class Enricher:
                 enriched = self._apply_enrichment_data(holdings, enrichment_data)
                 enriched_map[etf_isin] = enriched
                 processed_securities += len(holdings)
-                logger.debug(f"Enriched {etf_isin}: {len(enriched)} holdings")
+                logger.debug(
+                    "Enriched ETF", extra={"etf_isin": etf_isin, "holdings_count": len(enriched)}
+                )
             except Exception as e:
                 errors.append(
                     PipelineError(
@@ -232,7 +238,8 @@ class Enricher:
                 processed_securities += len(holdings)
 
         logger.info(
-            f"Enrichment complete: {len(enriched_map)} ETFs processed, {len(errors)} errors"
+            "Enrichment complete",
+            extra={"etfs_processed": len(enriched_map), "error_count": len(errors)},
         )
         return enriched_map, errors
 
@@ -255,7 +262,11 @@ class Enricher:
         try:
             SchemaNormalizer.validate_schema(normalized, ["isin"], "enricher")
         except SchemaError as e:
-            logger.error(f"Schema validation failed in enricher: {e}")
+            logger.error(
+                "Schema validation failed in enricher",
+                extra={"error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
+            )
             raise e
 
         enriched = normalized.copy()
@@ -271,21 +282,15 @@ class Enricher:
             isin = row.get("isin")
             if isin and isin in enrichment_data:
                 meta = enrichment_data[isin]
-                enriched.at[idx, "sector"] = meta.get(
-                    "sector", enriched.at[idx, "sector"]
-                )
-                enriched.at[idx, "geography"] = meta.get(
-                    "geography", enriched.at[idx, "geography"]
-                )
+                enriched.at[idx, "sector"] = meta.get("sector", enriched.at[idx, "sector"])
+                enriched.at[idx, "geography"] = meta.get("geography", enriched.at[idx, "geography"])
                 enriched.at[idx, "asset_class"] = meta.get(
                     "asset_class", enriched.at[idx, "asset_class"]
                 )
 
         return enriched
 
-    def enrich_positions(
-        self, positions: pd.DataFrame
-    ) -> Tuple[pd.DataFrame, List[PipelineError]]:
+    def enrich_positions(self, positions: pd.DataFrame) -> Tuple[pd.DataFrame, List[PipelineError]]:
         """
         Enrich direct stock positions with sector/geography metadata.
 
@@ -302,7 +307,7 @@ class Enricher:
 
         try:
             enriched = self._enrich_holdings(positions)
-            logger.info(f"Enriched {len(enriched)} direct positions")
+            logger.info("Enriched direct positions", extra={"count": len(enriched)})
             return enriched, errors
         except Exception as e:
             errors.append(
@@ -333,7 +338,11 @@ class Enricher:
         try:
             SchemaNormalizer.validate_schema(normalized_holdings, ["isin"], "enricher")
         except SchemaError as e:
-            logger.error(f"Schema validation failed in enricher: {e}")
+            logger.error(
+                "Schema validation failed in enricher",
+                extra={"error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
+            )
             raise e
 
         enriched = normalized_holdings.copy()
@@ -358,9 +367,7 @@ class Enricher:
                     isin = row.get("isin")
                     if isin and isin in result.data:
                         meta = result.data[isin]
-                        enriched.at[idx, "sector"] = meta.get(
-                            "sector", enriched.at[idx, "sector"]
-                        )
+                        enriched.at[idx, "sector"] = meta.get("sector", enriched.at[idx, "sector"])
                         enriched.at[idx, "geography"] = meta.get(
                             "geography", enriched.at[idx, "geography"]
                         )
@@ -368,7 +375,11 @@ class Enricher:
                             "asset_class", enriched.at[idx, "asset_class"]
                         )
             except Exception as e:
-                logger.warning(f"Enrichment service failed: {e}")
+                logger.warning(
+                    "Enrichment service failed",
+                    extra={"error": str(e), "error_type": type(e).__name__},
+                    exc_info=True,
+                )
 
         return enriched
 

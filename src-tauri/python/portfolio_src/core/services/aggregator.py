@@ -151,12 +151,17 @@ class Aggregator:
             aggregated = aggregated.sort_values("total_exposure", ascending=False)
 
             logger.info(
-                f"Aggregation complete: {len(aggregated)} unique underlying assets identified"
+                "Aggregation complete",
+                extra={"unique_assets": len(aggregated)},
             )
             return cast(pd.DataFrame, aggregated), errors
 
         except Exception as e:
-            logger.error(f"Aggregation failed: {e}", exc_info=True)
+            logger.error(
+                "Aggregation failed",
+                extra={"error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
+            )
             errors.append(
                 PipelineError(
                     phase=ErrorPhase.AGGREGATION,
@@ -184,10 +189,7 @@ class Aggregator:
         name_col = get_name_column(direct_positions)
         if name_col:
             cash_mask = (
-                direct_positions[name_col]
-                .astype(str)
-                .str.upper()
-                .str.contains("CASH", na=False)
+                direct_positions[name_col].astype(str).str.upper().str.contains("CASH", na=False)
             )
             direct_positions = direct_positions[~cash_mask].copy()
             if direct_positions.empty:
@@ -229,23 +231,15 @@ class Aggregator:
                 vals = vals.iloc[:, 0]
             numeric_vals = pd.to_numeric(cast(Any, vals), errors="coerce")
             df["total_exposure"] = getattr(numeric_vals, "fillna")(0.0)
-        elif (
-            "quantity" in direct_positions.columns
-            and "price" in direct_positions.columns
-        ):
+        elif "quantity" in direct_positions.columns and "price" in direct_positions.columns:
             # Calculate from quantity * price
             qty = pd.to_numeric(direct_positions["quantity"], errors="coerce").fillna(0)
             price = pd.to_numeric(direct_positions["price"], errors="coerce").fillna(0)
             df["total_exposure"] = qty * price
-        elif (
-            "quantity" in direct_positions.columns
-            and "current_price" in direct_positions.columns
-        ):
+        elif "quantity" in direct_positions.columns and "current_price" in direct_positions.columns:
             # Fallback: use current_price column name directly
             qty = pd.to_numeric(direct_positions["quantity"], errors="coerce").fillna(0)
-            price = pd.to_numeric(
-                direct_positions["current_price"], errors="coerce"
-            ).fillna(0)
+            price = pd.to_numeric(direct_positions["current_price"], errors="coerce").fillna(0)
             df["total_exposure"] = qty * price
         else:
             logger.warning(
@@ -255,9 +249,7 @@ class Aggregator:
             df["total_exposure"] = 0.0
 
         if "resolution_confidence" in direct_positions.columns:
-            df["resolution_confidence"] = direct_positions[
-                "resolution_confidence"
-            ].values
+            df["resolution_confidence"] = direct_positions["resolution_confidence"].values
 
         if "resolution_source" in direct_positions.columns:
             df["resolution_source"] = direct_positions["resolution_source"].values
@@ -306,19 +298,11 @@ class Aggregator:
                         return series.iloc[:, 0]
                     return series
 
-                isin_series = (
-                    get_series(norm_holdings, h_isin_col) if h_isin_col else None
-                )
-                name_series = (
-                    get_series(norm_holdings, h_name_col) if h_name_col else None
-                )
+                isin_series = get_series(norm_holdings, h_isin_col) if h_isin_col else None
+                name_series = get_series(norm_holdings, h_name_col) if h_name_col else None
 
-                df["isin"] = (
-                    isin_series.astype(str) if isin_series is not None else "Unknown"
-                )
-                df["name"] = (
-                    name_series.astype(str) if name_series is not None else "Unknown"
-                )
+                df["isin"] = isin_series.astype(str) if isin_series is not None else "Unknown"
+                df["name"] = name_series.astype(str) if name_series is not None else "Unknown"
                 df["sector"] = (
                     norm_holdings["sector"].astype(str)
                     if "sector" in norm_holdings.columns
@@ -341,9 +325,7 @@ class Aggregator:
                     df["total_exposure"] = etf_value / count if count > 0 else 0.0
 
                 if "resolution_confidence" in norm_holdings.columns:
-                    df["resolution_confidence"] = norm_holdings[
-                        "resolution_confidence"
-                    ].values
+                    df["resolution_confidence"] = norm_holdings["resolution_confidence"].values
 
                 if "resolution_source" in norm_holdings.columns:
                     df["resolution_source"] = norm_holdings["resolution_source"].values
@@ -356,9 +338,7 @@ class Aggregator:
                         [
                             {
                                 "isin": etf_isin or "Unknown",
-                                "name": str(
-                                    etf.get("name", etf.get("TR_Name", "Unknown ETF"))
-                                ),
+                                "name": str(etf.get("name", etf.get("TR_Name", "Unknown ETF"))),
                                 "sector": "ETF",
                                 "geography": "Global",
                                 "total_exposure": etf_value,
@@ -403,8 +383,6 @@ class Aggregator:
 
         df = df.drop(columns=["_conf_sort", "_unknown_count"])
 
-        logger.debug(
-            f"Sorted {len(df)} rows by confidence for highest-quality aggregation"
-        )
+        logger.debug("Sorted rows by confidence", extra={"row_count": len(df)})
 
         return df

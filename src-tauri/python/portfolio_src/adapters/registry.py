@@ -10,7 +10,7 @@ import pandas as pd
 # Add the project root to the Python path
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from portfolio_src import config # Import centralized config
+from portfolio_src import config  # Import centralized config
 
 from portfolio_src.adapters.vaneck import VanEckAdapter
 from portfolio_src.adapters.ishares import ISharesAdapter
@@ -42,9 +42,7 @@ class AdapterRegistry:
 
     def __init__(
         self,
-        config_path: str = str(
-            config.CONFIG_DIR / "adapter_registry.json"
-        ),
+        config_path: str = str(config.CONFIG_DIR / "adapter_registry.json"),
         use_cache: bool = True,
     ):
         self._isin_to_key = self._load_config(config_path)
@@ -61,17 +59,18 @@ class AdapterRegistry:
 
     def _load_config(self, path):
         """Loads the ISIN-to-adapter mapping from the JSON config."""
-        logger.info(f"Loading adapter configuration from: {path}")
+        logger.info("Loading adapter configuration", extra={"path": path})
         try:
             with open(path, "r") as f:
                 return json.load(f)
         except FileNotFoundError:
             logger.error(
-                f"Adapter config file not found at {path}. Registry will be empty."
+                "Adapter config file not found, registry will be empty",
+                extra={"path": path},
             )
             return {}
         except json.JSONDecodeError:
-            logger.error(f"Error decoding JSON from adapter config file at {path}.")
+            logger.error("Error decoding JSON from adapter config file", extra={"path": path})
             return {}
 
     def _log_feature_request(self, provider_key, isin):
@@ -94,9 +93,14 @@ class AdapterRegistry:
                     f.write(
                         f"\n{request_line} (Triggered by ISIN: {isin} on {datetime.now().strftime('%Y-%m-%d')})"
                     )
-                logger.info(f"Added feature request for '{provider_key}' to BACKLOG.md")
+                logger.info(
+                    "Added feature request to backlog", extra={"provider_key": provider_key}
+                )
         except Exception as e:
-            logger.error(f"Failed to write to backlog: {e}")
+            logger.error(
+                "Failed to write to backlog",
+                extra={"error": str(e), "error_type": type(e).__name__},
+            )
 
     def get_adapter(self, isin: str):
         """
@@ -119,12 +123,11 @@ class AdapterRegistry:
         AdapterClass = self._key_to_class.get(adapter_key)
         if not AdapterClass:
             logger.warning(
-                f"Adapter key '{adapter_key}' for ISIN {isin} is not implemented yet."
+                "Adapter key is not implemented yet",
+                extra={"adapter_key": adapter_key, "isin": isin},
             )
             self._log_feature_request(adapter_key, isin)
-            raise AdapterNotImplementedError(
-                f"Provider '{adapter_key}' is not supported yet."
-            )
+            raise AdapterNotImplementedError(f"Provider '{adapter_key}' is not supported yet.")
 
         try:
             # Handle adapters that require special instantiation (e.g., with ISIN)
@@ -135,7 +138,13 @@ class AdapterRegistry:
             return AdapterClass()
         except Exception as e:
             logger.error(
-                f"Failed to instantiate adapter {AdapterClass.__name__} for ISIN {isin}: {e}"
+                "Failed to instantiate adapter",
+                extra={
+                    "adapter_class": AdapterClass.__name__,
+                    "isin": isin,
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                },
             )
             return None
 

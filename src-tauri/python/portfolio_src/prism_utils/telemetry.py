@@ -175,7 +175,7 @@ class Telemetry:
             Issue URL if created, None if rate-limited or failed
         """
         if not self._should_report(error_type, isin):
-            logger.debug(f"Rate limited: {error_type} for {isin}")
+            logger.debug("Rate limited", extra={"error_type": error_type, "isin": isin})
             return None
 
         # Add metadata to body
@@ -207,17 +207,19 @@ class Telemetry:
                 }
             )
             self._save_state()
-            logger.debug(f"Cached telemetry report: {title}")
+            logger.debug("Cached telemetry report", extra={"title": title})
             return None
 
         try:
             result = self._create_issue(title, full_body, labels or [], error_hash)
             self._mark_reported(error_type, isin)
             issue_url = result.get("issue_url") or result.get("html_url")
-            logger.info(f"Reported issue: {issue_url}")
+            logger.info("Reported issue", extra={"issue_url": issue_url})
             return issue_url
         except Exception as e:
-            logger.warning(f"Failed to report issue: {e}")
+            logger.warning(
+                "Failed to report issue", extra={"error": str(e), "error_type": type(e).__name__}
+            )
             return None
 
     def _create_issue(
@@ -255,9 +257,7 @@ class Telemetry:
             # Format for direct GitHub API
             direct_data = {
                 "title": title,
-                "body": f"{body}\n\n<!-- error_hash: {error_hash} -->"
-                if error_hash
-                else body,
+                "body": f"{body}\n\n<!-- error_hash: {error_hash} -->" if error_hash else body,
                 "labels": labels,
             }
             req.data = json.dumps(direct_data).encode()
@@ -272,9 +272,7 @@ class Telemetry:
 
     # Convenience methods for specific error types
 
-    def report_adapter_not_found(
-        self, isin: str, provider: Optional[str] = None
-    ) -> Optional[str]:
+    def report_adapter_not_found(self, isin: str, provider: Optional[str] = None) -> Optional[str]:
         """Report a missing adapter for an ISIN."""
         title = f"Missing adapter for {isin}"
         body = (
@@ -335,9 +333,7 @@ class Telemetry:
     ) -> Optional[str]:
         """Report an unresolved ISIN."""
         # Generate a deterministic ID for this asset
-        asset_id = hashlib.md5(f"{name}:{ticker}:{provider_isin}".encode()).hexdigest()[
-            :8
-        ]
+        asset_id = hashlib.md5(f"{name}:{ticker}:{provider_isin}".encode()).hexdigest()[:8]
 
         title = f"Unresolved asset: {name}"
         body = (
@@ -352,9 +348,7 @@ class Telemetry:
         if provider_isin:
             body += f"| Provider ISIN | `{provider_isin}` |\n"
 
-        body += (
-            f"\n### Requested Action\nPlease add this asset to the asset universe.\n"
-        )
+        body += f"\n### Requested Action\nPlease add this asset to the asset universe.\n"
 
         return self.report_error(
             error_type="isin_not_resolved",
@@ -381,10 +375,7 @@ class Telemetry:
         if name:
             body += f"| Name | {name} |\n"
 
-        body += (
-            f"\n### Requested Action\n"
-            f"Please add this asset to the asset universe CSV.\n"
-        )
+        body += f"\n### Requested Action\nPlease add this asset to the asset universe CSV.\n"
 
         return self.report_error(
             error_type="missing_asset",
@@ -443,9 +434,7 @@ class Telemetry:
         """Report enrichment coverage gaps (missing sector/geography)."""
         title = f"Enrichment gap: {gap_type} coverage at {coverage_rate:.0%}"
 
-        batch_hash = hashlib.md5(",".join(sorted(affected_isins)).encode()).hexdigest()[
-            :8
-        ]
+        batch_hash = hashlib.md5(",".join(sorted(affected_isins)).encode()).hexdigest()[:8]
 
         sample_isins = affected_isins[:10]
         isin_list = "\n".join(f"- `{isin}`" for isin in sample_isins)
@@ -576,14 +565,17 @@ class Telemetry:
                 self._mark_reported(report["error_type"], report.get("isin"))
                 sent += 1
             except Exception as e:
-                logger.warning(f"Failed to flush report: {e}")
+                logger.warning(
+                    "Failed to flush report",
+                    extra={"error": str(e), "error_type": type(e).__name__},
+                )
                 remaining.append(report)
 
         self._state["pending_reports"] = remaining
         self._save_state()
 
         if sent:
-            logger.info(f"Flushed {sent} pending telemetry reports")
+            logger.info("Flushed pending telemetry reports", extra={"count": sent})
 
         return sent
 

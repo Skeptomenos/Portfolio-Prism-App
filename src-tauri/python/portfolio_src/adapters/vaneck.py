@@ -18,9 +18,9 @@ class VanEckAdapter:
 
     @cache_adapter_data(ttl_hours=24)
     def fetch_holdings(self, isin: str) -> pd.DataFrame:
-        logger.info(f"--- Fetching holdings for {isin} (Direct Download) ---")
+        logger.info("Fetching holdings (Direct Download)", extra={"isin": isin})
         try:
-            logger.info(f"1. Downloading holdings file from: {self.download_url}")
+            logger.info("Downloading holdings file", extra={"url": self.download_url})
             headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36"
             }
@@ -33,7 +33,8 @@ class VanEckAdapter:
                 holdings_df = pd.read_excel(bio, header=2)
 
             logger.info(
-                f"3. Successfully parsed Excel file. Found {len(holdings_df)} rows."
+                "3. Successfully parsed Excel file",
+                extra={"row_count": len(holdings_df)},
             )
 
             # Data Cleaning and Standardization
@@ -63,9 +64,7 @@ class VanEckAdapter:
             )
 
             # Clip negative weights to 0.0 (e.g. small cash overdrafts or rounding errors)
-            holdings_df["weight_percentage"] = holdings_df["weight_percentage"].clip(
-                lower=0.0
-            )
+            holdings_df["weight_percentage"] = holdings_df["weight_percentage"].clip(lower=0.0)
 
             holdings_df.dropna(subset=["name", "weight_percentage"], inplace=True)
             holdings_df.reset_index(drop=True, inplace=True)
@@ -74,10 +73,16 @@ class VanEckAdapter:
             return holdings_df
 
         except requests.exceptions.RequestException as e:
-            logger.error(f"An error occurred during download: {e}")
+            logger.error(
+                "Error occurred during download",
+                extra={"error": str(e), "error_type": type(e).__name__},
+            )
             return pd.DataFrame()
         except Exception as e:
-            logger.error(f"An error occurred during parsing: {e}")
+            logger.error(
+                "Error occurred during parsing",
+                extra={"error": str(e), "error_type": type(e).__name__},
+            )
             return pd.DataFrame()
 
 
@@ -88,15 +93,11 @@ if __name__ == "__main__":
 
     if not df.empty:
         logger.info("Standalone test successful")
-        logger.info(f"\n{df.head()}")
-        logger.info(f"Total rows: {len(df)}")
-        logger.info(f"Total weight: {df['weight_percentage'].sum():.2f}%")
+        logger.info("Holdings preview", extra={"preview": str(df.head())})
+        logger.info("Total rows", extra={"count": len(df)})
+        logger.info("Total weight", extra={"total_weight": f"{df['weight_percentage'].sum():.2f}%"})
         # Save to CSV for inspection
-        df.to_csv(
-            "data/working/raw_downloads/DFNS_vaneck_direct_download.csv", index=False
-        )
-        logger.info(
-            "Saved to data/working/raw_downloads/DFNS_vaneck_direct_download.csv"
-        )
+        df.to_csv("data/working/raw_downloads/DFNS_vaneck_direct_download.csv", index=False)
+        logger.info("Saved to data/working/raw_downloads/DFNS_vaneck_direct_download.csv")
     else:
         logger.warning("Standalone test failed.")

@@ -22,9 +22,7 @@ logger = get_logger(__name__)
 ALLOWED_COOKIE_FILENAME = "tr_cookies.txt"
 
 
-async def handle_tr_get_auth_status(
-    cmd_id: int, payload: dict[str, Any]
-) -> dict[str, Any]:
+async def handle_tr_get_auth_status(cmd_id: int, payload: dict[str, Any]) -> dict[str, Any]:
     """Get current Trade Republic authentication status.
 
     Args:
@@ -48,9 +46,7 @@ async def handle_tr_get_auth_status(
         auth_state = auth_state_map.get(status.get("status", "idle"), "idle")
 
         auth_manager = get_auth_manager()
-        has_credentials = await loop.run_in_executor(
-            executor, auth_manager.has_credentials
-        )
+        has_credentials = await loop.run_in_executor(executor, auth_manager.has_credentials)
 
         return success_response(
             cmd_id,
@@ -61,13 +57,15 @@ async def handle_tr_get_auth_status(
             },
         )
     except Exception as e:
-        logger.error(f"Failed to get auth status: {e}", exc_info=True)
+        logger.error(
+            "Failed to get auth status",
+            extra={"error": str(e), "error_type": type(e).__name__},
+            exc_info=True,
+        )
         return error_response(cmd_id, "TR_AUTH_ERROR", str(e))
 
 
-async def handle_tr_check_saved_session(
-    cmd_id: int, payload: dict[str, Any]
-) -> dict[str, Any]:
+async def handle_tr_check_saved_session(cmd_id: int, payload: dict[str, Any]) -> dict[str, Any]:
     """Check for saved Trade Republic session.
 
     Args:
@@ -85,16 +83,19 @@ async def handle_tr_check_saved_session(
         try:
             data_dir = get_safe_data_dir()
         except ValueError as e:
-            logger.error(f"Invalid PRISM_DATA_DIR configuration: {e}")
-            return error_response(
-                cmd_id, "TR_CONFIG_ERROR", "Invalid data directory configuration"
+            logger.error(
+                "Invalid PRISM_DATA_DIR configuration",
+                extra={"error": str(e), "error_type": type(e).__name__},
             )
+            return error_response(cmd_id, "TR_CONFIG_ERROR", "Invalid data directory configuration")
 
         cookies_file = os.path.join(data_dir, ALLOWED_COOKIE_FILENAME)
 
         # SECURITY: Validate the cookie file path is within allowed directory
         if not is_safe_path_within_directory(cookies_file, data_dir):
-            logger.warning(f"Cookie file path validation failed: {cookies_file}")
+            logger.warning(
+                "Cookie file path validation failed", extra={"cookies_file": cookies_file}
+            )
             return error_response(cmd_id, "TR_PATH_ERROR", "Invalid cookie file path")
 
         has_session = os.path.exists(cookies_file)
@@ -124,13 +125,15 @@ async def handle_tr_check_saved_session(
                 },
             )
     except Exception as e:
-        logger.error(f"Failed to check saved session: {e}", exc_info=True)
+        logger.error(
+            "Failed to check saved session",
+            extra={"error": str(e), "error_type": type(e).__name__},
+            exc_info=True,
+        )
         return error_response(cmd_id, "TR_SESSION_CHECK_ERROR", str(e))
 
 
-async def handle_tr_get_stored_credentials(
-    cmd_id: int, payload: dict[str, Any]
-) -> dict[str, Any]:
+async def handle_tr_get_stored_credentials(cmd_id: int, payload: dict[str, Any]) -> dict[str, Any]:
     """Check if stored Trade Republic credentials exist.
 
     Returns only a flag indicating credentials exist and a masked phone for UI display.
@@ -149,13 +152,11 @@ async def handle_tr_get_stored_credentials(
         executor = get_executor()
         auth_manager = get_auth_manager()
 
-        phone, pin = await loop.run_in_executor(
-            executor, auth_manager.get_stored_credentials
-        )
+        phone, pin = await loop.run_in_executor(executor, auth_manager.get_stored_credentials)
 
         if phone and pin:
             masked_phone = f"***{phone[-4:]}" if len(phone) > 4 else "****"
-            logger.info(f"Stored credentials found for phone ending {masked_phone}")
+            logger.info("Stored credentials found", extra={"masked_phone": masked_phone})
             return success_response(
                 cmd_id,
                 {
@@ -173,7 +174,11 @@ async def handle_tr_get_stored_credentials(
                 },
             )
     except Exception as e:
-        logger.error(f"Failed to check stored credentials: {e}", exc_info=True)
+        logger.error(
+            "Failed to check stored credentials",
+            extra={"error": str(e), "error_type": type(e).__name__},
+            exc_info=True,
+        )
         return error_response(cmd_id, "TR_CREDENTIALS_ERROR", str(e))
 
 
@@ -198,9 +203,7 @@ async def handle_tr_login(cmd_id: int, payload: dict[str, Any]) -> dict[str, Any
         loop = asyncio.get_event_loop()
         executor = get_executor()
         auth_manager = get_auth_manager()
-        phone, pin = await loop.run_in_executor(
-            executor, auth_manager.get_stored_credentials
-        )
+        phone, pin = await loop.run_in_executor(executor, auth_manager.get_stored_credentials)
         if not phone or not pin:
             return error_response(
                 cmd_id, "TR_NO_STORED_CREDENTIALS", "No stored credentials available"
@@ -210,14 +213,12 @@ async def handle_tr_login(cmd_id: int, payload: dict[str, Any]) -> dict[str, Any
         pin = payload.get("pin", "")
 
     if not phone or not pin:
-        return error_response(
-            cmd_id, "TR_INVALID_CREDENTIALS", "Phone number and PIN are required"
-        )
+        return error_response(cmd_id, "TR_INVALID_CREDENTIALS", "Phone number and PIN are required")
 
     try:
         # Mask phone for logging (privacy)
         masked = f"***{phone[-4:]}" if len(phone) > 4 else "****"
-        logger.info(f"TR login attempt for phone ending {masked}")
+        logger.info("TR login attempt", extra={"masked_phone": masked})
 
         auth_manager = get_auth_manager()
         if remember:
@@ -242,7 +243,9 @@ async def handle_tr_login(cmd_id: int, payload: dict[str, Any]) -> dict[str, Any
         else:
             return error_response(cmd_id, "TR_LOGIN_FAILED", result.message)
     except Exception as e:
-        logger.error(f"Login error: {e}", exc_info=True)
+        logger.error(
+            "Login error", extra={"error": str(e), "error_type": type(e).__name__}, exc_info=True
+        )
         return error_response(cmd_id, "TR_LOGIN_ERROR", str(e))
 
 
@@ -274,7 +277,9 @@ async def handle_tr_submit_2fa(cmd_id: int, payload: dict[str, Any]) -> dict[str
         else:
             return error_response(cmd_id, "TR_2FA_INVALID", result.message)
     except Exception as e:
-        logger.error(f"2FA error: {e}", exc_info=True)
+        logger.error(
+            "2FA error", extra={"error": str(e), "error_type": type(e).__name__}, exc_info=True
+        )
         return error_response(cmd_id, "TR_2FA_ERROR", str(e))
 
 
@@ -299,17 +304,20 @@ async def handle_tr_logout(cmd_id: int, payload: dict[str, Any]) -> dict[str, An
         try:
             data_dir = get_safe_data_dir()
         except ValueError as e:
-            logger.error(f"Invalid PRISM_DATA_DIR configuration: {e}")
-            return error_response(
-                cmd_id, "TR_CONFIG_ERROR", "Invalid data directory configuration"
+            logger.error(
+                "Invalid PRISM_DATA_DIR configuration",
+                extra={"error": str(e), "error_type": type(e).__name__},
             )
+            return error_response(cmd_id, "TR_CONFIG_ERROR", "Invalid data directory configuration")
 
         cookies_file = os.path.join(data_dir, ALLOWED_COOKIE_FILENAME)
 
         # SECURITY: Validate the cookie file path before deletion
         # Prevents attackers from using symlinks to delete arbitrary files
         if not is_safe_path_within_directory(cookies_file, data_dir):
-            logger.warning(f"Cookie file path validation failed: {cookies_file}")
+            logger.warning(
+                "Cookie file path validation failed", extra={"cookies_file": cookies_file}
+            )
             return error_response(cmd_id, "TR_PATH_ERROR", "Invalid cookie file path")
 
         if os.path.exists(cookies_file):
@@ -317,11 +325,10 @@ async def handle_tr_logout(cmd_id: int, payload: dict[str, Any]) -> dict[str, An
             cookie_path = Path(cookies_file)
             if cookie_path.is_symlink():
                 logger.warning(
-                    f"Cookie file is a symlink, refusing to delete: {cookies_file}"
+                    "Cookie file is a symlink, refusing to delete",
+                    extra={"cookies_file": cookies_file},
                 )
-                return error_response(
-                    cmd_id, "TR_PATH_ERROR", "Cookie file is a symlink"
-                )
+                return error_response(cmd_id, "TR_PATH_ERROR", "Cookie file is a symlink")
             os.remove(cookies_file)
 
         logger.info("TR logout successful, session cleared")
@@ -330,5 +337,7 @@ async def handle_tr_logout(cmd_id: int, payload: dict[str, Any]) -> dict[str, An
             {"authState": "idle", "message": "Logged out and session cleared"},
         )
     except Exception as e:
-        logger.error(f"Logout error: {e}", exc_info=True)
+        logger.error(
+            "Logout error", extra={"error": str(e), "error_type": type(e).__name__}, exc_info=True
+        )
         return error_response(cmd_id, "TR_LOGOUT_ERROR", str(e))

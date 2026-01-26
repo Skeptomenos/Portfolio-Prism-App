@@ -38,7 +38,10 @@ def harvest_cache() -> int:
         with open(ENRICHMENT_CACHE_PATH, "r", encoding="utf-8") as f:
             cache_data = json.load(f)
     except Exception as e:
-        logger.warning(f"Failed to load enrichment cache: {e}")
+        logger.warning(
+            "Failed to load enrichment cache",
+            extra={"error": str(e), "error_type": type(e).__name__},
+        )
         return 0
 
     from portfolio_src.data.hive_client import get_hive_client
@@ -83,9 +86,12 @@ def harvest_cache() -> int:
             contributed += 1
 
         except Exception as e:
-            logger.debug(f"Failed to contribute {ticker}: {e}")
+            logger.debug(
+                "Failed to contribute ticker",
+                extra={"ticker": ticker, "error": str(e)},
+            )
 
     if contributed > 0:
-        logger.info(f"Harvested {contributed} new entries to Hive")
+        logger.info("Harvested new entries to Hive", extra={"count": contributed})
 
     return contributed

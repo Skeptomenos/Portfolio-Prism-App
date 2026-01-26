@@ -39,12 +39,55 @@ class SQLiteLogHandler(logging.Handler):
         super().__init__()
         self.session_id = session_id
 
+    # Standard LogRecord attributes that should NOT be collected into context
+    _STANDARD_ATTRS: set[str] = {
+        "name",
+        "msg",
+        "args",
+        "created",
+        "filename",
+        "funcName",
+        "levelname",
+        "levelno",
+        "lineno",
+        "module",
+        "msecs",
+        "pathname",
+        "process",
+        "processName",
+        "relativeCreated",
+        "stack_info",
+        "exc_info",
+        "exc_text",
+        "thread",
+        "threadName",
+        "taskName",
+        "message",
+        # Our custom reserved attributes
+        "context",
+        "component",
+        "category",
+    }
+
     def emit(self, record: logging.LogRecord):
         try:
             from portfolio_src.data.database import log_system_event
 
             msg = self.format(record)
-            context = getattr(record, "context", {})
+
+            # Start with explicit context dict if provided
+            context: Dict[str, Any] = dict(getattr(record, "context", {}))
+
+            # Collect ALL extra fields from record (excluding standard attrs)
+            for key, value in record.__dict__.items():
+                if key not in self._STANDARD_ATTRS and not key.startswith("_"):
+                    # Serialize non-JSON-safe types
+                    if isinstance(value, (str, int, float, bool, type(None))):
+                        context[key] = value
+                    elif isinstance(value, (list, dict)):
+                        context[key] = value
+                    else:
+                        context[key] = str(value)
 
             # Extract component and category if provided in extra
             component = getattr(record, "component", None)

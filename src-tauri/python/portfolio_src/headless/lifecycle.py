@@ -142,7 +142,7 @@ def setup_session(http_mode: bool = False) -> str:
         sys.stdout = StreamToLogger(get_logger("STDOUT"), logging.INFO)
         sys.stderr = StreamToLogger(get_logger("STDERR"), logging.WARNING)
 
-    logger.info(f"Session started: {_session_id}")
+    logger.info("Session started", extra={"session_id": _session_id})
     return _session_id
 
 
@@ -155,17 +155,19 @@ def install_default_config() -> None:
     try:
         from portfolio_src.config import CONFIG_DIR
     except ImportError:
-        logger.error(
-            "Could not import portfolio_src.config. Skipping default config install."
-        )
+        logger.error("Could not import portfolio_src.config. Skipping default config install.")
         return
 
-    logger.info(f"Checking configuration in: {CONFIG_DIR}")
+    logger.info("Checking configuration", extra={"config_dir": str(CONFIG_DIR)})
 
     try:
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     except Exception as e:
-        logger.error(f"Failed to create config dir: {e}", exc_info=True)
+        logger.error(
+            "Failed to create config dir",
+            extra={"error": str(e), "error_type": type(e).__name__},
+            exc_info=True,
+        )
         return
 
     files_to_install = [
@@ -183,9 +185,13 @@ def install_default_config() -> None:
         if bundled_path.exists():
             try:
                 shutil.copy2(bundled_path, target_path)
-                logger.info(f"Installed default config: {filename}")
+                logger.info("Installed default config", extra={"filename": filename})
             except Exception as e:
-                logger.error(f"Failed to install {filename}: {e}", exc_info=True)
+                logger.error(
+                    "Failed to install config file",
+                    extra={"filename": filename, "error": str(e), "error_type": type(e).__name__},
+                    exc_info=True,
+                )
         else:
             log_level = logging.WARNING if "registry" in filename else logging.INFO
             logger.log(log_level, f"Default config not found in bundle: {bundled_path}")

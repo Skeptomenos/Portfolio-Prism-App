@@ -63,5 +63,7 @@ def generate_direct_holdings_report(
 
     # Save
     out_df.to_csv(output_path, index=False)
-    logger.info(f"Direct Holdings Report saved to: {output_path}")
-    logger.info(f"Total Portfolio Value (Level 1): €{total_value:,.2f}")
+    logger.info(
+        "Direct Holdings Report saved",
+        extra={"path": str(output_path), "total_value_eur": round(total_value, 2)},
+    )

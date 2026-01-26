@@ -33,20 +33,18 @@ def handle_upload_holdings(cmd_id: int, payload: dict[str, Any]) -> dict[str, An
     etf_isin = payload.get("etfIsin")
 
     if not file_path or not etf_isin:
-        return error_response(
-            cmd_id, "INVALID_PARAMS", "filePath and etfIsin are required"
-        )
+        return error_response(cmd_id, "INVALID_PARAMS", "filePath and etfIsin are required")
 
     try:
-        logger.info(f"Uploading holdings for ETF {etf_isin} from {file_path}")
+        logger.info(
+            "Uploading holdings for ETF", extra={"etf_isin": etf_isin, "file_path": file_path}
+        )
 
         df_raw = DataCleaner.smart_load(file_path)
         df_clean = DataCleaner.cleanup(df_raw)
 
         if df_clean.empty:
-            return error_response(
-                cmd_id, "CLEANUP_FAILED", "No valid holdings found in file"
-            )
+            return error_response(cmd_id, "CLEANUP_FAILED", "No valid holdings found in file")
 
         total_weight = float(df_clean["weight"].sum())
 
@@ -77,7 +75,11 @@ def handle_upload_holdings(cmd_id: int, payload: dict[str, Any]) -> dict[str, An
             },
         )
     except Exception as e:
-        logger.error(f"Manual upload failed for {etf_isin}: {e}", exc_info=True)
+        logger.error(
+            "Manual upload failed",
+            extra={"etf_isin": etf_isin, "error": str(e), "error_type": type(e).__name__},
+            exc_info=True,
+        )
         return error_response(cmd_id, "UPLOAD_FAILED", str(e))
 
 
@@ -148,15 +150,9 @@ def handle_get_true_holdings(cmd_id: int, payload: dict[str, Any]) -> dict[str, 
                     "sector": _safe_str(row.get("sector")),
                     "geography": _safe_str(row.get("geography")),
                     "sources": sources,
-                    "resolutionStatus": _safe_str(
-                        row.get("resolution_status", "unknown")
-                    ),
-                    "resolutionSource": _safe_str(
-                        row.get("resolution_source", "unknown")
-                    ),
-                    "resolutionConfidence": float(
-                        row.get("resolution_confidence") or 0.0
-                    ),
+                    "resolutionStatus": _safe_str(row.get("resolution_status", "unknown")),
+                    "resolutionSource": _safe_str(row.get("resolution_source", "unknown")),
+                    "resolutionConfidence": float(row.get("resolution_confidence") or 0.0),
                     "resolutionDetail": _safe_str(row.get("resolution_detail")),
                 }
             )
@@ -165,10 +161,14 @@ def handle_get_true_holdings(cmd_id: int, payload: dict[str, Any]) -> dict[str, 
 
         summary = _calculate_summary(holdings)
 
-        logger.debug(f"Returning {len(holdings)} true holdings with resolution data")
+        logger.debug("Returning true holdings with resolution data", extra={"count": len(holdings)})
         return success_response(cmd_id, {"holdings": holdings, "summary": summary})
     except Exception as e:
-        logger.error(f"Failed to get true holdings: {e}", exc_info=True)
+        logger.error(
+            "Failed to get true holdings",
+            extra={"error": str(e), "error_type": type(e).__name__},
+            exc_info=True,
+        )
         return error_response(cmd_id, "HOLDINGS_ERROR", str(e))
 
 
@@ -241,5 +241,9 @@ def handle_get_pipeline_report(cmd_id: int, payload: dict[str, Any]) -> dict[str
 
         return success_response(cmd_id, data)
     except Exception as e:
-        logger.error(f"Failed to read pipeline report: {e}", exc_info=True)
+        logger.error(
+            "Failed to read pipeline report",
+            extra={"error": str(e), "error_type": type(e).__name__},
+            exc_info=True,
+        )
         return error_response(cmd_id, "REPORT_ERROR", str(e))

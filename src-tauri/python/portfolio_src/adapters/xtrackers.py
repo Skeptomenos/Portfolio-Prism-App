@@ -37,14 +37,14 @@ class XtrackersAdapter:
         """
         # Validate ISIN format before making any requests
         if not is_valid_isin(isin):
-            logger.warning(f"Invalid ISIN format: {isin}. Skipping fetch.")
+            logger.warning("Invalid ISIN format, skipping fetch", extra={"isin": isin})
             return pd.DataFrame()
 
-        logger.info(f"--- Fetching holdings for {isin} ---")
+        logger.info("Fetching holdings", extra={"isin": isin})
 
         # Construct the URL based on the discovered API pattern
         url = f"https://etf.dws.com/etfdata/export/DEU/DEU/csv/product/constituent/{isin}/"
-        logger.info(f"1. Constructed URL: {url}")
+        logger.info("Constructed URL", extra={"url": url})
 
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
@@ -55,16 +55,14 @@ class XtrackersAdapter:
             response = requests.get(url, headers=headers, timeout=30)
             response.raise_for_status()  # Raise an exception for bad status codes (4xx or 5xx)
 
-            logger.info(
-                "3. Successfully downloaded CSV data. Parsing into DataFrame..."
-            )
+            logger.info("3. Successfully downloaded CSV data. Parsing into DataFrame...")
             # Use StringIO to treat the CSV string as a file for pandas
             csv_data = io.StringIO(response.text)
 
             # Read the CSV data, specifying the delimiter
             holdings_df = pd.read_csv(csv_data, sep=";")
 
-            logger.info(f"4. Successfully parsed {len(holdings_df)} holdings.")
+            logger.info("Successfully parsed holdings", extra={"count": len(holdings_df)})
 
             # --- Data Cleaning and Standardization ---
             holdings_df.rename(
@@ -87,18 +85,14 @@ class XtrackersAdapter:
                 logger.info(
                     f"   - Detected decimal weights (Sum={weight_sum:.4f}). Scaling by 100."
                 )
-                holdings_df["weight_percentage"] = (
-                    holdings_df["weight_percentage"] * 100
-                )
+                holdings_df["weight_percentage"] = holdings_df["weight_percentage"] * 100
             else:
                 logger.info(
                     f"   - Detected percentage weights (Sum={weight_sum:.2f}). No scaling needed."
                 )
 
             # Clip negative weights to 0.0 to ensure validation compliance
-            holdings_df["weight_percentage"] = holdings_df["weight_percentage"].clip(
-                lower=0.0
-            )
+            holdings_df["weight_percentage"] = holdings_df["weight_percentage"].clip(lower=0.0)
 
             # Ensure ticker column exists (nullable in schema)
             if "ticker" not in holdings_df.columns:
@@ -107,14 +101,21 @@ class XtrackersAdapter:
             return holdings_df
 
         except requests.exceptions.RequestException as e:
-            logger.error(f"Network request failed for {isin}. Details: {e}")
+            logger.error(
+                "Network request failed",
+                extra={"isin": isin, "error": str(e), "error_type": type(e).__name__},
+            )
             return pd.DataFrame()
         except pd.errors.ParserError as e:
-            logger.error(f"Failed to parse CSV data for {isin}. Details: {e}")
+            logger.error(
+                "Failed to parse CSV data",
+                extra={"isin": isin, "error": str(e), "error_type": type(e).__name__},
+            )
             return pd.DataFrame()
         except Exception as e:
             logger.error(
-                f"An unexpected error occurred in XtrackersAdapter for {isin}: {e}"
+                "Unexpected error in XtrackersAdapter",
+                extra={"isin": isin, "error": str(e), "error_type": type(e).__name__},
             )
             return pd.DataFrame()
 
@@ -129,10 +130,10 @@ if __name__ == "__main__":
 
     if not xdem_holdings.empty:
         logger.info("Successfully fetched XDEM holdings")
-        logger.info(f"\n{xdem_holdings.head()}")
+        logger.info("Holdings preview", extra={"preview": str(xdem_holdings.head())})
 
         # Save to a new CSV for verification
         save_path = os.path.join(OUTPUT_DIR, "XDEM_adapter_output.csv")
         os.makedirs(OUTPUT_DIR, exist_ok=True)
         xdem_holdings.to_csv(save_path, index=False)
-        logger.info(f"Saved adapter output to {save_path}")
+        logger.info("Saved adapter output", extra={"path": save_path})

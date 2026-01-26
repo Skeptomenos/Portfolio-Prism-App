@@ -107,9 +107,7 @@ def process_words_to_rows(page, headers):
             has_typ = any(
                 word["text"].strip()
                 for word in line_words
-                if header_boundaries["TYPE"][0]
-                <= word["x0"]
-                < header_boundaries["TYPE"][1]
+                if header_boundaries["TYPE"][0] <= word["x0"] < header_boundaries["TYPE"][1]
             )
             if has_typ and current_row is not None:
                 raw_rows.append(current_row)
@@ -158,9 +156,7 @@ def parse_transaction_amount(row):
             except ValueError:
                 amount = 0.0
         # Determine direction
-        if typ in ["INTEREST_PAYMENT", "DIVIDENDS", "PREMIUM"] or "Incoming" in str(
-            besch
-        ):
+        if typ in ["INTEREST_PAYMENT", "DIVIDENDS", "PREMIUM"] or "Incoming" in str(besch):
             pass  # positive
         elif typ in ["CARD_TRANSACTION", "TRANSFER"] or "Outgoing" in str(besch):
             amount = -amount
@@ -207,8 +203,7 @@ def process_single_page(args):
 
             # Translate headers
             header_words = [
-                {**w, "text": HEADER_MAPPING.get(w["text"], w["text"])}
-                for w in header_words
+                {**w, "text": HEADER_MAPPING.get(w["text"], w["text"])} for w in header_words
             ]
 
             # Validate headers
@@ -247,8 +242,7 @@ def process_single_page(args):
             # Filter transactions
             if "TYPE" in transactions_df.columns:
                 transactions_df = transactions_df[
-                    transactions_df["TYPE"].notna()
-                    & transactions_df["TYPE"].isin(valid_types)
+                    transactions_df["TYPE"].notna() & transactions_df["TYPE"].isin(valid_types)
                 ]
                 cols = ["DATE", "TYPE", "DESCRIPTION", "AMOUNT", "BALANCE"]
                 # Only keep cols that exist
@@ -263,9 +257,7 @@ def process_single_page(args):
                 raw_trades = page_df[page_df["TYPE"] == "TRADE"].copy()
                 if not raw_trades.empty:
                     parsed_data = raw_trades["DESCRIPTION"].apply(parse_description)
-                    trades_df = pd.DataFrame(
-                        parsed_data.tolist(), index=raw_trades.index
-                    )
+                    trades_df = pd.DataFrame(parsed_data.tolist(), index=raw_trades.index)
                     trades_df["DATE"] = raw_trades["DATE"]
                     trades_df["TYPE"] = "TRADE"  # Ensure type exists
                     trades_df["DESCRIPTION"] = raw_trades["DESCRIPTION"]
@@ -307,15 +299,18 @@ def parse_pdfs_from_folder(folder_path: Path) -> pd.DataFrame:
     pdf_files = list(folder_path.glob("*.pdf"))
 
     if not pdf_files:
-        logger.warning(f"No PDF files found in {folder_path}")
+        logger.warning(
+            "No PDF files found",
+            extra={"folder_path": str(folder_path)},
+        )
         return pd.DataFrame()
 
-    logger.info(f"Found {len(pdf_files)} PDF file(s)")
+    logger.info("Found PDF files", extra={"count": len(pdf_files)})
 
     all_trades_dfs = []
 
     for pdf_file in pdf_files:
-        logger.info(f"Processing: {pdf_file.name}")
+        logger.info("Processing PDF", extra={"filename": pdf_file.name})
 
         # Get page count
         with pdfplumber.open(pdf_file) as pdf:
@@ -334,7 +329,10 @@ def parse_pdfs_from_folder(folder_path: Path) -> pd.DataFrame:
 
     if all_trades_dfs:
         full_trades = pd.concat(all_trades_dfs, ignore_index=True)
-        logger.info(f"Parsed {len(full_trades)} trades from {len(pdf_files)} PDF(s)")
+        logger.info(
+            "Parsed trades from PDFs",
+            extra={"trades_count": len(full_trades), "pdf_count": len(pdf_files)},
+        )
         return full_trades
     else:
         logger.warning("No trades found in PDFs")
@@ -368,7 +366,10 @@ def main():
     num_workers = max(1, int(os.cpu_count() * 0.8))
 
     for i, pdf_file in enumerate(pdf_files, 1):
-        logger.info(f"Processing [{i}/{total_files}]: {pdf_file.name}")
+        logger.info(
+            "Processing PDF file",
+            extra={"current": i, "total": total_files, "filename": pdf_file.name},
+        )
 
         # 1. Check Hash
         file_hash = calculate_file_hash(pdf_file)
@@ -381,7 +382,8 @@ def main():
             num_pages = len(pdf.pages)
 
         logger.info(
-            f"New file detected. Parsing {num_pages} pages with {num_workers} workers..."
+            "New file detected, starting parallel parsing",
+            extra={"num_pages": num_pages, "num_workers": num_workers},
         )
 
         # Prepare args for map
@@ -395,9 +397,7 @@ def main():
             results_iterator = pool.imap(process_single_page, page_args)
 
             # Wrap with tqdm for progress bar
-            for res in tqdm(
-                results_iterator, total=num_pages, desc="Parsing Pages", unit="page"
-            ):
+            for res in tqdm(results_iterator, total=num_pages, desc="Parsing Pages", unit="page"):
                 trades, transactions = res
                 if trades is not None and not trades.empty:
                     all_trades_dfs.append(trades)
@@ -418,7 +418,10 @@ def main():
 
             # Insert into DB and get count of NEW items
             new_trades_count = insert_trades_ignore_duplicates(full_transactions)
-            logger.info(f"Inserted {new_trades_count} new transactions into Database.")
+            logger.info(
+                "Inserted new transactions into database",
+                extra={"count": new_trades_count},
+            )
 
             # Save CSVs for legacy compatibility / debugging
             full_transactions.to_csv(output_path / "transactions.csv", index=False)
@@ -426,7 +429,10 @@ def main():
         if all_trades_dfs:
             full_trades = pd.concat(all_trades_dfs, ignore_index=True)
             full_trades.to_csv(output_path / "trades.csv", index=False)
-            logger.info(f"Generated {len(full_trades)} parsed trades (saved to CSV).")
+            logger.info(
+                "Generated parsed trades and saved to CSV",
+                extra={"count": len(full_trades)},
+            )
 
         # 4. Mark Done
         mark_file_processed(file_hash, pdf_file.name)

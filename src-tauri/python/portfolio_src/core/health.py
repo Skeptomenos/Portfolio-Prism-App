@@ -68,9 +68,7 @@ class PipelineHealth:
                     severity="HIGH",
                 )
 
-    def record_failure(
-        self, stage: str, item: str, error: str, fix: str, severity: str = "MEDIUM"
-    ):
+    def record_failure(self, stage: str, item: str, error: str, fix: str, severity: str = "MEDIUM"):
         """Record a failure with actionable fix."""
         self.failures.append(
             {
@@ -82,7 +80,15 @@ class PipelineHealth:
                 "timestamp": datetime.now().isoformat(),
             }
         )
-        logger.warning(f"[{stage}] Failure for {item}: {error} -> Fix: {fix}")
+        logger.warning(
+            "Pipeline failure recorded",
+            extra={
+                "stage": stage,
+                "item": item,
+                "error": error,
+                "fix": fix,
+            },
+        )
 
     def record_value_coverage(self, verified: float, fallback: float):
         """Record value coverage for confidence metric."""
@@ -145,18 +151,14 @@ class PipelineHealth:
                 )
 
             md.append("")
-            md.append(
-                "👉 **Download detailed fix list:** `outputs/failures_to_fix.csv`"
-            )
+            md.append("👉 **Download detailed fix list:** `outputs/failures_to_fix.csv`")
 
         md.append("")
         md.append("## 📋 ETF Health Check")
         md.append("| Ticker | Holdings | Weight Sum | Status |")
         md.append("|--------|----------|------------|--------|")
         for etf in self.etf_stats:
-            status_icon = (
-                "✅" if etf["status"] == "OK" and etf["weight_sum"] > 90 else "⚠️"
-            )
+            status_icon = "✅" if etf["status"] == "OK" and etf["weight_sum"] > 90 else "⚠️"
             md.append(
                 f"| {etf['ticker']} | {etf['holdings_count']} | {etf['weight_sum']:.2f}% | {status_icon} {etf['status']} |"
             )

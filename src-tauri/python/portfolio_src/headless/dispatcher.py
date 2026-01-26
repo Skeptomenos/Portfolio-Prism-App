@@ -85,7 +85,9 @@ async def dispatch(cmd: Any) -> dict[str, Any]:
     # Validate IPC payload structure before processing
     is_valid, validation_error, validated_id = _validate_ipc_payload(cmd)
     if not is_valid:
-        logger.warning(f"IPC payload validation failed: {validation_error}")
+        logger.warning(
+            "IPC payload validation failed", extra={"validation_error": validation_error}
+        )
         return error_response(validated_id, "INVALID_PAYLOAD", validation_error)
 
     command = cmd.get("command", "")
@@ -95,7 +97,7 @@ async def dispatch(cmd: Any) -> dict[str, Any]:
     handler = HANDLER_REGISTRY.get(command)
 
     if handler is None:
-        logger.warning(f"Unknown command received: {command}")
+        logger.warning("Unknown command received", extra={"command": command})
         return error_response(
             cmd_id,
             "UNKNOWN_COMMAND",
@@ -110,7 +112,11 @@ async def dispatch(cmd: Any) -> dict[str, Any]:
             return handler(cmd_id, payload)
     except Exception as e:
         # Log full error details server-side for debugging
-        logger.error(f"Handler error for '{command}': {e}", exc_info=True)
+        logger.error(
+            "Handler error",
+            extra={"command": command, "error": str(e), "error_type": type(e).__name__},
+            exc_info=True,
+        )
         # SECURITY: Sanitize exception message before sending to client
         # to prevent information disclosure (file paths, stack traces, etc.)
         safe_message = sanitize_error_message(str(e))

@@ -8,9 +8,7 @@ from portfolio_src.prism_utils.logging_config import get_logger
 logger = get_logger(__name__)
 
 
-def process_direct_holdings(
-    direct_positions: pd.DataFrame, exposures: AggregatedExposure
-) -> None:
+def process_direct_holdings(direct_positions: pd.DataFrame, exposures: AggregatedExposure) -> None:
     """
     Process direct stock holdings and add to exposure aggregator.
 
@@ -32,4 +30,4 @@ def process_direct_holdings(
         record.sector = "Direct Holding"
         record.geography = "Global"
 
-    logger.info(f"Processed {len(direct_positions)} direct holdings.")
+    logger.info("Processed direct holdings", extra={"count": len(direct_positions)})

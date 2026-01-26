@@ -198,7 +198,7 @@ class Pipeline:
             if isinstance(data, pd.DataFrame):
                 path = debug_dir / f"{phase}.csv"
                 write_csv_atomic(path, data)
-                logger.info(f"[DEBUG] Wrote snapshot: {path}")
+                logger.info("Wrote debug snapshot", extra={"phase": phase, "path": str(path)})
             elif isinstance(data, dict):
                 # Handle dict of DataFrames (holdings_map)
                 if data and isinstance(next(iter(data.values())), pd.DataFrame):
@@ -212,13 +212,18 @@ class Pipeline:
                     if all_holdings:
                         path = debug_dir / f"{phase}.csv"
                         write_csv_atomic(path, pd.concat(all_holdings))
-                        logger.info(f"[DEBUG] Wrote snapshot: {path}")
+                        logger.info(
+                            "Wrote debug snapshot", extra={"phase": phase, "path": str(path)}
+                        )
                 else:
                     path = debug_dir / f"{phase}.json"
                     write_json_atomic(path, data, default=str)
-                    logger.info(f"[DEBUG] Wrote snapshot: {path}")
+                    logger.info("Wrote debug snapshot", extra={"phase": phase, "path": str(path)})
         except Exception as e:
-            logger.warning(f"[DEBUG] Failed to write snapshot for {phase}: {e}")
+            logger.warning(
+                "Failed to write debug snapshot",
+                extra={"phase": phase, "error": str(e), "error_type": type(e).__name__},
+            )
 
     def _log_validation_issues(self, quality: DataQuality, phase: str) -> None:
         """Log validation issues at appropriate severity levels."""
@@ -321,7 +326,10 @@ class Pipeline:
                 exposures.append(record)
                 total_value += exposure_value
             except Exception as e:
-                logger.warning(f"Failed to convert exposure row: {e}")
+                logger.warning(
+                    "Failed to convert exposure row",
+                    extra={"error": str(e), "error_type": type(e).__name__},
+                )
 
         return AggregatePhaseOutput(exposures=exposures, total_portfolio_value=total_value)
 
@@ -581,7 +589,11 @@ class Pipeline:
             )
 
         except Exception as e:
-            logger.error(f"Pipeline failed: {e}", exc_info=True)
+            logger.error(
+                "Pipeline failed",
+                extra={"error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
+            )
             errors.append(
                 PipelineError(
                     phase=ErrorPhase.DATA_LOADING,
@@ -622,7 +634,10 @@ class Pipeline:
                 self._write_errors(errors)
 
             except Exception as e:
-                logger.error(f"Failed to write final reports: {e}")
+                logger.error(
+                    "Failed to write final reports",
+                    extra={"error": str(e), "error_type": type(e).__name__},
+                )
 
     def _load_portfolio(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
         from portfolio_src.data.database import get_positions
@@ -649,7 +664,10 @@ class Pipeline:
             logger.debug("Harvesting module not available")
             return 0
         except Exception as e:
-            logger.warning(f"Harvesting failed: {e}")
+            logger.warning(
+                "Harvesting failed",
+                extra={"error": str(e), "error_type": type(e).__name__},
+            )
             return 0
 
     def _write_reports(
@@ -816,7 +834,10 @@ class Pipeline:
                 except Exception:
                     continue
 
-            logger.info(f"Added {len(rows)} direct holdings to breakdown report")
+            logger.info(
+                "Added direct holdings to breakdown report",
+                extra={"count": len(rows)},
+            )
 
         # Step 2: Add indirect holdings from ETFs
         # Use canonical calculate_position_values() for consistency (US-008)

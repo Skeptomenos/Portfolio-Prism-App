@@ -110,7 +110,10 @@ class HistoryManager:
                     )
             except Exception as e:
                 if not silent:
-                    logger.error(f"Error fetching history for {isin}: {e}")
+                    logger.error(
+                        "Error fetching history",
+                        extra={"isin": isin, "error": str(e), "error_type": type(e).__name__},
+                    )
 
         return results
 
@@ -151,9 +154,7 @@ class HistoryManager:
 
         return round(day_change_eur, 2), round(day_change_pct, 2)
 
-    def get_portfolio_history(
-        self, positions: List[Dict], days: int = 30
-    ) -> List[Dict]:
+    def get_portfolio_history(self, positions: List[Dict], days: int = 30) -> List[Dict]:
         """
         Calculate portfolio value history for the last N days.
         """
@@ -164,7 +165,10 @@ class HistoryManager:
         today = datetime.now()
         isins = [p["isin"] for p in positions]
 
-        logger.info(f"Calculating {days}-day history for {len(positions)} positions...")
+        logger.info(
+            "Calculating portfolio history",
+            extra={"days": days, "position_count": len(positions)},
+        )
 
         total_missing = 0
 

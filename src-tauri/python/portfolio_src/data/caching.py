@@ -97,7 +97,8 @@ def _load_json_cache():
             return json.load(f)
     except json.JSONDecodeError:
         logger.error(
-            f"Corrupt cache file at {ENRICHMENT_CACHE_FILE}. Returning empty cache."
+            "Corrupt cache file, returning empty cache",
+            extra={"path": str(ENRICHMENT_CACHE_FILE)},
         )
         return {}
 
@@ -128,13 +129,13 @@ def save_to_cache(key: str, data: dict) -> bool:
     """
     # Validate key
     if not is_valid_cache_key(key):
-        logger.warning(f"Rejected invalid cache key: {key}")
+        logger.warning("Rejected invalid cache key", extra={"key": key})
         return False
 
     # Validate ISIN in data if present
     isin = data.get("isin") if isinstance(data, dict) else None
     if isin and not is_valid_isin(isin):
-        logger.warning(f"Rejected invalid ISIN in cache data: {isin} for key {key}")
+        logger.warning("Rejected invalid ISIN in cache data", extra={"isin": isin, "key": key})
         return False
 
     cache = _load_json_cache()
@@ -172,21 +173,24 @@ def cache_adapter_data(ttl_hours: int = 24):
                 modified_time = datetime.fromtimestamp(os.path.getmtime(cache_file))
                 if datetime.now() - modified_time < timedelta(hours=ttl_hours):
                     logger.info(
-                        f"Loading fresh data for {isin} from cache: {cache_file}"
+                        "Loading fresh data from cache",
+                        extra={"isin": isin, "cache_file": cache_file},
                     )
                     tracker.increment_system_metric("cache_hits")
                     return pd.read_csv(cache_file)
 
             # If no fresh cache, run the original function
             logger.info(
-                f"No fresh cache for {isin}. Fetching live data using {class_name}."
+                "No fresh cache, fetching live data", extra={"isin": isin, "adapter": class_name}
             )
             tracker.increment_system_metric("api_calls_providers")
             result_df = func(self, isin, *args, **kwargs)
 
             # Save the new result to cache, but only if it's valid (not empty)
             if not result_df.empty:
-                logger.info(f"Saving new data for {isin} to cache: {cache_file}")
+                logger.info(
+                    "Saving new data to cache", extra={"isin": isin, "cache_file": cache_file}
+                )
                 result_df.to_csv(cache_file, index=False)
             else:
                 logger.warning(

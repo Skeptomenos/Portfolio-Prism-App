@@ -120,7 +120,7 @@ def normalize_holdings(
 
     df = df.copy()
     provider = source_provider or "unknown"
-    logger.debug(f"Normalizing holdings from {provider}: {len(df)} rows")
+    logger.debug("Normalizing holdings", extra={"provider": provider, "row_count": len(df)})
 
     # Step 1: Clean column names
     df = _normalize_column_names(df)
@@ -144,15 +144,14 @@ def normalize_holdings(
     if "weight_percentage" in df.columns:
         df = df.sort_values("weight_percentage", ascending=False)
 
-    logger.debug(f"Normalization complete: {len(df)} rows remaining")
+    logger.debug("Normalization complete", extra={"rows_remaining": len(df)})
     return df.reset_index(drop=True)
 
 
 def _normalize_column_names(df: pd.DataFrame) -> pd.DataFrame:
     """Normalize column names to lowercase, strip whitespace."""
     df.columns = [
-        str(col).lower().strip().replace("\n", " ").replace("\r", "")
-        for col in df.columns
+        str(col).lower().strip().replace("\n", " ").replace("\r", "") for col in df.columns
     ]
     return df
 
@@ -201,7 +200,7 @@ def _map_columns(df: pd.DataFrame) -> pd.DataFrame:
 
     if column_map:
         df = df.rename(columns=column_map)
-        logger.debug(f"Mapped columns: {column_map}")
+        logger.debug("Mapped columns", extra={"column_map": column_map})
 
     return df
 
@@ -228,7 +227,9 @@ def _normalize_weights(df: pd.DataFrame) -> pd.DataFrame:
     total = df["weight_percentage"].sum()
     if 0 < total < 2:
         df["weight_percentage"] = df["weight_percentage"] * 100
-        logger.debug(f"Converted decimal weights to percentage (sum was {total:.4f})")
+        logger.debug(
+            "Converted decimal weights to percentage", extra={"original_sum": f"{total:.4f}"}
+        )
 
     return df
 
@@ -347,12 +348,15 @@ def _remove_invalid_rows(df: pd.DataFrame) -> pd.DataFrame:
         for pattern in summary_patterns:
             mask = df["name"].astype(str).str.lower().str.match(pattern, na=False)
             if mask.any():
-                logger.debug(f"Removing {mask.sum()} rows matching '{pattern}'")
+                logger.debug(
+                    "Removing rows matching pattern",
+                    extra={"count": mask.sum(), "pattern": pattern},
+                )
                 df = pd.DataFrame(df[~mask])
 
     removed = initial_count - len(df)
     if removed > 0:
-        logger.debug(f"Removed {removed} invalid rows")
+        logger.debug("Removed invalid rows", extra={"count": removed})
 
     return df
 

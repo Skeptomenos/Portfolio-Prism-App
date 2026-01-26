@@ -77,17 +77,13 @@ class AssetEntry:
         """
         # 1. Contributor Score (0.4)
         # Log scale: 1 contributor = 0.1, 10+ contributors = 0.4
-        contrib_score = min(
-            0.4, 0.1 + (math.log10(max(1, self.contributor_count)) * 0.3)
-        )
+        contrib_score = min(0.4, 0.1 + (math.log10(max(1, self.contributor_count)) * 0.3))
 
         # 2. Freshness Score (0.3)
         freshness_score = 0.0
         if self.last_updated:
             try:
-                updated_at = datetime.fromisoformat(
-                    self.last_updated.replace("Z", "+00:00")
-                )
+                updated_at = datetime.fromisoformat(self.last_updated.replace("Z", "+00:00"))
                 days_old = (datetime.now(updated_at.tzinfo) - updated_at).days
                 # Linear decay from 0.3 (today) to 0.0 (180 days old)
                 freshness_score = max(0.0, 0.3 * (1 - (days_old / 180)))
@@ -139,9 +135,7 @@ class HiveClient:
         Args:
             data_dir: Directory for caching universe data
         """
-        self.data_dir = (
-            data_dir or Path(os.getenv("PRISM_DATA_DIR", "~/.prism/data")).expanduser()
-        )
+        self.data_dir = data_dir or Path(os.getenv("PRISM_DATA_DIR", "~/.prism/data")).expanduser()
         self.cache_dir = self.data_dir / "cache"
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
@@ -172,7 +166,11 @@ class HiveClient:
             try:
                 self._client = create_client(self.supabase_url, self.supabase_key)
             except Exception as e:
-                logger.error(f"Failed to create Supabase client: {e}")
+                logger.error(
+                    "Failed to create Supabase client",
+                    extra={"error": str(e), "error_type": type(e).__name__},
+                    exc_info=True,
+                )
                 return None
 
         return self._client
@@ -211,7 +209,11 @@ class HiveClient:
             return True
 
         except Exception as e:
-            logger.error(f"Failed to load cache: {e}")
+            logger.error(
+                "Failed to load cache",
+                extra={"error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
+            )
             return False
 
     def _save_cache(self) -> bool:
@@ -225,7 +227,11 @@ class HiveClient:
             self.cache_file.write_text(json.dumps(data, indent=2))
             return True
         except Exception as e:
-            logger.error(f"Failed to save cache: {e}")
+            logger.error(
+                "Failed to save cache",
+                extra={"error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
+            )
             return False
 
     def sync_universe(self, force: bool = False) -> HiveResult:
@@ -314,7 +320,8 @@ class HiveClient:
                 DataIngestion.ingest_metadata(pd.DataFrame(rows))
 
             logger.info(
-                f"[Hive] Synced {len(self._universe_cache)} assets from Hive via RPC"
+                "[Hive] Synced assets from Hive via RPC",
+                extra={"asset_count": len(self._universe_cache)},
             )
 
             return HiveResult(
@@ -325,25 +332,20 @@ class HiveClient:
         except Exception as e:
             # Fallback to file cache if Supabase download fails
             logger.warning(
-                f"[Hive] Supabase sync failed: {e}. "
-                "Attempting fallback to local file cache."
+                "Supabase sync failed, attempting fallback to local file cache",
+                extra={"error": str(e), "error_type": type(e).__name__},
             )
             if self._load_cache():
                 logger.info(
-                    f"[Hive] Fallback successful: loaded {len(self._universe_cache)} "
-                    "assets from stale file cache. Data may be outdated."
+                    "Loaded assets from stale file cache",
+                    extra={"asset_count": len(self._universe_cache)},
                 )
                 return HiveResult(
                     success=True,
                     data={"count": len(self._universe_cache), "source": "stale_cache"},
                 )
-            logger.error(
-                "[Hive] Fallback failed: no local cache available. "
-                "Universe sync is unavailable."
-            )
-            return HiveResult(
-                success=False, error=f"Supabase download failed: {str(e)}"
-            )
+            logger.error("Fallback failed: no local cache available, universe sync is unavailable")
+            return HiveResult(success=False, error="Supabase download failed: " + str(e))
 
     def lookup(self, isin: str) -> Optional[AssetEntry]:
         """
@@ -390,12 +392,15 @@ class HiveClient:
             asset.needs_manual_resolution = False
 
             logger.info(
-                f"Resolved {asset.isin} asset_class: Unknown -> {resolved_class}"
+                "Resolved asset_class: Unknown -> Detected",
+                extra={"isin": asset.isin, "resolved_class": resolved_class},
             )
             return asset
 
         except Exception as e:
-            logger.warning(f"Failed to resolve asset_class for {asset.isin}: {e}")
+            logger.warning(
+                "Failed to resolve asset_class", extra={"isin": asset.isin, "error": str(e)}
+            )
             asset.resolution_source = "unknown"
             asset.needs_manual_resolution = True
             return asset
@@ -411,18 +416,14 @@ class HiveClient:
             return {}
 
         # Check cache first
-        uncached_isins = [
-            isin for isin in valid_isins if isin not in self._universe_cache
-        ]
+        uncached_isins = [isin for isin in valid_isins if isin not in self._universe_cache]
 
         if not uncached_isins:
             return {isin: self._universe_cache[isin] for isin in valid_isins}
 
         # Initialize result with cached entries
         result = {
-            isin: self._universe_cache[isin]
-            for isin in valid_isins
-            if isin in self._universe_cache
+            isin: self._universe_cache[isin] for isin in valid_isins if isin in self._universe_cache
         }
 
         # Batch fetch from Supabase for uncached ISINs
@@ -430,9 +431,8 @@ class HiveClient:
             client = self._get_client()
             if client is None:
                 logger.warning(
-                    f"[Hive] Supabase client unavailable for batch lookup of "
-                    f"{len(uncached_isins)} ISINs. Falling back to local asset class "
-                    "detection. Assets will have limited metadata until Hive sync succeeds."
+                    "[Hive] Supabase client unavailable for batch lookup. Falling back to local asset class detection. Assets will have limited metadata until Hive sync succeeds.",
+                    extra={"isin_count": len(uncached_isins)},
                 )
                 for isin in uncached_isins:
                     asset = AssetEntry(
@@ -447,9 +447,7 @@ class HiveClient:
                     result[isin] = asset
                 return result
 
-            response = (
-                client.from_("assets").select("*").in_("isin", uncached_isins).execute()
-            )
+            response = client.from_("assets").select("*").in_("isin", uncached_isins).execute()
 
             found_isins = set()
             for row in response.data:
@@ -492,8 +490,8 @@ class HiveClient:
         except Exception as e:
             failed_count = sum(1 for isin in uncached_isins if isin not in result)
             logger.warning(
-                f"[Hive] Batch lookup failed for {failed_count} ISINs: {e}. "
-                "Falling back to local asset class detection for missing entries."
+                "[Hive] Batch lookup failed. Falling back to local asset class detection for missing entries.",
+                extra={"failed_count": failed_count, "error": str(e)},
             )
             for isin in uncached_isins:
                 if isin not in result:
@@ -530,28 +528,24 @@ class HiveClient:
         try:
             client = self._get_client()
             if client is None:
-                logger.warning(
-                    "Cannot contribute assets: Supabase client not available"
-                )
+                logger.warning("Cannot contribute assets: Supabase client not available")
                 return False
 
             valid_asset_classes = {"Equity", "ETF", "Cash", "Crypto", "Bond", "Fund"}
 
             valid_assets = [
-                asset
-                for asset in assets_data
-                if asset.asset_class in valid_asset_classes
+                asset for asset in assets_data if asset.asset_class in valid_asset_classes
             ]
 
             if not valid_assets:
-                logger.debug(
-                    "No valid assets to contribute (all have Unknown asset_class)"
-                )
+                logger.debug("No valid assets to contribute (all have Unknown asset_class)")
                 return True
 
             if len(valid_assets) < len(assets_data):
                 skipped = len(assets_data) - len(valid_assets)
-                logger.debug(f"Skipping {skipped} assets with invalid asset_class")
+                logger.debug(
+                    "Skipping assets with invalid asset_class", extra={"skipped_count": skipped}
+                )
 
             assets_dict = [
                 {
@@ -565,20 +559,26 @@ class HiveClient:
             ]
 
             # Use RPC function for atomic batch upsert
-            response = client.rpc(
-                "batch_contribute_assets", {"assets": assets_dict}
-            ).execute()
+            response = client.rpc("batch_contribute_assets", {"assets": assets_dict}).execute()
 
             if response.data and response.data[0].get("success"):
                 logger.info(
-                    f"Successfully contributed {len(valid_assets)} assets to Hive"
+                    "Successfully contributed assets to Hive",
+                    extra={"asset_count": len(valid_assets)},
                 )
                 return True
             else:
-                logger.error(f"Failed to contribute assets: {response.data}")
+                logger.error(
+                    "Failed to contribute assets",
+                    extra={"response_data": response.data},
+                )
                 return False
         except Exception as e:
-            logger.error(f"Hive batch contribution failed: {e}")
+            logger.error(
+                "Hive batch contribution failed",
+                extra={"error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
+            )
             return False
 
     def contribute_asset(
@@ -625,9 +625,7 @@ class HiveClient:
             else:
                 return HiveResult(
                     success=False,
-                    error=response.data[0].get(
-                        "error_message", "Contribution failed at RPC level"
-                    ),
+                    error=response.data[0].get("error_message", "Contribution failed at RPC level"),
                 )
 
         except Exception as e:
@@ -676,9 +674,7 @@ class HiveClient:
             else:
                 return HiveResult(
                     success=False,
-                    error=response.data[0].get(
-                        "error_message", "Listing contribution failed"
-                    ),
+                    error=response.data[0].get("error_message", "Listing contribution failed"),
                 )
         except Exception as e:
             return HiveResult(success=False, error=f"RPC call failed: {str(e)}")
@@ -718,9 +714,7 @@ class HiveClient:
             else:
                 return HiveResult(
                     success=False,
-                    error=response.data[0].get(
-                        "error_message", "Mapping contribution failed"
-                    ),
+                    error=response.data[0].get("error_message", "Mapping contribution failed"),
                 )
         except Exception as e:
             return HiveResult(success=False, error=f"RPC call failed: {str(e)}")
@@ -771,9 +765,7 @@ class HiveClient:
             else:
                 return HiveResult(
                     success=False,
-                    error=response.data[0].get(
-                        "error_message", "Alias contribution failed"
-                    ),
+                    error=response.data[0].get("error_message", "Alias contribution failed"),
                 )
         except Exception as e:
             return HiveResult(success=False, error=f"RPC call failed: {str(e)}")
@@ -799,13 +791,19 @@ class HiveClient:
             if response.data and len(response.data) > 0:
                 isin = response.data[0].get("isin")
                 if isin:
-                    logger.debug(f"Hive resolved {ticker} -> {isin}")
+                    logger.debug(
+                        "Hive resolved ticker",
+                        extra={"ticker": ticker, "isin": isin},
+                    )
                     return isin
 
             return None
 
         except Exception as e:
-            logger.warning(f"Hive ticker resolution failed for {ticker}: {e}")
+            logger.warning(
+                "Hive ticker resolution failed",
+                extra={"ticker": ticker, "error": str(e)},
+            )
             return None
 
     def batch_resolve_tickers(
@@ -853,11 +851,17 @@ class HiveClient:
                                 break
 
             except Exception as e:
-                logger.warning(f"Hive batch resolution failed for chunk: {e}")
+                logger.warning(
+                    "Hive batch resolution failed for chunk",
+                    extra={"error": str(e)},
+                )
                 # Continue with next chunk
 
         resolved_count = sum(1 for v in results.values() if v is not None)
-        logger.info(f"Hive batch resolved {resolved_count}/{len(tickers)} tickers")
+        logger.info(
+            "Hive batch resolution complete",
+            extra={"resolved_count": resolved_count, "total_tickers": len(tickers)},
+        )
 
         return results
 
@@ -882,7 +886,10 @@ class HiveClient:
                 row = response.data[0]
                 isin = row.get("isin")
                 if isin:
-                    logger.debug(f"Hive alias resolved '{alias}' -> {isin}")
+                    logger.debug(
+                        "Hive alias resolved",
+                        extra={"alias": alias, "isin": isin},
+                    )
                     return AliasLookupResult(
                         isin=isin,
                         name=row.get("name", ""),
@@ -898,7 +905,10 @@ class HiveClient:
             return None
 
         except Exception as e:
-            logger.warning(f"Hive alias lookup failed for '{alias}': {e}")
+            logger.warning(
+                "Hive alias lookup failed",
+                extra={"alias": alias, "error": str(e)},
+            )
             return None
 
     def lookup_alias_isin(self, alias: str) -> Optional[str]:
@@ -934,7 +944,8 @@ class HiveClient:
             if response.data:
                 result["assets"] = response.data
                 logger.info(
-                    f"[Hive] Synced {len(response.data)} assets from Hive via RPC"
+                    "Synced assets from Hive via RPC",
+                    extra={"asset_count": len(response.data)},
                 )
         except Exception as e:
             logger.warning(
@@ -946,9 +957,10 @@ class HiveClient:
                 response = client.from_("assets").select("*").execute()
                 if response.data:
                     result["assets"] = response.data
-                    logger.info(
-                        f"[Hive] Fallback query succeeded: loaded {len(response.data)} assets."
-                    )
+                logger.info(
+                    "[Hive] Fallback successful: loaded assets from stale file cache. Data may be outdated.",
+                    extra={"asset_count": len(self._universe_cache)},
+                )
             except Exception as fallback_e:
                 logger.error(
                     f"[Hive] Fallback query also failed: {fallback_e}. "
@@ -961,12 +973,13 @@ class HiveClient:
             if response.data:
                 result["listings"] = response.data
                 logger.info(
-                    f"[Hive] Synced {len(response.data)} listings from Hive via RPC"
+                    "Synced listings from Hive via RPC",
+                    extra={"listing_count": len(response.data)},
                 )
         except Exception as e:
             logger.warning(
-                f"[Hive] RPC fetch for listings failed: {e}. "
-                "Attempting fallback via direct table query."
+                "[Hive] Supabase sync failed. Attempting fallback to local file cache.",
+                extra={"error": str(e)},
             )
             try:
                 response = client.from_("listings").select("*").execute()
@@ -987,7 +1000,8 @@ class HiveClient:
             if response.data:
                 result["aliases"] = response.data
                 logger.info(
-                    f"[Hive] Synced {len(response.data)} aliases from Hive via RPC"
+                    "Synced aliases from Hive via RPC",
+                    extra={"alias_count": len(response.data)},
                 )
         except Exception as e:
             logger.warning(
@@ -1023,9 +1037,7 @@ class HiveClient:
             return None
 
         try:
-            response = client.rpc(
-                "get_etf_holdings_rpc", {"p_etf_isin": etf_isin}
-            ).execute()
+            response = client.rpc("get_etf_holdings_rpc", {"p_etf_isin": etf_isin}).execute()
 
             if not response.data:
                 return None
@@ -1044,7 +1056,10 @@ class HiveClient:
             return df
 
         except Exception as e:
-            logger.warning(f"Hive holdings lookup failed for {etf_isin}: {e}")
+            logger.warning(
+                "Hive holdings lookup failed",
+                extra={"etf_isin": etf_isin, "error": str(e)},
+            )
             return None
 
     def contribute_etf_holdings(self, etf_isin: str, holdings_df: pd.DataFrame) -> bool:
@@ -1057,7 +1072,10 @@ class HiveClient:
 
         # Validate ISIN format before RPC call
         if not is_valid_isin(etf_isin):
-            logger.warning(f"Invalid ETF ISIN format: {etf_isin}")
+            logger.warning(
+                "Invalid ETF ISIN format",
+                extra={"etf_isin": etf_isin},
+            )
             return False
 
         client = self._get_client()
@@ -1073,9 +1091,7 @@ class HiveClient:
                     {
                         "etf_isin": etf_isin,
                         "holding_isin": str(row.get("isin", row.get("ISIN", ""))),
-                        "holding_name": str(
-                            row.get("name", row.get("Name", "Unknown"))
-                        ),
+                        "holding_name": str(row.get("name", row.get("Name", "Unknown"))),
                         "weight_percentage": float(
                             row.get("weight", row.get("Weight", 0.0)) or 0.0
                         ),
@@ -1096,15 +1112,23 @@ class HiveClient:
 
             if response.data and response.data[0].get("success"):
                 logger.info(
-                    f"Successfully contributed {len(holdings_list)} holdings for {etf_isin} to Hive"
+                    "Successfully contributed holdings for ETF to Hive",
+                    extra={"holdings_count": len(holdings_list), "etf_isin": etf_isin},
                 )
                 return True
             else:
-                logger.error(f"Failed to contribute holdings: {response.data}")
+                logger.error(
+                    "Failed to contribute holdings",
+                    extra={"response_data": response.data},
+                )
                 return False
 
         except Exception as e:
-            logger.error(f"Hive holdings contribution failed for {etf_isin}: {e}")
+            logger.error(
+                "Hive holdings contribution failed",
+                extra={"etf_isin": etf_isin, "error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
+            )
             return False
 
     def get_stats(self) -> Dict[str, Any]:

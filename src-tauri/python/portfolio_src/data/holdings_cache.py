@@ -16,7 +16,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from portfolio_src import config # Import centralized config
+from portfolio_src import config  # Import centralized config
 
 import pandas as pd
 
@@ -27,7 +27,7 @@ logger = get_logger(__name__)
 # Directory paths defined in config
 # Use persistent working directory for cache
 LOCAL_CACHE_DIR = config.WORKING_DIR / "etf_holdings_cache"
-# Community Data: This is bundled. In dev = PROJECT_ROOT/community_data. 
+# Community Data: This is bundled. In dev = PROJECT_ROOT/community_data.
 # In frozen app, config.PROJECT_ROOT points to temp bundle location where assets are extracted.
 COMMUNITY_DIR = config.PROJECT_ROOT / "community_data" / "etf_holdings"
 # Manual Uploads: Use persistent inputs directory
@@ -70,9 +70,11 @@ class HoldingsCache:
         self._local_metadata = self._load_metadata(LOCAL_CACHE_DIR)
         self._community_metadata = self._load_metadata(COMMUNITY_DIR)
         logger.info(
-            f"HoldingsCache initialized: "
-            f"{len(self._local_metadata)} local, "
-            f"{len(self._community_metadata)} community"
+            "HoldingsCache initialized",
+            extra={
+                "local_count": len(self._local_metadata),
+                "community_count": len(self._community_metadata),
+            },
         )
 
     def _ensure_directories(self) -> None:
@@ -89,7 +91,10 @@ class HoldingsCache:
                 # Filter out stats keys
                 return {k: v for k, v in data.items() if not k.startswith("_")}
             except Exception as e:
-                logger.warning(f"Failed to load metadata from {metadata_file}: {e}")
+                logger.warning(
+                    "Failed to load metadata",
+                    extra={"metadata_file": str(metadata_file), "error": str(e)},
+                )
         return {}
 
     def _save_local_metadata(self) -> None:
@@ -127,14 +132,14 @@ class HoldingsCache:
         if not force_refresh:
             holdings = self._get_from_local_cache(isin)
             if holdings is not None:
-                logger.debug(f"[{isin}] Found in local cache")
+                logger.debug("Found in local cache", extra={"isin": isin})
                 return holdings
 
         # Tier 2: Community data (unless force refresh)
         if not force_refresh:
             holdings = self._get_from_community(isin)
             if holdings is not None:
-                logger.debug(f"[{isin}] Found in community data")
+                logger.debug("Found in community data", extra={"isin": isin})
                 # Copy to local cache for faster access
                 self._copy_to_local_cache(isin, holdings)
                 return holdings
@@ -143,7 +148,7 @@ class HoldingsCache:
         if adapter_registry and not os.getenv("DOCKER_MODE") == "true":
             holdings = self._fetch_via_adapter(isin, adapter_registry)
             if holdings is not None:
-                logger.debug(f"[{isin}] Fetched via adapter")
+                logger.debug("Fetched via adapter", extra={"isin": isin})
                 # Save to local cache
                 self._save_to_local_cache(isin, holdings, source="adapter_fetch")
                 return holdings
@@ -151,7 +156,7 @@ class HoldingsCache:
         # Tier 4: Check for manual upload
         holdings = self._get_from_manual_upload(isin)
         if holdings is not None:
-            logger.debug(f"[{isin}] Found manual upload")
+            logger.debug("Found manual upload", extra={"isin": isin})
             # Save to local cache
             self._save_to_local_cache(isin, holdings, source="manual_upload")
             return holdings
@@ -170,7 +175,7 @@ class HoldingsCache:
 
         # Check freshness
         if not self._is_fresh(self._local_metadata[isin]):
-            logger.debug(f"[{isin}] Local cache expired")
+            logger.debug("Local cache expired", extra={"isin": isin})
             return None
 
         csv_file = LOCAL_CACHE_DIR / f"{isin}.csv"
@@ -180,7 +185,10 @@ class HoldingsCache:
         try:
             return pd.read_csv(csv_file)
         except Exception as e:
-            logger.warning(f"[{isin}] Failed to read local cache: {e}")
+            logger.warning(
+                "Failed to read local cache",
+                extra={"isin": isin, "error": str(e)},
+            )
             return None
 
     def _get_from_community(self, isin: str) -> Optional[pd.DataFrame]:
@@ -192,7 +200,10 @@ class HoldingsCache:
         try:
             return pd.read_csv(csv_file)
         except Exception as e:
-            logger.warning(f"[{isin}] Failed to read community data: {e}")
+            logger.warning(
+                "Failed to read community data",
+                extra={"isin": isin, "error": str(e)},
+            )
             return None
 
     def _get_from_manual_upload(self, isin: str) -> Optional[pd.DataFrame]:
@@ -210,7 +221,8 @@ class HoldingsCache:
                             return pd.read_excel(file_path)
                     except Exception as e:
                         logger.warning(
-                            f"[{isin}] Failed to read manual file {file_path}: {e}"
+                            "Failed to read manual file",
+                            extra={"isin": isin, "file_path": str(file_path), "error": str(e)},
                         )
         return None
 
@@ -219,7 +231,7 @@ class HoldingsCache:
         try:
             adapter = adapter_registry.get_adapter(isin)
             if adapter is None:
-                logger.debug(f"[{isin}] No adapter available")
+                logger.debug("No adapter available", extra={"isin": isin})
                 return None
 
             holdings = adapter.fetch_holdings(isin)
@@ -228,7 +240,10 @@ class HoldingsCache:
 
             return holdings
         except Exception as e:
-            logger.warning(f"[{isin}] Adapter fetch failed: {e}")
+            logger.warning(
+                "Adapter fetch failed",
+                extra={"isin": isin, "error": str(e)},
+            )
             return None
 
     def _is_fresh(self, metadata: dict) -> bool:
@@ -257,9 +272,12 @@ class HoldingsCache:
                 self._local_metadata[isin]["copied_at"] = datetime.now().isoformat()
                 self._save_local_metadata()
 
-            logger.debug(f"[{isin}] Copied to local cache")
+            logger.debug("Copied to local cache", extra={"isin": isin})
         except Exception as e:
-            logger.warning(f"[{isin}] Failed to copy to local cache: {e}")
+            logger.warning(
+                "Failed to copy to local cache",
+                extra={"isin": isin, "error": str(e)},
+            )
 
     def _save_to_local_cache(
         self,
@@ -288,9 +306,15 @@ class HoldingsCache:
             }
             self._save_local_metadata()
 
-            logger.info(f"[{isin}] Saved to local cache ({len(holdings)} holdings)")
+            logger.info(
+                "Saved to local cache",
+                extra={"isin": isin, "holdings_count": len(holdings)},
+            )
         except Exception as e:
-            logger.warning(f"[{isin}] Failed to save to local cache: {e}")
+            logger.warning(
+                "Failed to save to local cache",
+                extra={"isin": isin, "error": str(e)},
+            )
 
     def has_holdings(self, isin: str) -> bool:
         """Check if holdings are available for an ISIN (any tier)."""
@@ -351,7 +375,7 @@ class HoldingsCache:
         if csv_file.exists():
             csv_file.unlink()
 
-        logger.info(f"[{isin}] Cache invalidated")
+        logger.info("Cache invalidated", extra={"isin": isin})
 
     def clear_local_cache(self) -> None:
         """Clear all local cache (keeps community data)."""

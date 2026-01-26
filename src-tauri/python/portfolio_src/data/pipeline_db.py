@@ -86,9 +86,7 @@ class PipelineDatabase:
                 )
             """)
 
-            conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_positions_isin ON positions(isin)"
-            )
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_positions_isin ON positions(isin)")
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_positions_run ON positions(pipeline_run_id)"
             )
@@ -102,7 +100,10 @@ class PipelineDatabase:
                 "CREATE INDEX IF NOT EXISTS idx_holdings_run ON holdings_breakdown(pipeline_run_id)"
             )
 
-            logger.info(f"Pipeline database schema ensured at {self.db_path}")
+            logger.info(
+                "Pipeline database schema ensured",
+                extra={"db_path": str(self.db_path)},
+            )
 
     def start_run(self) -> int:
         with self._connection() as conn:
@@ -111,7 +112,7 @@ class PipelineDatabase:
                 (datetime.now().isoformat(),),
             )
             run_id = cursor.lastrowid
-            logger.info(f"Started pipeline run {run_id}")
+            logger.info("Started pipeline run", extra={"run_id": run_id})
             return run_id
 
     def complete_run(
@@ -140,7 +141,7 @@ class PipelineDatabase:
                     run_id,
                 ),
             )
-            logger.info(f"Completed pipeline run {run_id}")
+            logger.info("Completed pipeline run", extra={"run_id": run_id})
 
     def fail_run(self, run_id: int, errors: List[Dict]):
         with self._connection() as conn:
@@ -152,7 +153,7 @@ class PipelineDatabase:
                 """,
                 (datetime.now().isoformat(), json.dumps(errors), run_id),
             )
-            logger.warning(f"Failed pipeline run {run_id}")
+            logger.warning("Failed pipeline run", extra={"run_id": run_id})
 
     def get_latest_run(self) -> Optional[Dict]:
         with self._connection() as conn:
@@ -189,9 +190,15 @@ class PipelineDatabase:
                     )
                     inserted += 1
                 except sqlite3.IntegrityError as e:
-                    logger.warning(f"Failed to insert position {pos.get('isin')}: {e}")
+                    logger.warning(
+                        "Failed to insert position",
+                        extra={"isin": pos.get("isin"), "error": str(e)},
+                    )
 
-            logger.info(f"Inserted {inserted} positions for run {run_id}")
+            logger.info(
+                "Inserted positions",
+                extra={"count": inserted, "run_id": run_id},
+            )
 
     def get_positions(self, run_id: Optional[int] = None) -> pd.DataFrame:
         with self._connection() as conn:
@@ -238,9 +245,15 @@ class PipelineDatabase:
                     )
                     inserted += 1
                 except sqlite3.IntegrityError as e:
-                    logger.warning(f"Failed to insert holding: {e}")
+                    logger.warning(
+                        "Failed to insert holding",
+                        extra={"error": str(e)},
+                    )
 
-            logger.info(f"Inserted {inserted} holdings for run {run_id}")
+            logger.info(
+                "Inserted holdings",
+                extra={"count": inserted, "run_id": run_id},
+            )
 
     def get_holdings(self, run_id: Optional[int] = None) -> pd.DataFrame:
         with self._connection() as conn:

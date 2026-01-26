@@ -22,7 +22,10 @@ def _load_cache():
             with open(ASSET_NAMES_CACHE_PATH, "r") as f:
                 return json.load(f)
         except json.JSONDecodeError:
-            logger.error(f"Error decoding JSON from {ASSET_NAMES_CACHE_PATH}")
+            logger.error(
+                "Error decoding JSON from asset names cache",
+                extra={"path": str(ASSET_NAMES_CACHE_PATH)},
+            )
             return {}
     return {}
 
@@ -43,7 +46,10 @@ def _save_cache(cache):
         with open(ASSET_NAMES_CACHE_PATH, "w") as f:
             json.dump(cache, f, indent=2)
     except Exception as e:
-        logger.error(f"Failed to save asset names cache: {e}")
+        logger.error(
+            "Failed to save asset names cache",
+            extra={"error": str(e), "error_type": type(e).__name__},
+        )
 
 
 def _fetch_name_yfinance(isin):
@@ -65,9 +71,14 @@ def _fetch_name_yfinance(isin):
             return name
     except Exception as e:
         logger.warning(
-            f"YFinance name lookup failed for {isin} (Ticker: {ticker_symbol}): {e}"
+            "YFinance name lookup failed",
+            extra={
+                "isin": isin,
+                "ticker": ticker_symbol,
+                "error": str(e),
+                "error_type": type(e).__name__,
+            },
         )
-        # pass
     return None
 
 
@@ -122,7 +133,7 @@ def normalize_asset_names(positions_df):
         # 2. Yahoo Finance
         official_name = _fetch_name_yfinance(isin)
         if official_name:
-            logger.info(f"  - Fetched official name for {isin}: {official_name}")
+            logger.info("Fetched official name", extra={"isin": isin, "name": official_name})
             cache[isin] = official_name
             positions_df.at[index, "name"] = official_name
             cache_updates += 1
@@ -131,7 +142,9 @@ def normalize_asset_names(positions_df):
         # 3. Fallback (LLM/Regex)
         # If Yahoo fails, we clean the raw name and cache THAT to avoid retrying Yahoo every time
         clean_name = _fetch_name_llm_stub(raw_name)
-        logger.info(f"  - cleaned name for {isin}: {clean_name} (Yahoo failed)")
+        logger.info(
+            "Using cleaned name (Yahoo failed)", extra={"isin": isin, "clean_name": clean_name}
+        )
 
         # Only cache if it looks reasonable (not empty)
         if clean_name:

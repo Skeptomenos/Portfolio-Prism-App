@@ -71,7 +71,9 @@ def fetch_from_yfinance(identifier: str) -> dict[str, str] | None:
         BaseException
     ) as e:  # Catch EVERYTHING (SystemExit, KeyboardInterrupt, etc.) just in case
         debug_log(f"yfinance crashed/failed for {identifier}: {e}")
-        logger.warning(f"yfinance failed for {identifier}: {e}")
+        logger.warning(
+            "yfinance failed", extra={"identifier": identifier, "error": str(e)}, exc_info=True
+        )
     return None
 
 
@@ -117,7 +119,9 @@ def fetch_isin_from_wikidata(
                     ]
                 return []
         except Exception as e:
-            logger.debug(f"Wikidata search failed for {query}: {e}")
+            logger.debug(
+                "Wikidata search failed", extra={"query": query, "error": str(e)}, exc_info=True
+            )
         return []
 
     def get_entity_details(entity_id):
@@ -139,7 +143,11 @@ def fetch_isin_from_wikidata(
                     return {"claims": entity.claims.model_dump()}
                 return {}
         except Exception as e:
-            logger.debug(f"Wikidata details failed for {entity_id}: {e}")
+            logger.debug(
+                "Wikidata details failed",
+                extra={"entity_id": entity_id, "error": str(e)},
+                exc_info=True,
+            )
         return {}
 
     def extract_isin(entity_data):
@@ -161,7 +169,14 @@ def fetch_isin_from_wikidata(
         return tickers
 
     try:
-        logger.debug(f"Wikidata lookup: {company_name} | Raw: {raw_ticker} | Yahoo: {yahoo_ticker}")
+        logger.debug(
+            "Wikidata lookup",
+            extra={
+                "company_name": company_name,
+                "raw_ticker": raw_ticker,
+                "yahoo_ticker": yahoo_ticker,
+            },
+        )
 
         # Strategy 1: Search by company name
         results = search_wikidata(company_name)
@@ -183,38 +198,47 @@ def fetch_isin_from_wikidata(
 
             # Score 2: Raw ticker matches (strong signal)
             if raw_ticker and raw_ticker in found_tickers:
-                logger.debug(f"  ✓ Raw ticker match: {raw_ticker}")
+                logger.debug("Raw ticker match", extra={"raw_ticker": raw_ticker})
                 match_score += 2
 
             # Score 1: Yahoo ticker base matches
             if yahoo_ticker:
                 base_yahoo = yahoo_ticker.split(".")[0]
                 if base_yahoo in found_tickers:
-                    logger.debug(f"  ✓ Yahoo ticker base match: {base_yahoo}")
+                    logger.debug("Yahoo ticker base match", extra={"base_yahoo": base_yahoo})
                     match_score += 1
 
             # Accept if we have ISIN and at least one ticker match, or just ISIN with high confidence
             if match_score >= 2 or (isin and match_score >= 1):
-                logger.info(f"✓ ISIN for {company_name}: {isin} [Wikidata]")
+                logger.info(
+                    "ISIN found [Wikidata]", extra={"company_name": company_name, "isin": isin}
+                )
                 return isin
 
         # If name search failed and we have a raw ticker, try searching by ticker
         if raw_ticker and not results:
-            logger.debug(f"Retrying with raw ticker: {raw_ticker}")
+            logger.debug("Retrying with raw ticker", extra={"raw_ticker": raw_ticker})
             results = search_wikidata(raw_ticker)
             for result in results:
                 entity_id = result["id"]
                 details = get_entity_details(entity_id)
                 isin = extract_isin(details)
                 if isin:
-                    logger.info(f"✓ ISIN for {company_name}: {isin} [Wikidata via ticker]")
+                    logger.info(
+                        "ISIN found [Wikidata via ticker]",
+                        extra={"company_name": company_name, "isin": isin},
+                    )
                     return isin
 
-        logger.warning(f"✗ No ISIN found for {company_name} in Wikidata")
+        logger.warning("No ISIN found in Wikidata", extra={"company_name": company_name})
         return None
 
     except Exception as e:
-        logger.debug(f"Wikidata lookup failed for {company_name}: {e}")
+        logger.debug(
+            "Wikidata lookup failed",
+            extra={"company_name": company_name, "error": str(e)},
+            exc_info=True,
+        )
         return None
 
 
@@ -231,7 +255,9 @@ def load_asset_universe() -> dict[str, str]:
         cursor = conn.execute("SELECT ticker, isin FROM cache_listings")
         return {row["ticker"]: row["isin"] for row in cursor}
     except Exception as e:
-        logger.warning(f"Failed to load asset universe from cache: {e}")
+        logger.warning(
+            "Failed to load asset universe from cache", extra={"error": str(e)}, exc_info=True
+        )
         return {}
 
 
@@ -262,7 +288,7 @@ def enrich_securities_bulk(
 
     # Ensure debug log dir exists
     OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
-    logger.info(f"Starting bulk enrichment for {len(securities_to_fetch)} securities")
+    logger.info("Starting bulk enrichment", extra={"count": len(securities_to_fetch)})
 
     # Counter for progress feedback
     count = 0
@@ -316,7 +342,10 @@ def enrich_securities_bulk(
             result["isin"] = _UNIVERSE_MAPPING[identifier]
             # If we have the ISIN, we might still want sector/geo from API,
             # but at least we have the ID.
-            logger.debug(f"Resolved ISIN locally: {identifier} -> {_UNIVERSE_MAPPING[identifier]}")
+            logger.debug(
+                "Resolved ISIN locally",
+                extra={"identifier": identifier, "isin": _UNIVERSE_MAPPING[identifier]},
+            )
 
         # Primary: Finnhub (via proxy if configured, otherwise direct)
         if WORKER_URL:
@@ -338,15 +367,22 @@ def enrich_securities_bulk(
                         )
                         if profile.isin:
                             result["isin"] = profile.isin
-                            logger.debug(f"ISIN for {identifier}: {profile.isin} [Proxy]")
-                        logger.debug(f"Enriched {identifier} via Proxy")
+                            logger.debug(
+                                "ISIN found [Proxy]",
+                                extra={"identifier": identifier, "isin": profile.isin},
+                            )
+                        logger.debug("Enriched via Proxy", extra={"identifier": identifier})
                     else:
-                        logger.warning(f"Empty profile from proxy for {identifier}")
+                        logger.warning("Empty profile from proxy", extra={"identifier": identifier})
                 rate_limit_sec = max(ENRICHMENT_RATE_LIMIT_MS / 1000, 1.0)
-                logger.debug(f"Rate limiting: sleeping {rate_limit_sec}s")
+                logger.debug("Rate limiting", extra={"sleep_seconds": rate_limit_sec})
                 time.sleep(rate_limit_sec)
             except requests.exceptions.RequestException as e:
-                logger.warning(f"Proxy request error for {identifier}: {e}")
+                logger.warning(
+                    "Proxy request error",
+                    extra={"identifier": identifier, "error": str(e)},
+                    exc_info=True,
+                )
 
         # SECURITY: Direct Finnhub API fallback removed (security bypass risk)
         # All Finnhub calls must go through Cloudflare Worker proxy
@@ -365,23 +401,32 @@ def enrich_securities_bulk(
 
                 if wikidata_isin:
                     result["isin"] = wikidata_isin
-                    logger.debug(f"Resolved ISIN via Wikidata: {identifier} -> {wikidata_isin}")
+                    logger.debug(
+                        "Resolved ISIN via Wikidata",
+                        extra={"identifier": identifier, "isin": wikidata_isin},
+                    )
                 else:
-                    logger.warning(f"✗ No ISIN for {identifier} from Wikidata")
+                    logger.warning("No ISIN from Wikidata", extra={"identifier": identifier})
 
             except Exception as e:
-                logger.debug(f"Wikidata ISIN lookup failed for {identifier}: {e}")
+                logger.debug(
+                    "Wikidata ISIN lookup failed",
+                    extra={"identifier": identifier, "error": str(e)},
+                    exc_info=True,
+                )
 
         # Fallback: YFinance (if Finnhub failed or returned Unknown for sector/geo)
         if result["sector"] == "Unknown" or result["geography"] == "Unknown":
             yf_data = fetch_from_yfinance(identifier)
             if yf_data:
                 result.update(yf_data)
-                logger.debug(f"Enriched {identifier} via YFinance")
+                logger.debug("Enriched via YFinance", extra={"identifier": identifier})
 
         # Log final ISIN status
         if result["isin"] == "N/A":
-            logger.error(f"⚠ FAILED to resolve ISIN for {identifier} after all attempts")
+            logger.error(
+                "FAILED to resolve ISIN after all attempts", extra={"identifier": identifier}
+            )
 
         # 3. Save to cache and append to results
         save_to_cache(cache_key, result)
@@ -409,7 +454,7 @@ def enrich_securities(
     Returns:
         list: A list of enriched security dictionaries.
     """
-    logger.info(f"Enriching metadata for {len(securities)} securities...")
+    logger.info("Enriching metadata", extra={"count": len(securities)})
     enriched_data = enrich_securities_bulk(securities, force_refresh=force_refresh)
     logger.info("Enrichment complete.")
     return enriched_data
