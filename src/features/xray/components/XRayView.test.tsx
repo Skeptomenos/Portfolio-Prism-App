@@ -1,12 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '../../../test/utils'
 import XRayView from './XRayView'
-import * as ipc from '../../../lib/ipc'
-
-vi.mock('../../../lib/ipc', () => ({
-  runPipeline: vi.fn(),
-  getDashboardData: vi.fn(),
-}))
+import { setupTauriMock, resetTauriMocks, mockTauriInvoke } from '../../../test/mocks/tauri'
 
 vi.mock('../hooks/usePipelineDiagnostics', () => ({
   usePipelineDiagnostics: vi.fn(() => ({
@@ -33,7 +28,13 @@ vi.mock('../../../store/useAppStore', () => ({
 
 describe('XRayView', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    setupTauriMock({
+      run_pipeline: () => ({ success: true, errors: [], durationMs: 1000 }),
+    })
+  })
+
+  afterEach(() => {
+    resetTauriMocks()
   })
 
   it('shows no data state when pipeline has not run', async () => {
@@ -47,8 +48,6 @@ describe('XRayView', () => {
   })
 
   it('triggers analysis when clicking run button', async () => {
-    vi.mocked(ipc.runPipeline).mockResolvedValue({ success: true, errors: [], durationMs: 1000 })
-
     render(<XRayView />)
 
     await waitFor(() => {
@@ -58,15 +57,17 @@ describe('XRayView', () => {
     fireEvent.click(screen.getByRole('button', { name: /Run Deep Analysis/i }))
 
     await waitFor(() => {
-      expect(ipc.runPipeline).toHaveBeenCalled()
+      expect(mockTauriInvoke).toHaveBeenCalledWith('run_pipeline', {})
     })
   })
 
   it('shows error message when pipeline fails', async () => {
-    vi.mocked(ipc.runPipeline).mockResolvedValue({
-      success: false,
-      errors: ['ETF decomposition failed'],
-      durationMs: 500,
+    setupTauriMock({
+      run_pipeline: () => ({
+        success: false,
+        errors: ['ETF decomposition failed'],
+        durationMs: 500,
+      }),
     })
 
     render(<XRayView />)
@@ -83,7 +84,9 @@ describe('XRayView', () => {
   })
 
   it('shows loading state during analysis', async () => {
-    vi.mocked(ipc.runPipeline).mockImplementation(() => new Promise(() => {}))
+    setupTauriMock({
+      run_pipeline: () => new Promise(() => {}),
+    })
 
     render(<XRayView />)
 

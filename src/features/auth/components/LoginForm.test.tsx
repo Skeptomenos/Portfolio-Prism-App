@@ -1,30 +1,24 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '../../../test/utils'
 import { LoginForm } from './LoginForm'
-import * as ipc from '../../../lib/ipc'
-
-vi.mock('../../../lib/ipc', () => ({
-  trLogin: vi.fn(),
-  trGetStoredCredentials: vi.fn(() =>
-    Promise.resolve({ hasCredentials: false, maskedPhone: null })
-  ),
-  trLoginWithStoredCredentials: vi.fn(),
-}))
+import { setupTauriMock, resetTauriMocks, mockTauriInvoke } from '../../../test/mocks/tauri'
+import { createMockStore, resetMockStoreState } from '../../../test/mocks/store'
 
 vi.mock('../../../store/useAppStore', () => ({
-  useAppStore: () => ({
-    setAuthState: vi.fn(),
-    setAuthError: vi.fn(),
-  }),
+  useAppStore: () => createMockStore(),
 }))
 
 describe('LoginForm', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
-    vi.mocked(ipc.trGetStoredCredentials).mockResolvedValue({
-      hasCredentials: false,
-      maskedPhone: null,
+    setupTauriMock({
+      tr_get_stored_credentials: () => ({ hasCredentials: false, maskedPhone: null }),
+      tr_login: () => ({ authState: 'waiting_2fa', message: 'Enter 2FA' }),
     })
+  })
+
+  afterEach(() => {
+    resetTauriMocks()
+    resetMockStoreState()
   })
 
   it('renders the form with all fields', () => {
@@ -126,10 +120,7 @@ describe('LoginForm', () => {
     })
   })
 
-  it('calls trLogin on valid form submission', async () => {
-    const mockLogin = vi.mocked(ipc.trLogin)
-    mockLogin.mockResolvedValue({ authState: 'waiting_2fa', message: 'Enter 2FA' })
-
+  it('calls tr_login on valid form submission', async () => {
     render(<LoginForm />)
 
     const phoneInput = screen.getByLabelText('Phone Number')
@@ -142,13 +133,15 @@ describe('LoginForm', () => {
     fireEvent.submit(form!)
 
     await waitFor(() => {
-      expect(mockLogin).toHaveBeenCalledWith('+4917612345678', '1234', false)
+      expect(mockTauriInvoke).toHaveBeenCalledWith('tr_login', {
+        phone: '+4917612345678',
+        pin: '1234',
+        remember: false,
+      })
     })
   })
 
   it('calls onLoginSuccess when login returns waiting_2fa', async () => {
-    const mockLogin = vi.mocked(ipc.trLogin)
-    mockLogin.mockResolvedValue({ authState: 'waiting_2fa', message: 'Enter 2FA' })
     const onLoginSuccess = vi.fn()
 
     render(<LoginForm onLoginSuccess={onLoginSuccess} />)
@@ -168,8 +161,10 @@ describe('LoginForm', () => {
   })
 
   it('shows error message on login failure', async () => {
-    const mockLogin = vi.mocked(ipc.trLogin)
-    mockLogin.mockResolvedValue({ authState: 'error', message: 'Invalid credentials' })
+    setupTauriMock({
+      tr_get_stored_credentials: () => ({ hasCredentials: false, maskedPhone: null }),
+      tr_login: () => ({ authState: 'error', message: 'Invalid credentials' }),
+    })
 
     render(<LoginForm />)
 
@@ -188,8 +183,10 @@ describe('LoginForm', () => {
   })
 
   it('shows loading state during submission', async () => {
-    const mockLogin = vi.mocked(ipc.trLogin)
-    mockLogin.mockImplementation(() => new Promise(() => {}))
+    setupTauriMock({
+      tr_get_stored_credentials: () => ({ hasCredentials: false, maskedPhone: null }),
+      tr_login: () => new Promise(() => {}),
+    })
 
     render(<LoginForm />)
 
@@ -208,34 +205,36 @@ describe('LoginForm', () => {
   })
 
   it('shows quick login button when stored credentials exist', async () => {
-    vi.mocked(ipc.trGetStoredCredentials).mockResolvedValue({
-      hasCredentials: true,
-      maskedPhone: '***5678',
+    setupTauriMock({
+      tr_get_stored_credentials: () => ({
+        hasCredentials: true,
+        maskedPhone: '***5678',
+      }),
+      tr_login: () => ({ authState: 'waiting_2fa', message: 'Enter 2FA' }),
     })
 
     render(<LoginForm />)
 
     await waitFor(() => {
-      // Should show quick login button with masked phone
       expect(screen.getByText(/Saved credentials for \*\*\*5678/)).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Quick Login' })).toBeInTheDocument()
-      // Form fields should be empty (credentials not pre-filled for security)
       expect(screen.getByLabelText('Phone Number')).toHaveValue('')
       expect(screen.getByLabelText('PIN')).toHaveValue('')
-      // Remember should be checked when stored credentials exist
       expect(screen.getByLabelText('Remember this device')).toBeChecked()
     })
   })
 
   it('uses stored credentials on quick login', async () => {
-    vi.mocked(ipc.trGetStoredCredentials).mockResolvedValue({
-      hasCredentials: true,
-      maskedPhone: '***5678',
-    })
-    vi.mocked(ipc.trLoginWithStoredCredentials).mockResolvedValue({
-      authState: 'waiting_2fa',
-      countdown: 30,
-      message: '2FA code sent',
+    setupTauriMock({
+      tr_get_stored_credentials: () => ({
+        hasCredentials: true,
+        maskedPhone: '***5678',
+      }),
+      tr_login: () => ({
+        authState: 'waiting_2fa',
+        countdown: 30,
+        message: '2FA code sent',
+      }),
     })
 
     render(<LoginForm />)
@@ -247,7 +246,7 @@ describe('LoginForm', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Quick Login' }))
 
     await waitFor(() => {
-      expect(ipc.trLoginWithStoredCredentials).toHaveBeenCalled()
+      expect(mockTauriInvoke).toHaveBeenCalledWith('tr_login', { useStoredCredentials: true })
     })
   })
 
@@ -264,12 +263,8 @@ describe('LoginForm', () => {
     expect(checkbox).not.toBeChecked()
   })
 
-  // Multi-market phone validation tests
   describe('Trade Republic market phone validation', () => {
     it('accepts Austrian phone number (+43)', async () => {
-      const mockLogin = vi.mocked(ipc.trLogin)
-      mockLogin.mockResolvedValue({ authState: 'waiting_2fa', message: 'Enter 2FA' })
-
       render(<LoginForm />)
 
       const phoneInput = screen.getByLabelText('Phone Number')
@@ -282,14 +277,15 @@ describe('LoginForm', () => {
       fireEvent.submit(form!)
 
       await waitFor(() => {
-        expect(mockLogin).toHaveBeenCalledWith('+436641234567', '1234', false)
+        expect(mockTauriInvoke).toHaveBeenCalledWith('tr_login', {
+          phone: '+436641234567',
+          pin: '1234',
+          remember: false,
+        })
       })
     })
 
     it('accepts French phone number (+33)', async () => {
-      const mockLogin = vi.mocked(ipc.trLogin)
-      mockLogin.mockResolvedValue({ authState: 'waiting_2fa', message: 'Enter 2FA' })
-
       render(<LoginForm />)
 
       const phoneInput = screen.getByLabelText('Phone Number')
@@ -302,14 +298,15 @@ describe('LoginForm', () => {
       fireEvent.submit(form!)
 
       await waitFor(() => {
-        expect(mockLogin).toHaveBeenCalledWith('+33612345678', '1234', false)
+        expect(mockTauriInvoke).toHaveBeenCalledWith('tr_login', {
+          phone: '+33612345678',
+          pin: '1234',
+          remember: false,
+        })
       })
     })
 
     it('accepts Dutch phone number (+31)', async () => {
-      const mockLogin = vi.mocked(ipc.trLogin)
-      mockLogin.mockResolvedValue({ authState: 'waiting_2fa', message: 'Enter 2FA' })
-
       render(<LoginForm />)
 
       const phoneInput = screen.getByLabelText('Phone Number')
@@ -322,14 +319,15 @@ describe('LoginForm', () => {
       fireEvent.submit(form!)
 
       await waitFor(() => {
-        expect(mockLogin).toHaveBeenCalledWith('+31612345678', '1234', false)
+        expect(mockTauriInvoke).toHaveBeenCalledWith('tr_login', {
+          phone: '+31612345678',
+          pin: '1234',
+          remember: false,
+        })
       })
     })
 
     it('accepts Spanish phone number (+34)', async () => {
-      const mockLogin = vi.mocked(ipc.trLogin)
-      mockLogin.mockResolvedValue({ authState: 'waiting_2fa', message: 'Enter 2FA' })
-
       render(<LoginForm />)
 
       const phoneInput = screen.getByLabelText('Phone Number')
@@ -342,14 +340,15 @@ describe('LoginForm', () => {
       fireEvent.submit(form!)
 
       await waitFor(() => {
-        expect(mockLogin).toHaveBeenCalledWith('+34612345678', '1234', false)
+        expect(mockTauriInvoke).toHaveBeenCalledWith('tr_login', {
+          phone: '+34612345678',
+          pin: '1234',
+          remember: false,
+        })
       })
     })
 
     it('accepts Italian phone number (+39)', async () => {
-      const mockLogin = vi.mocked(ipc.trLogin)
-      mockLogin.mockResolvedValue({ authState: 'waiting_2fa', message: 'Enter 2FA' })
-
       render(<LoginForm />)
 
       const phoneInput = screen.getByLabelText('Phone Number')
@@ -362,7 +361,11 @@ describe('LoginForm', () => {
       fireEvent.submit(form!)
 
       await waitFor(() => {
-        expect(mockLogin).toHaveBeenCalledWith('+39612345678', '1234', false)
+        expect(mockTauriInvoke).toHaveBeenCalledWith('tr_login', {
+          phone: '+39612345678',
+          pin: '1234',
+          remember: false,
+        })
       })
     })
 

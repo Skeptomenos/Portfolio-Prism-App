@@ -115,7 +115,7 @@ pnpm typecheck && pnpm build && pnpm lint
 |--------|------|----------------|-------|
 | [x] | **Task 4.1**: Set up Tauri transport mocking for tests | `specs/10-testing-mocking-refactor.md:L18-32` | Done in v0.10.31 - Added `setupTauriMock()` with command handlers, mock data generators (mockDashboardData, mockEngineHealth, etc.), opt-in MSW server in `server.ts` |
 | [x] | **Task 4.2**: Reorganize test directories + integration setup | `specs/11-testing-e2e-location-integration.md:L12-18` | Done in v0.10.32 - Moved `/e2e/` to `/tests/e2e/`, updated `playwright.config.ts`. Created `/tests/integration/setup.ts` with Python sidecar spawn, added `test:integration` and `test:unit` scripts. Updated vitest.config.ts with projects API |
-| [ ] | **Task 4.3**: Refactor 3 high-impact tests to use transport mocks | `specs/10-testing-mocking-refactor.md:L35-48` | Convert `Dashboard.test.tsx`, `LoginForm.test.tsx`, `XRayView.test.tsx`. Remove `vi.mock('../lib/ipc')` calls, use `setupTauriMock()` instead |
+| [x] | **Task 4.3**: Refactor 3 high-impact tests to use transport mocks | `specs/10-testing-mocking-refactor.md:L35-48` | Done in v0.10.33 - Converted `Dashboard.test.tsx`, `LoginForm.test.tsx`, `XRayView.test.tsx` to use `setupTauriMock()`. Removed all `vi.mock('../lib/ipc')` calls. All 357 tests pass |
 
 **Verification:**
 ```bash
