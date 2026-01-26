@@ -16,10 +16,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: 'pnpm'
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -27,14 +33,14 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v1
 
-      - name: install frontend dependencies
-        run: npm ci
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Build Python Sidecar
-        run: npm run build:python
+        run: pnpm build:python
 
       - name: Build Tauri App
-        run: npm run tauri build
+        run: pnpm tauri:build
         env:
           NO_STRIP: true
           WORKER_URL: ${{ secrets.WORKER_URL }}

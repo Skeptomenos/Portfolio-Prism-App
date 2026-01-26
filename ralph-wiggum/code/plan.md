@@ -21,7 +21,7 @@ This plan addresses 8 specification documents to bring the codebase into full co
 
 | Status | Task | Spec Reference | Notes |
 |--------|------|----------------|-------|
-| [ ] | **Task 1.1**: Complete pnpm migration - update lingering `npm` references in `package.json` scripts | `specs/00-pnpm-migration.md:L23-27` | pnpm-lock.yaml exists; need to fix `dev:engine` and `dev:browser` scripts |
+| [x] | **Task 1.1**: Complete pnpm migration - update lingering `npm` references in `package.json` scripts | `specs/00-pnpm-migration.md:L23-27` | Done in v0.9.4: Fixed dev:browser script, updated CI/release workflows |
 | [ ] | **Task 1.2**: Install and configure Ruff linter for Python | `specs/06-python-tooling.md:L31-41` | Add `[tool.ruff]` section to `pyproject.toml` with E,F,I,B,UP rules |
 | [ ] | **Task 1.3**: Install and configure Mypy type checker for Python | `specs/06-python-tooling.md:L18-29` | Add `[tool.mypy]` section, start with `strict = false` and ramp up |
 | [ ] | **Task 1.4**: Initialize Tach for architecture boundary enforcement | `specs/06-python-tooling.md:L43-61` | Create `tach.toml` defining headless->core->data dependencies |

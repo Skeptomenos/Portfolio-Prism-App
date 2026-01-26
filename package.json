@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:browser": "concurrently \"npm run dev:engine\" \"npm run dev\"",
+    "dev:browser": "concurrently \"pnpm dev:engine\" \"pnpm dev\"",
     "dev:engine": "cd src-tauri/python && uv run python prism_headless.py --http",
     "build": "tsc && vite build",
     "preview": "vite preview",
