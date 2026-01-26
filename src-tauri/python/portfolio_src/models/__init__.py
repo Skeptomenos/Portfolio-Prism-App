@@ -23,6 +23,13 @@ from .dashboard import (
     PositionDetail,
     PositionsResponse,
 )
+from .sync import (
+    SyncProgress,
+    PortfolioSyncResult,
+    PipelineResult,
+    ClassifiedPosition,
+    AuthStatus,
+)
 
 __all__ = [
     # Asset classification
@@ -46,4 +53,10 @@ __all__ = [
     "DashboardSummary",
     "PositionDetail",
     "PositionsResponse",
+    # Sync DTOs
+    "SyncProgress",
+    "PortfolioSyncResult",
+    "PipelineResult",
+    "ClassifiedPosition",
+    "AuthStatus",
 ]

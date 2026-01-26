@@ -36,7 +36,7 @@ This plan addresses 8 specification documents to bring the codebase into full co
 | Status | Task | Spec Reference | Notes |
 |--------|------|----------------|-------|
 | [x] | **Task 2.1**: Create `dashboard_service.py` and extract P&L logic from `handlers/dashboard.py` | `specs/02-backend-architecture.md:L24-31` | Done in v0.10.7: Created `models/dashboard.py` with DTOs, `core/services/dashboard_service.py` with P&L/weight logic. Handler is now thin presentation layer. |
-| [ ] | **Task 2.2**: Create `sync_service.py` and extract TR sync logic from `handlers/sync.py` | `specs/02-backend-architecture.md:L34-37` | Move credentials handling, pipeline triggering; use TRAuthManager |
+| [x] | **Task 2.2**: Create `sync_service.py` and extract TR sync logic from `handlers/sync.py` | `specs/02-backend-architecture.md:L34-37` | Done in v0.10.8: Created `models/sync.py` with DTOs, `core/services/sync_service.py` with asset classification, TR sync, and pipeline logic. Handler is thin. Fixed pre-existing STOCK_ENTITY_TYPES undefined bug. |
 | [ ] | **Task 2.3**: Update `headless/state.py` to provide service accessors | `specs/02-backend-architecture.md:L39-40` | Singleton pattern for stateful services |
 
 ### Frontend Architecture (Spec 01)

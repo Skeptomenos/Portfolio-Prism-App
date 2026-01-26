@@ -9,5 +9,15 @@ from .decomposer import Decomposer
 from .enricher import Enricher
 from .aggregator import Aggregator
 from .dashboard_service import DashboardService
+from .sync_service import SyncService, AssetClassifier, AuthenticationError, SyncError
 
-__all__ = ["Decomposer", "Enricher", "Aggregator", "DashboardService"]
+__all__ = [
+    "Decomposer",
+    "Enricher",
+    "Aggregator",
+    "DashboardService",
+    "SyncService",
+    "AssetClassifier",
+    "AuthenticationError",
+    "SyncError",
+]
