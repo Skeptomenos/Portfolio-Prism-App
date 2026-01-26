@@ -4,7 +4,7 @@ import { Dashboard } from './features/dashboard'
 import XRayView from './components/views/XRayView'
 import HealthView from './components/views/HealthView'
 
-import HoldingsView from './components/views/HoldingsView'
+import { HoldingsView } from './features/portfolio'
 
 import TradeRepublicView from './components/views/TradeRepublicView'
 import { ToastContainer } from './components/ui/Toast'

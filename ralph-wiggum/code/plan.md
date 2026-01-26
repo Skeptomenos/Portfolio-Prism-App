@@ -44,8 +44,8 @@ This plan addresses 8 specification documents to bring the codebase into full co
 | Status | Task | Spec Reference | Notes |
 |--------|------|----------------|-------|
 | [x] | **Task 2.4**: Create FSD directory structure and move auth feature components | `specs/01-frontend-architecture.md:L39-44` | Done in v0.10.9: Created `src/features/{auth,dashboard,portfolio,xray,integrations}`, moved auth components, tests, created api.ts and types.ts re-exports. |
-| [ ] | **Task 2.5**: Move dashboard feature components and create contracts | `specs/01-frontend-architecture.md:L47-50` | Move Dashboard, MetricCard, TopHoldingsCard, TrueExposureCard; extract types/api |
-| [ ] | **Task 2.6**: Move portfolio feature components and create contracts | `specs/01-frontend-architecture.md:L53-55` | Move HoldingsView, PortfolioTable, PortfolioChart; extract types/api |
+| [x] | **Task 2.5**: Move dashboard feature components and create contracts | `specs/01-frontend-architecture.md:L47-50` | Done in v0.10.10: Moved Dashboard, MetricCard, TopHoldingsCard, TrueExposureCard to `src/features/dashboard/components/`. Created api.ts, types.ts, index.ts barrel exports. |
+| [x] | **Task 2.6**: Move portfolio feature components and create contracts | `specs/01-frontend-architecture.md:L53-55` | Done in v0.10.11: Moved HoldingsView, PortfolioTable, PortfolioChart to `src/features/portfolio/components/`. Created api.ts, types.ts, index.ts barrel exports. Updated consumers (App.tsx, TradeRepublicView, Dashboard). |
 | [ ] | **Task 2.7**: Move xray feature components and create contracts | `specs/01-frontend-architecture.md:L58-59` | Move XRayView + all `views/xray/*` subcomponents; extract types/api |
 | [ ] | **Task 2.8**: Move integrations feature components and create contracts | `specs/01-frontend-architecture.md:L62-63` | Move TradeRepublicView, HoldingsUpload; extract types/api |
 | [ ] | **Task 2.9**: Update App.tsx and fix all import paths across codebase | `specs/01-frontend-architecture.md:L73-75` | Bulk import path updates; verify no circular deps |

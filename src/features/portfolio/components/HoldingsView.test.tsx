@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '../../test/utils'
+import { render, screen, fireEvent, waitFor } from '../../../test/utils'
 import HoldingsView from './HoldingsView'
-import * as ipc from '../../lib/ipc'
-import { mockTrueHoldingsResponse } from '../../test/mocks/ipc'
+import * as ipc from '../../../lib/ipc'
+import { mockTrueHoldingsResponse } from '../../../test/mocks/ipc'
 
-vi.mock('../../lib/ipc', () => ({
+vi.mock('../../../lib/ipc', () => ({
   getTrueHoldings: vi.fn(),
   getPipelineReport: vi.fn(),
 }))
