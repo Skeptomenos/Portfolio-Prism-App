@@ -8,5 +8,6 @@ Services are UI-agnostic and can be used with both Streamlit and React.
 from .decomposer import Decomposer
 from .enricher import Enricher
 from .aggregator import Aggregator
+from .dashboard_service import DashboardService
 
-__all__ = ["Decomposer", "Enricher", "Aggregator"]
+__all__ = ["Decomposer", "Enricher", "Aggregator", "DashboardService"]

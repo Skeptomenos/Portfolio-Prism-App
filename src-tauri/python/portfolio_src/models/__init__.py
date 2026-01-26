@@ -15,6 +15,14 @@ from .asset_class import AssetClass, normalize_asset_class
 from .portfolio import Position, DirectPosition, ETFPosition
 from .holdings import ETFHolding, ClassifiedHolding, EnrichedHolding
 from .exposure import ExposureRecord, AggregatedExposure
+from .dashboard import (
+    HoldingSummary,
+    AllocationBreakdown,
+    HistoryPoint,
+    DashboardSummary,
+    PositionDetail,
+    PositionsResponse,
+)
 
 __all__ = [
     # Asset classification
@@ -31,4 +39,11 @@ __all__ = [
     # Exposure models
     "ExposureRecord",
     "AggregatedExposure",
+    # Dashboard DTOs
+    "HoldingSummary",
+    "AllocationBreakdown",
+    "HistoryPoint",
+    "DashboardSummary",
+    "PositionDetail",
+    "PositionsResponse",
 ]
