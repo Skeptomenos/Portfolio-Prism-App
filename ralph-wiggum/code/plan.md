@@ -1,91 +1,82 @@
 # Implementation Plan
 
-> Generated from `ralph-wiggum/specs/*` analysis  
-> Last Updated: 2026-01-26  
-> Scope: 2026 Mandate - Architecture & Standards Compliance
+> **Generated:** 2026-01-26
+> **Scope:** Codebase standards compliance from `ralph-wiggum/specs/`
+> **Priority:** Architecture fixes before safety fixes before observability fixes
 
 ---
 
-## Overview
+## Summary
 
-This plan implements the **2026 Mandate** to bring Portfolio Prism into compliance with the strict architecture, type-safety, and observability standards defined in `rules/`. The previous `IMPLEMENTATION_PLAN.md` (65 security tasks) is **COMPLETE** (v0.1.0-v0.9.3).
+This plan addresses 8 specification documents to bring the codebase into full compliance with 2026 standards. The work is organized into 3 phases with 22 tasks total, grouped by cohesive units of work.
 
-### Current State
-
-| Domain | Status | Gap |
-|--------|--------|-----|
-| Identity Resolution | **DONE** | Fully implemented (ISINResolver, NameNormalizer, TickerParser, HiveClient) |
-| Security Fixes | **DONE** | 65/65 tasks complete per IMPLEMENTATION_PLAN.md |
-| Frontend Architecture | **NOT STARTED** | Flat layer-based, needs FSD migration |
-| Type Safety (Frontend) | **NOT STARTED** | 13 `any` violations, no Zod validation |
-| Backend Architecture | **PARTIAL** | Handlers bypass Service layer |
-| API Standards | **NOT STARTED** | Wrong envelope format (`status` vs `success`) |
-| Python Tooling | **NOT STARTED** | No mypy, tach, or ruff |
-| Testing | **NOT STARTED** | Tests centralized, not co-located |
-| pnpm Migration | **NOT STARTED** | Still using npm |
-
-### Task Summary
-
-| Phase | Tasks | Estimated Time |
-|-------|-------|----------------|
-| Phase 0: pnpm Migration | 4 | 15 min |
-| Phase 1: Frontend Architecture (FSD) | 5 | 45 min |
-| Phase 2: Frontend Type Safety | 5 | 40 min |
-| Phase 3: Backend Architecture | 4 | 30 min |
-| Phase 4: Backend Standards | 4 | 30 min |
-| Phase 5: Python Tooling | 4 | 20 min |
-| Phase 6: Testing Co-location | 3 | 20 min |
-| **Total** | **29** | **~3.5 hours** |
+**Phase Overview:**
+- **Phase 1: Tooling & Infrastructure** (5 tasks) - Foundation work enabling verification
+- **Phase 2: Architecture Refactors** (9 tasks) - Structural changes to frontend and backend  
+- **Phase 3: Safety & Observability** (8 tasks) - Type safety, validation, logging fixes
 
 ---
 
-## Tasks
+## Phase 1: Tooling & Infrastructure
 
 | Status | Task | Spec Reference | Notes |
 |--------|------|----------------|-------|
-| | | | |
-| | **PHASE 0: PNPM MIGRATION** | `specs/00-pnpm-migration.md` | |
-| [x] | **0.1**: Remove `node_modules` and `package-lock.json` | `specs/00-pnpm-migration.md:L11-13` | Done - v0.10.0 |
-| [x] | **0.2**: Install deps with `pnpm install` | `specs/00-pnpm-migration.md:L19-21` | Done - v0.10.1 |
-| [x] | **0.3**: Update `tauri.conf.json` build commands (npm -> pnpm) | `specs/00-pnpm-migration.md:L25-27` | Done - v0.10.2 |
-| [ ] | **0.4**: Update CI workflows to use pnpm | `specs/00-pnpm-migration.md:L29-32` | |
-| | | | |
-| | **PHASE 1: FRONTEND ARCHITECTURE (FSD)** | `specs/01-frontend-architecture.md` | |
-| [ ] | **1.1**: Create feature directories (`src/features/{auth,dashboard,portfolio,xray,integrations}/components`) | `specs/01-frontend-architecture.md:L40` | Scaffold only |
-| [ ] | **1.2**: Move auth components + create `features/auth/{api,types}.ts` | `specs/01-frontend-architecture.md:L43-44,66-70` | LoginForm, TwoFactorModal, SessionRestorePrompt |
-| [ ] | **1.3**: Move dashboard components + create `features/dashboard/{api,types}.ts` | `specs/01-frontend-architecture.md:L47-50,66-70` | Dashboard, MetricCard, TopHoldingsCard, TrueExposureCard |
-| [ ] | **1.4**: Move portfolio/xray/integrations components + create feature contracts | `specs/01-frontend-architecture.md:L53-63` | HoldingsView, XRayView, TradeRepublicView, HoldingsUpload |
-| [ ] | **1.5**: Fix all imports in App.tsx and moved files | `specs/01-frontend-architecture.md:L73-76` | Verify compile |
-| | | | |
-| | **PHASE 2: FRONTEND TYPE SAFETY** | `specs/03-frontend-safety.md` | |
-| [ ] | **2.1**: Install Zod (`pnpm add zod`) | `specs/03-frontend-safety.md:L11` | |
-| [ ] | **2.2**: Create validated IPC wrapper + schemas (`src/lib/schemas/ipc.ts`) | `specs/03-frontend-safety.md:L14-29` | DashboardResponseSchema, HealthStatusSchema, LoginResponseSchema |
-| [ ] | **2.3**: Remove all `any` types (13 violations) | `specs/03-frontend-safety.md:L31-39` | HealthView, HoldingsUpload, scrubber, ipc, XRayView, ActionQueue |
-| [ ] | **2.4**: Refactor `.then()` chains to `async/await` | `specs/03-frontend-safety.md:L41-43` | useTauriEvents, HealthView |
-| [ ] | **2.5**: Verify `npm run typecheck` passes with 0 `any` | `specs/03-frontend-safety.md:L46-48` | |
-| | | | |
-| | **PHASE 3: BACKEND ARCHITECTURE** | `specs/02-backend-architecture.md` | |
-| [ ] | **3.1**: Create `DashboardService` in `core/services/dashboard_service.py` | `specs/02-backend-architecture.md:L24-27` | Extract P&L logic from handler |
-| [ ] | **3.2**: Refactor `handlers/dashboard.py` to use DashboardService | `specs/02-backend-architecture.md:L28-31` | Handler only parses IPC, calls service |
-| [ ] | **3.3**: Create `SyncService` in `core/services/sync_service.py` | `specs/02-backend-architecture.md:L34-37` | Extract TR sync logic |
-| [ ] | **3.4**: Verify handlers have no direct `database.py` imports | `specs/02-backend-architecture.md:L44` | |
-| | | | |
-| | **PHASE 4: BACKEND STANDARDS** | `specs/04-backend-standards.md` | |
-| [ ] | **4.1**: Standardize JSON envelope in `responses.py` (`success: bool` instead of `status: str`) | `specs/04-backend-standards.md:L11-20` | Match rules/api_design.md |
-| [ ] | **4.2**: Update frontend IPC handler to check `response.success === true` | `specs/04-backend-standards.md:L22-24` | |
-| [ ] | **4.3**: Replace `print()` with structured logger (stdin_loop, sync, tr_daemon, diag_hive) | `specs/04-backend-standards.md:L26-35` | Logs to stderr, protocol to stdout |
-| [ ] | **4.4**: Verify IPC still works after envelope change | `specs/04-backend-standards.md:L38-40` | |
-| | | | |
-| | **PHASE 5: PYTHON TOOLING** | `specs/06-python-tooling.md` | |
-| [ ] | **5.1**: Add dev deps (`uv add --dev mypy ruff tach`) | `specs/06-python-tooling.md:L11-16` | |
-| [ ] | **5.2**: Configure mypy in pyproject.toml (strict mode) | `specs/06-python-tooling.md:L18-28` | Fix or suppress initial errors |
-| [ ] | **5.3**: Configure ruff in pyproject.toml | `specs/06-python-tooling.md:L31-40` | E, F, I, B, UP rules |
-| [ ] | **5.4**: Configure tach for 3-layer boundary enforcement | `specs/06-python-tooling.md:L43-61` | headless->core->data |
-| | | | |
-| | **PHASE 6: TESTING CO-LOCATION** | `specs/05-testing-organization.md` | |
-| [ ] | **6.1**: Move unit tests from `tests/` to be co-located with source | `specs/05-testing-organization.md:L14-20` | test_adapters -> adapters/, etc. |
-| [ ] | **6.2**: Update pytest config to discover tests in portfolio_src | `specs/05-testing-organization.md:L25-28` | |
-| [ ] | **6.3**: Fix imports in moved tests and verify all pass | `specs/05-testing-organization.md:L30-32` | |
+| [ ] | **Task 1.1**: Complete pnpm migration - update lingering `npm` references in `package.json` scripts | `specs/00-pnpm-migration.md:L23-27` | pnpm-lock.yaml exists; need to fix `dev:engine` and `dev:browser` scripts |
+| [ ] | **Task 1.2**: Install and configure Ruff linter for Python | `specs/06-python-tooling.md:L31-41` | Add `[tool.ruff]` section to `pyproject.toml` with E,F,I,B,UP rules |
+| [ ] | **Task 1.3**: Install and configure Mypy type checker for Python | `specs/06-python-tooling.md:L18-29` | Add `[tool.mypy]` section, start with `strict = false` and ramp up |
+| [ ] | **Task 1.4**: Initialize Tach for architecture boundary enforcement | `specs/06-python-tooling.md:L43-61` | Create `tach.toml` defining headless->core->data dependencies |
+| [ ] | **Task 1.5**: Update pytest configuration for test co-location discovery | `specs/05-testing-organization.md:L26-28` | Add `testpaths = ["tests", "portfolio_src"]` to `pyproject.toml` |
+
+---
+
+## Phase 2: Architecture Refactors
+
+### Backend Service Layer (Spec 02)
+
+| Status | Task | Spec Reference | Notes |
+|--------|------|----------------|-------|
+| [ ] | **Task 2.1**: Create `dashboard_service.py` and extract P&L logic from `handlers/dashboard.py` | `specs/02-backend-architecture.md:L24-31` | Move P&L calc (lines 52-62, 190-201), weight logic; return Pydantic DTO |
+| [ ] | **Task 2.2**: Create `sync_service.py` and extract TR sync logic from `handlers/sync.py` | `specs/02-backend-architecture.md:L34-37` | Move credentials handling, pipeline triggering; use TRAuthManager |
+| [ ] | **Task 2.3**: Update `headless/state.py` to provide service accessors | `specs/02-backend-architecture.md:L39-40` | Singleton pattern for stateful services |
+
+### Frontend Architecture (Spec 01)
+
+| Status | Task | Spec Reference | Notes |
+|--------|------|----------------|-------|
+| [ ] | **Task 2.4**: Create FSD directory structure and move auth feature components | `specs/01-frontend-architecture.md:L39-44` | Create `src/features/auth/{components,api.ts,types.ts}`, move from `src/components/auth/*` |
+| [ ] | **Task 2.5**: Move dashboard feature components and create contracts | `specs/01-frontend-architecture.md:L47-50` | Move Dashboard, MetricCard, TopHoldingsCard, TrueExposureCard; extract types/api |
+| [ ] | **Task 2.6**: Move portfolio feature components and create contracts | `specs/01-frontend-architecture.md:L53-55` | Move HoldingsView, PortfolioTable, PortfolioChart; extract types/api |
+| [ ] | **Task 2.7**: Move xray feature components and create contracts | `specs/01-frontend-architecture.md:L58-59` | Move XRayView + all `views/xray/*` subcomponents; extract types/api |
+| [ ] | **Task 2.8**: Move integrations feature components and create contracts | `specs/01-frontend-architecture.md:L62-63` | Move TradeRepublicView, HoldingsUpload; extract types/api |
+| [ ] | **Task 2.9**: Update App.tsx and fix all import paths across codebase | `specs/01-frontend-architecture.md:L73-75` | Bulk import path updates; verify no circular deps |
+
+---
+
+## Phase 3: Safety & Observability
+
+### Backend Standards (Spec 04)
+
+| Status | Task | Spec Reference | Notes |
+|--------|------|----------------|-------|
+| [ ] | **Task 3.1**: Update `responses.py` envelope from `status` to `success` boolean | `specs/04-backend-standards.md:L11-20` | Change `ResponseSuccess.status` to `success: Literal[True]`; update `ResponseError` |
+| [ ] | **Task 3.2**: Replace `print()` with structured logging in Python sidecar | `specs/04-backend-standards.md:L26-35` | Fix `stdin_loop.py`, `sync.py`, `tr_daemon.py`, `diag_hive.py`; use `get_logger()` |
+| [ ] | **Task 3.3**: Update frontend IPC handler to expect `success` boolean | `specs/04-backend-standards.md:L22-24` | Change `response.status === 'success'` to `response.success === true` |
+
+### Frontend Type Safety (Spec 03)
+
+| Status | Task | Spec Reference | Notes |
+|--------|------|----------------|-------|
+| [ ] | **Task 3.4**: Install Zod and create IPC validation wrapper | `specs/03-frontend-safety.md:L11-18` | `pnpm add zod`; create generic `invoke<T>(cmd, args, schema: ZodSchema<T>)` |
+| [ ] | **Task 3.5**: Define Zod schemas for all IPC responses | `specs/03-frontend-safety.md:L21-29` | `DashboardResponseSchema`, `HealthStatusSchema`, `LoginResponseSchema` in features |
+| [ ] | **Task 3.6**: Remove all `any` types (16 violations in 7 files) | `specs/03-frontend-safety.md:L31-39` | Replace with `unknown`, specific interfaces, or Zod inferred types |
+| [ ] | **Task 3.7**: Replace `console.log` with structured logger (19 instances) | `specs/03-frontend-safety.md#review-fixes` | Create logger wrapper; update hooks and components |
+| [ ] | **Task 3.8**: Refactor `.then()` chains to async/await (5 instances) | `specs/03-frontend-safety.md:L41-43` | Fix `useTauriEvents.ts`, `HealthView.tsx`; tests can remain as-is |
+
+### Test Co-location (Spec 05)
+
+| Status | Task | Spec Reference | Notes |
+|--------|------|----------------|-------|
+| [ ] | **Task 3.9**: Move Python unit tests to co-located positions | `specs/05-testing-organization.md:L12-21` | Move tests per mapping table; keep integration/E2E tests in `tests/` |
 
 ---
 
@@ -97,39 +88,33 @@ This plan implements the **2026 Mandate** to bring Portfolio Prism into complian
 
 ---
 
-## Execution Priority
+## Dependencies
 
-| Priority | Phase | Rationale |
-|----------|-------|-----------|
-| P0 | Phase 0 (pnpm) | Foundation - all other work uses pnpm |
-| P1 | Phase 1-2 (Frontend) | User-facing quality, can parallel with backend |
-| P1 | Phase 3-4 (Backend) | Architecture debt, can parallel with frontend |
-| P2 | Phase 5 (Tooling) | Enforcement, depends on architecture cleanup |
-| P2 | Phase 6 (Testing) | Can be done last, low risk |
+```
+Phase 1 (Tooling) → unlocks verification for all phases
+                 ↓
+Phase 2 (Architecture) → can run in parallel: Backend (2.1-2.3) || Frontend (2.4-2.9)
+                 ↓
+Phase 3 (Safety) → depends on 2.9 for import paths; 3.1-3.3 must be done together
+```
 
 ---
 
 ## Verification Checklist
 
-After all phases complete:
-
-- [ ] `pnpm tauri dev` starts successfully
-- [ ] `pnpm typecheck` passes with 0 errors
-- [ ] `grep -r "any" src/ --include="*.ts" --include="*.tsx"` returns 0 matches
-- [ ] `grep -r "print(" src-tauri/python/portfolio_src --include="*.py"` returns 0 matches (except protocol writes)
-- [ ] `uv run mypy portfolio_src` passes
-- [ ] `uv run tach check` passes
-- [ ] `uv run pytest portfolio_src` discovers and runs co-located tests
-- [ ] Dashboard displays real data correctly
+After each task:
+- [ ] `pnpm dev` - App starts without errors
+- [ ] `pnpm typecheck` - No TypeScript errors
+- [ ] `uv run pytest` - All tests pass
+- [ ] `uv run ruff check .` - No lint errors (after Task 1.2)
+- [ ] `uv run mypy portfolio_src` - Type check passes (after Task 1.3)
+- [ ] `uv run tach check` - No architecture violations (after Task 1.4)
 
 ---
 
 ## Notes
 
-1. **Identity Resolution is COMPLETE** - The explore agents confirmed ISINResolver, NameNormalizer, TickerParser, and HiveClient are all implemented with the full cascade (Local Cache → Hive → Wikidata → Finnhub → yFinance).
-
-2. **Previous security work preserved** - All 65 tasks from IMPLEMENTATION_PLAN.md (v0.1.0-v0.9.3) remain complete.
-
-3. **Phases can be parallelized** - Frontend (1-2) and Backend (3-4) phases are independent.
-
-4. **Task granularity** - Each task is scoped to ~15-30 minutes, completable in one session.
+1. **Task Granularity**: Tasks are scoped to ~30 min each. FSD migration is grouped by feature, not by file type.
+2. **Backend/Frontend Parallel**: Tasks 2.1-2.3 (backend) can run in parallel with 2.4-2.9 (frontend).
+3. **Envelope Coordination**: Tasks 3.1 and 3.3 MUST be deployed together to avoid IPC breakage.
+4. **Test Movement**: Task 3.9 can be done incrementally per module without blocking other work.
