@@ -76,7 +76,7 @@ This plan addresses 8 specification documents to bring the codebase into full co
 
 | Status | Task | Spec Reference | Notes |
 |--------|------|----------------|-------|
-| [ ] | **Task 3.9**: Move Python unit tests to co-located positions | `specs/05-testing-organization.md:L12-21` | Move tests per mapping table; keep integration/E2E tests in `tests/` |
+| [x] | **Task 3.9**: Move Python unit tests to co-located positions | `specs/05-testing-organization.md:L12-21` | Done in v0.10.20: Moved 19 unit test files to co-located positions in portfolio_src/. Created portfolio_src/conftest.py fixture bridge. 357 unit tests pass. Integration/E2E tests remain in tests/. |
 
 ---
 
