@@ -90,7 +90,7 @@ pnpm test
 |--------|------|----------------|-------|
 | [x] | **Task 3.1**: Add explicit `: JSX.Element` return types to React components | `specs/12-frontend-explicit-return-types.md:L11-22` | Done in v0.10.28 - ESLint rule enabled (warn), component and hook return types added |
 | [x] | **Task 3.2**: Move ALL orphan hooks to feature slices | `specs/15-fsd-hooks-and-store.md:L14-25` | Done in v0.10.29 - usePortfolioData moved to features/portfolio/hooks/, usePipelineProgress + usePipelineDiagnostics moved to features/xray/hooks/. Only useTauriEvents remains in src/hooks/ |
-| [ ] | **Task 3.3**: Split monolithic `useAppStore.ts` into feature slices | `specs/15-fsd-hooks-and-store.md:L28-42` | 366 lines -> Extract `authSlice.ts`, `syncSlice.ts`, `uiSlice.ts` with Zustand `combine()`. Maintain `useAppStore` as public facade API via barrel re-exports |
+| [x] | **Task 3.3**: Split monolithic `useAppStore.ts` into feature slices | `specs/15-fsd-hooks-and-store.md:L28-42` | Done in v0.10.30 - Extracted `authSlice.ts` (auth feature), `syncSlice.ts` (dashboard feature), `uiSlice.ts` (store). Facade pattern maintains backward compatibility |
 
 **Verification:**
 ```bash
@@ -181,10 +181,10 @@ pnpm build && pnpm lint && uv run pytest && uv run ruff check . && uv run tach c
 |-------|-------------|-----------------|----------------|----------------|
 | Phase 1: Security | 2 | 0 | COMPLETE | - |
 | Phase 2: Backend | 5 | 0 | COMPLETE | - |
-| Phase 3: Frontend | 3 | 3 | 1.5 hours | 3.1 parallel with Phase 2 |
+| Phase 3: Frontend | 3 | 0 | COMPLETE | - |
 | Phase 4: Testing | 3 | 3 | 1 hour | Partial |
 | Phase 5: Polish | 5 | 5 | 2 hours | All parallel |
-| **Total** | **18** | **13** | **~6 hours** | |
+| **Total** | **18** | **11** | **~4 hours** | |
 
 ---
 
