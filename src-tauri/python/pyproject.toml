@@ -35,4 +35,25 @@ dependencies = [
 dev = [
     "pytest>=9.0.2",
     "pip-audit>=2.10.0",  # Security: automated vulnerability scanning
+    "ruff>=0.14.14",
 ]
+
+# Ruff linter configuration - 2026 Standards
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+# E: pycodestyle errors, F: pyflakes, I: isort, B: flake8-bugbear, UP: pyupgrade
+select = ["E", "F", "I", "B", "UP"]
+# Ignore specific rules that conflict with existing codebase patterns
+ignore = [
+    "E501",  # Line too long - handled by formatter, not linter
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["portfolio_src"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
