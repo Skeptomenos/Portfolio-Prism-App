@@ -3,7 +3,68 @@
  *
  * These types mirror the IPC API spec (keystone/specs/ipc_api.md)
  * and provide type safety across the React application.
+ *
+ * Types are inferred from Zod schemas where available (runtime validation).
  */
+
+import type { EngineHealth as _EngineHealth } from '../lib/schemas/health'
+
+import type {
+  DashboardData as _DashboardData,
+  Holding as _Holding,
+  AllocationData as _AllocationData,
+  XRayHolding as _XRayHolding,
+  ResolutionSummary as _ResolutionSummary,
+  TrueHoldingsResponse as _TrueHoldingsResponse,
+} from '../features/dashboard/schemas'
+
+import type {
+  AuthState as _AuthState,
+  AuthStatus as _AuthStatus,
+  SessionCheck as _SessionCheck,
+  AuthResponse as _AuthResponse,
+  LogoutResponse as _LogoutResponse,
+} from '../features/auth/schemas'
+
+import type { PipelineHealthReport } from '../hooks/usePipelineDiagnostics'
+
+// =============================================================================
+// Zod Schema Re-exports (Single Source of Truth)
+// =============================================================================
+
+export type EngineHealth = _EngineHealth
+export type DashboardData = _DashboardData
+export type Holding = _Holding
+export type AllocationData = _AllocationData
+export type XRayHolding = _XRayHolding
+export type ResolutionSummary = _ResolutionSummary
+export type TrueHoldingsResponse = _TrueHoldingsResponse
+export type AuthState = _AuthState
+export type AuthStatus = _AuthStatus
+export type SessionCheck = _SessionCheck
+export type AuthResponse = _AuthResponse
+export type LogoutResponse = _LogoutResponse
+
+export type { PipelineHealthReport } from '../hooks/usePipelineDiagnostics'
+
+export { EngineHealthSchema } from '../lib/schemas/health'
+export {
+  DashboardDataSchema,
+  HoldingSchema,
+  AllocationDataSchema,
+  XRayHoldingSchema,
+  ResolutionSummarySchema,
+  TrueHoldingsResponseSchema,
+  ResolutionStatusSchema,
+} from '../features/dashboard/schemas'
+export {
+  AuthStateSchema,
+  AuthStatusSchema,
+  SessionCheckSchema,
+  AuthResponseSchema,
+  LogoutResponseSchema,
+  StoredCredentialsSchema,
+} from '../features/auth/schemas'
 
 // =============================================================================
 // Navigation
@@ -19,49 +80,13 @@ export type EngineStatus = 'idle' | 'connecting' | 'processing' | 'error' | 'dis
 
 export interface SyncProgress {
   status: 'idle' | 'syncing' | 'complete' | 'error'
-  progress: number // 0-100
+  progress: number
   message: string
 }
 
-export interface EngineHealth {
-  version: string
-  memoryUsageMb: number
-  uptime?: number
-  sessionId?: string
-}
-
 // =============================================================================
-// Portfolio Data (from SQLite/Parquet via IPC)
+// Legacy X-Ray Types (not yet migrated to Zod)
 // =============================================================================
-
-export interface AllocationData {
-  sector: Record<string, number>
-  region: Record<string, number>
-}
-
-export interface DashboardData {
-  totalValue: number
-  totalGain: number
-  gainPercentage: number
-  dayChange: number // New field
-  dayChangePercent: number // New field
-  history: { date: string; value: number }[] // New field for chart
-  allocations: AllocationData
-  topHoldings: Holding[]
-  lastUpdated: string | null
-  isEmpty: boolean
-  positionCount: number
-}
-
-export interface Holding {
-  isin: string
-  name: string
-  ticker?: string
-  value: number
-  weight: number
-  pnl: number
-  pnlPercentage: number
-}
 
 export interface XRayData {
   totalUniqueStocks: number
@@ -109,33 +134,8 @@ export interface Notification {
 }
 
 // =============================================================================
-// Trade Republic Auth Types
+// Portfolio Sync Types
 // =============================================================================
-
-export type AuthState = 'idle' | 'waiting_2fa' | 'authenticated' | 'error'
-
-export interface AuthStatus {
-  authState: AuthState
-  hasStoredCredentials: boolean
-  lastError?: string
-}
-
-export interface SessionCheck {
-  hasSession: boolean
-  phoneNumber?: string // Masked: +49***1234
-  prompt: 'restore_session' | 'login_required'
-}
-
-export interface AuthResponse {
-  authState: AuthState
-  message: string
-  countdown?: number // For 2FA timer
-}
-
-export interface LogoutResponse {
-  authState: 'idle'
-  message: string
-}
 
 export interface PortfolioSyncResult {
   syncedPositions: number
@@ -143,6 +143,17 @@ export interface PortfolioSyncResult {
   updatedPositions: number
   totalValue: number
   durationMs: number
+}
+
+// =============================================================================
+// Upload Holdings Result
+// =============================================================================
+
+export interface UploadHoldingsResult {
+  success: boolean
+  holdingsCount: number
+  isin: string
+  message?: string
 }
 
 // =============================================================================
@@ -242,7 +253,7 @@ export interface TauriCommands {
   }
   get_pipeline_report: {
     args: Record<string, never>
-    returns: any
+    returns: PipelineHealthReport
   }
   get_true_holdings: {
     args: Record<string, never>
@@ -250,13 +261,13 @@ export interface TauriCommands {
   }
   upload_holdings: {
     args: { filePath: string; etfIsin: string }
-    returns: any
+    returns: UploadHoldingsResult
   }
   log_event: {
     args: {
       level: string
       message: string
-      context: Record<string, any>
+      context: Record<string, unknown>
       component: string
       category: string
     }
@@ -268,7 +279,7 @@ export interface TauriCommands {
   }
   get_pending_reviews: {
     args: Record<string, never>
-    returns: any[]
+    returns: SystemLogReport[]
   }
   set_hive_contribution: {
     args: { enabled: boolean }
@@ -310,15 +321,9 @@ export type TRErrorCode =
   | 'TR_LOGOUT_ERROR'
 
 // =============================================================================
-// X-Ray Resolution Types (Phase 6)
+// Resolution Source Type (extended for backend compatibility)
 // =============================================================================
 
-export type ResolutionStatus = 'resolved' | 'unresolved' | 'skipped' | 'unknown'
-
-/**
- * Known resolution sources from the backend.
- * Uses intersection with `string` to allow unknown sources while keeping autocomplete.
- */
 export type ResolutionSource =
   | 'provider'
   | 'manual'
@@ -329,36 +334,9 @@ export type ResolutionSource =
   | 'api_yfinance'
   | 'api_openfigi'
   | 'unknown'
-  | (string & {}) // Allow unknown sources from backend
+  | (string & {})
 
-export interface XRayHolding {
-  stock: string
-  ticker: string
-  isin?: string | null
-  totalValue: number
-  sector?: string
-  geography?: string
-  sources: { etf: string; value: number; weight: number }[]
-  resolutionStatus: ResolutionStatus
-  resolutionSource?: ResolutionSource
-  resolutionConfidence: number
-  resolutionDetail?: string
-}
-
-export interface ResolutionSummary {
-  total: number
-  resolved: number
-  unresolved: number
-  skipped: number
-  unknown: number
-  bySource: Record<string, number>
-  healthScore: number
-}
-
-export interface TrueHoldingsResponse {
-  holdings: XRayHolding[]
-  summary: ResolutionSummary
-}
+export type ResolutionStatus = 'resolved' | 'unresolved' | 'skipped' | 'unknown'
 
 // =============================================================================
 // System Logs / Telemetry

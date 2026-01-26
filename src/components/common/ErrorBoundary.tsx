@@ -1,21 +1,21 @@
-import { Component, ErrorInfo, ReactNode } from 'react';
-import { AlertTriangle, RefreshCw, Send, Eye } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { sendFeedback } from '@/lib/api/feedback';
-import { useAppStore } from '@/store/useAppStore';
-import { scrubObject } from '@/lib/scrubber';
+import { Component, ErrorInfo, ReactNode } from 'react'
+import { AlertTriangle, RefreshCw, Send, Eye } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { sendFeedback, type FeedbackMetadata } from '@/lib/api/feedback'
+import { useAppStore } from '@/store/useAppStore'
+import { scrubObject } from '@/lib/scrubber'
 
 interface Props {
-  children: ReactNode;
+  children: ReactNode
 }
 
 interface State {
-  hasError: boolean;
-  error: Error | null;
-  errorInfo: ErrorInfo | null;
-  isReporting: boolean;
-  isReported: boolean;
-  showReview: boolean;
+  hasError: boolean
+  error: Error | null
+  errorInfo: ErrorInfo | null
+  isReporting: boolean
+  isReported: boolean
+  showReview: boolean
 }
 
 export class ErrorBoundary extends Component<Props, State> {
@@ -26,67 +26,74 @@ export class ErrorBoundary extends Component<Props, State> {
     isReporting: false,
     isReported: false,
     showReview: false,
-  };
+  }
 
   public static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error, errorInfo: null, isReporting: false, isReported: false, showReview: false };
+    return {
+      hasError: true,
+      error,
+      errorInfo: null,
+      isReporting: false,
+      isReported: false,
+      showReview: false,
+    }
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    this.setState({ error, errorInfo });
-    console.error('Uncaught error:', error, errorInfo);
+    this.setState({ error, errorInfo })
+    console.error('Uncaught error:', error, errorInfo)
 
     // Auto-report if telemetry mode is 'auto'
-    const { telemetryMode } = useAppStore.getState();
+    const { telemetryMode } = useAppStore.getState()
     if (telemetryMode === 'auto') {
-      this.handleReport();
+      this.handleReport()
     }
   }
 
   private handleReload = () => {
-    window.location.reload();
-  };
+    window.location.reload()
+  }
 
   private handleReport = async () => {
-    const { error, errorInfo } = this.state;
-    if (!error) return;
+    const { error, errorInfo } = this.state
+    if (!error) return
 
-    this.setState({ isReporting: true });
+    this.setState({ isReporting: true })
 
     try {
       const scrubbedMetadata = scrubObject({
         name: error.name,
         stack: error.stack,
         componentStack: errorInfo?.componentStack,
-      });
+      }) as FeedbackMetadata
 
       await sendFeedback({
         type: 'critical',
         message: `App Crash: ${error.message}`,
         metadata: scrubbedMetadata,
-      });
-      this.setState({ isReported: true, showReview: false });
+      })
+      this.setState({ isReported: true, showReview: false })
     } catch (err) {
-      console.error('Failed to report crash:', err);
-      alert('Failed to send report automatically. Please check your internet connection.');
+      console.error('Failed to report crash:', err)
+      alert('Failed to send report automatically. Please check your internet connection.')
     } finally {
-      this.setState({ isReporting: false });
+      this.setState({ isReporting: false })
     }
-  };
+  }
 
   private toggleReview = () => {
-    this.setState(prev => ({ showReview: !prev.showReview }));
-  };
+    this.setState((prev) => ({ showReview: !prev.showReview }))
+  }
 
   public render() {
-    const { hasError, error, errorInfo, isReporting, isReported, showReview } = this.state;
-    
+    const { hasError, error, errorInfo, isReporting, isReported, showReview } = this.state
+
     if (hasError) {
       const scrubbedData = scrubObject({
         error: error?.message,
         stack: error?.stack,
         componentStack: errorInfo?.componentStack,
-      });
+      })
 
       return (
         <div className="flex h-screen w-full items-center justify-center bg-gray-900 p-4 font-sans text-gray-100">
@@ -100,10 +107,10 @@ export class ErrorBoundary extends Component<Props, State> {
                 An unexpected error occurred and the application has crashed.
               </p>
             </div>
-            
+
             <AnimatePresence mode="wait">
               {!showReview ? (
-                <motion.div 
+                <motion.div
                   key="error-info"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -114,7 +121,7 @@ export class ErrorBoundary extends Component<Props, State> {
                   <p className="text-gray-300">{error?.message}</p>
                 </motion.div>
               ) : (
-                <motion.div 
+                <motion.div
                   key="review-info"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -128,13 +135,15 @@ export class ErrorBoundary extends Component<Props, State> {
             </AnimatePresence>
 
             <div className="flex flex-col gap-3">
-              <button 
-                onClick={this.handleReport} 
+              <button
+                onClick={this.handleReport}
                 disabled={isReported || isReporting}
                 className={`flex w-full items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors 
-                  ${isReported 
-                    ? 'bg-green-600/20 text-green-400 cursor-not-allowed' 
-                    : 'bg-red-600 hover:bg-red-700 text-white'}`}
+                  ${
+                    isReported
+                      ? 'bg-green-600/20 text-green-400 cursor-not-allowed'
+                      : 'bg-red-600 hover:bg-red-700 text-white'
+                  }`}
               >
                 {isReporting ? (
                   <>
@@ -149,13 +158,15 @@ export class ErrorBoundary extends Component<Props, State> {
                 ) : (
                   <>
                     <AlertTriangle className="mr-2 h-4 w-4" />
-                    {useAppStore.getState().telemetryMode === 'auto' ? 'Report Issue' : 'Confirm & Send Report'}
+                    {useAppStore.getState().telemetryMode === 'auto'
+                      ? 'Report Issue'
+                      : 'Confirm & Send Report'}
                   </>
                 )}
               </button>
 
               {!isReported && useAppStore.getState().telemetryMode !== 'auto' && (
-                <button 
+                <button
                   onClick={this.toggleReview}
                   className="flex w-full items-center justify-center rounded-md border border-gray-700 bg-transparent px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800 transition-colors"
                 >
@@ -163,9 +174,9 @@ export class ErrorBoundary extends Component<Props, State> {
                   {showReview ? 'Hide Scrubbed Data' : 'Review Scrubbed Data'}
                 </button>
               )}
-              
-              <button 
-                onClick={this.handleReload} 
+
+              <button
+                onClick={this.handleReload}
                 className="flex w-full items-center justify-center rounded-md border border-gray-700 bg-transparent px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800 transition-colors"
               >
                 <RefreshCw className="mr-2 h-4 w-4" />
@@ -174,9 +185,9 @@ export class ErrorBoundary extends Component<Props, State> {
             </div>
           </div>
         </div>
-      );
+      )
     }
 
-    return this.props.children;
+    return this.props.children
   }
 }

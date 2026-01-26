@@ -64,10 +64,14 @@ export default function XRayView() {
       await queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       await queryClient.invalidateQueries({ queryKey: ['pipelineDiagnostics'] })
       await refetchDiagnostics()
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to run analysis', err)
       const errorMessage =
-        typeof err === 'string' ? err : err?.message || 'Analysis failed to start'
+        typeof err === 'string'
+          ? err
+          : err instanceof Error
+            ? err.message
+            : 'Analysis failed to start'
       setError(errorMessage)
     } finally {
       setIsAnalyzing(false)

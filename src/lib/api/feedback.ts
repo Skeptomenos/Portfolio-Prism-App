@@ -53,7 +53,9 @@ export async function sendFeedback(payload: FeedbackPayload): Promise<FeedbackRe
   // SECURITY: Scrub PII from user message and metadata before sending to external service
   // Users may accidentally include phone numbers, emails, IBANs, or file paths in feedback
   const scrubbedMessage = scrubText(payload.message)
-  const scrubbedMetadata = payload.metadata ? scrubObject(payload.metadata) : undefined
+  const scrubbedMetadata = payload.metadata
+    ? (scrubObject(payload.metadata) as FeedbackMetadata)
+    : undefined
 
   const requestBody = JSON.stringify({
     ...payload,

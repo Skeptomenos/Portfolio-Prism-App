@@ -161,7 +161,26 @@ export const mockIpcFunctions = {
   trSubmit2FA: vi.fn(() => Promise.resolve(mockAuthResponseAuthenticated)),
   trLogout: vi.fn(() => Promise.resolve({ authState: 'idle', message: 'Logged out' })),
   getTrueHoldings: vi.fn(() => Promise.resolve(mockTrueHoldingsResponse)),
-  getPipelineReport: vi.fn(() => Promise.resolve({})),
+  getPipelineReport: vi.fn(() =>
+    Promise.resolve({
+      timestamp: new Date().toISOString(),
+      metrics: {
+        direct_holdings: 5,
+        etf_positions: 3,
+        etfs_processed: 3,
+        tier1_resolved: 10,
+        tier1_failed: 0,
+      },
+      performance: {
+        execution_time_seconds: 1.5,
+        hive_hit_rate: 85,
+        api_fallback_rate: 15,
+        total_assets_processed: 15,
+        phase_durations: {},
+      },
+      failures: [],
+    })
+  ),
   checkConnection: vi.fn(() => Promise.resolve(true)),
   getEnvironment: vi.fn(() => 'browser' as const),
 }

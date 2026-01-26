@@ -230,7 +230,7 @@ export function scrubText(text: string): string {
   return scrubbed
 }
 
-export function scrubObject(obj: any): any {
+export function scrubObject(obj: unknown): unknown {
   if (typeof obj !== 'object' || obj === null) {
     return typeof obj === 'string' ? scrubText(obj) : obj
   }
@@ -239,7 +239,7 @@ export function scrubObject(obj: any): any {
     return obj.map(scrubObject)
   }
 
-  const scrubbed: any = {}
+  const scrubbed: Record<string, unknown> = {}
   const SENSITIVE_KEYS = ['quantity', 'value', 'price', 'cost', 'pnl', 'amount', 'balance']
 
   for (const [key, value] of Object.entries(obj)) {

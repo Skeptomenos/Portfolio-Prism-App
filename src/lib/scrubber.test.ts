@@ -214,7 +214,7 @@ describe('scrubObject', () => {
         phone: '+1-555-123-4567',
       },
     }
-    const result = scrubObject(obj)
+    const result = scrubObject(obj) as { user: { email: string; phone: string } }
 
     expect(result.user.email).toBe('[EMAIL]')
     expect(result.user.phone).toContain('[PHONE]')
@@ -228,7 +228,9 @@ describe('scrubObject', () => {
         currentPrice: 500,
       },
     }
-    const result = scrubObject(obj)
+    const result = scrubObject(obj) as {
+      portfolio: { totalValue: string; quantity: string; currentPrice: string }
+    }
 
     expect(result.portfolio.totalValue).toBe('[REDACTED_VALUE]')
     expect(result.portfolio.quantity).toBe('[REDACTED_VALUE]')
@@ -239,7 +241,7 @@ describe('scrubObject', () => {
     const obj = {
       emails: ['user1@example.com', 'user2@example.com'],
     }
-    const result = scrubObject(obj)
+    const result = scrubObject(obj) as { emails: string[] }
 
     expect(result.emails[0]).toBe('[EMAIL]')
     expect(result.emails[1]).toBe('[EMAIL]')
@@ -250,7 +252,7 @@ describe('scrubObject', () => {
       name: 'Portfolio Dashboard',
       status: 'active',
     }
-    const result = scrubObject(obj)
+    const result = scrubObject(obj) as { name: string; status: string }
 
     expect(result.name).toBe('Portfolio Dashboard')
     expect(result.status).toBe('active')
@@ -266,7 +268,7 @@ describe('scrubObject', () => {
       count: 42,
       enabled: true,
     }
-    const result = scrubObject(obj)
+    const result = scrubObject(obj) as { count: number; enabled: boolean }
 
     expect(result.count).toBe(42)
     expect(result.enabled).toBe(true)

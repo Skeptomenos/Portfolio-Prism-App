@@ -220,16 +220,31 @@ describe('IPC Layer', () => {
     })
 
     it('getEngineHealth calls Tauri invoke', async () => {
-      vi.mocked(tauri.invoke).mockResolvedValue({ version: '1.0.0' })
+      vi.mocked(tauri.invoke).mockResolvedValue({
+        version: '1.0.0',
+        memoryUsageMb: 128,
+      })
 
       const result = await getEngineHealth()
 
       expect(tauri.invoke).toHaveBeenCalledWith('get_engine_health', {})
-      expect(result).toEqual({ version: '1.0.0' })
+      expect(result).toMatchObject({ version: '1.0.0' })
     })
 
     it('getDashboardData calls Tauri invoke with portfolioId', async () => {
-      vi.mocked(tauri.invoke).mockResolvedValue({ totalValue: 10000 })
+      vi.mocked(tauri.invoke).mockResolvedValue({
+        totalValue: 10000,
+        totalGain: 0,
+        gainPercentage: 0,
+        dayChange: 0,
+        dayChangePercent: 0,
+        allocations: { sector: {}, region: {} },
+        topHoldings: [],
+        history: [],
+        lastUpdated: new Date().toISOString(),
+        isEmpty: false,
+        positionCount: 0,
+      })
 
       await getDashboardData(1)
 

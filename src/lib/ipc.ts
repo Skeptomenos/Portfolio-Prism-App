@@ -20,6 +20,8 @@ import type {
   TauriCommands,
   TrueHoldingsResponse,
   SystemLogReport,
+  UploadHoldingsResult,
+  PipelineHealthReport,
 } from '../types'
 
 export class IPCValidationError extends Error {
@@ -327,7 +329,10 @@ export function getEnvironment(): 'tauri' | 'browser' {
 /**
  * Upload manual ETF holdings
  */
-export async function uploadHoldings(filePath: string, etfIsin: string): Promise<any> {
+export async function uploadHoldings(
+  filePath: string,
+  etfIsin: string
+): Promise<UploadHoldingsResult> {
   try {
     return await callCommand('upload_holdings', { filePath, etfIsin })
   } catch (error) {
@@ -354,7 +359,7 @@ export async function getTrueHoldings(): Promise<TrueHoldingsResponse> {
 export async function logEvent(
   level: 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR' | 'CRITICAL',
   message: string,
-  context: Record<string, any> = {},
+  context: Record<string, unknown> = {},
   component: string = 'ui',
   category: string = 'general'
 ): Promise<void> {
@@ -378,7 +383,7 @@ export async function getRecentReports(): Promise<SystemLogReport[]> {
 /**
  * Get pending reviews
  */
-export async function getPendingReviews(): Promise<any[]> {
+export async function getPendingReviews(): Promise<SystemLogReport[]> {
   try {
     return await callCommand('get_pending_reviews', {})
   } catch (error) {
@@ -390,7 +395,7 @@ export async function getPendingReviews(): Promise<any[]> {
 /**
  * Get the latest pipeline health report
  */
-export async function getPipelineReport(): Promise<any> {
+export async function getPipelineReport(): Promise<PipelineHealthReport> {
   try {
     return await deduplicatedCall('get_pipeline_report', () =>
       callCommand('get_pipeline_report', {})

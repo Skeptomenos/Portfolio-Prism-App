@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '../../test/utils'
 import HealthView from './HealthView'
 import * as ipc from '../../lib/ipc'
+import type { PipelineHealthReport } from '../../hooks/usePipelineDiagnostics'
 
 vi.mock('../../lib/ipc', () => ({
   getPipelineReport: vi.fn(),
@@ -11,6 +12,28 @@ vi.mock('../../lib/ipc', () => ({
   getHiveContribution: vi.fn(),
   setHiveContribution: vi.fn(),
 }))
+
+function createMockReport(overrides: Partial<PipelineHealthReport> = {}): PipelineHealthReport {
+  return {
+    timestamp: '2025-01-10T12:00:00Z',
+    metrics: {
+      direct_holdings: 0,
+      etf_positions: 0,
+      etfs_processed: 0,
+      tier1_resolved: 0,
+      tier1_failed: 0,
+    },
+    performance: {
+      execution_time_seconds: 0,
+      hive_hit_rate: 0,
+      api_fallback_rate: 0,
+      total_assets_processed: 0,
+      phase_durations: {},
+    },
+    failures: [],
+    ...overrides,
+  }
+}
 
 vi.mock('../../store/useAppStore', () => ({
   useAppStore: (selector: (state: unknown) => unknown) => {
@@ -28,7 +51,7 @@ vi.mock('../../store/useAppStore', () => ({
 describe('HealthView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(ipc.getPipelineReport).mockResolvedValue(null)
+    vi.mocked(ipc.getPipelineReport).mockResolvedValue(createMockReport())
     vi.mocked(ipc.getRecentReports).mockResolvedValue([])
     vi.mocked(ipc.getPendingReviews).mockResolvedValue([])
     vi.mocked(ipc.getHiveContribution).mockResolvedValue(true)
@@ -83,12 +106,18 @@ describe('HealthView', () => {
   })
 
   it('shows status cards', async () => {
-    vi.mocked(ipc.getPipelineReport).mockResolvedValue({
-      timestamp: '2025-01-10T12:00:00Z',
-      performance: { hive_hit_rate: 85 },
-      failures: [],
-      etf_stats: [],
-    })
+    vi.mocked(ipc.getPipelineReport).mockResolvedValue(
+      createMockReport({
+        performance: {
+          execution_time_seconds: 1,
+          hive_hit_rate: 85,
+          api_fallback_rate: 15,
+          total_assets_processed: 10,
+          phase_durations: {},
+        },
+        etf_stats: [],
+      })
+    )
 
     render(<HealthView />)
 
@@ -133,12 +162,11 @@ describe('HealthView', () => {
   })
 
   it('displays ETF decomposition table when data available', async () => {
-    vi.mocked(ipc.getPipelineReport).mockResolvedValue({
-      timestamp: '2025-01-10T12:00:00Z',
-      performance: { hive_hit_rate: 85 },
-      failures: [],
-      etf_stats: [{ ticker: 'VWCE', holdings_count: 100, weight_sum: 95.5, status: 'complete' }],
-    })
+    vi.mocked(ipc.getPipelineReport).mockResolvedValue(
+      createMockReport({
+        etf_stats: [{ ticker: 'VWCE', holdings_count: 100, weight_sum: 95.5, status: 'complete' }],
+      })
+    )
 
     render(<HealthView />)
 
@@ -149,20 +177,20 @@ describe('HealthView', () => {
   })
 
   it('displays active issues when failures exist', async () => {
-    vi.mocked(ipc.getPipelineReport).mockResolvedValue({
-      timestamp: '2025-01-10T12:00:00Z',
-      performance: { hive_hit_rate: 85 },
-      failures: [
-        {
-          severity: 'error',
-          stage: 'decompose',
-          item: 'ETF123',
-          error: 'Missing data',
-          fix: 'Upload CSV',
-        },
-      ],
-      etf_stats: [],
-    })
+    vi.mocked(ipc.getPipelineReport).mockResolvedValue(
+      createMockReport({
+        failures: [
+          {
+            severity: 'error',
+            stage: 'decompose',
+            item: 'ETF123',
+            error: 'Missing data',
+            fix: 'Upload CSV',
+          },
+        ],
+        etf_stats: [],
+      })
+    )
 
     render(<HealthView />)
 

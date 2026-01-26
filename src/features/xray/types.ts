@@ -83,11 +83,13 @@ export interface TabConfig {
   icon: string
 }
 
-// Re-export types from global types that are used by this feature
-export type {
-  XRayHolding,
-  ResolutionStatus,
-  ResolutionSource,
-  ResolutionSummary,
-  TrueHoldingsResponse,
-} from '../../types'
+export type { XRayHolding, ResolutionSummary, TrueHoldingsResponse } from '../dashboard/schemas'
+
+export {
+  XRayHoldingSchema,
+  ResolutionSummarySchema,
+  TrueHoldingsResponseSchema,
+  ResolutionStatusSchema,
+} from '../dashboard/schemas'
+
+export type { ResolutionStatus, ResolutionSource } from '../../types'

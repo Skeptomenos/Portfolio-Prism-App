@@ -3,11 +3,31 @@ import { render, screen, fireEvent, waitFor } from '../../../test/utils'
 import HoldingsView from './HoldingsView'
 import * as ipc from '../../../lib/ipc'
 import { mockTrueHoldingsResponse } from '../../../test/mocks/ipc'
+import type { PipelineHealthReport } from '../../../hooks/usePipelineDiagnostics'
 
 vi.mock('../../../lib/ipc', () => ({
   getTrueHoldings: vi.fn(),
   getPipelineReport: vi.fn(),
 }))
+
+const mockPipelineReport: PipelineHealthReport = {
+  timestamp: new Date().toISOString(),
+  metrics: {
+    direct_holdings: 0,
+    etf_positions: 0,
+    etfs_processed: 0,
+    tier1_resolved: 0,
+    tier1_failed: 0,
+  },
+  performance: {
+    execution_time_seconds: 0,
+    hive_hit_rate: 0,
+    api_fallback_rate: 0,
+    total_assets_processed: 0,
+    phase_durations: {},
+  },
+  failures: [],
+}
 
 describe('HoldingsView', () => {
   beforeEach(() => {
@@ -25,7 +45,7 @@ describe('HoldingsView', () => {
 
   it('renders holdings table with data', async () => {
     vi.mocked(ipc.getTrueHoldings).mockResolvedValue(mockTrueHoldingsResponse)
-    vi.mocked(ipc.getPipelineReport).mockResolvedValue({})
+    vi.mocked(ipc.getPipelineReport).mockResolvedValue(mockPipelineReport)
 
     render(<HoldingsView />)
 
@@ -38,7 +58,7 @@ describe('HoldingsView', () => {
 
   it('shows error state with retry button', async () => {
     vi.mocked(ipc.getTrueHoldings).mockRejectedValue(new Error('Failed to load'))
-    vi.mocked(ipc.getPipelineReport).mockResolvedValue({})
+    vi.mocked(ipc.getPipelineReport).mockResolvedValue(mockPipelineReport)
 
     render(<HoldingsView />)
 
@@ -54,7 +74,7 @@ describe('HoldingsView', () => {
       holdings: [],
       summary: mockTrueHoldingsResponse.summary,
     })
-    vi.mocked(ipc.getPipelineReport).mockResolvedValue({})
+    vi.mocked(ipc.getPipelineReport).mockResolvedValue(mockPipelineReport)
 
     render(<HoldingsView />)
 
@@ -76,7 +96,7 @@ describe('HoldingsView', () => {
       ],
       summary: mockTrueHoldingsResponse.summary,
     })
-    vi.mocked(ipc.getPipelineReport).mockResolvedValue({})
+    vi.mocked(ipc.getPipelineReport).mockResolvedValue(mockPipelineReport)
 
     render(<HoldingsView />)
 
@@ -95,7 +115,7 @@ describe('HoldingsView', () => {
 
   it('displays resolution health card', async () => {
     vi.mocked(ipc.getTrueHoldings).mockResolvedValue(mockTrueHoldingsResponse)
-    vi.mocked(ipc.getPipelineReport).mockResolvedValue({})
+    vi.mocked(ipc.getPipelineReport).mockResolvedValue(mockPipelineReport)
 
     render(<HoldingsView />)
 
@@ -106,7 +126,7 @@ describe('HoldingsView', () => {
 
   it('shows stock details when clicking a holding', async () => {
     vi.mocked(ipc.getTrueHoldings).mockResolvedValue(mockTrueHoldingsResponse)
-    vi.mocked(ipc.getPipelineReport).mockResolvedValue({})
+    vi.mocked(ipc.getPipelineReport).mockResolvedValue(mockPipelineReport)
 
     render(<HoldingsView />)
 
@@ -123,7 +143,7 @@ describe('HoldingsView', () => {
 
   it('displays resolution status badges', async () => {
     vi.mocked(ipc.getTrueHoldings).mockResolvedValue(mockTrueHoldingsResponse)
-    vi.mocked(ipc.getPipelineReport).mockResolvedValue({})
+    vi.mocked(ipc.getPipelineReport).mockResolvedValue(mockPipelineReport)
 
     render(<HoldingsView />)
 
@@ -146,7 +166,7 @@ describe('HoldingsView', () => {
       ],
       summary: mockTrueHoldingsResponse.summary,
     })
-    vi.mocked(ipc.getPipelineReport).mockResolvedValue({})
+    vi.mocked(ipc.getPipelineReport).mockResolvedValue(mockPipelineReport)
 
     render(<HoldingsView />)
 
@@ -168,7 +188,7 @@ describe('HoldingsView', () => {
       ],
       summary: mockTrueHoldingsResponse.summary,
     })
-    vi.mocked(ipc.getPipelineReport).mockResolvedValue({})
+    vi.mocked(ipc.getPipelineReport).mockResolvedValue(mockPipelineReport)
 
     render(<HoldingsView />)
 
@@ -188,7 +208,7 @@ describe('HoldingsView', () => {
       ],
       summary: { ...mockTrueHoldingsResponse.summary, unresolved: 1 },
     })
-    vi.mocked(ipc.getPipelineReport).mockResolvedValue({})
+    vi.mocked(ipc.getPipelineReport).mockResolvedValue(mockPipelineReport)
 
     render(<HoldingsView />)
 

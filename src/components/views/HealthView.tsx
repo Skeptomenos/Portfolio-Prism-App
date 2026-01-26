@@ -29,66 +29,18 @@ import {
 } from '../../store/useAppStore'
 import { HoldingsUpload } from '../../features/integrations'
 
-interface DataQualityIssue {
-  severity: 'critical' | 'high' | 'medium' | 'low'
-  category: string
-  code: string
-  message: string
-  fix_hint: string
-  item: string
-  phase: string
-  timestamp?: string
-  expected?: string
-  actual?: string
-}
-
-interface DataQuality {
-  quality_score: number
-  is_trustworthy: boolean
-  total_issues: number
-  by_severity: Record<string, number>
-  by_category: Record<string, number>
-  issues: DataQualityIssue[]
-}
-
-interface HealthData {
-  timestamp: string
-  metrics: {
-    direct_holdings: number
-    etf_positions: number
-    etfs_processed: number
-    tier1_resolved: number
-    tier1_failed: number
-  }
-  performance: {
-    execution_time_seconds: number
-    hive_hit_rate: number
-    api_fallback_rate: number
-    total_assets_processed: number
-    phase_durations: Record<string, number>
-  }
-  etf_stats: {
-    ticker: string
-    holdings_count: number
-    weight_sum: number
-    status: string
-  }[]
-  failures: {
-    severity: string
-    stage: string
-    item: string
-    error: string
-    fix: string
-  }[]
-  data_quality?: DataQuality
-}
+import type {
+  PipelineHealthReport,
+  DataQuality,
+  DataQualityIssue,
+} from '../../hooks/usePipelineDiagnostics'
 
 const HealthView = () => {
-  const [health, setHealth] = useState<HealthData | null>(null)
+  const [health, setHealth] = useState<PipelineHealthReport | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [recentReports, setRecentReports] = useState<SystemLogReport[]>([])
-  const [pendingReviews, setPendingReviews] = useState<any[]>([])
+  const [pendingReviews, setPendingReviews] = useState<SystemLogReport[]>([])
   const [uploadModal, setUploadModal] = useState<{ isOpen: boolean; isin: string; ticker: string }>(
     {
       isOpen: false,
@@ -705,7 +657,16 @@ const HealthView = () => {
   )
 }
 
-const StatusCard = ({ label, value, icon: Icon, color }: any) => {
+import type { LucideIcon } from 'lucide-react'
+
+interface StatusCardProps {
+  label: string
+  value: string | number
+  icon: LucideIcon
+  color: 'blue' | 'green' | 'orange' | 'red' | 'gray'
+}
+
+const StatusCard = ({ label, value, icon: Icon, color }: StatusCardProps) => {
   const colors: Record<string, { bg: string; text: string }> = {
     blue: { bg: 'rgba(59, 130, 246, 0.1)', text: '#3b82f6' },
     green: { bg: 'rgba(16, 185, 129, 0.1)', text: '#10b981' },

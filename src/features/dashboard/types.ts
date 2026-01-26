@@ -5,4 +5,14 @@ export type {
   XRayHolding,
   TrueHoldingsResponse,
   ResolutionSummary,
-} from '../../types'
+} from './schemas'
+
+export {
+  DashboardDataSchema,
+  HoldingSchema,
+  AllocationDataSchema,
+  XRayHoldingSchema,
+  TrueHoldingsResponseSchema,
+  ResolutionSummarySchema,
+  ResolutionStatusSchema,
+} from './schemas'
