@@ -9,7 +9,7 @@
 import { useState } from 'react'
 import { RefreshCw, ChevronDown, ChevronUp, Zap, Globe } from 'lucide-react'
 import { useAppStore, useEngineStatus, useSyncProgress } from '../store/useAppStore'
-import { useSyncPortfolio, useEngineHealth } from '../hooks/usePortfolioData'
+import { useSyncPortfolio, useEngineHealth } from '@/features/portfolio/hooks/usePortfolioData'
 import { isTauri } from '../lib/tauri'
 import type { EngineStatus } from '../types'
 

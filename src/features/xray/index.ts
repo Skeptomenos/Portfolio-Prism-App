@@ -8,5 +8,29 @@ export { default as NeedsAttentionSection } from './components/NeedsAttentionSec
 export { default as FilterBar } from './components/FilterBar'
 export type { FilterType, SortType } from './components/FilterBar'
 
+// Hooks
+export { usePipelineProgress, usePipelineProgressWithControl } from './hooks/usePipelineProgress'
+export type {
+  PipelinePhase,
+  PipelineProgressState,
+  PipelineSummaryData,
+  UnresolvedItem,
+  HoldingsSummary,
+  DecompositionSummary,
+  ResolutionSummary,
+  TimingSummary,
+} from './hooks/usePipelineProgress'
+
+export { usePipelineDiagnostics } from './hooks/usePipelineDiagnostics'
+export type {
+  PipelineHealthReport,
+  ETFResolutionDetail,
+  EnrichmentInfo,
+  PerformanceMetrics,
+  PipelineFailure,
+  DataQuality,
+  DataQualityIssue,
+} from './hooks/usePipelineDiagnostics'
+
 export * from './api'
 export * from './types'

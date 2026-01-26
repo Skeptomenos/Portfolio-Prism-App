@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import GlassCard from '../GlassCard'
 import UnresolvedIsinsList from './UnresolvedIsinsList'
-import { PipelineSummaryData } from '../../hooks/usePipelineProgress'
+import { PipelineSummaryData } from '@/features/xray/hooks/usePipelineProgress'
 import './PipelineSummaryCard.css'
 
 // =============================================================================

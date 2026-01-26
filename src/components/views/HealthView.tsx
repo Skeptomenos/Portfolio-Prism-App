@@ -34,7 +34,7 @@ import type {
   PipelineHealthReport,
   DataQuality,
   DataQualityIssue,
-} from '../../hooks/usePipelineDiagnostics'
+} from '@/features/xray/hooks/usePipelineDiagnostics'
 
 const HealthView = (): JSX.Element => {
   const [health, setHealth] = useState<PipelineHealthReport | null>(null)

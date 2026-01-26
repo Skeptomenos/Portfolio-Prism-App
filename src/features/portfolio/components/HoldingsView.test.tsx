@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from '../../../test/utils'
 import HoldingsView from './HoldingsView'
 import * as ipc from '../../../lib/ipc'
 import { mockTrueHoldingsResponse } from '../../../test/mocks/ipc'
-import type { PipelineHealthReport } from '../../../hooks/usePipelineDiagnostics'
+import type { PipelineHealthReport } from '@/features/xray/hooks/usePipelineDiagnostics'
 
 vi.mock('../../../lib/ipc', () => ({
   getTrueHoldings: vi.fn(),

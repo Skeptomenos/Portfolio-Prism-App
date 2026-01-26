@@ -18,8 +18,8 @@ import {
   syncPortfolio,
   getEngineHealth,
   getTrueHoldings,
-} from '../lib/ipc'
-import { useAppStore } from '../store/useAppStore'
+} from '@/lib/ipc'
+import { useAppStore } from '@/store/useAppStore'
 
 // =============================================================================
 // Query Hooks

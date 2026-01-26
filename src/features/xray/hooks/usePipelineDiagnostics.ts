@@ -6,7 +6,7 @@
  */
 
 import { useQuery, type UseQueryResult } from '@tanstack/react-query'
-import { getPipelineReport } from '../lib/ipc'
+import { getPipelineReport } from '@/lib/ipc'
 
 // =============================================================================
 // Types

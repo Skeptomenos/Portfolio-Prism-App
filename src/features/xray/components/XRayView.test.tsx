@@ -8,7 +8,7 @@ vi.mock('../../../lib/ipc', () => ({
   getDashboardData: vi.fn(),
 }))
 
-vi.mock('../../../hooks/usePipelineDiagnostics', () => ({
+vi.mock('../hooks/usePipelineDiagnostics', () => ({
   usePipelineDiagnostics: vi.fn(() => ({
     data: null,
     isLoading: false,
@@ -16,11 +16,11 @@ vi.mock('../../../hooks/usePipelineDiagnostics', () => ({
   })),
 }))
 
-vi.mock('../../../hooks/usePipelineProgress', () => ({
+vi.mock('../hooks/usePipelineProgress', () => ({
   usePipelineProgress: vi.fn(() => ({})),
 }))
 
-vi.mock('../../../hooks/usePortfolioData', () => ({
+vi.mock('@/features/portfolio/hooks/usePortfolioData', () => ({
   useDashboardData: vi.fn(() => ({
     isLoading: false,
     data: { totalValue: 100000 },

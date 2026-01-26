@@ -9,10 +9,10 @@ import {
   useXRayData,
   useSyncPortfolio,
 } from './usePortfolioData'
-import * as ipc from '../lib/ipc'
-import { mockDashboardData, mockEngineHealth, mockTrueHoldingsResponse } from '../test/mocks/ipc'
+import * as ipc from '@/lib/ipc'
+import { mockDashboardData, mockEngineHealth, mockTrueHoldingsResponse } from '@/test/mocks/ipc'
 
-vi.mock('../lib/ipc', () => ({
+vi.mock('@/lib/ipc', () => ({
   getEngineHealth: vi.fn(),
   getDashboardData: vi.fn(),
   getHoldings: vi.fn(),
@@ -20,7 +20,7 @@ vi.mock('../lib/ipc', () => ({
   syncPortfolio: vi.fn(),
 }))
 
-vi.mock('../store/useAppStore', () => ({
+vi.mock('@/store/useAppStore', () => ({
   useAppStore: (selector: (state: unknown) => unknown) => {
     const state = {
       startSync: vi.fn(),

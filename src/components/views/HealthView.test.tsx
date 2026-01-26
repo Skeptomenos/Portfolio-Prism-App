@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '../../test/utils'
 import HealthView from './HealthView'
 import * as ipc from '../../lib/ipc'
-import type { PipelineHealthReport } from '../../hooks/usePipelineDiagnostics'
+import type { PipelineHealthReport } from '@/features/xray/hooks/usePipelineDiagnostics'
 
 vi.mock('../../lib/ipc', () => ({
   getPipelineReport: vi.fn(),

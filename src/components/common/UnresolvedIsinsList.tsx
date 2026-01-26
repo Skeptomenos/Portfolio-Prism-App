@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { UnresolvedItem } from '../../hooks/usePipelineProgress'
+import { UnresolvedItem } from '@/features/xray/hooks/usePipelineProgress'
 import './PipelineSummaryCard.css'
 
 // =============================================================================

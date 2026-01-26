@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { usePipelineProgress, PipelinePhase } from '../../hooks/usePipelineProgress'
+import { usePipelineProgress, PipelinePhase } from '@/features/xray/hooks/usePipelineProgress'
 import GlassCard from '../GlassCard'
 import './PipelineProgressCard.css'
 
