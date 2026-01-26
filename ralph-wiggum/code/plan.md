@@ -47,8 +47,8 @@ This plan addresses 8 specification documents to bring the codebase into full co
 | [x] | **Task 2.5**: Move dashboard feature components and create contracts | `specs/01-frontend-architecture.md:L47-50` | Done in v0.10.10: Moved Dashboard, MetricCard, TopHoldingsCard, TrueExposureCard to `src/features/dashboard/components/`. Created api.ts, types.ts, index.ts barrel exports. |
 | [x] | **Task 2.6**: Move portfolio feature components and create contracts | `specs/01-frontend-architecture.md:L53-55` | Done in v0.10.11: Moved HoldingsView, PortfolioTable, PortfolioChart to `src/features/portfolio/components/`. Created api.ts, types.ts, index.ts barrel exports. Updated consumers (App.tsx, TradeRepublicView, Dashboard). |
 | [x] | **Task 2.7**: Move xray feature components and create contracts | `specs/01-frontend-architecture.md:L58-59` | Done in v0.10.12: Moved XRayView + 14 xray subcomponents to `src/features/xray/components/`. Created api.ts, types.ts, index.ts barrel exports. Updated all consumers. |
-| [ ] | **Task 2.8**: Move integrations feature components and create contracts | `specs/01-frontend-architecture.md:L62-63` | Move TradeRepublicView, HoldingsUpload; extract types/api |
-| [ ] | **Task 2.9**: Update App.tsx and fix all import paths across codebase | `specs/01-frontend-architecture.md:L73-75` | Bulk import path updates; verify no circular deps |
+| [x] | **Task 2.8**: Move integrations feature components and create contracts | `specs/01-frontend-architecture.md:L62-63` | Done in v0.10.13: Moved TradeRepublicView, HoldingsUpload to `src/features/integrations/components/`. Created api.ts, types.ts, index.ts barrel exports. |
+| [x] | **Task 2.9**: Update App.tsx and fix all import paths across codebase | `specs/01-frontend-architecture.md:L73-75` | Done in v0.10.14: Verified all feature imports use barrels, no circular deps (madge check passed). HealthView remains in components/views/ as system view. |
 
 ---
 
