@@ -27,7 +27,7 @@ import {
   useHiveContributionEnabled,
   useSetHiveContributionEnabled,
 } from '../../store/useAppStore'
-import HoldingsUpload from '../HoldingsUpload'
+import { HoldingsUpload } from '../../features/integrations'
 
 interface DataQualityIssue {
   severity: 'critical' | 'high' | 'medium' | 'low'

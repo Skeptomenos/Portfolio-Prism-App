@@ -1,14 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '../../test/utils'
+import { render, screen, waitFor } from '../../../test/utils'
 import { TradeRepublicView } from './TradeRepublicView'
-import * as ipc from '../../lib/ipc'
+import * as ipc from '../../../lib/ipc'
 import {
   mockPositionsResponse,
   mockSessionCheck,
   mockSessionCheckWithSession,
-} from '../../test/mocks/ipc'
+} from '../../../test/mocks/ipc'
 
-vi.mock('../../lib/ipc', () => ({
+vi.mock('../../../lib/ipc', () => ({
   trCheckSavedSession: vi.fn(),
   trLogout: vi.fn(),
   syncPortfolio: vi.fn(),
@@ -19,7 +19,7 @@ const mockSetAuthState = vi.fn()
 const mockAddToast = vi.fn()
 const mockSetHasUnsavedChanges = vi.fn()
 
-vi.mock('../../store/useAppStore', () => ({
+vi.mock('../../../store/useAppStore', () => ({
   useAppStore: () => ({
     authState: 'idle',
     setAuthState: mockSetAuthState,

@@ -8,9 +8,9 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { useAppStore } from '../../store/useAppStore'
-import { LoginForm, TwoFactorModal, SessionRestorePrompt } from '../../features/auth'
-import { PortfolioTable } from '../../features/portfolio'
+import { useAppStore } from '../../../store/useAppStore'
+import { LoginForm, TwoFactorModal, SessionRestorePrompt } from '../../auth'
+import { PortfolioTable } from '../../portfolio'
 import {
   trCheckSavedSession,
   trLogout,
@@ -18,9 +18,9 @@ import {
   getPositions,
   trLogin,
   trLoginWithStoredCredentials,
-} from '../../lib/ipc'
-import type { SessionCheck, AuthResponse, Position } from '../../types'
-import { sanitizeErrorMessage } from '../../lib/errors'
+} from '../../../lib/ipc'
+import type { SessionCheck, AuthResponse, Position } from '../../../types'
+import { sanitizeErrorMessage } from '../../../lib/errors'
 
 const styles = {
   container: {

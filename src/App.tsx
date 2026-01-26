@@ -6,7 +6,7 @@ import HealthView from './components/views/HealthView'
 
 import { HoldingsView } from './features/portfolio'
 
-import TradeRepublicView from './components/views/TradeRepublicView'
+import { TradeRepublicView } from './features/integrations'
 import { ToastContainer } from './components/ui/Toast'
 import { FeedbackDialog } from './components/feedback/FeedbackDialog'
 import { useCurrentView, useAppStore, useSetSessionId } from './store/useAppStore'
