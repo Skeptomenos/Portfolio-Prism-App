@@ -80,7 +80,7 @@ async def run_stdin_loop() -> None:
                     json.dumps(
                         {
                             "id": 0,
-                            "status": "error",
+                            "success": False,
                             "error": {
                                 "code": "INVALID_JSON",
                                 "message": f"Failed to parse JSON: {e}",
@@ -105,7 +105,7 @@ async def run_stdin_loop() -> None:
                 json.dumps(
                     {
                         "id": 0,
-                        "status": "error",
+                        "success": False,
                         "error": {"code": "INTERNAL_ERROR", "message": str(e)},
                     }
                 )

@@ -21,21 +21,21 @@ class TestHandleUploadHoldings:
         """Returns error when filePath is not provided."""
         result = handle_upload_holdings(1, {"etfIsin": "IE00B4L5Y983"})
 
-        assert result["status"] == "error"
+        assert result["success"] is False
         assert result["error"]["code"] == "INVALID_PARAMS"
 
     def test_returns_error_when_etf_isin_missing(self):
         """Returns error when etfIsin is not provided."""
         result = handle_upload_holdings(1, {"filePath": "/path/to/file.csv"})
 
-        assert result["status"] == "error"
+        assert result["success"] is False
         assert result["error"]["code"] == "INVALID_PARAMS"
 
     def test_returns_error_when_both_missing(self):
         """Returns error when both params are missing."""
         result = handle_upload_holdings(1, {})
 
-        assert result["status"] == "error"
+        assert result["success"] is False
         assert result["error"]["code"] == "INVALID_PARAMS"
 
     def test_returns_error_on_empty_cleanup(self):
@@ -51,7 +51,7 @@ class TestHandleUploadHoldings:
                 1, {"filePath": "/path/to/file.csv", "etfIsin": "IE00B4L5Y983"}
             )
 
-        assert result["status"] == "error"
+        assert result["success"] is False
         assert result["error"]["code"] == "CLEANUP_FAILED"
 
     def test_returns_success_with_holdings_count(self):
@@ -88,7 +88,7 @@ class TestHandleUploadHoldings:
                         },
                     )
 
-        assert result["status"] == "success"
+        assert result["success"] is True
         assert result["data"]["holdingsCount"] == 2
         assert result["data"]["totalWeight"] == 100.0
         assert result["data"]["isin"] == "IE00B4L5Y983"
@@ -102,7 +102,7 @@ class TestHandleGetTrueHoldings:
         with patch("os.path.exists", return_value=False):
             result = handle_get_true_holdings(1, {})
 
-        assert result["status"] == "success"
+        assert result["success"] is True
         assert result["data"]["holdings"] == []
 
     def test_returns_empty_when_dataframe_empty(self):
@@ -111,7 +111,7 @@ class TestHandleGetTrueHoldings:
             with patch("pandas.read_csv", return_value=pd.DataFrame()):
                 result = handle_get_true_holdings(1, {})
 
-        assert result["status"] == "success"
+        assert result["success"] is True
         assert result["data"]["holdings"] == []
 
     def test_returns_grouped_holdings(self):
@@ -132,7 +132,7 @@ class TestHandleGetTrueHoldings:
             with patch("pandas.read_csv", return_value=mock_df):
                 result = handle_get_true_holdings(1, {})
 
-        assert result["status"] == "success"
+        assert result["success"] is True
         holdings = result["data"]["holdings"]
 
         # Should have 2 unique stocks
@@ -155,7 +155,7 @@ class TestHandleGetPipelineReport:
         with patch("os.path.exists", return_value=False):
             result = handle_get_pipeline_report(1, {})
 
-        assert result["status"] == "success"
+        assert result["success"] is True
         assert result["data"] is None
 
     def test_returns_report_data(self):
@@ -183,7 +183,7 @@ class TestHandleGetPipelineReport:
                 with patch("json.load", return_value=report_data):
                     result = handle_get_pipeline_report(1, {})
 
-        assert result["status"] == "success"
+        assert result["success"] is True
         assert result["data"]["status"] == "healthy"
 
     def test_returns_error_on_invalid_json(self):
@@ -208,5 +208,5 @@ class TestHandleGetPipelineReport:
                 ):
                     result = handle_get_pipeline_report(1, {})
 
-        assert result["status"] == "error"
+        assert result["success"] is False
         assert result["error"]["code"] == "REPORT_ERROR"

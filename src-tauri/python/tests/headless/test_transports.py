@@ -62,7 +62,7 @@ class TestStdinLoop:
             "",  # EOF
         ]
 
-        mock_response = {"id": 1, "status": "success", "data": {"version": "0.1.0"}}
+        mock_response = {"id": 1, "success": True, "data": {"version": "0.1.0"}}
 
         with patch("sys.stdin", mock_stdin):
             with patch(
@@ -84,7 +84,7 @@ class TestStdinLoop:
 
         # Second line should be the response
         response = json.loads(lines[1])
-        assert response["status"] == "success"
+        assert response["success"] is True
 
     @pytest.mark.asyncio
     async def test_handles_invalid_json(self, capsys):
@@ -109,7 +109,7 @@ class TestStdinLoop:
         assert len(lines) >= 2
 
         error = json.loads(lines[1])
-        assert error["status"] == "error"
+        assert error["success"] is False
         assert error["error"]["code"] == "INVALID_JSON"
 
     @pytest.mark.asyncio
@@ -233,7 +233,7 @@ class TestIntegration:
             result = await dispatch({"command": "get_health", "id": 42, "payload": {}})
 
         assert result["id"] == 42
-        assert result["status"] == "success"
+        assert result["success"] is True
         assert "version" in result["data"]
 
     def test_lifecycle_functions_available(self):
@@ -261,5 +261,5 @@ class TestIntegration:
         success = success_response(1, {"test": True})
         error = error_response(1, "CODE", "message")
 
-        assert success["status"] == "success"
-        assert error["status"] == "error"
+        assert success["success"] is True
+        assert error["success"] is False

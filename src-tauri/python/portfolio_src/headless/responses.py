@@ -3,9 +3,9 @@
 Provides consistent response formatting for all headless engine handlers.
 These functions ensure the JSON structure matches the IPC contract with Rust.
 
-Response Format:
-    Success: {"id": cmd_id, "status": "success", "data": {...}}
-    Error:   {"id": cmd_id, "status": "error", "error": {"code": "...", "message": "..."}}
+Response Format (2026 Standard - uses boolean `success` field):
+    Success: {"id": cmd_id, "success": true, "data": {...}}
+    Error:   {"id": cmd_id, "success": false, "error": {"code": "...", "message": "..."}}
 """
 
 import re
@@ -102,11 +102,11 @@ def success_response(cmd_id: int, data: dict[str, Any]) -> dict[str, Any]:
 
     Example:
         >>> success_response(1, {"version": "0.1.0"})
-        {"id": 1, "status": "success", "data": {"version": "0.1.0"}}
+        {"id": 1, "success": True, "data": {"version": "0.1.0"}}
     """
     return {
         "id": cmd_id,
-        "status": "success",
+        "success": True,
         "data": data,
     }
 
@@ -124,11 +124,11 @@ def error_response(cmd_id: int, code: str, message: str) -> dict[str, Any]:
 
     Example:
         >>> error_response(1, "TR_AUTH_ERROR", "Invalid credentials")
-        {"id": 1, "status": "error", "error": {"code": "TR_AUTH_ERROR", "message": "Invalid credentials"}}
+        {"id": 1, "success": False, "error": {"code": "TR_AUTH_ERROR", "message": "Invalid credentials"}}
     """
     return {
         "id": cmd_id,
-        "status": "error",
+        "success": False,
         "error": {
             "code": code,
             "message": message,

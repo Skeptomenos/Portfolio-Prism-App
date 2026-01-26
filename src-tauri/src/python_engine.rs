@@ -70,7 +70,7 @@ pub struct ReadySignal {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EngineResponse {
     pub id: u64,
-    pub status: String,
+    pub success: bool,
     #[serde(default)]
     pub data: Option<Value>,
     #[serde(default)]

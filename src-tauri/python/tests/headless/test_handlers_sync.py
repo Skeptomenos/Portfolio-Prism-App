@@ -75,7 +75,7 @@ class TestHandleRunPipeline:
             with patch("portfolio_src.headless.handlers.sync.emit_progress"):
                 result = await handle_run_pipeline(1, {})
 
-        assert result["status"] == "success"
+        assert result["success"] is True
         assert result["data"]["success"] is True
         assert result["data"]["errors"] == []
         assert "durationMs" in result["data"]
@@ -97,7 +97,7 @@ class TestHandleRunPipeline:
             with patch("portfolio_src.headless.handlers.sync.emit_progress"):
                 result = await handle_run_pipeline(1, {})
 
-        assert result["status"] == "success"
+        assert result["success"] is True
         assert result["data"]["success"] is False
         assert len(result["data"]["errors"]) == 2
 
@@ -111,7 +111,7 @@ class TestHandleRunPipeline:
             with patch("portfolio_src.headless.handlers.sync.emit_progress"):
                 result = await handle_run_pipeline(1, {})
 
-        assert result["status"] == "error"
+        assert result["success"] is False
         assert result["error"]["code"] == "PIPELINE_ERROR"
         assert "Pipeline crashed" in result["error"]["message"]
 
@@ -156,7 +156,7 @@ class TestHandleSyncPortfolio:
             with patch("portfolio_src.headless.handlers.sync.emit_progress"):
                 result = await handle_sync_portfolio(1, {})
 
-        assert result["status"] == "error"
+        assert result["success"] is False
         assert result["error"]["code"] == "TR_AUTH_REQUIRED"
 
     @pytest.mark.asyncio
@@ -205,7 +205,7 @@ class TestHandleSyncPortfolio:
             with patch("portfolio_src.headless.handlers.sync.emit_progress"):
                 result = await handle_sync_portfolio(1, {})
 
-        assert result["status"] == "success"
+        assert result["success"] is True
         assert result["data"]["syncedPositions"] == 1
         assert result["data"]["newPositions"] == 1
         assert result["data"]["totalValue"] == 1100.0

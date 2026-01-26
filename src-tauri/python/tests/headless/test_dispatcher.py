@@ -70,7 +70,7 @@ class TestDispatch:
             }
         )
 
-        assert result["status"] == "error"
+        assert result["success"] is False
         assert result["error"]["code"] == "UNKNOWN_COMMAND"
         assert result["id"] == 1
 
@@ -79,16 +79,14 @@ class TestDispatch:
         """Should return error for empty command."""
         result = await dispatch({"id": 2, "payload": {}})
 
-        assert result["status"] == "error"
+        assert result["success"] is False
         assert result["error"]["code"] == "UNKNOWN_COMMAND"
 
     @pytest.mark.asyncio
     @patch("portfolio_src.headless.handlers.health.get_start_time")
     @patch("portfolio_src.headless.handlers.health.get_session_id")
     @patch("portfolio_src.data.database.get_db_path")
-    async def test_dispatches_sync_handler(
-        self, mock_db_path, mock_session_id, mock_start_time
-    ):
+    async def test_dispatches_sync_handler(self, mock_db_path, mock_session_id, mock_start_time):
         """Should dispatch to sync handler correctly."""
         mock_db_path.return_value = "/test/db"
         mock_session_id.return_value = "test-session"
@@ -102,7 +100,7 @@ class TestDispatch:
             }
         )
 
-        assert result["status"] == "success"
+        assert result["success"] is True
         assert result["id"] == 3
         assert result["data"]["version"] == "0.1.0"
 
@@ -119,7 +117,7 @@ class TestDispatch:
         )
 
         # Should return validation error (missing credentials)
-        assert result["status"] == "error"
+        assert result["success"] is False
         assert result["error"]["code"] == "TR_INVALID_CREDENTIALS"
 
     @pytest.mark.asyncio
@@ -137,7 +135,7 @@ class TestDispatch:
             }
         )
 
-        assert result["status"] == "error"
+        assert result["success"] is False
         assert result["error"]["code"] == "HANDLER_ERROR"
         assert "Test error" in result["error"]["message"]
 
@@ -197,9 +195,7 @@ class TestIPCPayloadValidation:
 
     def test_validate_command_not_string(self):
         """Should reject non-string command."""
-        is_valid, error, cmd_id = _validate_ipc_payload(
-            {"command": 123, "id": 1, "payload": {}}
-        )
+        is_valid, error, cmd_id = _validate_ipc_payload({"command": 123, "id": 1, "payload": {}})
         assert is_valid is False
         assert "'command' must be a string" in error
         assert cmd_id == 1  # ID should still be extracted
@@ -268,9 +264,7 @@ class TestIPCPayloadValidation:
 
     def test_validate_missing_id_defaults_zero(self):
         """Should default missing id to 0."""
-        is_valid, error, cmd_id = _validate_ipc_payload(
-            {"command": "test", "payload": {}}
-        )
+        is_valid, error, cmd_id = _validate_ipc_payload({"command": "test", "payload": {}})
         assert is_valid is True
         assert cmd_id == 0
 
@@ -283,7 +277,7 @@ class TestDispatchPayloadValidation:
         """Should return INVALID_PAYLOAD for non-dict input."""
         result = await dispatch("not a dict")
 
-        assert result["status"] == "error"
+        assert result["success"] is False
         assert result["error"]["code"] == "INVALID_PAYLOAD"
         assert "must be a dict" in result["error"]["message"]
         assert result["id"] == 0
@@ -293,7 +287,7 @@ class TestDispatchPayloadValidation:
         """Should return INVALID_PAYLOAD for non-string command."""
         result = await dispatch({"command": 123, "id": 5, "payload": {}})
 
-        assert result["status"] == "error"
+        assert result["success"] is False
         assert result["error"]["code"] == "INVALID_PAYLOAD"
         assert "'command' must be a string" in result["error"]["message"]
         assert result["id"] == 5
@@ -301,11 +295,9 @@ class TestDispatchPayloadValidation:
     @pytest.mark.asyncio
     async def test_dispatch_invalid_id_type(self):
         """Should return INVALID_PAYLOAD for non-integer id."""
-        result = await dispatch(
-            {"command": "test", "id": {"nested": "dict"}, "payload": {}}
-        )
+        result = await dispatch({"command": "test", "id": {"nested": "dict"}, "payload": {}})
 
-        assert result["status"] == "error"
+        assert result["success"] is False
         assert result["error"]["code"] == "INVALID_PAYLOAD"
         assert "'id' must be an integer" in result["error"]["message"]
 
@@ -314,7 +306,7 @@ class TestDispatchPayloadValidation:
         """Should return INVALID_PAYLOAD for non-dict payload field."""
         result = await dispatch({"command": "get_health", "id": 7, "payload": "string"})
 
-        assert result["status"] == "error"
+        assert result["success"] is False
         assert result["error"]["code"] == "INVALID_PAYLOAD"
         assert "'payload' must be a dict" in result["error"]["message"]
         assert result["id"] == 7

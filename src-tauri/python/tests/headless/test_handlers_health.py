@@ -12,9 +12,7 @@ class TestHealthHandler:
     @patch("portfolio_src.headless.handlers.health.get_start_time")
     @patch("portfolio_src.headless.handlers.health.get_session_id")
     @patch("portfolio_src.data.database.get_db_path")
-    def test_returns_success_response(
-        self, mock_db_path, mock_session_id, mock_start_time
-    ):
+    def test_returns_success_response(self, mock_db_path, mock_session_id, mock_start_time):
         """Should return success response with health data."""
         mock_db_path.return_value = "/path/to/db.sqlite"
         mock_session_id.return_value = "test-session-123"
@@ -22,7 +20,7 @@ class TestHealthHandler:
 
         result = handle_get_health(cmd_id=1, payload={})
 
-        assert result["status"] == "success"
+        assert result["success"] is True
         assert result["id"] == 1
         assert "data" in result
         assert result["data"]["version"] == "0.1.0"
@@ -45,9 +43,9 @@ class TestHealthHandler:
         result = handle_get_health(cmd_id=42, payload={})
 
         # Verify IPC contract structure
-        assert set(result.keys()) == {"id", "status", "data"}
+        assert set(result.keys()) == {"id", "success", "data"}
         assert result["id"] == 42
-        assert result["status"] == "success"
+        assert result["success"] is True
 
         # Verify data fields
         data = result["data"]

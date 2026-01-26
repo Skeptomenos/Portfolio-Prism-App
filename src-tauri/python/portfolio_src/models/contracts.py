@@ -25,12 +25,8 @@ class Command(BaseModel):
     """
 
     id: int = Field(..., description="Correlation ID for request/response matching")
-    command: str = Field(
-        ..., description="Command name (e.g., 'get_health', 'sync_portfolio')"
-    )
-    payload: dict = Field(
-        default_factory=dict, description="Command-specific parameters"
-    )
+    command: str = Field(..., description="Command name (e.g., 'get_health', 'sync_portfolio')")
+    payload: dict = Field(default_factory=dict, description="Command-specific parameters")
 
 
 # =============================================================================
@@ -49,20 +45,19 @@ class BaseResponse(BaseModel):
     """Base response structure for all commands."""
 
     id: int = Field(..., description="Correlation ID (echoed from request)")
-    status: Literal["success", "error"] = Field(..., description="Response status")
 
 
 class ErrorResponse(BaseResponse):
     """Response for failed commands."""
 
-    status: Literal["error"] = "error"
+    success: Literal[False] = Field(default=False, description="Always False for errors")
     error: ErrorDetail
 
 
 class SuccessResponse(BaseResponse):
     """Base for successful responses with data."""
 
-    status: Literal["success"] = "success"
+    success: Literal[True] = Field(default=True, description="Always True for success")
     data: Any = Field(..., description="Command-specific response data")
 
 
@@ -76,9 +71,7 @@ class HealthData(BaseModel):
 
     version: str = Field(..., description="Engine version string")
     memory_usage_mb: float = Field(..., description="Current memory usage in MB")
-    uptime_seconds: Optional[float] = Field(
-        None, description="Engine uptime in seconds"
-    )
+    uptime_seconds: Optional[float] = Field(None, description="Engine uptime in seconds")
     db_path: Optional[str] = Field(None, description="Path to SQLite database")
 
 
@@ -123,9 +116,7 @@ class DashboardData(BaseModel):
     gain_percentage: float = Field(..., description="Gain as percentage")
     allocations: AllocationData = Field(default_factory=AllocationData)
     top_holdings: list[HoldingData] = Field(default_factory=list)
-    last_updated: Optional[str] = Field(
-        None, description="ISO timestamp of last update"
-    )
+    last_updated: Optional[str] = Field(None, description="ISO timestamp of last update")
     is_empty: bool = Field(False, description="True if no positions in portfolio")
     position_count: int = Field(0, description="Number of positions")
 
@@ -168,9 +159,7 @@ class AuthStateData(BaseModel):
     auth_state: Literal["idle", "waiting_2fa", "authenticated", "error"] = Field(
         ..., description="Current authentication state"
     )
-    has_stored_credentials: bool = Field(
-        False, description="Whether stored credentials exist"
-    )
+    has_stored_credentials: bool = Field(False, description="Whether stored credentials exist")
     last_error: Optional[str] = Field(None, description="Last error message, if any")
 
 
@@ -184,9 +173,7 @@ class SessionCheckData(BaseModel):
     """Data payload for tr_check_saved_session command."""
 
     has_session: bool = Field(..., description="Whether a saved session exists")
-    phone_number: Optional[str] = Field(
-        None, description="Masked phone number (+49***1234)"
-    )
+    phone_number: Optional[str] = Field(None, description="Masked phone number (+49***1234)")
     prompt: Literal["restore_session", "login_required"] = Field(
         ..., description="UI prompt to show"
     )
@@ -205,9 +192,7 @@ class AuthData(BaseModel):
         ..., description="Current authentication state"
     )
     message: str = Field(..., description="Status message for user")
-    countdown: Optional[int] = Field(
-        None, description="Countdown timer for 2FA (seconds)"
-    )
+    countdown: Optional[int] = Field(None, description="Countdown timer for 2FA (seconds)")
 
 
 class AuthResponse(SuccessResponse):
@@ -261,7 +246,7 @@ def success_response(cmd_id: int, data: BaseModel) -> dict:
     Returns:
         Dict ready for JSON serialization
     """
-    return {"id": cmd_id, "status": "success", "data": data.model_dump(by_alias=True)}
+    return {"id": cmd_id, "success": True, "data": data.model_dump(by_alias=True)}
 
 
 def error_response(cmd_id: int, code: str, message: str) -> dict:
@@ -278,6 +263,6 @@ def error_response(cmd_id: int, code: str, message: str) -> dict:
     """
     return {
         "id": cmd_id,
-        "status": "error",
+        "success": False,
         "error": {"code": code, "message": message},
     }

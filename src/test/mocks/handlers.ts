@@ -11,11 +11,11 @@ import {
 const ECHO_BRIDGE_URL = 'http://127.0.0.1:5001'
 
 function createCommandResponse(data: unknown) {
-  return { status: 'success', data }
+  return { success: true, data }
 }
 
 function createErrorResponse(code: string, message: string) {
-  return { status: 'error', error: { code, message } }
+  return { success: false, error: { code, message } }
 }
 
 export const handlers = [

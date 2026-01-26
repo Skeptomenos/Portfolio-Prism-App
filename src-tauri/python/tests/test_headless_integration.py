@@ -61,7 +61,7 @@ class TestHeadlessIntegration:
                 payload = {"portfolioId": 1, "force": True}
                 response = asyncio.run(handle_sync_portfolio(123, payload))
 
-                assert response["status"] == "success"
+                assert response["success"] is True
                 assert response["data"]["syncedPositions"] == 10
 
                 mock_pipeline_cls.assert_not_called()

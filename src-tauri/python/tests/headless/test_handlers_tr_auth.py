@@ -20,7 +20,7 @@ class TestTRLogin:
         """Should return TR_INVALID_CREDENTIALS when phone is missing."""
         result = await handle_tr_login(cmd_id=1, payload={"pin": "1234"})
 
-        assert result["status"] == "error"
+        assert result["success"] is False
         assert result["error"]["code"] == "TR_INVALID_CREDENTIALS"
         assert result["id"] == 1
 
@@ -29,7 +29,7 @@ class TestTRLogin:
         """Should return TR_INVALID_CREDENTIALS when PIN is missing."""
         result = await handle_tr_login(cmd_id=2, payload={"phone": "+491234567890"})
 
-        assert result["status"] == "error"
+        assert result["success"] is False
         assert result["error"]["code"] == "TR_INVALID_CREDENTIALS"
         assert result["id"] == 2
 
@@ -38,7 +38,7 @@ class TestTRLogin:
         """Should return error for empty credentials."""
         result = await handle_tr_login(cmd_id=3, payload={"phone": "", "pin": ""})
 
-        assert result["status"] == "error"
+        assert result["success"] is False
         assert result["error"]["code"] == "TR_INVALID_CREDENTIALS"
 
     @pytest.mark.asyncio
@@ -59,7 +59,7 @@ class TestTRLogin:
             payload={"phone": "+491234567890", "pin": "1234", "remember": True},
         )
 
-        assert result["status"] == "success"
+        assert result["success"] is True
         assert result["data"]["authState"] == "waiting_2fa"
         assert result["data"]["countdown"] == 30
 
@@ -76,7 +76,7 @@ class TestTRLogin:
             payload={"phone": "+491234567890", "pin": "1234"},
         )
 
-        assert result["status"] == "error"
+        assert result["success"] is False
         assert result["error"]["code"] == "TR_LOGIN_ERROR"
         assert "Network timeout" in result["error"]["message"]
 
@@ -89,7 +89,7 @@ class TestTRSubmit2FA:
         """Should return TR_2FA_INVALID when code is missing."""
         result = await handle_tr_submit_2fa(cmd_id=1, payload={})
 
-        assert result["status"] == "error"
+        assert result["success"] is False
         assert result["error"]["code"] == "TR_2FA_INVALID"
 
     @pytest.mark.asyncio
@@ -104,7 +104,7 @@ class TestTRSubmit2FA:
 
         result = await handle_tr_submit_2fa(cmd_id=2, payload={"code": "123456"})
 
-        assert result["status"] == "success"
+        assert result["success"] is True
         assert result["data"]["authState"] == "authenticated"
 
     @pytest.mark.asyncio
@@ -119,7 +119,7 @@ class TestTRSubmit2FA:
 
         result = await handle_tr_submit_2fa(cmd_id=3, payload={"code": "000000"})
 
-        assert result["status"] == "error"
+        assert result["success"] is False
         assert result["error"]["code"] == "TR_2FA_INVALID"
 
 
@@ -140,6 +140,6 @@ class TestTRLogout:
         # Use real executor - mocking it breaks asyncio.run_in_executor
         result = await handle_tr_logout(cmd_id=1, payload={})
 
-        assert result["status"] == "success"
+        assert result["success"] is True
         assert result["data"]["authState"] == "idle"
         assert "session cleared" in result["data"]["message"].lower()

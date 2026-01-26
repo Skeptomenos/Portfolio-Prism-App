@@ -151,9 +151,7 @@ async def remove_sse_client(queue: asyncio.Queue) -> None:
     """
     async with _clients_lock:
         _progress_clients.discard(queue)
-        logger.debug(
-            f"SSE client disconnected. Total clients: {len(_progress_clients)}"
-        )
+        logger.debug(f"SSE client disconnected. Total clients: {len(_progress_clients)}")
 
 
 def broadcast_progress(progress: int, message: str, phase: str = "pipeline") -> None:
@@ -340,7 +338,7 @@ def run_echo_bridge(host: str = "0.0.0.0", port: int = 5001) -> None:
             logger.warning("Echo-Bridge: Unauthorized request")
             return {
                 "id": 0,
-                "status": "error",
+                "success": False,
                 "error": {"code": "UNAUTHORIZED", "message": "Invalid token"},
             }
 
@@ -357,7 +355,7 @@ def run_echo_bridge(host: str = "0.0.0.0", port: int = 5001) -> None:
             logger.error(f"Echo-Bridge Error: {e}", exc_info=True)
             return {
                 "id": 0,
-                "status": "error",
+                "success": False,
                 "error": {"code": "HTTP_ERROR", "message": str(e)},
             }
 

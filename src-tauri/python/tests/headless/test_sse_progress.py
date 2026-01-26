@@ -568,7 +568,7 @@ class TestBroadcastSummary:
                         "isin": "IE00B4L5Y983",
                         "name": "iShares MSCI World",
                         "holdings_count": 100,
-                        "status": "success",
+                        "success": True,
                     },
                 ],
             },

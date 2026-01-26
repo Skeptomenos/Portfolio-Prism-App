@@ -185,7 +185,7 @@ def mock_bridge():
     bridge.get_status.return_value = {"status": "idle"}
     bridge.logout.return_value = {"status": "logged_out"}
     bridge.fetch_portfolio.return_value = {
-        "status": "success",
+        "success": True,
         "data": {"positions": [], "cash": []},
     }
     return bridge

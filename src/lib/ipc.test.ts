@@ -48,7 +48,7 @@ describe('IPC Layer', () => {
         ok: true,
         json: () =>
           Promise.resolve({
-            status: 'success',
+            success: true,
             data: { version: '1.0.0', memoryUsageMb: 100, sessionId: 'test' },
           }),
       })
@@ -73,7 +73,7 @@ describe('IPC Layer', () => {
         ok: true,
         json: () =>
           Promise.resolve({
-            status: 'success',
+            success: true,
             data: { totalValue: 10000, isEmpty: false },
           }),
       })
@@ -91,7 +91,7 @@ describe('IPC Layer', () => {
         ok: true,
         json: () =>
           Promise.resolve({
-            status: 'success',
+            success: true,
             data: { topHoldings: mockHoldings },
           }),
       })
@@ -105,7 +105,7 @@ describe('IPC Layer', () => {
         ok: true,
         json: () =>
           Promise.resolve({
-            status: 'success',
+            success: true,
             data: { positions: [], totalValue: 0 },
           }),
       })
@@ -121,7 +121,7 @@ describe('IPC Layer', () => {
         ok: true,
         json: () =>
           Promise.resolve({
-            status: 'success',
+            success: true,
             data: { syncedPositions: 5 },
           }),
       })
@@ -137,7 +137,7 @@ describe('IPC Layer', () => {
         ok: true,
         json: () =>
           Promise.resolve({
-            status: 'success',
+            success: true,
             data: { success: true, errors: [], durationMs: 100 },
           }),
       })
@@ -152,7 +152,7 @@ describe('IPC Layer', () => {
         ok: true,
         json: () =>
           Promise.resolve({
-            status: 'success',
+            success: true,
             data: { authState: 'waiting_2fa' },
           }),
       })
@@ -173,7 +173,7 @@ describe('IPC Layer', () => {
         ok: true,
         json: () =>
           Promise.resolve({
-            status: 'success',
+            success: true,
             data: { authState: 'authenticated' },
           }),
       })
@@ -190,7 +190,7 @@ describe('IPC Layer', () => {
         ok: true,
         json: () =>
           Promise.resolve({
-            status: 'error',
+            success: false,
             error: { message: 'Something went wrong', code: 'TEST_ERROR' },
           }),
       })
@@ -244,7 +244,7 @@ describe('IPC Layer', () => {
         ok: true,
         json: () =>
           Promise.resolve({
-            status: 'success',
+            success: true,
             data: { version: '1.0.0' },
           }),
       })
@@ -282,7 +282,7 @@ describe('IPC Layer', () => {
         ok: true,
         json: () =>
           Promise.resolve({
-            status: 'success',
+            success: true,
             data: { authState: 'idle', hasStoredCredentials: false },
           }),
       })
@@ -296,7 +296,7 @@ describe('IPC Layer', () => {
         ok: true,
         json: () =>
           Promise.resolve({
-            status: 'success',
+            success: true,
             data: { hasSession: true, prompt: 'restore' },
           }),
       })
@@ -317,7 +317,7 @@ describe('IPC Layer', () => {
         ok: true,
         json: () =>
           Promise.resolve({
-            status: 'success',
+            success: true,
             data: { authState: 'idle', message: 'Logged out' },
           }),
       })
@@ -337,7 +337,7 @@ describe('IPC Layer', () => {
         ok: true,
         json: () =>
           Promise.resolve({
-            status: 'success',
+            success: true,
             data: { holdings: [], summary: { total: 0 } },
           }),
       })
@@ -351,7 +351,7 @@ describe('IPC Layer', () => {
         ok: true,
         json: () =>
           Promise.resolve({
-            status: 'success',
+            success: true,
             data: { status: 'healthy' },
           }),
       })
@@ -383,7 +383,7 @@ describe('IPC Layer', () => {
     it('setHiveContribution sends enabled flag', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
-        json: () => Promise.resolve({ status: 'success', data: null }),
+        json: () => Promise.resolve({ success: true, data: null }),
       })
 
       await setHiveContribution(true)
@@ -398,7 +398,7 @@ describe('IPC Layer', () => {
         ok: true,
         json: () =>
           Promise.resolve({
-            status: 'success',
+            success: true,
             data: { enabled: true },
           }),
       })
@@ -423,7 +423,7 @@ describe('IPC Layer', () => {
     it('logEvent sends log data', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
-        json: () => Promise.resolve({ status: 'success', data: null }),
+        json: () => Promise.resolve({ success: true, data: null }),
       })
 
       await logEvent('INFO', 'Test message', { key: 'value' }, 'test', 'general')

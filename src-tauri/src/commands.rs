@@ -397,7 +397,7 @@ pub async fn get_engine_health(
     if engine.is_connected().await {
         match engine.send_command("get_health", json!({})).await {
             Ok(response) => {
-                if response.status == "success" {
+                if response.success {
                     if let Some(data) = response.data {
                         // Parse the response data
                         let health = EngineHealth {
@@ -443,7 +443,7 @@ pub async fn get_dashboard_data(
             .await
         {
             Ok(response) => {
-                if response.status == "success" {
+                if response.success {
                     if let Some(data) = response.data {
                         // Parse the response data
                         let dashboard: Result<DashboardData, _> = serde_json::from_value(data);
@@ -491,7 +491,7 @@ pub async fn get_positions(
         .await
     {
         Ok(response) => {
-            if response.status == "success" {
+            if response.success {
                 if let Some(data) = response.data {
                     let positions_response: Result<PositionsResponse, _> =
                         serde_json::from_value(data);
@@ -551,7 +551,7 @@ pub async fn sync_portfolio(
 
     match engine.send_command("sync_portfolio", payload).await {
         Ok(response) => {
-            if response.status == "success" {
+            if response.success {
                 if let Some(data) = response.data {
                     let sync_result: Result<PortfolioSyncResult, _> = serde_json::from_value(data);
                     match sync_result {
@@ -616,7 +616,7 @@ pub async fn tr_get_auth_status(
 
     match engine.send_command("tr_get_auth_status", json!({})).await {
         Ok(response) => {
-            if response.status == "success" {
+            if response.success {
                 if let Some(data) = response.data {
                     let auth_status: Result<AuthStatus, _> = serde_json::from_value(data);
                     match auth_status {
@@ -658,7 +658,7 @@ pub async fn tr_check_saved_session(
         .await
     {
         Ok(response) => {
-            if response.status == "success" {
+            if response.success {
                 if let Some(data) = response.data {
                     let session_check: Result<SessionCheck, _> = serde_json::from_value(data);
                     match session_check {
@@ -702,7 +702,7 @@ pub async fn tr_login(
 
     match engine.send_command("tr_login", payload).await {
         Ok(response) => {
-            if response.status == "success" {
+            if response.success {
                 if let Some(data) = response.data {
                     let auth_response: Result<AuthResponse, _> = serde_json::from_value(data);
                     match auth_response {
@@ -740,7 +740,7 @@ pub async fn tr_submit_2fa(
 
     match engine.send_command("tr_submit_2fa", payload).await {
         Ok(response) => {
-            if response.status == "success" {
+            if response.success {
                 if let Some(data) = response.data {
                     let auth_response: Result<AuthResponse, _> = serde_json::from_value(data);
                     match auth_response {
@@ -773,7 +773,7 @@ pub async fn tr_logout(engine: State<'_, Arc<PythonEngine>>) -> Result<LogoutRes
 
     match engine.send_command("tr_logout", json!({})).await {
         Ok(response) => {
-            if response.status == "success" {
+            if response.success {
                 if let Some(data) = response.data {
                     let logout_response: Result<LogoutResponse, _> = serde_json::from_value(data);
                     match logout_response {
@@ -814,7 +814,7 @@ pub async fn run_pipeline(engine: State<'_, Arc<PythonEngine>>) -> Result<Pipeli
 
     match engine.send_command("run_pipeline", json!({})).await {
         Ok(response) => {
-            if response.status == "success" {
+            if response.success {
                 if let Some(data) = response.data {
                     let result: Result<PipelineResult, _> = serde_json::from_value(data);
                     match result {
@@ -849,7 +849,7 @@ pub async fn get_true_holdings(
 
     match engine.send_command("get_true_holdings", json!({})).await {
         Ok(response) => {
-            if response.status == "success" {
+            if response.success {
                 if let Some(data) = response.data {
                     return Ok(data);
                 }
@@ -874,7 +874,7 @@ pub async fn get_overlap_analysis(
 
     match engine.send_command("get_overlap_analysis", json!({})).await {
         Ok(response) => {
-            if response.status == "success" {
+            if response.success {
                 if let Some(data) = response.data {
                     return Ok(data);
                 }
@@ -914,7 +914,7 @@ pub async fn upload_holdings(
 
     match engine.send_command("upload_holdings", payload).await {
         Ok(response) => {
-            if response.status == "success" {
+            if response.success {
                 if let Some(data) = response.data {
                     return Ok(data);
                 }
@@ -943,7 +943,7 @@ pub async fn set_hive_contribution(
         .await
     {
         Ok(response) => {
-            if response.status == "success" {
+            if response.success {
                 Ok(())
             } else {
                 Err(response
@@ -976,7 +976,7 @@ pub async fn get_hive_contribution(
         .await
     {
         Ok(response) => {
-            if response.status == "success" {
+            if response.success {
                 if let Some(data) = response.data {
                     let enabled = data["enabled"].as_bool().unwrap_or(false);
                     return Ok(HiveContributionStatus { enabled });

@@ -24,7 +24,7 @@ class TestHandleLogEvent:
             ):
                 result = await handle_log_event(1, {"level": "INFO", "message": "Test message"})
 
-        assert result["status"] == "success"
+        assert result["success"] is True
         assert result["data"] is True
 
     @pytest.mark.asyncio
@@ -97,7 +97,7 @@ class TestHandleGetRecentReports:
         ):
             result = await handle_get_recent_reports(1, {})
 
-        assert result["status"] == "success"
+        assert result["success"] is True
         assert isinstance(result["data"], list)
 
     @pytest.mark.asyncio
@@ -141,7 +141,7 @@ class TestHandleGetRecentReports:
         ):
             result = await handle_get_recent_reports(1, {})
 
-        assert result["status"] == "success"
+        assert result["success"] is True
         assert result["data"] == []
 
 
@@ -165,7 +165,7 @@ class TestHandleGetPendingReviews:
         ):
             result = await handle_get_pending_reviews(1, {})
 
-        assert result["status"] == "success"
+        assert result["success"] is True
         assert isinstance(result["data"], list)
 
     @pytest.mark.asyncio

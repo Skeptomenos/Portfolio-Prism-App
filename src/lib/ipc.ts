@@ -71,9 +71,9 @@ async function callCommand<K extends keyof TauriCommands>(
     }
 
     const result = await response.json()
-    if (result.status === 'error') {
-      const errorMsg = result.error.message || 'Unknown backend error'
-      const errorCode = result.error.code || 'UNKNOWN'
+    if (!result.success) {
+      const errorMsg = result.error?.message || 'Unknown backend error'
+      const errorCode = result.error?.code || 'UNKNOWN'
       console.error(`[IPC] Backend error (${errorCode}):`, errorMsg)
 
       // Log to system logs for auto-reporting

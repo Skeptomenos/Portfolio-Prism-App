@@ -58,9 +58,9 @@ This plan addresses 8 specification documents to bring the codebase into full co
 
 | Status | Task | Spec Reference | Notes |
 |--------|------|----------------|-------|
-| [ ] | **Task 3.1**: Update `responses.py` envelope from `status` to `success` boolean | `specs/04-backend-standards.md:L11-20` | Change `ResponseSuccess.status` to `success: Literal[True]`; update `ResponseError` |
+| [x] | **Task 3.1**: Update `responses.py` envelope from `status` to `success` boolean | `specs/04-backend-standards.md:L11-20` | Done in v0.10.15: Updated `responses.py`, `contracts.py`, `dispatcher.py`, `stdin_loop.py`, `echo_bridge.py`. Also updated Rust `EngineResponse.success: bool` and `commands.rs`. |
 | [ ] | **Task 3.2**: Replace `print()` with structured logging in Python sidecar | `specs/04-backend-standards.md:L26-35` | Fix `stdin_loop.py`, `sync.py`, `tr_daemon.py`, `diag_hive.py`; use `get_logger()` |
-| [ ] | **Task 3.3**: Update frontend IPC handler to expect `success` boolean | `specs/04-backend-standards.md:L22-24` | Change `response.status === 'success'` to `response.success === true` |
+| [x] | **Task 3.3**: Update frontend IPC handler to expect `success` boolean | `specs/04-backend-standards.md:L22-24` | Done in v0.10.15: Updated `ipc.ts` to check `!result.success` instead of `result.status === 'error'`. Updated all frontend mocks and tests. |
 
 ### Frontend Type Safety (Spec 03)
 

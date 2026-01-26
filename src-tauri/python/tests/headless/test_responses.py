@@ -9,19 +9,19 @@ class TestSuccessResponse:
     """Tests for success_response()."""
 
     def test_returns_correct_structure(self):
-        """Success response has id, status, and data keys."""
+        """Success response has id, success, and data keys."""
         result = success_response(1, {"foo": "bar"})
 
         assert "id" in result
-        assert "status" in result
+        assert "success" in result
         assert "data" in result
         assert len(result) == 3
 
-    def test_status_is_success(self):
-        """Status field is always 'success'."""
+    def test_success_is_true(self):
+        """Success field is always True for success responses."""
         result = success_response(42, {})
 
-        assert result["status"] == "success"
+        assert result["success"] is True
 
     def test_preserves_cmd_id(self):
         """Command ID is preserved in response."""
@@ -53,19 +53,19 @@ class TestErrorResponse:
     """Tests for error_response()."""
 
     def test_returns_correct_structure(self):
-        """Error response has id, status, and error keys."""
+        """Error response has id, success, and error keys."""
         result = error_response(1, "TEST_ERROR", "Test message")
 
         assert "id" in result
-        assert "status" in result
+        assert "success" in result
         assert "error" in result
         assert len(result) == 3
 
-    def test_status_is_error(self):
-        """Status field is always 'error'."""
+    def test_success_is_false(self):
+        """Success field is always False for error responses."""
         result = error_response(42, "CODE", "msg")
 
-        assert result["status"] == "error"
+        assert result["success"] is False
 
     def test_preserves_cmd_id(self):
         """Command ID is preserved in response."""
@@ -122,13 +122,13 @@ class TestIPCContractCompliance:
         assert isinstance(serialized, str)
 
     def test_success_and_error_have_same_top_level_keys_except_data_error(self):
-        """Both response types share 'id' and 'status' keys."""
+        """Both response types share 'id' and 'success' keys."""
         success = success_response(1, {})
         error = error_response(1, "CODE", "msg")
 
-        # Both have id and status
+        # Both have id and success
         assert "id" in success and "id" in error
-        assert "status" in success and "status" in error
+        assert "success" in success and "success" in error
 
         # Success has data, error has error
         assert "data" in success and "data" not in error

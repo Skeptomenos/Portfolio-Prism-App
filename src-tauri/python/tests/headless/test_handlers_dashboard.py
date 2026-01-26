@@ -19,7 +19,7 @@ class TestGetDashboardData:
 
         result = handle_get_dashboard_data(cmd_id=1, payload={"portfolioId": 1})
 
-        assert result["status"] == "success"
+        assert result["success"] is True
         assert result["id"] == 1
         assert result["data"]["isEmpty"] is True
         assert result["data"]["totalValue"] == 0
@@ -49,7 +49,7 @@ class TestGetDashboardData:
 
         result = handle_get_dashboard_data(cmd_id=2, payload={"portfolioId": 1})
 
-        assert result["status"] == "success"
+        assert result["success"] is True
         # Apple: 10 * 150 = 1500, Microsoft: 5 * 300 = 1500
         assert result["data"]["totalValue"] == 3000.0
         # Apple cost: 10 * 100 = 1000, Microsoft cost: 5 * 250 = 1250
@@ -74,7 +74,7 @@ class TestGetDashboardData:
         result = handle_get_dashboard_data(cmd_id=3, payload={})
 
         # Verify IPC contract structure
-        assert set(result.keys()) == {"id", "status", "data"}
+        assert set(result.keys()) == {"id", "success", "data"}
 
         # Verify data fields
         data = result["data"]
@@ -96,16 +96,14 @@ class TestGetPositions:
 
     @patch("portfolio_src.data.database.get_sync_state")
     @patch("portfolio_src.data.database.get_positions")
-    def test_empty_portfolio_returns_empty_list(
-        self, mock_get_positions, mock_get_sync_state
-    ):
+    def test_empty_portfolio_returns_empty_list(self, mock_get_positions, mock_get_sync_state):
         """Should return empty positions list when no positions exist."""
         mock_get_positions.return_value = []
         mock_get_sync_state.return_value = None
 
         result = handle_get_positions(cmd_id=1, payload={"portfolioId": 1})
 
-        assert result["status"] == "success"
+        assert result["success"] is True
         assert result["data"]["positions"] == []
         assert result["data"]["totalValue"] == 0
 
@@ -128,7 +126,7 @@ class TestGetPositions:
 
         result = handle_get_positions(cmd_id=2, payload={"portfolioId": 1})
 
-        assert result["status"] == "success"
+        assert result["success"] is True
         assert len(result["data"]["positions"]) == 1
 
         pos = result["data"]["positions"][0]
