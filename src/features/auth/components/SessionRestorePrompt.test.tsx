@@ -1,15 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '../../test/utils'
+import { render, screen, fireEvent, waitFor } from '../../../test/utils'
 import { SessionRestorePrompt } from './SessionRestorePrompt'
-import * as ipc from '../../lib/ipc'
-import type { SessionCheck } from '../../types'
+import * as ipc from '../../../lib/ipc'
+import type { SessionCheck } from '../../../types'
 
-vi.mock('../../lib/ipc', () => ({
+vi.mock('../../../lib/ipc', () => ({
   trGetAuthStatus: vi.fn(),
   syncPortfolio: vi.fn(),
 }))
 
-vi.mock('../../store/useAppStore', () => ({
+vi.mock('../../../store/useAppStore', () => ({
   useAppStore: () => ({
     setAuthState: vi.fn(),
     addToast: vi.fn(),

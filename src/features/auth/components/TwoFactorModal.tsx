@@ -6,9 +6,9 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { Modal } from '../ui/Modal'
-import { useAppStore } from '../../store/useAppStore'
-import { trSubmit2FA } from '../../lib/ipc'
+import { Modal } from '../../../components/ui/Modal'
+import { useAppStore } from '../../../store/useAppStore'
+import { trSubmit2FA } from '../../../lib/ipc'
 
 const styles = {
   container: {

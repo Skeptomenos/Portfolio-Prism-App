@@ -9,7 +9,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useAppStore } from '../../store/useAppStore'
-import { LoginForm, TwoFactorModal, SessionRestorePrompt } from '../auth'
+import { LoginForm, TwoFactorModal, SessionRestorePrompt } from '../../features/auth'
 import { PortfolioTable } from '../portfolio/PortfolioTable'
 import {
   trCheckSavedSession,

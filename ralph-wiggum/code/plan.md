@@ -37,13 +37,13 @@ This plan addresses 8 specification documents to bring the codebase into full co
 |--------|------|----------------|-------|
 | [x] | **Task 2.1**: Create `dashboard_service.py` and extract P&L logic from `handlers/dashboard.py` | `specs/02-backend-architecture.md:L24-31` | Done in v0.10.7: Created `models/dashboard.py` with DTOs, `core/services/dashboard_service.py` with P&L/weight logic. Handler is now thin presentation layer. |
 | [x] | **Task 2.2**: Create `sync_service.py` and extract TR sync logic from `handlers/sync.py` | `specs/02-backend-architecture.md:L34-37` | Done in v0.10.8: Created `models/sync.py` with DTOs, `core/services/sync_service.py` with asset classification, TR sync, and pipeline logic. Handler is thin. Fixed pre-existing STOCK_ENTITY_TYPES undefined bug. |
-| [ ] | **Task 2.3**: Update `headless/state.py` to provide service accessors | `specs/02-backend-architecture.md:L39-40` | Singleton pattern for stateful services |
+| [x] | **Task 2.3**: Update `headless/state.py` to provide service accessors | `specs/02-backend-architecture.md:L39-40` | Done: Added `get_sync_service()` singleton accessor. SyncService is stateful (has AssetClassifier). DashboardService remains per-request (stateless). Updated handler tests to mock service layer. |
 
 ### Frontend Architecture (Spec 01)
 
 | Status | Task | Spec Reference | Notes |
 |--------|------|----------------|-------|
-| [ ] | **Task 2.4**: Create FSD directory structure and move auth feature components | `specs/01-frontend-architecture.md:L39-44` | Create `src/features/auth/{components,api.ts,types.ts}`, move from `src/components/auth/*` |
+| [x] | **Task 2.4**: Create FSD directory structure and move auth feature components | `specs/01-frontend-architecture.md:L39-44` | Done in v0.10.9: Created `src/features/{auth,dashboard,portfolio,xray,integrations}`, moved auth components, tests, created api.ts and types.ts re-exports. |
 | [ ] | **Task 2.5**: Move dashboard feature components and create contracts | `specs/01-frontend-architecture.md:L47-50` | Move Dashboard, MetricCard, TopHoldingsCard, TrueExposureCard; extract types/api |
 | [ ] | **Task 2.6**: Move portfolio feature components and create contracts | `specs/01-frontend-architecture.md:L53-55` | Move HoldingsView, PortfolioTable, PortfolioChart; extract types/api |
 | [ ] | **Task 2.7**: Move xray feature components and create contracts | `specs/01-frontend-architecture.md:L58-59` | Move XRayView + all `views/xray/*` subcomponents; extract types/api |

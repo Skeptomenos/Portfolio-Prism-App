@@ -5,10 +5,10 @@
  */
 
 import React, { useState, useEffect } from 'react'
-import { useAppStore } from '../../store/useAppStore'
-import { trLogin, trGetStoredCredentials, trLoginWithStoredCredentials } from '../../lib/ipc'
-import { scrubText } from '../../lib/scrubber'
-import type { AuthResponse } from '../../types'
+import { useAppStore } from '../../../store/useAppStore'
+import { trLogin, trGetStoredCredentials, trLoginWithStoredCredentials } from '../../../lib/ipc'
+import { scrubText } from '../../../lib/scrubber'
+import type { AuthResponse } from '../../../types'
 
 const styles = {
   container: {

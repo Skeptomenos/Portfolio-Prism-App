@@ -1,13 +1,13 @@
 /**
  * Session Restore Prompt
- * 
+ *
  * Glassmorphic prompt for restoring a saved Trade Republic session.
  */
 
-import React, { useState } from 'react';
-import { useAppStore } from '../../store/useAppStore';
-import { trGetAuthStatus, syncPortfolio } from '../../lib/ipc';
-import type { SessionCheck } from '../../types';
+import React, { useState } from 'react'
+import { useAppStore } from '../../../store/useAppStore'
+import { trGetAuthStatus, syncPortfolio } from '../../../lib/ipc'
+import type { SessionCheck } from '../../../types'
 
 const styles = {
   container: {
@@ -122,12 +122,12 @@ const styles = {
     margin: 0,
     paddingLeft: '16px',
   },
-};
+}
 
 interface SessionRestorePromptProps {
-  sessionData: SessionCheck;
-  onFreshLogin: () => void;
-  onRestoreComplete: () => void;
+  sessionData: SessionCheck
+  onFreshLogin: () => void
+  onRestoreComplete: () => void
 }
 
 export const SessionRestorePrompt: React.FC<SessionRestorePromptProps> = ({
@@ -135,70 +135,70 @@ export const SessionRestorePrompt: React.FC<SessionRestorePromptProps> = ({
   onFreshLogin,
   onRestoreComplete,
 }) => {
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  
-  const { setAuthState, addToast, activePortfolioId } = useAppStore();
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const { setAuthState, addToast, activePortfolioId } = useAppStore()
 
   const maskPhoneNumber = (phone?: string): string => {
-    if (!phone) return '••• •••• ••••';
-    
+    if (!phone) return '••• •••• ••••'
+
     if (phone.startsWith('+49')) {
-      const lastFour = phone.slice(-4);
-      return `+49 ••• ••••${lastFour}`;
+      const lastFour = phone.slice(-4)
+      return `+49 ••• ••••${lastFour}`
     }
-    
-    const visibleChars = 4;
-    const masked = '•'.repeat(Math.max(0, phone.length - visibleChars));
-    return masked + phone.slice(-visibleChars);
-  };
+
+    const visibleChars = 4
+    const masked = '•'.repeat(Math.max(0, phone.length - visibleChars))
+    return masked + phone.slice(-visibleChars)
+  }
 
   const handleRestore = async () => {
-    setIsLoading(true);
-    setError(null);
+    setIsLoading(true)
+    setError(null)
 
     try {
-      const authStatus = await trGetAuthStatus();
-      
+      const authStatus = await trGetAuthStatus()
+
       if (authStatus.authState === 'authenticated') {
-        setAuthState('authenticated');
-        
+        setAuthState('authenticated')
+
         // Trigger portfolio sync
         try {
-          await syncPortfolio(activePortfolioId, false);
+          await syncPortfolio(activePortfolioId, false)
           addToast({
             type: 'success',
             title: 'Session restored',
             message: 'Portfolio synced successfully',
-          });
+          })
         } catch {
           addToast({
             type: 'warning',
             title: 'Session restored',
             message: 'Portfolio sync pending',
-          });
+          })
         }
-        
-        onRestoreComplete();
+
+        onRestoreComplete()
       } else {
-        setError('Session has expired. Please login again.');
+        setError('Session has expired. Please login again.')
         setTimeout(() => {
-          onFreshLogin();
-        }, 1500);
+          onFreshLogin()
+        }, 1500)
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to restore session';
-      setError(message);
-      setAuthState('idle');
+      const message = err instanceof Error ? err.message : 'Failed to restore session'
+      setError(message)
+      setAuthState('idle')
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   const handleFreshLogin = () => {
-    setError(null);
-    onFreshLogin();
-  };
+    setError(null)
+    onFreshLogin()
+  }
 
   return (
     <div style={styles.container}>
@@ -218,9 +218,7 @@ export const SessionRestorePrompt: React.FC<SessionRestorePromptProps> = ({
       </div>
 
       <h2 style={styles.title}>Welcome back!</h2>
-      <p style={styles.subtitle}>
-        We found a saved session for your Trade Republic account
-      </p>
+      <p style={styles.subtitle}>We found a saved session for your Trade Republic account</p>
 
       {sessionData.phoneNumber && (
         <div style={styles.accountBox}>
@@ -241,13 +239,13 @@ export const SessionRestorePrompt: React.FC<SessionRestorePromptProps> = ({
           }}
           onMouseEnter={(e) => {
             if (!isLoading) {
-              e.currentTarget.style.transform = 'translateY(-1px)';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
+              e.currentTarget.style.transform = 'translateY(-1px)'
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)'
             }
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'none';
-            e.currentTarget.style.boxShadow = 'none';
+            e.currentTarget.style.transform = 'none'
+            e.currentTarget.style.boxShadow = 'none'
           }}
         >
           {isLoading ? (
@@ -279,13 +277,13 @@ export const SessionRestorePrompt: React.FC<SessionRestorePromptProps> = ({
           }}
           onMouseEnter={(e) => {
             if (!isLoading) {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-              e.currentTarget.style.color = '#f8fafc';
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'
+              e.currentTarget.style.color = '#f8fafc'
             }
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'transparent';
-            e.currentTarget.style.color = '#94a3b8';
+            e.currentTarget.style.background = 'transparent'
+            e.currentTarget.style.color = '#94a3b8'
           }}
         >
           Login with different credentials
@@ -310,7 +308,7 @@ export const SessionRestorePrompt: React.FC<SessionRestorePromptProps> = ({
         `}
       </style>
     </div>
-  );
-};
+  )
+}
 
-export default SessionRestorePrompt;
+export default SessionRestorePrompt

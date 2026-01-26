@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '../../test/utils'
+import { render, screen, fireEvent, waitFor } from '../../../test/utils'
 import { LoginForm } from './LoginForm'
-import * as ipc from '../../lib/ipc'
+import * as ipc from '../../../lib/ipc'
 
-vi.mock('../../lib/ipc', () => ({
+vi.mock('../../../lib/ipc', () => ({
   trLogin: vi.fn(),
   trGetStoredCredentials: vi.fn(() =>
     Promise.resolve({ hasCredentials: false, maskedPhone: null })
@@ -11,7 +11,7 @@ vi.mock('../../lib/ipc', () => ({
   trLoginWithStoredCredentials: vi.fn(),
 }))
 
-vi.mock('../../store/useAppStore', () => ({
+vi.mock('../../../store/useAppStore', () => ({
   useAppStore: () => ({
     setAuthState: vi.fn(),
     setAuthError: vi.fn(),

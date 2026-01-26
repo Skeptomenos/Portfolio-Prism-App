@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '../../test/utils'
+import { render, screen, fireEvent, waitFor } from '../../../test/utils'
 import { TwoFactorModal } from './TwoFactorModal'
-import * as ipc from '../../lib/ipc'
+import * as ipc from '../../../lib/ipc'
 
-vi.mock('../../lib/ipc', () => ({
+vi.mock('../../../lib/ipc', () => ({
   trSubmit2FA: vi.fn(),
 }))
 
-vi.mock('../../store/useAppStore', () => ({
+vi.mock('../../../store/useAppStore', () => ({
   useAppStore: () => ({
     setAuthState: vi.fn(),
     addToast: vi.fn(),
