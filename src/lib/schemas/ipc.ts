@@ -74,6 +74,8 @@ export type PositionsResponse = z.infer<typeof PositionsResponseSchema>
 export const UploadHoldingsResultSchema = z.object({
   success: z.boolean(),
   holdingsCount: z.number(),
+  totalWeight: z.number(),
+  contributedToHive: z.boolean(),
   isin: z.string(),
   message: z.string().optional(),
 })

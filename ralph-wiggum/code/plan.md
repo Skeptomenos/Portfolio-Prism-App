@@ -141,7 +141,7 @@ pnpm test && pnpm test:e2e
 
 | Status | Task | Spec Reference | Notes |
 |--------|------|----------------|-------|
-| [ ] | **Task 5.1**: Implement X-Ray action modals (Upload CSV, Ignore list) | `src/features/xray/components/XRayView.tsx:92` | Create `ActionModal.tsx` component with upload/ignore forms, wire to existing buttons |
+| [x] | **Task 5.1**: Implement X-Ray action modals (Upload CSV, Ignore list) | `src/features/xray/components/XRayView.tsx:92` | Done in v0.10.34 - Created `ActionModal.tsx` with upload form for ETF resolution failures, wired to Fix button. Updated UploadHoldingsResultSchema with totalWeight and contributedToHive fields. |
 | [ ] | **Task 5.2**: Implement Rust event listening from Python engine | `src-tauri/src/commands.rs:536` | Complete `engine.listen_events()` for real-time sync progress via Tauri events |
 | [ ] | **Task 5.3**: Add feature-specific ErrorBoundary to X-Ray | `CODE_REVIEW_REPORT.md` | Wrap XRayView in ErrorBoundary with graceful fallback UI |
 | [ ] | **Task 5.4**: Create `CONTRIBUTING.md` with testing patterns | `CODE_REVIEW_REPORT.md` | Document MSW usage, test organization, FSD patterns for contributors |
@@ -182,9 +182,9 @@ pnpm build && pnpm lint && uv run pytest && uv run ruff check . && uv run tach c
 | Phase 1: Security | 2 | 0 | COMPLETE | - |
 | Phase 2: Backend | 5 | 0 | COMPLETE | - |
 | Phase 3: Frontend | 3 | 0 | COMPLETE | - |
-| Phase 4: Testing | 3 | 1 | 30 min | Partial |
-| Phase 5: Polish | 5 | 5 | 2 hours | All parallel |
-| **Total** | **18** | **6** | **~2.5 hours** | |
+| Phase 4: Testing | 3 | 0 | COMPLETE | - |
+| Phase 5: Polish | 5 | 4 | 1.5 hours | All parallel |
+| **Total** | **18** | **4** | **~1.5 hours** | |
 
 ---
 

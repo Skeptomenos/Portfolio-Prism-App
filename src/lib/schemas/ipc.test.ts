@@ -106,6 +106,8 @@ describe('UploadHoldingsResultSchema', () => {
     const valid = {
       success: true,
       holdingsCount: 50,
+      totalWeight: 98.5,
+      contributedToHive: true,
       isin: 'IE00B4L5Y983',
       message: 'Holdings uploaded successfully',
     }
@@ -116,6 +118,8 @@ describe('UploadHoldingsResultSchema', () => {
     const valid = {
       success: true,
       holdingsCount: 50,
+      totalWeight: 100.0,
+      contributedToHive: false,
       isin: 'IE00B4L5Y983',
     }
     expect(() => UploadHoldingsResultSchema.parse(valid)).not.toThrow()

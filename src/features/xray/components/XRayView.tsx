@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import PipelineProgressCard from '../../../components/common/PipelineProgressCard'
 import { useDashboardData } from '@/features/portfolio/hooks/usePortfolioData'
 import { usePipelineDiagnostics } from '../hooks/usePipelineDiagnostics'
@@ -6,13 +6,10 @@ import { useActivePortfolioId } from '../../../store/useAppStore'
 import { runPipeline } from '../api'
 import { useQueryClient } from '@tanstack/react-query'
 import { usePipelineProgress } from '../hooks/usePipelineProgress'
-import { PipelineStepper, ResolutionTable, ActionQueue, HiveLog } from './index'
+import { PipelineStepper, ResolutionTable, ActionQueue, HiveLog, ActionModal } from './index'
 import { logger } from '../../../lib/logger'
 import type { PipelineFailure } from '../types'
-
-// =============================================================================
-// Types
-// =============================================================================
+import type { ActionType } from './ActionModal'
 
 type TabKey = 'resolution' | 'actions' | 'hive'
 
@@ -47,8 +44,12 @@ export default function XRayView(): JSX.Element {
   usePipelineProgress()
   const [activeTab, setActiveTab] = useState<TabKey>('resolution')
   const [activeStep, setActiveStep] = useState<string | null>(null)
+  const [modalState, setModalState] = useState<{
+    isOpen: boolean
+    failure: PipelineFailure | null
+    actionType: ActionType
+  }>({ isOpen: false, failure: null, actionType: 'view' })
 
-  // Manual analysis trigger
   const handleRunAnalysis = async () => {
     setIsAnalyzing(true)
     setError(null)
@@ -87,10 +88,21 @@ export default function XRayView(): JSX.Element {
     else if (stepKey === 'enrich') setActiveTab('hive')
   }
 
-  const handleAction = (action: string, item: PipelineFailure) => {
-    logger.debug('Action triggered', { action, item })
-    // TODO: Implement action modals (Upload CSV, Ignore list, etc.)
-  }
+  const handleAction = useCallback((action: string, failure: PipelineFailure) => {
+    logger.debug('Action triggered', { action, failure })
+    if (action === 'fix') {
+      setModalState({ isOpen: true, failure, actionType: 'fix' })
+    }
+  }, [])
+
+  const handleModalClose = useCallback(() => {
+    setModalState((prev) => ({ ...prev, isOpen: false }))
+  }, [])
+
+  const handleModalSuccess = useCallback(async () => {
+    await refetchDiagnostics()
+    await queryClient.invalidateQueries({ queryKey: ['pipelineDiagnostics'] })
+  }, [refetchDiagnostics, queryClient])
 
   const isLoading = isDashboardLoading || isDiagnosticsLoading
   const hasData =
@@ -278,6 +290,14 @@ export default function XRayView(): JSX.Element {
         )}
         {activeTab === 'hive' && <HiveLog report={diagnostics || null} />}
       </div>
+
+      <ActionModal
+        isOpen={modalState.isOpen}
+        onClose={handleModalClose}
+        failure={modalState.failure}
+        actionType={modalState.actionType}
+        onSuccess={handleModalSuccess}
+      />
     </div>
   )
 }
