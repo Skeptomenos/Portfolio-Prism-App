@@ -32,12 +32,15 @@ import { HoldingsUpload } from '../../features/integrations'
 
 import type {
   PipelineHealthReport,
+  PipelineReportEnvelope,
   DataQuality,
   DataQualityIssue,
-} from '@/features/xray/hooks/usePipelineDiagnostics'
+} from '@/types'
 
 const HealthView = (): JSX.Element => {
   const [health, setHealth] = useState<PipelineHealthReport | null>(null)
+  const [reportStatus, setReportStatus] = useState<PipelineReportEnvelope['status']>('missing')
+  const [reportValidationErrors, setReportValidationErrors] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [recentReports, setRecentReports] = useState<SystemLogReport[]>([])
@@ -58,12 +61,14 @@ const HealthView = (): JSX.Element => {
   const loadHealth = async () => {
     try {
       setLoading(true)
-      const [content, reports, pending] = await Promise.all([
+      const [reportEnvelope, reports, pending] = await Promise.all([
         getPipelineReport(),
         getRecentReports(),
         getPendingReviews(),
       ])
-      setHealth(content)
+      setReportStatus(reportEnvelope.status)
+      setReportValidationErrors(reportEnvelope.validationErrors)
+      setHealth(reportEnvelope.status === 'ready' ? reportEnvelope.report : null)
       setRecentReports(reports)
       setPendingReviews(pending)
       setError(null)
@@ -112,6 +117,26 @@ const HealthView = (): JSX.Element => {
     if (health.data_quality.quality_score > 0.7) return 'orange'
     return 'red'
   }
+
+  const reportBanner =
+    reportStatus === 'missing'
+      ? {
+          color: '#3b82f6',
+          background: 'rgba(59, 130, 246, 0.1)',
+          border: '1px solid rgba(59, 130, 246, 0.2)',
+          message:
+            'No pipeline diagnostics report is available yet. Run diagnostics to generate one.',
+        }
+      : reportStatus === 'invalid'
+        ? {
+            color: '#f59e0b',
+            background: 'rgba(245, 158, 11, 0.1)',
+            border: '1px solid rgba(245, 158, 11, 0.2)',
+            message:
+              reportValidationErrors[0] ??
+              'Latest pipeline diagnostics report is invalid. Review pipeline output before trusting the UI.',
+          }
+        : null
 
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', paddingBottom: '64px' }}>
@@ -171,6 +196,25 @@ const HealthView = (): JSX.Element => {
         >
           <AlertCircle size={20} />
           <span>{error}</span>
+        </div>
+      )}
+
+      {reportBanner && (
+        <div
+          style={{
+            marginBottom: '32px',
+            padding: '16px',
+            background: reportBanner.background,
+            border: reportBanner.border,
+            borderRadius: '12px',
+            color: reportBanner.color,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+          }}
+        >
+          <AlertCircle size={20} />
+          <span>{reportBanner.message}</span>
         </div>
       )}
 
@@ -450,9 +494,17 @@ const HealthView = (): JSX.Element => {
       >
         <StatusCard
           label="Last Run"
-          value={formatDate(health?.timestamp)}
+          value={
+            reportStatus === 'ready'
+              ? formatDate(health?.timestamp)
+              : reportStatus === 'invalid'
+                ? 'Invalid'
+                : 'Not run'
+          }
           icon={Clock}
-          color="blue"
+          color={
+            reportStatus === 'invalid' ? 'orange' : reportStatus === 'missing' ? 'gray' : 'blue'
+          }
         />
         <StatusCard
           label="Hive Hit Rate"
@@ -468,9 +520,11 @@ const HealthView = (): JSX.Element => {
         />
         <StatusCard
           label="Active Errors"
-          value={health?.failures.length || 0}
-          icon={health?.failures.length ? AlertCircle : CheckCircle}
-          color={health?.failures.length ? 'red' : 'green'}
+          value={health?.failures.length || reportValidationErrors.length}
+          icon={
+            health?.failures.length || reportValidationErrors.length ? AlertCircle : CheckCircle
+          }
+          color={health?.failures.length || reportValidationErrors.length ? 'red' : 'green'}
         />
         <StatusCard
           label="Data Quality"

@@ -33,7 +33,7 @@ export default function XRayView(): JSX.Element {
   const activePortfolioId = useActivePortfolioId()
   const { isLoading: isDashboardLoading } = useDashboardData(activePortfolioId)
   const {
-    data: diagnostics,
+    data: diagnosticsEnvelope,
     isLoading: isDiagnosticsLoading,
     refetch: refetchDiagnostics,
   } = usePipelineDiagnostics()
@@ -49,6 +49,10 @@ export default function XRayView(): JSX.Element {
     failure: PipelineFailure | null
     actionType: ActionType
   }>({ isOpen: false, failure: null, actionType: 'view' })
+
+  const diagnostics = diagnosticsEnvelope?.status === 'ready' ? diagnosticsEnvelope.report : null
+  const diagnosticsStatus = diagnosticsEnvelope?.status ?? 'missing'
+  const diagnosticsValidationErrors = diagnosticsEnvelope?.validationErrors ?? []
 
   const handleRunAnalysis = async () => {
     setIsAnalyzing(true)
@@ -130,8 +134,27 @@ export default function XRayView(): JSX.Element {
       >
         <h3>No Pipeline Data Available</h3>
         <p style={{ marginBottom: '20px' }}>
-          Sync your portfolio and run analysis to see pipeline insights.
+          {diagnosticsStatus === 'invalid'
+            ? 'The latest diagnostics report is invalid. Re-run analysis or inspect Health for contract details.'
+            : 'Sync your portfolio and run analysis to see pipeline insights.'}
         </p>
+
+        {diagnosticsStatus === 'invalid' && diagnosticsValidationErrors.length > 0 && (
+          <div
+            style={{
+              margin: '0 auto 20px auto',
+              padding: '12px',
+              background: 'rgba(245, 158, 11, 0.1)',
+              border: '1px solid rgba(245, 158, 11, 0.2)',
+              borderRadius: '8px',
+              color: '#fcd34d',
+              maxWidth: '520px',
+              fontSize: '14px',
+            }}
+          >
+            ⚠️ {diagnosticsValidationErrors[0]}
+          </div>
+        )}
 
         {error && (
           <div
@@ -241,7 +264,7 @@ export default function XRayView(): JSX.Element {
       {/* Pipeline Stepper (Zone 1) */}
       <div style={{ marginBottom: '24px' }}>
         <PipelineStepper
-          report={diagnostics || null}
+          report={diagnostics}
           activeStep={activeStep}
           onStepClick={handleStepClick}
         />
@@ -284,11 +307,9 @@ export default function XRayView(): JSX.Element {
 
       {/* Tab Content (Zone 2) */}
       <div>
-        {activeTab === 'resolution' && <ResolutionTable report={diagnostics || null} />}
-        {activeTab === 'actions' && (
-          <ActionQueue report={diagnostics || null} onAction={handleAction} />
-        )}
-        {activeTab === 'hive' && <HiveLog report={diagnostics || null} />}
+        {activeTab === 'resolution' && <ResolutionTable report={diagnostics} />}
+        {activeTab === 'actions' && <ActionQueue report={diagnostics} onAction={handleAction} />}
+        {activeTab === 'hive' && <HiveLog report={diagnostics} />}
       </div>
 
       <ActionModal

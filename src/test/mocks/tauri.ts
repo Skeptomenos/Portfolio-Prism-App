@@ -248,22 +248,28 @@ export function mockTrueHoldingsData() {
  */
 export function mockPipelineReport() {
   return {
-    timestamp: new Date().toISOString(),
-    metrics: {
-      direct_holdings: 5,
-      etf_positions: 3,
-      etfs_processed: 3,
-      tier1_resolved: 10,
-      tier1_failed: 0,
+    status: 'ready',
+    reportVersion: 1,
+    generatedAt: new Date().toISOString(),
+    report: {
+      timestamp: new Date().toISOString(),
+      metrics: {
+        direct_holdings: 5,
+        etf_positions: 3,
+        etfs_processed: 3,
+        tier1_resolved: 10,
+        tier1_failed: 0,
+      },
+      performance: {
+        execution_time_seconds: 1.5,
+        hive_hit_rate: 85,
+        api_fallback_rate: 15,
+        total_assets_processed: 15,
+        phase_durations: {},
+      },
+      failures: [],
     },
-    performance: {
-      execution_time_seconds: 1.5,
-      hive_hit_rate: 85,
-      api_fallback_rate: 15,
-      total_assets_processed: 15,
-      phase_durations: {},
-    },
-    failures: [],
+    validationErrors: [],
   }
 }
 

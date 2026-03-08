@@ -145,6 +145,7 @@ class TestHarvesting:
         """Verify full pipeline execution with mock data."""
         from portfolio_src.core.pipeline import Pipeline
         from portfolio_src import config
+        from portfolio_src.data.snapshot_repo import SnapshotRepository
 
         # Setup temporary data directory
         data_dir = tmp_path / "data"
@@ -165,32 +166,21 @@ class TestHarvesting:
         (config_dir / "asset_universe.csv").write_text("ISIN,Name,Asset_Class\n")
         (config_dir / "adapter_registry.json").write_text("{}")
 
+        snapshot_repo = SnapshotRepository(
+            exposure_path=outputs_dir / "true_exposure_report.csv",
+            direct_holdings_path=outputs_dir / "direct_holdings_report.csv",
+            breakdown_path=outputs_dir / "holdings_breakdown.csv",
+            errors_path=outputs_dir / "pipeline_errors.json",
+            health_path=outputs_dir / "pipeline_health.json",
+        )
+
         # Mock external dependencies
         with (
             patch("portfolio_src.core.pipeline.DATA_DIR", data_dir),
-            patch(
-                "portfolio_src.core.pipeline.TRUE_EXPOSURE_REPORT",
-                outputs_dir / "true_exposure_report.csv",
-            ),
-            patch(
-                "portfolio_src.core.pipeline.PIPELINE_HEALTH_PATH",
-                outputs_dir / "pipeline_health.json",
-            ),
-            patch(
-                "portfolio_src.core.pipeline.PIPELINE_ERRORS_PATH",
-                outputs_dir / "pipeline_errors.json",
-            ),
             patch("portfolio_src.config.DATA_DIR", data_dir),
             patch("portfolio_src.config.CONFIG_DIR", config_dir),
             patch("portfolio_src.config.WORKING_DIR", working_dir),
             patch("portfolio_src.config.OUTPUTS_DIR", outputs_dir),
-            patch(
-                "portfolio_src.data.state_manager.UNIVERSE_PATH",
-                config_dir / "asset_universe.csv",
-            ),
-            patch(
-                "portfolio_src.data.state_manager.HOLDINGS_PATH", mock_portfolio_dest
-            ),
             patch("portfolio_src.data.hive_client.get_hive_client") as mock_get_hive,
             patch("portfolio_src.data.enrichment.requests.Session.get") as mock_get,
             patch("portfolio_src.data.market.yf.download") as mock_yf_dl,
@@ -221,7 +211,7 @@ class TestHarvesting:
             mock_yf_dl.return_value = pd.DataFrame()
 
             # Run Pipeline
-            pipeline = Pipeline(data_dir=data_dir)
+            pipeline = Pipeline(data_dir=data_dir, snapshot_repo=snapshot_repo)
             result = pipeline.run()
 
             # Verification
@@ -236,6 +226,11 @@ class TestHarvesting:
                 health = json.load(f)
                 assert "metrics" in health
                 assert health["metrics"]["etf_positions"] > 0
+                assert "decomposition" in health
+                assert "etfs_processed" in health["decomposition"]
+                assert "etfs_failed" in health["decomposition"]
+                assert "total_underlying" in health["decomposition"]
+                assert isinstance(health["decomposition"]["per_etf"], list)
 
     """Test service components integration."""
 

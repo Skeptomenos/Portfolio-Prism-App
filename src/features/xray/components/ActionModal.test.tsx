@@ -20,20 +20,35 @@ const mockNonEtfFailure: PipelineFailure = {
   fix: 'Check API connectivity',
 }
 
+const mockPreview = {
+  isin: 'IE00B4L5Y983',
+  filePath: '/Users/test/holdings.csv',
+  fileName: 'holdings.csv',
+  holdingsCount: 2,
+  totalWeight: 98.5,
+  warnings: ['Total weight is 98.5%, which differs from the expected 100%.'],
+  rows: [
+    { rowId: 0, isin: 'US0378331005', name: 'Apple Inc.', ticker: 'AAPL', weight: 4.5 },
+    { rowId: 1, isin: 'US5949181045', name: 'Microsoft Corp.', ticker: 'MSFT', weight: 94.0 },
+  ],
+}
+
 describe('ActionModal', () => {
   const mockOnClose = vi.fn()
   const mockOnSuccess = vi.fn()
 
   beforeEach(() => {
     setupTauriMock({
-      upload_holdings: () => ({
+      pick_holdings_file: () => '/Users/test/holdings.csv',
+      preview_holdings_upload: () => mockPreview,
+      commit_holdings_upload: () => ({
         success: true,
-        holdingsCount: 150,
+        holdingsCount: 2,
         totalWeight: 98.5,
         contributedToHive: true,
         isin: 'IE00B4L5Y983',
+        message: 'Holdings saved successfully.',
       }),
-      run_pipeline: () => ({ success: true, errors: [], durationMs: 1000 }),
     })
   })
 
@@ -56,211 +71,103 @@ describe('ActionModal', () => {
     expect(container.firstChild).toBeNull()
   })
 
-  describe('view mode', () => {
-    it('displays failure details in view mode', () => {
-      render(
-        <ActionModal
-          isOpen={true}
-          onClose={mockOnClose}
-          failure={mockEtfFailure}
-          actionType="view"
-        />
-      )
+  it('displays failure details in view mode', () => {
+    render(
+      <ActionModal isOpen={true} onClose={mockOnClose} failure={mockEtfFailure} actionType="view" />
+    )
 
-      expect(screen.getByText('Issue Details')).toBeInTheDocument()
-      expect(screen.getByText('etf decomposition')).toBeInTheDocument()
-      expect(screen.getByText(mockEtfFailure.item)).toBeInTheDocument()
-      expect(screen.getByText(mockEtfFailure.error)).toBeInTheDocument()
-    })
-
-    it('displays fix hint when available', () => {
-      render(
-        <ActionModal
-          isOpen={true}
-          onClose={mockOnClose}
-          failure={mockEtfFailure}
-          actionType="view"
-        />
-      )
-
-      expect(screen.getByText(mockEtfFailure.fix!)).toBeInTheDocument()
-    })
-
-    it('calls onClose when Close button is clicked', () => {
-      render(
-        <ActionModal
-          isOpen={true}
-          onClose={mockOnClose}
-          failure={mockEtfFailure}
-          actionType="view"
-        />
-      )
-
-      fireEvent.click(screen.getByRole('button', { name: 'Close' }))
-      expect(mockOnClose).toHaveBeenCalled()
-    })
+    expect(screen.getByText('Issue Details')).toBeInTheDocument()
+    expect(screen.getByText('etf decomposition')).toBeInTheDocument()
+    expect(screen.getByText(mockEtfFailure.item)).toBeInTheDocument()
+    expect(screen.getByText(mockEtfFailure.error)).toBeInTheDocument()
+    expect(screen.getByText(mockEtfFailure.fix!)).toBeInTheDocument()
   })
 
-  describe('fix mode for ETF issues', () => {
-    it('shows upload form for ETF resolution failures', () => {
-      render(
-        <ActionModal
-          isOpen={true}
-          onClose={mockOnClose}
-          failure={mockEtfFailure}
-          actionType="fix"
-        />
-      )
+  it('shows the review-first upload flow for ETF failures', () => {
+    render(
+      <ActionModal isOpen={true} onClose={mockOnClose} failure={mockEtfFailure} actionType="fix" />
+    )
 
-      expect(screen.getByText(/Fix: Upload Holdings for IE00B4L5Y983/)).toBeInTheDocument()
-      expect(screen.getByText(/Click to select or drag and drop/)).toBeInTheDocument()
-    })
-
-    it('shows file info after selecting a file', async () => {
-      render(
-        <ActionModal
-          isOpen={true}
-          onClose={mockOnClose}
-          failure={mockEtfFailure}
-          actionType="fix"
-        />
-      )
-
-      const input = document.querySelector('input[type="file"]') as HTMLInputElement
-      const file = new File(['test,data'], 'holdings.csv', { type: 'text/csv' })
-
-      fireEvent.change(input, { target: { files: [file] } })
-
-      await waitFor(() => {
-        expect(screen.getByText('holdings.csv')).toBeInTheDocument()
-      })
-    })
-
-    it('validates file size', async () => {
-      render(
-        <ActionModal
-          isOpen={true}
-          onClose={mockOnClose}
-          failure={mockEtfFailure}
-          actionType="fix"
-        />
-      )
-
-      const input = document.querySelector('input[type="file"]') as HTMLInputElement
-      const largeFile = new File(['x'.repeat(11 * 1024 * 1024)], 'large.csv', { type: 'text/csv' })
-      Object.defineProperty(largeFile, 'size', { value: 11 * 1024 * 1024 })
-
-      fireEvent.change(input, { target: { files: [largeFile] } })
-
-      await waitFor(() => {
-        expect(screen.getByText(/File too large/)).toBeInTheDocument()
-      })
-    })
-
-    it('validates file type', async () => {
-      render(
-        <ActionModal
-          isOpen={true}
-          onClose={mockOnClose}
-          failure={mockEtfFailure}
-          actionType="fix"
-        />
-      )
-
-      const input = document.querySelector('input[type="file"]') as HTMLInputElement
-      const invalidFile = new File(['data'], 'file.txt', { type: 'text/plain' })
-
-      fireEvent.change(input, { target: { files: [invalidFile] } })
-
-      await waitFor(() => {
-        expect(screen.getByText(/Invalid file type/)).toBeInTheDocument()
-      })
-    })
-
-    it('uploads file and shows success', async () => {
-      render(
-        <ActionModal
-          isOpen={true}
-          onClose={mockOnClose}
-          failure={mockEtfFailure}
-          actionType="fix"
-          onSuccess={mockOnSuccess}
-        />
-      )
-
-      const input = document.querySelector('input[type="file"]') as HTMLInputElement
-      const file = new File(['test,data'], 'holdings.csv', { type: 'text/csv' })
-
-      fireEvent.change(input, { target: { files: [file] } })
-
-      await waitFor(() => {
-        expect(screen.getByText('holdings.csv')).toBeInTheDocument()
-      })
-
-      fireEvent.click(screen.getByRole('button', { name: /Upload & Analyze/ }))
-
-      await waitFor(() => {
-        expect(mockTauriInvoke).toHaveBeenCalledWith('upload_holdings', {
-          filePath: 'holdings.csv',
-          etfIsin: 'IE00B4L5Y983',
-        })
-      })
-
-      await waitFor(() => {
-        expect(screen.getByText('Upload Successful')).toBeInTheDocument()
-        expect(screen.getByText(/150 holdings/)).toBeInTheDocument()
-      })
-
-      expect(mockOnSuccess).toHaveBeenCalled()
-    })
-
-    it('shows error on upload failure', async () => {
-      setupTauriMock({
-        upload_holdings: () => {
-          throw new Error('File parsing failed')
-        },
-      })
-
-      render(
-        <ActionModal
-          isOpen={true}
-          onClose={mockOnClose}
-          failure={mockEtfFailure}
-          actionType="fix"
-        />
-      )
-
-      const input = document.querySelector('input[type="file"]') as HTMLInputElement
-      const file = new File(['bad,data'], 'holdings.csv', { type: 'text/csv' })
-
-      fireEvent.change(input, { target: { files: [file] } })
-
-      await waitFor(() => {
-        expect(screen.getByText('holdings.csv')).toBeInTheDocument()
-      })
-
-      fireEvent.click(screen.getByRole('button', { name: /Upload & Analyze/ }))
-
-      await waitFor(() => {
-        expect(screen.getByText('Upload Failed')).toBeInTheDocument()
-        expect(screen.getByText(/File parsing failed/)).toBeInTheDocument()
-      })
-    })
+    expect(screen.getByText(/Review Holdings for IE00B4L5Y983/)).toBeInTheDocument()
+    expect(screen.getByText(/Review-first import/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Choose File' })).toBeInTheDocument()
   })
 
-  describe('fix mode for non-ETF issues', () => {
-    it('shows info modal for non-uploadable issues', () => {
-      render(
-        <ActionModal
-          isOpen={true}
-          onClose={mockOnClose}
-          failure={mockNonEtfFailure}
-          actionType="fix"
-        />
-      )
+  it('loads a preview after choosing a native file', async () => {
+    render(
+      <ActionModal isOpen={true} onClose={mockOnClose} failure={mockEtfFailure} actionType="fix" />
+    )
 
-      expect(screen.getByText('Fix Issue')).toBeInTheDocument()
-      expect(screen.getByText(/cannot be automatically fixed/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Choose File' }))
+
+    await waitFor(() => {
+      expect(mockTauriInvoke).toHaveBeenCalledWith('pick_holdings_file', {})
+      expect(mockTauriInvoke).toHaveBeenCalledWith('preview_holdings_upload', {
+        filePath: '/Users/test/holdings.csv',
+        etfIsin: 'IE00B4L5Y983',
+      })
     })
+
+    expect(screen.getByDisplayValue('Apple Inc.')).toBeInTheDocument()
+    expect(screen.getByText(/Total weight is 98.5%/)).toBeInTheDocument()
+  })
+
+  it('saves reviewed holdings without auto-running the pipeline', async () => {
+    render(
+      <ActionModal
+        isOpen={true}
+        onClose={mockOnClose}
+        failure={mockEtfFailure}
+        actionType="fix"
+        onSuccess={mockOnSuccess}
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Choose File' }))
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Apple Inc.')).toBeInTheDocument()
+    })
+
+    fireEvent.change(screen.getByDisplayValue('Apple Inc.'), {
+      target: { value: 'Apple Inc. Class A' },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save Reviewed Holdings' }))
+
+    await waitFor(() => {
+      expect(mockTauriInvoke).toHaveBeenCalledWith('commit_holdings_upload', {
+        etfIsin: 'IE00B4L5Y983',
+        holdings: [
+          {
+            rowId: 0,
+            isin: 'US0378331005',
+            name: 'Apple Inc. Class A',
+            ticker: 'AAPL',
+            weight: 4.5,
+          },
+          { rowId: 1, isin: 'US5949181045', name: 'Microsoft Corp.', ticker: 'MSFT', weight: 94 },
+        ],
+      })
+    })
+
+    expect(mockOnSuccess).toHaveBeenCalled()
+    expect(mockTauriInvoke).not.toHaveBeenCalledWith('run_pipeline', {})
+    expect(screen.getByText(/Re-run analysis when you are ready/)).toBeInTheDocument()
+  })
+
+  it('shows a close-only modal for non-ETF issues', () => {
+    render(
+      <ActionModal
+        isOpen={true}
+        onClose={mockOnClose}
+        failure={mockNonEtfFailure}
+        actionType="fix"
+      />
+    )
+
+    expect(screen.getByText('Fix Issue')).toBeInTheDocument()
+    expect(screen.getByText(/cannot be fixed automatically/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument()
   })
 })

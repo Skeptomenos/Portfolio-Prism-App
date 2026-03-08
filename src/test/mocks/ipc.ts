@@ -59,15 +59,18 @@ export const mockDashboardData: DashboardData = {
 export const mockAuthStatusIdle: AuthStatus = {
   authState: 'idle',
   hasStoredCredentials: false,
+  lastError: null,
 }
 
 export const mockAuthStatusAuthenticated: AuthStatus = {
   authState: 'authenticated',
   hasStoredCredentials: true,
+  lastError: null,
 }
 
 export const mockSessionCheck: SessionCheck = {
   hasSession: false,
+  phoneNumber: null,
   prompt: 'login_required',
 }
 
@@ -157,28 +160,35 @@ export const mockIpcFunctions = {
   runPipeline: vi.fn(() => Promise.resolve({ success: true, errors: [], durationMs: 2000 })),
   trGetAuthStatus: vi.fn(() => Promise.resolve(mockAuthStatusIdle)),
   trCheckSavedSession: vi.fn(() => Promise.resolve(mockSessionCheck)),
+  trRestoreSession: vi.fn(() => Promise.resolve(mockAuthResponseAuthenticated)),
   trLogin: vi.fn(() => Promise.resolve(mockAuthResponseWaiting2FA)),
   trSubmit2FA: vi.fn(() => Promise.resolve(mockAuthResponseAuthenticated)),
   trLogout: vi.fn(() => Promise.resolve({ authState: 'idle', message: 'Logged out' })),
   getTrueHoldings: vi.fn(() => Promise.resolve(mockTrueHoldingsResponse)),
   getPipelineReport: vi.fn(() =>
     Promise.resolve({
-      timestamp: new Date().toISOString(),
-      metrics: {
-        direct_holdings: 5,
-        etf_positions: 3,
-        etfs_processed: 3,
-        tier1_resolved: 10,
-        tier1_failed: 0,
+      status: 'ready',
+      reportVersion: 1,
+      generatedAt: new Date().toISOString(),
+      report: {
+        timestamp: new Date().toISOString(),
+        metrics: {
+          direct_holdings: 5,
+          etf_positions: 3,
+          etfs_processed: 3,
+          tier1_resolved: 10,
+          tier1_failed: 0,
+        },
+        performance: {
+          execution_time_seconds: 1.5,
+          hive_hit_rate: 85,
+          api_fallback_rate: 15,
+          total_assets_processed: 15,
+          phase_durations: {},
+        },
+        failures: [],
       },
-      performance: {
-        execution_time_seconds: 1.5,
-        hive_hit_rate: 85,
-        api_fallback_rate: 15,
-        total_assets_processed: 15,
-        phase_durations: {},
-      },
-      failures: [],
+      validationErrors: [],
     })
   ),
   checkConnection: vi.fn(() => Promise.resolve(true)),

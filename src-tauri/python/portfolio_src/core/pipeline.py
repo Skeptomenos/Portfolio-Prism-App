@@ -35,6 +35,7 @@ from portfolio_src.core.contracts import (
     IssueSeverity,
     dataframe_to_loaded_positions,
     dataframe_to_holdings,
+    validate_pipeline_health_report,
 )
 from portfolio_src.core.services.decomposer import Decomposer
 from portfolio_src.core.services.enricher import Enricher
@@ -703,6 +704,7 @@ class Pipeline:
         etf_sources = decomposer.get_etf_sources() if decomposer else {}
 
         per_etf = []
+        failed_isins = {e.item for e in errors if e.phase == ErrorPhase.ETF_DECOMPOSITION and e.item}
         for isin, holdings in holdings_map.items():
             weight_col = get_weight_column(holdings)
             weight_sum = (
@@ -720,6 +722,20 @@ class Pipeline:
                 }
             )
 
+        for isin in failed_isins:
+            if isin not in holdings_map:
+                per_etf.append(
+                    {
+                        "isin": isin,
+                        "name": self._get_etf_name(etf_positions, isin),
+                        "holdings_count": 0,
+                        "weight_sum": 0.0,
+                        "status": "failed",
+                        "source": etf_sources.get(isin, "unknown"),
+                    }
+                )
+
+        total_underlying = sum(len(holdings) for holdings in holdings_map.values())
         hive_log = monitor.get_hive_log()
         metrics = monitor.get_metrics()
 
@@ -734,6 +750,9 @@ class Pipeline:
             },
             "performance": metrics,
             "decomposition": {
+                "etfs_processed": len(holdings_map),
+                "etfs_failed": len(failed_isins),
+                "total_underlying": total_underlying,
                 "per_etf": per_etf,
             },
             "enrichment": {
@@ -761,6 +780,13 @@ class Pipeline:
             if validation_gates
             else {"quality_score": 1.0, "is_trustworthy": True, "issues": []},
         }
+
+        validation_errors = validate_pipeline_health_report(health_data)
+        if validation_errors:
+            logger.warning(
+                "Generated pipeline health report failed contract validation",
+                extra={"validation_errors": validation_errors},
+            )
 
         self._snapshot_repo.save_health_report(health_data)
 

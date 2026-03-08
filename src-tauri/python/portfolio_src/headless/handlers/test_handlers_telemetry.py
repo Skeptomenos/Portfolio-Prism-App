@@ -54,7 +54,9 @@ class TestHandleLogEvent:
             context={"page": "dashboard"},
             component="chart",
             category="render",
+            error_hash=mock_log.call_args.kwargs["error_hash"],
         )
+        assert mock_log.call_args.kwargs["error_hash"] is not None
 
     @pytest.mark.asyncio
     async def test_uses_defaults_for_missing_params(self):
@@ -74,7 +76,29 @@ class TestHandleLogEvent:
             context={},
             component="ui",
             category="general",
+            error_hash=None,
         )
+
+    @pytest.mark.asyncio
+    async def test_uses_explicit_error_hash_from_context(self):
+        """Uses caller-provided error hash when available."""
+        with patch("portfolio_src.data.database.log_system_event") as mock_log:
+            with patch(
+                "portfolio_src.headless.handlers.telemetry.get_session_id",
+                return_value="test-session",
+            ):
+                await handle_log_event(
+                    1,
+                    {
+                        "level": "ERROR",
+                        "message": "Contract drift",
+                        "context": {"errorHash": "abc123"},
+                        "component": "pipeline",
+                        "category": "contract_drift",
+                    },
+                )
+
+        assert mock_log.call_args.kwargs["error_hash"] == "abc123"
 
 
 class TestHandleGetRecentReports:

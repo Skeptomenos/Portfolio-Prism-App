@@ -24,6 +24,7 @@ export type {
 
 export { usePipelineDiagnostics } from './hooks/usePipelineDiagnostics'
 export type {
+  PipelineReportEnvelope,
   PipelineHealthReport,
   ETFResolutionDetail,
   EnrichmentInfo,

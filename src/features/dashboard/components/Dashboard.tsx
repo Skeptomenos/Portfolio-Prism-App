@@ -6,18 +6,16 @@ import { PortfolioChart } from '../../portfolio'
 import { DashboardSkeleton } from '../../../components/ui/Skeleton'
 import TopHoldingsCard from './TopHoldingsCard'
 import TrueExposureCard from './TrueExposureCard'
-import { getDashboardData, getTrueHoldings } from '../../../lib/ipc'
+import { getTrueHoldings } from '../../../lib/ipc'
+import { useDashboardData } from '../../portfolio/hooks/usePortfolioData'
+import { useActivePortfolioId } from '../../../store/useAppStore'
 
 export default function Dashboard(): JSX.Element {
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['dashboardData', 1],
-    queryFn: () => getDashboardData(1),
-    staleTime: 30000,
-    refetchOnWindowFocus: false,
-  })
+  const activePortfolioId = useActivePortfolioId()
+  const { data, isLoading, isError, refetch } = useDashboardData(activePortfolioId)
 
   const { data: trueHoldingsData } = useQuery({
-    queryKey: ['trueHoldings'],
+    queryKey: ['xray'],
     queryFn: getTrueHoldings,
     staleTime: 60000,
     refetchOnWindowFocus: false,

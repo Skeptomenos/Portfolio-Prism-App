@@ -31,8 +31,37 @@ class DataCleaner:
             return pd.read_excel(path)
         elif ext == ".json":
             return pd.read_json(path)
+        elif ext == ".pdf":
+            return DataCleaner._load_pdf(path)
         else:
             raise ValueError(f"Unsupported file extension: {ext}")
+
+    @staticmethod
+    def _load_pdf(path: Path) -> pd.DataFrame:
+        """Extract tabular data from a holdings PDF."""
+        import pdfplumber
+
+        extracted_frames: list[pd.DataFrame] = []
+
+        with pdfplumber.open(path) as pdf:
+            for page in pdf.pages:
+                for table in page.extract_tables() or []:
+                    if not table or len(table) < 2:
+                        continue
+
+                    header = [str(cell or "").strip() for cell in table[0]]
+                    if not any(header):
+                        continue
+
+                    rows = table[1:]
+                    frame = pd.DataFrame(rows, columns=header)
+                    if not frame.empty:
+                        extracted_frames.append(frame)
+
+        if not extracted_frames:
+            raise ValueError("Could not extract tabular holdings data from PDF")
+
+        return pd.concat(extracted_frames, ignore_index=True)
 
     @classmethod
     def cleanup(cls, df: pd.DataFrame) -> pd.DataFrame:

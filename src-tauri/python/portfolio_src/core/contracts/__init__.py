@@ -31,6 +31,7 @@ from .validation import (
     validate_percentage_sum,
     validate_resolution_rate,
 )
+from .pipeline_report import validate_pipeline_health_report
 from .gates import (
     GateResult,
     ValidationGates,
@@ -69,6 +70,7 @@ __all__ = [
     "validate_aggregation_totals",
     "validate_percentage_sum",
     "validate_aggregate_phase_output",
+    "validate_pipeline_health_report",
     "GateResult",
     "ValidationGates",
     "dataframe_to_loaded_positions",

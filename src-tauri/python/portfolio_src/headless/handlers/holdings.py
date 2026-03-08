@@ -9,10 +9,107 @@ from typing import Any
 
 import pandas as pd
 
+from portfolio_src.core.contracts import validate_pipeline_health_report
 from portfolio_src.headless.responses import success_response, error_response
 from portfolio_src.prism_utils.logging_config import get_logger
 
 logger = get_logger(__name__)
+PIPELINE_REPORT_VERSION = 1
+
+
+class HoldingsUploadError(Exception):
+    """Typed upload error that preserves stable IPC error codes."""
+
+    def __init__(self, code: str, message: str):
+        super().__init__(message)
+        self.code = code
+
+
+def _build_preview_rows(df_clean: pd.DataFrame) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    ticker_series = df_clean["ticker"] if "ticker" in df_clean.columns else None
+
+    for index, row in df_clean.iterrows():
+        ticker = None
+        if ticker_series is not None:
+            raw_ticker = row.get("ticker")
+            if raw_ticker is not None and not pd.isna(raw_ticker):
+                ticker = str(raw_ticker).strip() or None
+
+        rows.append(
+            {
+                "rowId": index,
+                "isin": str(row.get("isin", "")).strip(),
+                "name": str(row.get("name", "")).strip(),
+                "ticker": ticker,
+                "weight": round(float(row.get("weight", 0.0) or 0.0), 6),
+            }
+        )
+
+    return rows
+
+
+def _build_preview_warnings(df_clean: pd.DataFrame, total_weight: float) -> list[str]:
+    warnings: list[str] = []
+
+    if abs(total_weight - 100.0) > 0.5:
+        warnings.append(
+            f"Total weight is {round(total_weight, 2)}%, which differs from the expected 100%."
+        )
+
+    duplicate_isins = int(df_clean.duplicated(subset=["isin"]).sum()) if "isin" in df_clean.columns else 0
+    if duplicate_isins > 0:
+        warnings.append(f"Detected {duplicate_isins} duplicate ISIN rows. Review before saving.")
+
+    missing_names = int(df_clean["name"].astype(str).str.strip().eq("").sum()) if "name" in df_clean.columns else 0
+    if missing_names > 0:
+        warnings.append(f"Detected {missing_names} rows with missing names.")
+
+    return warnings
+
+
+def _prepare_clean_holdings(file_path: str) -> pd.DataFrame:
+    from portfolio_src.core.data_cleaner import DataCleaner
+
+    df_raw = DataCleaner.smart_load(file_path)
+    df_clean = DataCleaner.cleanup(df_raw)
+
+    if df_clean.empty:
+        raise HoldingsUploadError("CLEANUP_FAILED", "No valid holdings found in file")
+
+    missing_columns = [column for column in ("isin", "name", "weight") if column not in df_clean.columns]
+    if missing_columns:
+        joined = ", ".join(missing_columns)
+        raise ValueError(f"Missing required normalized columns: {joined}")
+
+    df_clean = df_clean.copy()
+    df_clean["isin"] = df_clean["isin"].astype(str).str.strip()
+    df_clean["name"] = df_clean["name"].astype(str).str.strip()
+    df_clean["weight"] = pd.to_numeric(df_clean["weight"], errors="coerce").fillna(0.0)
+
+    df_clean = df_clean[
+        df_clean["isin"].ne("")
+        & df_clean["name"].ne("")
+        & (df_clean["weight"] > 0)
+    ].reset_index(drop=True)
+
+    if df_clean.empty:
+        raise HoldingsUploadError(
+            "CLEANUP_FAILED", "No valid holdings remained after normalization"
+        )
+
+    return df_clean
+
+
+def _save_holdings_to_cache(etf_isin: str, df_clean: pd.DataFrame) -> bool:
+    from portfolio_src.data.holdings_cache import get_holdings_cache
+    from portfolio_src.data.hive_client import get_hive_client
+
+    cache = get_holdings_cache()
+    cache._save_to_local_cache(etf_isin, df_clean, source="manual_upload")
+
+    hive_client = get_hive_client()
+    return hive_client.contribute_etf_holdings(etf_isin, df_clean) if hive_client.is_configured else False
 
 
 def handle_upload_holdings(cmd_id: int, payload: dict[str, Any]) -> dict[str, Any]:
@@ -25,10 +122,6 @@ def handle_upload_holdings(cmd_id: int, payload: dict[str, Any]) -> dict[str, An
     Returns:
         Success response with upload results, or error response.
     """
-    from portfolio_src.core.data_cleaner import DataCleaner
-    from portfolio_src.data.holdings_cache import get_holdings_cache
-    from portfolio_src.data.hive_client import get_hive_client
-
     file_path = payload.get("filePath")
     etf_isin = payload.get("etfIsin")
 
@@ -40,25 +133,9 @@ def handle_upload_holdings(cmd_id: int, payload: dict[str, Any]) -> dict[str, An
             "Uploading holdings for ETF", extra={"etf_isin": etf_isin, "file_path": file_path}
         )
 
-        df_raw = DataCleaner.smart_load(file_path)
-        df_clean = DataCleaner.cleanup(df_raw)
-
-        if df_clean.empty:
-            return error_response(cmd_id, "CLEANUP_FAILED", "No valid holdings found in file")
-
+        df_clean = _prepare_clean_holdings(file_path)
         total_weight = float(df_clean["weight"].sum())
-
-        # Save to local cache
-        cache = get_holdings_cache()
-        cache._save_to_local_cache(etf_isin, df_clean, source="manual_upload")
-
-        # Contribute to Hive if configured
-        hive_client = get_hive_client()
-        contribution_success = (
-            hive_client.contribute_etf_holdings(etf_isin, df_clean)
-            if hive_client.is_configured
-            else False
-        )
+        contribution_success = _save_holdings_to_cache(etf_isin, df_clean)
 
         logger.info(
             f"Holdings upload complete: {len(df_clean)} holdings, "
@@ -68,12 +145,20 @@ def handle_upload_holdings(cmd_id: int, payload: dict[str, Any]) -> dict[str, An
         return success_response(
             cmd_id,
             {
+                "success": True,
                 "isin": etf_isin,
                 "holdingsCount": len(df_clean),
                 "totalWeight": round(total_weight, 2),
                 "contributedToHive": contribution_success,
+                "message": "Holdings saved successfully.",
             },
         )
+    except HoldingsUploadError as e:
+        logger.warning(
+            "Manual upload rejected",
+            extra={"etf_isin": etf_isin, "error": str(e), "error_code": e.code},
+        )
+        return error_response(cmd_id, e.code, str(e))
     except Exception as e:
         logger.error(
             "Manual upload failed",
@@ -81,6 +166,117 @@ def handle_upload_holdings(cmd_id: int, payload: dict[str, Any]) -> dict[str, An
             exc_info=True,
         )
         return error_response(cmd_id, "UPLOAD_FAILED", str(e))
+
+
+def handle_preview_holdings_upload(cmd_id: int, payload: dict[str, Any]) -> dict[str, Any]:
+    """Preview holdings upload before saving it to cache."""
+    file_path = payload.get("filePath")
+    etf_isin = payload.get("etfIsin")
+
+    if not file_path or not etf_isin:
+        return error_response(cmd_id, "INVALID_PARAMS", "filePath and etfIsin are required")
+
+    try:
+        df_clean = _prepare_clean_holdings(file_path)
+        total_weight = float(df_clean["weight"].sum())
+        rows = _build_preview_rows(df_clean)
+        warnings = _build_preview_warnings(df_clean, total_weight)
+
+        logger.info(
+            "Generated holdings preview",
+            extra={
+                "etf_isin": etf_isin,
+                "file_path": file_path,
+                "holdings_count": len(rows),
+            },
+        )
+
+        return success_response(
+            cmd_id,
+            {
+                "isin": etf_isin,
+                "filePath": file_path,
+                "fileName": os.path.basename(file_path),
+                "holdingsCount": len(rows),
+                "totalWeight": round(total_weight, 2),
+                "warnings": warnings,
+                "rows": rows,
+            },
+        )
+    except Exception as e:
+        logger.error(
+            "Holdings preview failed",
+            extra={"etf_isin": etf_isin, "error": str(e), "error_type": type(e).__name__},
+            exc_info=True,
+        )
+        return error_response(cmd_id, "UPLOAD_PREVIEW_FAILED", str(e))
+
+
+def handle_commit_holdings_upload(cmd_id: int, payload: dict[str, Any]) -> dict[str, Any]:
+    """Persist reviewed holdings rows after user confirmation."""
+    etf_isin = payload.get("etfIsin")
+    holdings = payload.get("holdings")
+
+    if not etf_isin or not isinstance(holdings, list):
+        return error_response(cmd_id, "INVALID_PARAMS", "etfIsin and holdings are required")
+
+    try:
+        if not holdings:
+            return error_response(cmd_id, "INVALID_PARAMS", "At least one holding is required")
+
+        df_clean = pd.DataFrame(holdings)
+        missing_columns = [column for column in ("isin", "name", "weight") if column not in df_clean.columns]
+        if missing_columns:
+            joined = ", ".join(missing_columns)
+            return error_response(cmd_id, "INVALID_PARAMS", f"Missing holding fields: {joined}")
+
+        df_clean = df_clean.copy()
+        df_clean["isin"] = df_clean["isin"].astype(str).str.strip()
+        df_clean["name"] = df_clean["name"].astype(str).str.strip()
+        df_clean["weight"] = pd.to_numeric(df_clean["weight"], errors="coerce").fillna(0.0)
+
+        if "ticker" in df_clean.columns:
+            df_clean["ticker"] = df_clean["ticker"].astype(str).str.strip()
+
+        df_clean = df_clean[
+            df_clean["isin"].ne("")
+            & df_clean["name"].ne("")
+            & (df_clean["weight"] > 0)
+        ].reset_index(drop=True)
+
+        if df_clean.empty:
+            return error_response(cmd_id, "INVALID_PARAMS", "No valid holdings to save")
+
+        total_weight = float(df_clean["weight"].sum())
+        contribution_success = _save_holdings_to_cache(etf_isin, df_clean)
+
+        logger.info(
+            "Committed reviewed holdings upload",
+            extra={
+                "etf_isin": etf_isin,
+                "holdings_count": len(df_clean),
+                "total_weight": total_weight,
+            },
+        )
+
+        return success_response(
+            cmd_id,
+            {
+                "success": True,
+                "isin": etf_isin,
+                "holdingsCount": len(df_clean),
+                "totalWeight": round(total_weight, 2),
+                "contributedToHive": contribution_success,
+                "message": "Holdings saved successfully. Re-run analysis when you are ready.",
+            },
+        )
+    except Exception as e:
+        logger.error(
+            "Commit holdings upload failed",
+            extra={"etf_isin": etf_isin, "error": str(e), "error_type": type(e).__name__},
+            exc_info=True,
+        )
+        return error_response(cmd_id, "UPLOAD_COMMIT_FAILED", str(e))
 
 
 def handle_get_true_holdings(cmd_id: int, payload: dict[str, Any]) -> dict[str, Any]:
@@ -220,6 +416,32 @@ def _calculate_summary(holdings: list) -> dict:
     }
 
 
+def _build_pipeline_report_envelope(report: Any) -> dict[str, Any]:
+    generated_at = report.get("timestamp") if isinstance(report, dict) else None
+    validation_errors = validate_pipeline_health_report(report)
+
+    if validation_errors:
+        logger.warning(
+            "Pipeline report shape invalid",
+            extra={"generated_at": generated_at, "validation_errors": validation_errors},
+        )
+        return {
+            "status": "invalid",
+            "reportVersion": PIPELINE_REPORT_VERSION,
+            "generatedAt": generated_at if isinstance(generated_at, str) else None,
+            "report": None,
+            "validationErrors": validation_errors,
+        }
+
+    return {
+        "status": "ready",
+        "reportVersion": PIPELINE_REPORT_VERSION,
+        "generatedAt": generated_at,
+        "report": report,
+        "validationErrors": [],
+    }
+
+
 def handle_get_pipeline_report(cmd_id: int, payload: dict[str, Any]) -> dict[str, Any]:
     """Get the latest pipeline health report.
 
@@ -233,13 +455,22 @@ def handle_get_pipeline_report(cmd_id: int, payload: dict[str, Any]) -> dict[str
     from portfolio_src.config import PIPELINE_HEALTH_PATH
 
     if not os.path.exists(PIPELINE_HEALTH_PATH):
-        return success_response(cmd_id, None)
+        return success_response(
+            cmd_id,
+            {
+                "status": "missing",
+                "reportVersion": PIPELINE_REPORT_VERSION,
+                "generatedAt": None,
+                "report": None,
+                "validationErrors": [],
+            },
+        )
 
     try:
         with open(PIPELINE_HEALTH_PATH, "r") as f:
             data = json.load(f)
 
-        return success_response(cmd_id, data)
+        return success_response(cmd_id, _build_pipeline_report_envelope(data))
     except Exception as e:
         logger.error(
             "Failed to read pipeline report",

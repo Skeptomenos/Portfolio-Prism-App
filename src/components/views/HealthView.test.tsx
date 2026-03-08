@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '../../test/utils'
 import HealthView from './HealthView'
 import * as ipc from '../../lib/ipc'
-import type { PipelineHealthReport } from '@/features/xray/hooks/usePipelineDiagnostics'
+import type { PipelineHealthReport, PipelineReportEnvelope } from '@/types'
 
 vi.mock('../../lib/ipc', () => ({
   getPipelineReport: vi.fn(),
@@ -35,6 +35,18 @@ function createMockReport(overrides: Partial<PipelineHealthReport> = {}): Pipeli
   }
 }
 
+function createReadyEnvelope(
+  overrides: Partial<PipelineHealthReport> = {}
+): PipelineReportEnvelope {
+  return {
+    status: 'ready',
+    reportVersion: 1,
+    generatedAt: '2025-01-10T12:00:00Z',
+    report: createMockReport(overrides),
+    validationErrors: [],
+  }
+}
+
 vi.mock('../../store/useAppStore', () => ({
   useAppStore: (selector: (state: unknown) => unknown) => {
     const state = {
@@ -51,7 +63,7 @@ vi.mock('../../store/useAppStore', () => ({
 describe('HealthView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(ipc.getPipelineReport).mockResolvedValue(createMockReport())
+    vi.mocked(ipc.getPipelineReport).mockResolvedValue(createReadyEnvelope())
     vi.mocked(ipc.getRecentReports).mockResolvedValue([])
     vi.mocked(ipc.getPendingReviews).mockResolvedValue([])
     vi.mocked(ipc.getHiveContribution).mockResolvedValue(true)
@@ -107,7 +119,7 @@ describe('HealthView', () => {
 
   it('shows status cards', async () => {
     vi.mocked(ipc.getPipelineReport).mockResolvedValue(
-      createMockReport({
+      createReadyEnvelope({
         performance: {
           execution_time_seconds: 1,
           hive_hit_rate: 85,
@@ -163,7 +175,7 @@ describe('HealthView', () => {
 
   it('displays ETF decomposition table when data available', async () => {
     vi.mocked(ipc.getPipelineReport).mockResolvedValue(
-      createMockReport({
+      createReadyEnvelope({
         etf_stats: [{ ticker: 'VWCE', holdings_count: 100, weight_sum: 95.5, status: 'complete' }],
       })
     )
@@ -178,7 +190,7 @@ describe('HealthView', () => {
 
   it('displays active issues when failures exist', async () => {
     vi.mocked(ipc.getPipelineReport).mockResolvedValue(
-      createMockReport({
+      createReadyEnvelope({
         failures: [
           {
             severity: 'error',
@@ -207,6 +219,44 @@ describe('HealthView', () => {
       expect(screen.getByRole('button', { name: 'Auto' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Review' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Off' })).toBeInTheDocument()
+    })
+  })
+
+  it('shows report-missing guidance when diagnostics have not run', async () => {
+    vi.mocked(ipc.getPipelineReport).mockResolvedValue({
+      status: 'missing',
+      reportVersion: 1,
+      generatedAt: null,
+      report: null,
+      validationErrors: [],
+    })
+
+    render(<HealthView />)
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/No pipeline diagnostics report is available yet/i)
+      ).toBeInTheDocument()
+      expect(screen.getByText('Not run')).toBeInTheDocument()
+    })
+  })
+
+  it('shows report-invalid guidance when diagnostics contract is broken', async () => {
+    vi.mocked(ipc.getPipelineReport).mockResolvedValue({
+      status: 'invalid',
+      reportVersion: 1,
+      generatedAt: '2025-01-10T12:00:00Z',
+      report: null,
+      validationErrors: ['decomposition.etfs_processed must be a number'],
+    })
+
+    render(<HealthView />)
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/decomposition\.etfs_processed must be a number/i)
+      ).toBeInTheDocument()
+      expect(screen.getByText('Invalid')).toBeInTheDocument()
     })
   })
 })

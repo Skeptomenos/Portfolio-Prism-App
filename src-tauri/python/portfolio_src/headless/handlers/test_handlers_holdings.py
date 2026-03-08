@@ -150,20 +150,35 @@ class TestHandleGetTrueHoldings:
 class TestHandleGetPipelineReport:
     """Tests for handle_get_pipeline_report()."""
 
-    def test_returns_none_when_file_not_exists(self):
-        """Returns None when report file doesn't exist."""
+    def test_returns_missing_envelope_when_file_not_exists(self):
+        """Returns a missing envelope when report file doesn't exist."""
         with patch("os.path.exists", return_value=False):
             result = handle_get_pipeline_report(1, {})
 
         assert result["success"] is True
-        assert result["data"] is None
+        assert result["data"]["status"] == "missing"
+        assert result["data"]["report"] is None
+        assert result["data"]["validationErrors"] == []
 
-    def test_returns_report_data(self):
-        """Returns report data from file."""
+    def test_returns_ready_envelope_for_valid_report(self):
+        """Returns a ready envelope for a valid report."""
         report_data = {
             "timestamp": "2025-12-23T10:00:00",
-            "status": "healthy",
-            "metrics": {"coverage": 95.5},
+            "metrics": {
+                "direct_holdings": 5,
+                "etf_positions": 3,
+                "etfs_processed": 3,
+                "tier1_resolved": 100,
+                "tier1_failed": 2,
+            },
+            "performance": {
+                "execution_time_seconds": 5.5,
+                "phase_durations": {},
+                "hive_hit_rate": 0.85,
+                "api_fallback_rate": 0.15,
+                "total_assets_processed": 105,
+            },
+            "failures": [],
         }
 
         with patch("os.path.exists", return_value=True):
@@ -184,7 +199,59 @@ class TestHandleGetPipelineReport:
                     result = handle_get_pipeline_report(1, {})
 
         assert result["success"] is True
-        assert result["data"]["status"] == "healthy"
+        assert result["data"]["status"] == "ready"
+        assert result["data"]["report"] == report_data
+        assert result["data"]["generatedAt"] == report_data["timestamp"]
+
+    def test_returns_invalid_envelope_for_shape_drift(self):
+        """Returns an invalid envelope when the report shape drifts."""
+        report_data = {
+            "timestamp": "2025-12-23T10:00:00",
+            "metrics": {
+                "direct_holdings": 5,
+                "etf_positions": 3,
+                "etfs_processed": 3,
+                "tier1_resolved": 100,
+                "tier1_failed": 2,
+            },
+            "performance": {
+                "execution_time_seconds": 5.5,
+                "phase_durations": {},
+                "hive_hit_rate": 0.85,
+                "api_fallback_rate": 0.15,
+                "total_assets_processed": 105,
+            },
+            "failures": [],
+            "decomposition": {
+                "per_etf": [],
+            },
+        }
+
+        with patch("os.path.exists", return_value=True):
+            with patch(
+                "builtins.open",
+                MagicMock(
+                    return_value=MagicMock(
+                        __enter__=MagicMock(
+                            return_value=MagicMock(
+                                read=MagicMock(return_value=json.dumps(report_data))
+                            )
+                        ),
+                        __exit__=MagicMock(return_value=False),
+                    )
+                ),
+            ):
+                with patch("json.load", return_value=report_data):
+                    result = handle_get_pipeline_report(1, {})
+
+        assert result["success"] is True
+        assert result["data"]["status"] == "invalid"
+        assert result["data"]["report"] is None
+        assert result["data"]["generatedAt"] == report_data["timestamp"]
+        assert any(
+            error == "decomposition.etfs_processed must be a number"
+            for error in result["data"]["validationErrors"]
+        )
 
     def test_returns_error_on_invalid_json(self):
         """Returns error when report file has invalid JSON."""

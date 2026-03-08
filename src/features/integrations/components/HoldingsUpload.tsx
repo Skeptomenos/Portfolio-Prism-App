@@ -1,7 +1,8 @@
-import React, { useState, useRef } from 'react'
-import { Upload, FileText, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
-import { uploadHoldings, runPipeline } from '../../../lib/ipc'
+import React, { useMemo, useState } from 'react'
+import { AlertCircle, CheckCircle, FileSearch, Loader2, Save } from 'lucide-react'
+import { commitHoldingsUpload, pickHoldingsFile, previewHoldingsUpload } from '../../../lib/ipc'
 import Modal from '../../../components/ui/Modal'
+import type { HoldingsUploadPreview, ManualHoldingDraft } from '../../../types'
 
 interface HoldingsUploadProps {
   isOpen: boolean
@@ -11,6 +12,38 @@ interface HoldingsUploadProps {
   onSuccess?: () => void
 }
 
+const tableInputStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '8px 10px',
+  borderRadius: '8px',
+  border: '1px solid rgba(255,255,255,0.1)',
+  background: 'rgba(0,0,0,0.2)',
+  color: 'white',
+  fontSize: '13px',
+}
+
+const numericInputStyle: React.CSSProperties = {
+  ...tableInputStyle,
+  textAlign: 'right',
+}
+
+const emptyPreview = (): HoldingsUploadPreview | null => null
+
+const cloneRows = (rows: ManualHoldingDraft[]): ManualHoldingDraft[] =>
+  rows.map((row) => ({
+    rowId: row.rowId,
+    isin: row.isin,
+    name: row.name,
+    ticker: row.ticker ?? null,
+    weight: row.weight,
+  }))
+
+const sumWeights = (rows: ManualHoldingDraft[]): number =>
+  rows.reduce((total, row) => total + (Number.isFinite(row.weight) ? row.weight : 0), 0)
+
+const formatWeight = (value: number): string =>
+  value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
 const HoldingsUpload = ({
   isOpen,
   onClose,
@@ -18,155 +51,282 @@ const HoldingsUpload = ({
   etfTicker,
   onSuccess,
 }: HoldingsUploadProps): JSX.Element => {
-  const [file, setFile] = useState<File | null>(null)
-  const [uploading, setUploading] = useState(false)
-  const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle')
+  const [selectedPath, setSelectedPath] = useState<string | null>(null)
+  const [preview, setPreview] = useState<HoldingsUploadPreview | null>(emptyPreview)
+  const [draftRows, setDraftRows] = useState<ManualHoldingDraft[]>([])
+  const [isPicking, setIsPicking] = useState(false)
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [result, setResult] = useState<any>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0])
-      setStatus('idle')
+  const totalWeight = useMemo(() => sumWeights(draftRows), [draftRows])
+
+  const resetState = (): void => {
+    setSelectedPath(null)
+    setPreview(emptyPreview)
+    setDraftRows([])
+    setIsPicking(false)
+    setIsLoadingPreview(false)
+    setIsSaving(false)
+    setErrorMessage(null)
+    setSuccessMessage(null)
+  }
+
+  const handleClose = (): void => {
+    resetState()
+    onClose()
+  }
+
+  const handleSelectFile = async (): Promise<void> => {
+    try {
+      setIsPicking(true)
       setErrorMessage(null)
+      setSuccessMessage(null)
+
+      const filePath = await pickHoldingsFile()
+      setSelectedPath(filePath)
+
+      setIsLoadingPreview(true)
+      const previewResult = await previewHoldingsUpload(filePath, etfIsin)
+      setPreview(previewResult)
+      setDraftRows(cloneRows(previewResult.rows))
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to select holdings file'
+      if (!message.includes('cancelled')) {
+        setErrorMessage(message)
+      }
+    } finally {
+      setIsPicking(false)
+      setIsLoadingPreview(false)
     }
   }
 
-  const handleUpload = async () => {
-    if (!file) return
+  const updateRow = (
+    rowIndex: number,
+    field: keyof ManualHoldingDraft,
+    value: string | number | null
+  ): void => {
+    setDraftRows((rows) =>
+      rows.map((row, index) => {
+        if (index !== rowIndex) {
+          return row
+        }
+
+        if (field === 'weight') {
+          const nextWeight = typeof value === 'number' ? value : Number(value)
+          return { ...row, weight: Number.isFinite(nextWeight) ? nextWeight : 0 }
+        }
+
+        if (field === 'ticker') {
+          const nextTicker = typeof value === 'string' ? value.trim() : ''
+          return { ...row, ticker: nextTicker === '' ? null : nextTicker }
+        }
+
+        return { ...row, [field]: typeof value === 'string' ? value : '' }
+      })
+    )
+  }
+
+  const validateDraftRows = (): string | null => {
+    if (draftRows.length === 0) {
+      return 'No holdings are available to save.'
+    }
+
+    const invalidRow = draftRows.find(
+      (row) =>
+        row.isin.trim() === '' ||
+        row.name.trim() === '' ||
+        !Number.isFinite(row.weight) ||
+        row.weight <= 0
+    )
+
+    if (invalidRow) {
+      return 'Every holding must include ISIN, name, and a positive weight before saving.'
+    }
+
+    return null
+  }
+
+  const handleSave = async (): Promise<void> => {
+    const validationError = validateDraftRows()
+    if (validationError) {
+      setErrorMessage(validationError)
+      return
+    }
 
     try {
-      setUploading(true)
-      setStatus('idle')
+      setIsSaving(true)
+      setErrorMessage(null)
 
-      // In Tauri, we need the absolute path.
-      // Note: Standard web File object doesn't give absolute path for security.
-      // However, in Tauri, if we use the dialog plugin we get the path.
-      // Since we are using standard input, we might need to handle this differently
-      // or assume the backend can handle the file content if we sent it.
-      // BUT our backend command expects a filePath.
-
-      // WORKAROUND: For now, we'll use the file name and assume it's in a known location
-      // OR we'll tell the user to use the dialog.
-      // Actually, I'll try to use the dialog if possible.
-
-      // For now, I'll implement the UI and use a mock path if not in Tauri.
-      const filePath = (file as any).path || file.name
-
-      const res = await uploadHoldings(filePath, etfIsin)
-      setResult(res)
-      setStatus('success')
-
-      // Trigger pipeline re-run
-      await runPipeline()
-
-      if (onSuccess) onSuccess()
-    } catch (err) {
-      setStatus('error')
-      setErrorMessage(err instanceof Error ? err.message : 'Upload failed')
+      const result = await commitHoldingsUpload(etfIsin, draftRows)
+      setSuccessMessage(
+        `Saved ${result.holdingsCount} holdings (${formatWeight(result.totalWeight)}%). Re-run analysis when you are ready.`
+      )
+      onSuccess?.()
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to save holdings')
     } finally {
-      setUploading(false)
+      setIsSaving(false)
     }
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`Upload Holdings for ${etfTicker}`}>
+    <Modal isOpen={isOpen} onClose={handleClose} title={`Review Holdings for ${etfTicker}`}>
       <div className="p-6">
-        <div className="mb-6">
-          <p className="text-sm text-gray-400 mb-4">
-            Upload a CSV, XLSX, or JSON file containing the holdings for <strong>{etfIsin}</strong>.
-            The system will automatically clean and normalize the data.
-          </p>
-
-          <div
-            className={`
-              border-2 border-dashed rounded-xl p-8 text-center transition-colors
-              ${file ? 'border-blue-500/50 bg-blue-500/5' : 'border-white/10 hover:border-white/20'}
-            `}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileChange}
-              className="hidden"
-              accept=".csv,.xlsx,.xls,.json"
-            />
-
-            {file ? (
-              <div className="flex flex-col items-center">
-                <FileText className="w-12 h-12 text-blue-400 mb-3" />
-                <span className="text-sm font-medium text-white">{file.name}</span>
-                <span className="text-xs text-gray-500 mt-1">
-                  {(file.size / 1024).toFixed(1)} KB
-                </span>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center">
-                <Upload className="w-12 h-12 text-gray-500 mb-3" />
-                <span className="text-sm text-gray-400">Click to select or drag and drop</span>
-                <span className="text-xs text-gray-600 mt-1">CSV, XLSX, or JSON</span>
-              </div>
-            )}
+        <div className="mb-5 rounded-xl border border-white/10 bg-white/[0.03] p-4">
+          <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-white">
+            <FileSearch className="h-4 w-4 text-blue-400" />
+            Review-first import
           </div>
+          <p className="text-sm text-gray-400">
+            This desktop-only flow opens a native file picker, parses the file locally, and shows
+            the normalized rows before anything is saved. Supported formats: CSV, XLSX, JSON, PDF.
+          </p>
         </div>
 
-        {status === 'success' && result && (
-          <div className="mb-6 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-start gap-3">
-            <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
-            <div>
-              <h4 className="text-sm font-semibold text-emerald-500">Upload Successful</h4>
-              <p className="text-xs text-emerald-500/80 mt-1">
-                Found {result.holdingsCount} holdings with {result.totalWeight}% total weight.
-                {result.contributedToHive && ' Data contributed to community Hive.'}
-              </p>
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 p-4">
+          <div>
+            <div className="text-sm font-medium text-white">
+              {selectedPath ?? 'No file selected yet'}
             </div>
+            <div className="text-xs text-gray-500">ETF ISIN: {etfIsin}</div>
           </div>
-        )}
-
-        {status === 'error' && (
-          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
-            <div>
-              <h4 className="text-sm font-semibold text-red-500">Upload Failed</h4>
-              <p className="text-xs text-red-500/80 mt-1">{errorMessage}</p>
-            </div>
-          </div>
-        )}
-
-        <div className="flex justify-end gap-3">
           <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-gray-400 hover:text-white transition-colors"
+            type="button"
+            onClick={() => void handleSelectFile()}
+            disabled={isPicking || isLoadingPreview || isSaving}
+            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-gray-700 disabled:text-gray-400"
           >
-            Cancel
+            {(isPicking || isLoadingPreview) && <Loader2 className="h-4 w-4 animate-spin" />}
+            {preview ? 'Replace File' : 'Choose File'}
+          </button>
+        </div>
+
+        {errorMessage && (
+          <div className="mb-4 flex items-start gap-3 rounded-lg border border-red-500/30 bg-red-500/10 p-4">
+            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-400" />
+            <p className="text-sm text-red-200">{errorMessage}</p>
+          </div>
+        )}
+
+        {successMessage && (
+          <div className="mb-4 flex items-start gap-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4">
+            <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-emerald-400" />
+            <p className="text-sm text-emerald-200">{successMessage}</p>
+          </div>
+        )}
+
+        {preview && (
+          <>
+            <div className="mb-4 grid grid-cols-3 gap-3">
+              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                <div className="text-xs uppercase tracking-wide text-gray-500">Rows</div>
+                <div className="mt-1 text-lg font-semibold text-white">{draftRows.length}</div>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                <div className="text-xs uppercase tracking-wide text-gray-500">Total Weight</div>
+                <div className="mt-1 text-lg font-semibold text-white">
+                  {formatWeight(totalWeight)}%
+                </div>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                <div className="text-xs uppercase tracking-wide text-gray-500">Source</div>
+                <div className="mt-1 text-sm font-semibold text-white">{preview.fileName}</div>
+              </div>
+            </div>
+
+            {preview.warnings.length > 0 && (
+              <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
+                <div className="mb-2 text-sm font-semibold text-amber-300">Review notes</div>
+                <ul className="list-disc space-y-1 pl-5 text-sm text-amber-100">
+                  {preview.warnings.map((warning) => (
+                    <li key={warning}>{warning}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <div className="max-h-[360px] overflow-auto rounded-xl border border-white/10">
+              <table className="min-w-full border-collapse">
+                <thead className="sticky top-0 bg-[#111827]">
+                  <tr>
+                    <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-400">
+                      ISIN
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-400">
+                      Name
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-400">
+                      Ticker
+                    </th>
+                    <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-400">
+                      Weight %
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {draftRows.map((row, index) => (
+                    <tr
+                      key={row.rowId ?? `${row.isin}-${index}`}
+                      className="border-t border-white/5"
+                    >
+                      <td className="px-3 py-3 align-top">
+                        <input
+                          value={row.isin}
+                          onChange={(event) => updateRow(index, 'isin', event.target.value)}
+                          style={tableInputStyle}
+                        />
+                      </td>
+                      <td className="px-3 py-3 align-top">
+                        <input
+                          value={row.name}
+                          onChange={(event) => updateRow(index, 'name', event.target.value)}
+                          style={tableInputStyle}
+                        />
+                      </td>
+                      <td className="px-3 py-3 align-top">
+                        <input
+                          value={row.ticker ?? ''}
+                          onChange={(event) => updateRow(index, 'ticker', event.target.value)}
+                          style={tableInputStyle}
+                        />
+                      </td>
+                      <td className="px-3 py-3 align-top">
+                        <input
+                          type="number"
+                          step="0.0001"
+                          value={row.weight}
+                          onChange={(event) =>
+                            updateRow(index, 'weight', Number(event.target.value))
+                          }
+                          style={numericInputStyle}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+
+        <div className="mt-6 flex justify-end gap-3">
+          <button
+            onClick={handleClose}
+            className="px-4 py-2 text-sm font-medium text-gray-400 transition-colors hover:text-white"
+          >
+            Close
           </button>
 
-          {status === 'success' ? (
-            <button
-              onClick={onClose}
-              className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-lg transition-all"
-            >
-              Done
-            </button>
-          ) : (
-            <button
-              onClick={handleUpload}
-              disabled={!file || uploading}
-              className={`
-                px-6 py-2 text-sm font-semibold rounded-lg transition-all flex items-center gap-2
-                ${
-                  !file || uploading
-                    ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                    : 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/20'
-                }
-              `}
-            >
-              {uploading && <Loader2 className="w-4 h-4 animate-spin" />}
-              {uploading ? 'Processing...' : 'Upload & Analyze'}
-            </button>
-          )}
+          <button
+            onClick={() => void handleSave()}
+            disabled={!preview || isSaving || isLoadingPreview || isPicking}
+            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white transition-all hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-gray-700 disabled:text-gray-400"
+          >
+            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            {isSaving ? 'Saving...' : 'Save Reviewed Holdings'}
+          </button>
         </div>
       </div>
     </Modal>

@@ -1,17 +1,15 @@
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
-import { getEngineHealth, getPipelineReport } from '../../src/lib/ipc'
-import {
-  server,
-  startPythonSidecar,
-  stopPythonSidecar,
-  writePipelineHealthReport,
-} from './setup'
+import { server, startPythonSidecar, stopPythonSidecar, writePipelineHealthReport } from './setup'
+
+let getEngineHealth: typeof import('../../src/lib/ipc').getEngineHealth
+let getPipelineReport: typeof import('../../src/lib/ipc').getPipelineReport
 
 describe('IPC integration', () => {
   beforeAll(async () => {
     server.listen({ onUnhandledRequest: 'bypass' })
     await startPythonSidecar()
-  })
+    ;({ getEngineHealth, getPipelineReport } = await import('../../src/lib/ipc'))
+  }, 20000)
 
   afterAll(async () => {
     await stopPythonSidecar()

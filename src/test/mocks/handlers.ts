@@ -39,6 +39,11 @@ export const handlers = [
       case 'tr_check_saved_session':
         return HttpResponse.json(createCommandResponse(mockSessionCheck))
 
+      case 'tr_restore_session':
+        return HttpResponse.json(
+          createCommandResponse({ authState: 'authenticated', message: 'Session restored.' })
+        )
+
       case 'get_true_holdings':
         return HttpResponse.json(createCommandResponse(mockTrueHoldingsResponse))
 

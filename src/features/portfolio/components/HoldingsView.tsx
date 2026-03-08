@@ -57,7 +57,7 @@ export default function HoldingsView(): JSX.Element {
     try {
       setLoading(true)
 
-      const [holdingsRes, pipelineReport] = await Promise.all([
+      const [holdingsRes, pipelineEnvelope] = await Promise.all([
         getTrueHoldings(),
         getPipelineReport().catch(() => null),
       ])
@@ -65,9 +65,9 @@ export default function HoldingsView(): JSX.Element {
       setHoldings(holdingsRes.holdings || [])
       setSummary(holdingsRes.summary || EMPTY_SUMMARY)
 
-      if (pipelineReport?.decomposition?.per_etf) {
+      if (pipelineEnvelope?.status === 'ready' && pipelineEnvelope.report.decomposition?.per_etf) {
         const nameMap: EtfNameMap = {}
-        for (const etf of pipelineReport.decomposition.per_etf) {
+        for (const etf of pipelineEnvelope.report.decomposition.per_etf) {
           if (etf.isin && etf.name) {
             nameMap[etf.isin] = etf.name
           }
