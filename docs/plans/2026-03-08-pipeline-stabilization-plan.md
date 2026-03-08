@@ -191,3 +191,101 @@ Per AGENTS.md workflow, load these rules before implementing:
 | `src/features/xray/*.tsx` | Frontend X-Ray components |
 | `src/lib/schemas/ipc.ts` | Pipeline report Zod schemas |
 | `src/lib/ipc.ts` | Pipeline IPC wrappers |
+
+---
+
+## Headed Browser Dogfood Log
+
+### Session: 2026-03-08 ~22:44
+
+**Setup:** Engine with full env (SUPABASE_URL, SUPABASE_ANON_KEY, FINHUB_API_KEY), adapter_registry.json manually deployed to runtime config dir.
+
+### Critical Finding: adapter_registry.json not deployed on fresh machines
+
+The lifecycle code tries to copy default configs from `src-tauri/default_config/` but the actual
+config files live at `src-tauri/python/default_config/` and `src-tauri/python/config/`. This path
+mismatch means `adapter_registry.json` never reaches `~/Library/Application Support/PortfolioPrism/config/`.
+Without it, the AdapterRegistry is empty and ALL ETF decomposition fails.
+
+**Fix required:** Either fix the lifecycle copy path, or have the registry fall back to the source-tree config.
+
+### Pipeline Run Results (after manual adapter config deploy)
+
+| Metric | Value |
+|--------|-------|
+| Duration | 170s |
+| ETFs processed | 1/10 |
+| ETFs failed | 9/10 |
+| Total underlying | 370 |
+| Hive hit rate | 76.3% |
+| Contributions | 88 ISINs |
+| Quality score | 0.49 |
+| is_trustworthy | false |
+| Console errors | 0 |
+
+### ETF Decomposition Detail
+
+| ETF | Status | Source | Holdings |
+|-----|--------|--------|----------|
+| IE00BL25JP72 (MSCI World Momentum) | success | cached | 370 |
+| IE00B4L5Y983 (Core MSCI World) | failed | unknown | 0 |
+| IE00B3WJKG14 (S&P 500 IT) | failed | unknown | 0 |
+| IE00B53SZB19 (NASDAQ100) | failed | unknown | 0 |
+| IE0031442068 (Core S&P 500 Dist) | failed | unknown | 0 |
+| IE00B5BMR087 (Core S&P 500 Acc) | failed | unknown | 0 |
+| DE000A0F5UF5 (NASDAQ100 Dist) | failed | unknown | 0 |
+| IE00BYVQ9F29 (NASDAQ100 EUR) | failed | unknown | 0 |
+| LU0908500753 (Amundi Stoxx 600) | failed | amundi (manual) | 0 |
+| FR0010361683 (Amundi MSCI India) | failed | amundi (manual) | 0 |
+
+**Root cause for 7 iShares failures:** Adapters try to scrape provider websites but return empty results.
+Cache is empty on this machine. Hive does not have ETF holdings data for these ISINs.
+
+**Root cause for 2 Amundi failures:** Amundi adapter requires manual file upload (by design).
+These should be documented as expected behavior.
+
+### UI Verification (all routes)
+
+| Route | Renders | Console errors | Notable |
+|-------|---------|----------------|---------|
+| Dashboard | OK | 0 | True Exposure shows cross-ETF overlap |
+| X-Ray ETF Resolution | OK | 0 | 1 resolved, 9 failed with clear status |
+| X-Ray Action Queue | OK | 0 | 9 issues with Fix/Ignore buttons |
+| X-Ray Hive Log | OK | 0 | 283 from Hive, 88 contributed, 76% hit rate |
+| Health | OK | 0 | Quality 49%, 9 active issues, is_trustworthy=false |
+| Holdings | OK | 0 | Full position table |
+
+### Evidence Screenshots
+- `output/playwright/dogfood/xray-resolution-table.png`
+- `output/playwright/dogfood/xray-action-queue.png`
+- `output/playwright/dogfood/xray-hive-log.png`
+- `output/playwright/dogfood/health-after-pipeline.png`
+- `output/playwright/dogfood/holdings-after-pipeline.png`
+
+---
+
+## Required Fixes (from dogfood)
+
+### FIX-1: Deploy adapter_registry.json to runtime config dir
+**Priority:** Critical — without this, no ETFs decompose on fresh machines
+**File:** `src-tauri/python/portfolio_src/headless/lifecycle.py` or `config.py`
+**Change:** Fix the config copy path from `src-tauri/default_config/` to `src-tauri/python/default_config/`,
+or add a fallback in `AdapterRegistry.__init__` to check source-tree paths.
+
+### FIX-2: Hive contribution toggle shows OFF but should default ON
+**Priority:** High — Hive contribution should be enabled by default
+**Status:** Code default is correct (`"true"`), but this machine has a persisted `"false"` override.
+The UI toggle on the Health page correctly reflects the persisted state (OFF).
+**Verdict:** NOT A BUG — the setting was explicitly set to false on this machine at some point.
+To re-enable: click the Hive toggle in Health settings, or clear the settings store.
+No code change needed.
+
+### FIX-3: Make is_trustworthy stricter
+**Priority:** High — user requested
+**File:** `src-tauri/python/portfolio_src/core/contracts/` (ValidationGates)
+**Change:** `is_trustworthy=false` when >20% of holdings are unresolved or >50% of ETFs fail decomposition.
+Currently already showing `false` with 49% quality score — verify the threshold logic is correct.
+
+### FIX-4: Document Amundi ETF manual upload requirement
+**Priority:** Medium — expected behavior, just needs documentation
+**File:** `docs/plans/2026-03-08-pipeline-stabilization-plan.md` (this file) + consider adding in-app guidance
