@@ -560,26 +560,30 @@ Manual resolver test:
 Proof: the resolver WORKS. The weight column mismatch prevents it from running.
 ```
 
-### Fix
+### Fix (VERIFIED — both functions have the same bug)
+
+The bug exists in TWO places in `decomposer.py`:
+1. `_normalize_weight_format()` line 47: same missing column → silently returns unchanged
+2. `_resolve_holdings_isins()` line 338: same missing column → defaults weight to 0.0
+
+All three adapters (iShares, Amundi, VanEck) output `weight_percentage` as the standard column name.
 
 | File | Change |
 |------|--------|
-| `src-tauri/python/portfolio_src/core/services/decomposer.py:338` | Add `"weight_percentage"` to the weight column lookup list |
-| `src-tauri/python/tests/test_pipeline_smoke.py` or new test | Add test: resolution rate > 0 when holdings have weight_percentage column |
+| `decomposer.py:47` | Add `"weight_percentage"` to `_normalize_weight_format()` lookup |
+| `decomposer.py:338` | Add `"weight_percentage"` to `_resolve_holdings_isins()` lookup |
+| `tests/test_pipeline_smoke.py` | Add test: resolution runs with `weight_percentage` column |
 
 ### TDD Steps
-1. **Red:** Add test that creates a holdings DataFrame with `weight_percentage` column and verifies
-   that `_resolve_holdings_isins()` passes non-zero weights to the resolver (not all tier2-skipped).
-2. **Fix decomposer.py line 338:** Add `"weight_percentage"` to the list:
-   ```python
-   for col in ["weight", "Weight", "weight_pct", "Weight_Pct", "weight_percentage"]:
-   ```
+1. **Red:** Add test with DataFrame containing `weight_percentage` column. Assert weight_col is found.
+2. **Fix decomposer.py lines 47 and 338:** Add `"weight_percentage"` to both lists.
 3. **Green:** Run test.
-4. **Dogfood:** Re-run pipeline in headed browser. Verify:
-   - ISIN resolution rate > 50% for tier1 holdings
-   - Resolved ISINs contributed to Hive
-   - Enrichment covers resolved holdings (sector/geography)
-   - True Holding Exposure shows cross-ETF overlap on Dashboard
+4. **Integration:** Run full pipeline via IPC, check resolution stats > 0%.
+5. **Dogfood (headed browser):** Run pipeline from X-Ray UI. Verify:
+   - ISIN resolution rate > 50% per ETF
+   - Hive contributions include ETF holdings
+   - Dashboard True Exposure shows cross-ETF overlap
+   - Health shows improved quality score
 
 ### Acceptance criteria
 - [ ] Weight column `weight_percentage` is recognized by the decomposer
