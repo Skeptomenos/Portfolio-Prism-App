@@ -58,8 +58,9 @@ def resource_path(relative_path: str) -> str:
     """
     base_path = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
     # When running from headless package, go up to python/ directory
+    # headless/lifecycle.py -> portfolio_src/headless/ -> portfolio_src/ -> python/
     if "headless" in base_path:
-        base_path = os.path.dirname(os.path.dirname(os.path.dirname(base_path)))
+        base_path = os.path.dirname(os.path.dirname(base_path))
     return os.path.join(base_path, relative_path)
 
 
@@ -185,11 +186,11 @@ def install_default_config() -> None:
         if bundled_path.exists():
             try:
                 shutil.copy2(bundled_path, target_path)
-                logger.info("Installed default config", extra={"filename": filename})
+                logger.info("Installed default config", extra={"config_file": filename})
             except Exception as e:
                 logger.error(
                     "Failed to install config file",
-                    extra={"filename": filename, "error": str(e), "error_type": type(e).__name__},
+                    extra={"config_file": filename, "error": str(e), "error_type": type(e).__name__},
                     exc_info=True,
                 )
         else:

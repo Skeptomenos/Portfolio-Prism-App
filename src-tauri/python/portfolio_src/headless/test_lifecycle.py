@@ -36,6 +36,27 @@ class TestResourcePath:
         assert "a" in result
         assert "d.txt" in result
 
+    def test_default_config_resolves_to_existing_file(self):
+        """resource_path('default_config/adapter_registry.json') must resolve to an existing file."""
+        result = resource_path("default_config/adapter_registry.json")
+        assert os.path.exists(result), (
+            f"resource_path resolved to {result} which does not exist. "
+            f"Expected to find default_config/ under the python/ directory."
+        )
+
+    def test_default_config_resolves_all_bundled_files(self):
+        """All bundled config files must resolve to existing paths."""
+        bundled_files = [
+            "default_config/adapter_registry.json",
+            "default_config/ishares_config.json",
+            "default_config/ticker_map.json",
+        ]
+        for filename in bundled_files:
+            result = resource_path(filename)
+            assert os.path.exists(result), (
+                f"resource_path('{filename}') resolved to {result} which does not exist."
+            )
+
     def test_pyinstaller_bundle_mode(self):
         """Uses _MEIPASS when running as PyInstaller bundle."""
         # Just verify the function doesn't crash
