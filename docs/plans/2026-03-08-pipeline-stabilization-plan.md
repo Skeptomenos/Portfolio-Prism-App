@@ -266,202 +266,189 @@ These should be documented as expected behavior.
 
 ## Implementation Plan
 
-### Issue Index
+### Issue Index (verified 2026-03-08)
 
-| ID | Issue | Severity | Root Cause | Status |
+| ID | Issue | Severity | Root Cause (VERIFIED) | Status |
 |------|-------|----------|------------|--------|
-| P-01 | adapter_registry.json not deployed to runtime config dir | Critical | Lifecycle copy path is wrong (`src-tauri/default_config/` vs `src-tauri/python/default_config/`) | pending |
-| P-02 | 7 iShares adapters return empty holdings | High | Adapter scraping fails; local cache is empty; Hive lacks ETF holdings | pending (investigate) |
-| P-03 | 2 Amundi ETFs require manual upload | Medium | By design — Amundi blocks automated downloads | document only |
-| P-04 | `is_trustworthy` threshold too lenient | High | Quality score and trust need stricter thresholds per user request | pending |
+| P-01 | Config files not deployed to runtime dir | Critical | `resource_path()` goes up 3 dirs instead of 2, overshooting from `python/` to `src-tauri/` | pending |
+| P-02 | 7 iShares adapters return empty holdings | Critical | **Same root cause as P-01.** `ishares_config.json` not deployed = no product IDs = auto-discovery fails | MERGED INTO P-01 |
+| P-03 | 2 Amundi ETFs require manual upload | Medium | By design - Amundi blocks automated downloads | documented |
+| P-04 | `is_trustworthy` threshold | Resolved | Already correct: `score >= 0.95`, penalties CRITICAL=0.25, HIGH=0.10. Current run shows 0.49 = correctly untrusted | verify only |
 | P-05 | Geography coverage 4.2% | Medium | Enrichment APIs don't return geography consistently | investigate |
-| P-06 | 44% tier2_skipped not reflected in UI | Low | Skipped holdings have tickers but aren't surfaced in NeedsAttention | pending (assess) |
-| P-07 | Pipeline returns `success: true` despite 9/10 ETFs failing | High | `PipelineResult.success` only goes `false` on exception, not on ETF failures | pending |
+| P-06 | 44% tier2_skipped not reflected in UI | Low | Skipped holdings have tickers but aren't surfaced in NeedsAttention | deferred |
+| P-07 | Pipeline returns `success: true` despite 9/10 ETFs failing | High | `pipeline.py:583` hardcodes `success=True` in happy path; only goes `false` on exception | pending |
 | P-08 | Hive contribution default verified correct | Resolved | Default is `"true"` in code; this machine had persisted `"false"` | no change needed |
+| P-09 | WORKER_URL for enrichment proxy | Resolved | Hardcoded Cloudflare Worker default in `config.py:56`. No env var needed. | no change needed |
+| P-10 | Frontend has no `degraded` concept | Note | `RunPipelineResultSchema` is binary `success: boolean`. XRayView throws on `success=false`. No `runStatus` field. | assess with P-07 |
 
 ---
 
-### P-01: Deploy adapter_registry.json to runtime config dir
+### P-01: Fix `resource_path()` overshooting by 1 directory level (CRITICAL)
 
-**Priority:** Critical — without this, no ETFs decompose on fresh machines
-**Root cause:** `lifecycle.py` tries to copy from `src-tauri/default_config/` but the file lives at `src-tauri/python/default_config/adapter_registry.json`.
+**Cascading root cause for P-01 AND P-02.**
 
-#### Files to change
+**Root cause (VERIFIED):** `lifecycle.py:62` goes up 3 `dirname()` levels from `headless/lifecycle.py`:
+```
+headless/lifecycle.py
+  up1: portfolio_src/headless/  ->  portfolio_src/
+  up2: portfolio_src/           ->  python/          <- CORRECT STOP (default_config/ lives here)
+  up3: python/                  ->  src-tauri/        <- WRONG (current code)
+```
+`resource_path('default_config/X')` resolves to `src-tauri/default_config/X` (MISSING)
+instead of `src-tauri/python/default_config/X` (EXISTS).
+
+**Cascading impact (3 config files fail to deploy):**
+- `adapter_registry.json` -> empty AdapterRegistry -> "No adapter registered" for all ETFs
+- `ishares_config.json` -> no product IDs -> iShares auto-discovery scrapes website and fails -> "empty holdings"
+- `ticker_map.json` -> ticker resolution fallback missing
+
+#### Fix
 
 | File | Change |
 |------|--------|
-| `src-tauri/python/portfolio_src/headless/lifecycle.py` | Fix `_copy_default_configs()` source path |
-| `src-tauri/python/portfolio_src/adapters/registry.py` | Add fallback to source-tree config if runtime config missing |
-| `src-tauri/python/tests/test_lifecycle.py` | Add test: default config deployed to runtime dir on init |
+| `src-tauri/python/portfolio_src/headless/lifecycle.py:62` | Change 3 `dirname()` calls to 2 |
+| `src-tauri/python/portfolio_src/headless/test_lifecycle.py` | Add test: `resource_path('default_config/adapter_registry.json')` resolves to existing file |
 
 #### TDD Steps
-1. **Red:** Add test in `test_lifecycle.py` that asserts `adapter_registry.json` exists in `CONFIG_DIR` after lifecycle init.
-2. **Fix lifecycle.py:** Correct the source path from `default_config/` to `python/default_config/` (or resolve relative to `__file__`).
-3. **Belt-and-suspenders in registry.py:** If runtime config not found, fall back to source-tree `default_config/adapter_registry.json`.
-4. **Green:** Run test.
-5. **Dogfood:** Delete runtime config, restart engine, verify ETF decomposition works.
+1. **Red:** Add test asserting `resource_path('default_config/adapter_registry.json')` returns an existing path.
+2. **Fix lifecycle.py line 62:** `base_path = os.path.dirname(os.path.dirname(base_path))` (2 levels, not 3).
+3. **Green:** Run test.
+4. **Integration:** Delete runtime config dir, restart engine, verify all 3 config files deployed.
+5. **Dogfood:** Re-run pipeline, verify iShares ETFs decompose.
 
 #### Acceptance criteria
-- [ ] `adapter_registry.json` is automatically available at `CONFIG_DIR` after engine boot
-- [ ] If runtime config is missing, registry falls back to bundled default
-- [ ] Pipeline decomposes cached ETFs without manual config copy
+- [ ] `resource_path('default_config/adapter_registry.json')` resolves to existing file
+- [ ] All 3 config files auto-deployed to `CONFIG_DIR` on engine boot
+- [ ] iShares ETFs decompose (at least 5/7 succeed from adapter or cache)
+- [ ] Pipeline health report shows `source: ishares_adapter` or `source: cached` (not `unknown`)
 
 ---
 
-### P-02: Investigate iShares adapter empty results
+### P-02: MERGED INTO P-01
 
-**Priority:** High — 7/10 ETFs fail decomposition
-**Root cause hypothesis:** The iShares adapter scrapes the provider website. Either:
-- (a) The scraper is broken / provider changed their page structure
-- (b) Rate limiting / IP blocking
-- (c) The adapter needs a URL update
+The 7 iShares failures have the same root cause as P-01.
+When `ishares_config.json` is deployed, the adapter has product IDs and can download CSV holdings.
+No separate fix needed.
+
+---
+
+### P-03: Amundi manual upload (DOCUMENTED)
+
+Expected behavior. Action Queue shows download URLs. No code change.
+
+---
+
+### P-04: `is_trustworthy` threshold (VERIFIED CORRECT)
+
+**Verdict:** Already working correctly. No code change needed.
+
+The quality system at `quality.py:11,141` uses `is_trustworthy = score >= 0.95` with penalties:
+- CRITICAL: 0.25 (one critical issue -> score 0.75 -> untrusted)
+- HIGH: 0.10 (one high issue -> score 0.90 -> untrusted)
+- MEDIUM: 0.03
+- LOW: 0.01
+
+Current pipeline run correctly shows `quality_score: 0.49, is_trustworthy: false`.
+The real problem is P-07: the pipeline returns `success: true` despite `is_trustworthy: false`.
+
+---
+
+### P-05: Geography coverage 4.2% (INVESTIGATE)
+
+**Priority:** Medium
+**Root cause hypothesis:** Enrichment APIs (Finnhub via WORKER_URL proxy, Wikidata) return sector but not geography consistently.
+**WORKER_URL:** Verified configured with hardcoded default (`config.py:56`).
 
 #### Investigation steps
-1. Read `src-tauri/python/portfolio_src/adapters/ishares.py` — understand what URL it hits and how it parses.
-2. Try one adapter manually: `uv run python3 -c "from portfolio_src.adapters.ishares import ISharesAdapter; a = ISharesAdapter(); print(a.fetch('IE00B4L5Y983'))"` — see what happens.
-3. Check engine logs during decomposition for HTTP errors or parse failures.
-4. If scraper is broken, fix the URL/parser. If rate-limited, implement retry + backoff.
-5. If provider no longer offers the data, switch to Hive-only + manual upload for that provider.
-
-#### Files to read/change
-
-| File | Role |
-|------|------|
-| `src-tauri/python/portfolio_src/adapters/ishares.py` | iShares adapter |
-| `src-tauri/python/portfolio_src/adapters/base.py` | Base adapter class |
-| `src-tauri/python/portfolio_src/core/services/decomposer.py` | Decomposition cascade (cache → Hive → adapter) |
-
-#### Acceptance criteria
-- [ ] At least 5/8 iShares ETFs decompose (from adapter or Hive)
-- [ ] Failed ETFs show specific error (not generic "empty holdings")
-- [ ] Adapter source is recorded in health report (`source` field)
+1. After P-01 fix, re-run pipeline with full ETF decomposition.
+2. Check enrichment output for geography column coverage.
+3. If still <10%, trace enrichment API responses to identify the gap.
+4. Document as known limitation if no reliable geography source exists.
 
 ---
 
-### P-03: Document Amundi manual upload requirement
+### P-07: Pipeline `success` should reflect ETF processing results (HIGH)
 
-**Priority:** Medium — expected behavior, not a bug
-**Action:** Document only, no code change.
+**Root cause (VERIFIED):** `pipeline.py:583` hardcodes `success=True` in the try block.
+Only goes `false` if an exception is caught. ETF decomposition failures don't throw.
 
-#### Steps
-1. Add a note in this plan (already done above in ETF Decomposition Detail).
-2. Verify the UI shows the manual upload URL correctly (verified: Action Queue shows download links).
-3. Consider adding an in-app tooltip or help text for Amundi ETFs in a future UI pass.
+**Frontend impact (VERIFIED):** `XRayView.tsx:63` checks `result.success` and only shows
+error UI when `false`. With `success: true`, the frontend shows no error despite 9/10 ETFs failing.
 
-**Status: documented.** The Action Queue already shows:
-- `LU0908500753`: "Amundi ETF holdings require manual upload. Download from: https://www.amundietf.de/..."
-- `FR0010361683`: Same pattern.
+**IPC contract (VERIFIED):** `RunPipelineResultSchema` is `{success: boolean, errors: string[], durationMs: number}`.
+No `degraded` or `runStatus` concept exists. Binary success/failure.
 
----
-
-### P-04: Make is_trustworthy threshold stricter
-
-**Priority:** High — user requested
-**Root cause:** The validation gates may not account for ETF decomposition failures in the trust calculation.
-
-#### Files to change
+#### Fix
 
 | File | Change |
 |------|--------|
-| `src-tauri/python/portfolio_src/core/contracts/validation_gates.py` | Adjust `is_trustworthy` calculation |
-| `src-tauri/python/portfolio_src/core/contracts/pipeline_report.py` | Verify trust propagation to report |
-| `src-tauri/python/tests/contracts/test_pipeline_report.py` | Add stricter threshold tests |
+| `src-tauri/python/portfolio_src/core/pipeline.py:582-583` | Derive `success` from ETF processing results |
+| `src-tauri/python/tests/test_pipeline.py` (or existing) | Add test: success=false when >50% ETFs fail |
 
 #### TDD Steps
-1. **Red:** Add test: `is_trustworthy=false` when >50% of ETFs fail decomposition.
-2. **Red:** Add test: `is_trustworthy=false` when aggregated total differs from expected by >20%.
-3. **Read** current `ValidationGates` logic to understand existing thresholds.
-4. **Fix:** Adjust thresholds — `is_trustworthy=false` when:
-   - quality_score < 0.60 (currently may already do this)
-   - >50% of ETFs fail decomposition
-   - aggregated total differs by >20%
-   - >30% of holdings are unresolved (excluding tier2_skipped)
-5. **Green:** Run tests.
-6. **Dogfood:** Re-run pipeline, verify Health view shows stricter trust.
-
-#### Acceptance criteria
-- [ ] `is_trustworthy=false` when majority of ETFs fail
-- [ ] `is_trustworthy=false` when aggregated total diverges significantly
-- [ ] Health UI reflects the stricter score
-- [ ] Pipeline result `success` field is `false` when `is_trustworthy=false` (see P-07)
-
----
-
-### P-05: Investigate geography coverage gap
-
-**Priority:** Medium — 4.2% coverage is a data quality issue
-**Root cause hypothesis:** Enrichment APIs (Finnhub, Wikidata) return sector but not geography consistently.
-
-#### Investigation steps
-1. Check what `HiveEnrichmentService.enrich()` returns for a known ISIN (e.g., US67066G1040 / NVIDIA).
-2. Check if Hive has geography data in `assets.geography` column.
-3. Check if Finnhub profile API returns country/geography.
-4. If geography comes from a different API, add it to the enrichment cascade.
-5. If no reliable source, document as known limitation.
-
-#### Acceptance criteria
-- [ ] Geography coverage >30% for resolved holdings (or documented as known limitation)
-- [ ] Health report shows geography coverage stat
-
----
-
-### P-07: Pipeline `success` should be `false` when majority of ETFs fail
-
-**Priority:** High — `success: true` with 9/10 ETFs failed is misleading
-**Root cause:** `pipeline.py` line 583: `success=True` is hardcoded in the happy path. It only goes `false` if an exception is caught.
-
-#### Files to change
-
-| File | Change |
-|------|--------|
-| `src-tauri/python/portfolio_src/core/pipeline.py` | Derive `success` from ETF processing results |
-| `src-tauri/python/tests/test_pipeline.py` (or new) | Add test: success=false when >50% ETFs fail |
-
-#### TDD Steps
-1. **Red:** Add test: `PipelineResult.success == False` when >50% of ETFs fail decomposition.
-2. **Fix pipeline.py `run()` method:** After phase 4 (aggregate), calculate:
+1. **Red:** Add test: `PipelineResult.success == False` when >50% of ETFs fail.
+2. **Fix pipeline.py `run()` method** (line 582-583):
    ```python
    etfs_total = len(etf_positions)
    etfs_succeeded = len(holdings_map)
-   success = etfs_total == 0 or (etfs_succeeded / etfs_total) >= 0.5
+   pipeline_success = etfs_total == 0 or (etfs_succeeded / etfs_total) >= 0.5
+   return PipelineResult(success=pipeline_success, ...)
    ```
 3. **Green:** Run test.
-4. **Dogfood:** Re-run pipeline with current state (1/10 ETFs), verify `success: false` returned.
+4. **Dogfood:** Re-run pipeline with current state (1/10 ETFs), verify `success: false`.
+5. **Frontend check:** Verify X-Ray shows error UI when `success: false`.
 
 #### Acceptance criteria
 - [ ] `success=false` when >50% of ETFs fail
+- [ ] Frontend shows error message when `success=false`
 - [ ] `success=true` only when majority of ETFs succeed or portfolio has no ETFs
-- [ ] Frontend interprets `success=false` as `degraded` run status
 
 ---
 
-## Execution Order
+### P-09: WORKER_URL for enrichment (RESOLVED)
 
-Dependencies between fixes:
+Hardcoded Cloudflare Worker default at `config.py:56`. No env var needed. Not a problem.
+
+---
+
+### P-10: Frontend has no `degraded` concept (ASSESS)
+
+The `RunPipelineResultSchema` is binary `{success: boolean}`. There's no way to express
+"pipeline ran but with partial results" in the current IPC contract.
+
+**Future work:** Consider adding `runStatus: 'success' | 'degraded' | 'failed'` to the schema
+so the frontend can show nuanced state. For now, P-07's binary fix is sufficient.
+
+---
+
+## Execution Order (Updated)
+
 ```
-P-01 (adapter config) ──────┐
-                             ├──> P-02 (iShares investigation, needs working adapters)
-P-07 (success truthfulness) ─┤
-                             ├──> P-04 (is_trustworthy, validates against pipeline results)
-                             │
-P-03 (Amundi docs)          independent
-P-05 (geography)            independent
-P-06 (tier2 UI)             deferred
+P-01 (resource_path fix) ------> unblocks iShares ETF decomposition
+                                  unblocks ishares_config.json deployment
+                                  unblocks ticker_map.json deployment
+  |
+  v
+P-07 (success truthfulness) ---> pipeline reports correct success/failure
+  |
+  v
+P-05 (geography) --------------> investigate after ETFs decompose
+  |
+  v
+Dogfood full pipeline ----------> verify all routes show correct data
 ```
 
-**Recommended order:**
-1. P-01 (Critical) — unblocks adapter-dependent ETF decomposition
-2. P-07 (High) — pipeline success truthfulness, easy standalone fix
-3. P-02 (High) — iShares adapter investigation, depends on P-01 being fixed
-4. P-04 (High) — is_trustworthy strictness, benefits from P-07 being in place
-5. P-05 (Medium) — geography coverage, independent investigation
-6. P-03 (Medium) — already documented
-7. P-06 (Low) — tier2 visibility, deferred
+**Resolved (no action):** P-02 (merged), P-03 (documented), P-04 (correct), P-08 (correct), P-09 (correct)
+**Deferred:** P-06 (tier2 UI), P-10 (degraded concept)
 
 ---
 
 ## Resolved Issues
 
-### P-08: Hive contribution default (RESOLVED)
-**Verdict:** No code change needed. The backend default is `"true"` (enabled). This machine had a persisted
-`"false"` override which was re-enabled via IPC. The UI toggle correctly reflects the persisted state.
+| ID | Verdict |
+|------|---------|
+| P-02 | Same root cause as P-01; merged |
+| P-03 | Amundi manual upload is by design; documented in Action Queue UI |
+| P-04 | `is_trustworthy` already correct at `score >= 0.95`; current run shows 0.49 = correctly untrusted |
+| P-08 | Hive contribution default is `"true"` (enabled); this machine had persisted override |
+| P-09 | WORKER_URL has hardcoded Cloudflare Worker default; no env config needed |
