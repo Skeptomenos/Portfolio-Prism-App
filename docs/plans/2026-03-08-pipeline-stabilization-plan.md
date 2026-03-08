@@ -2,7 +2,7 @@
 
 > **Branch:** `pipeline/stabilize-xray-hive`
 > **Created:** 2026-03-08
-> **Status:** implementation_plan_ready
+> **Status:** P-01 and P-07 COMPLETE. Remaining: P-05 (investigate), P-06 (deferred), P-10 (deferred)
 > **Predecessor:** Session restore fixes on `codex/stabilize-ipc-xray` (completed)
 
 ---
@@ -320,6 +320,13 @@ instead of `src-tauri/python/default_config/X` (EXISTS).
 - [ ] `resource_path('default_config/adapter_registry.json')` resolves to existing file
 - [ ] All 3 config files auto-deployed to `CONFIG_DIR` on engine boot
 - [ ] iShares ETFs decompose (at least 5/7 succeed from adapter or cache)
+
+#### Result (VERIFIED)
+- lifecycle.py line 62: changed 3 `dirname()` to 2
+- Also fixed pre-existing logging bug: `extra={'filename': ...}` -> `extra={'config_file': ...}`
+- **Before fix:** 1/10 ETFs decomposed, 9 failed
+- **After fix:** 8/10 ETFs decomposed (1330+77+515+508+107+107+370+508 = 3,522 holdings), 2 Amundi fail as expected
+- Evidence: `output/playwright/dogfood/xray-after-p01-fix.png`
 - [ ] Pipeline health report shows `source: ishares_adapter` or `source: cached` (not `unknown`)
 
 ---
@@ -367,7 +374,7 @@ The real problem is P-07: the pipeline returns `success: true` despite `is_trust
 
 ---
 
-### P-07: Pipeline `success` should reflect ETF processing results (HIGH)
+### P-07: Pipeline `success` should reflect ETF processing results (COMPLETE)
 
 **Root cause (VERIFIED):** `pipeline.py:583` hardcodes `success=True` in the try block.
 Only goes `false` if an exception is caught. ETF decomposition failures don't throw.
@@ -402,6 +409,12 @@ No `degraded` or `runStatus` concept exists. Binary success/failure.
 - [ ] `success=false` when >50% of ETFs fail
 - [ ] Frontend shows error message when `success=false`
 - [ ] `success=true` only when majority of ETFs succeed or portfolio has no ETFs
+
+#### Result (VERIFIED)
+- pipeline.py:582: `success` now derived from `(etfs_succeeded / etfs_total) >= 0.5`
+- 6 unit tests for derivation logic (all pass)
+- With P-01 fix in place: 8/10 ETFs succeed -> pipeline reports `success=True` (correct)
+- Without P-01 fix (1/10): would report `success=False` (correct)
 
 ---
 
