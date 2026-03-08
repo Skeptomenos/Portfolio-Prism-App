@@ -270,13 +270,13 @@ These should be documented as expected behavior.
 
 | ID | Issue | Severity | Root Cause (VERIFIED) | Status |
 |------|-------|----------|------------|--------|
-| P-01 | Config files not deployed to runtime dir | Critical | `resource_path()` goes up 3 dirs instead of 2, overshooting from `python/` to `src-tauri/` | pending |
+| P-01 | Config files not deployed to runtime dir | Critical | `resource_path()` goes up 3 dirs instead of 2 | **COMPLETE** (8/10 ETFs decompose, 3522 holdings) |
 | P-02 | 7 iShares adapters return empty holdings | Critical | **Same root cause as P-01.** `ishares_config.json` not deployed = no product IDs = auto-discovery fails | MERGED INTO P-01 |
 | P-03 | 2 Amundi ETFs require manual upload | Medium | By design - Amundi blocks automated downloads | documented |
 | P-04 | `is_trustworthy` threshold | Resolved | Already correct: `score >= 0.95`, penalties CRITICAL=0.25, HIGH=0.10. Current run shows 0.49 = correctly untrusted | verify only |
 | P-05 | Geography coverage 4.2% | Medium | Enrichment APIs don't return geography consistently | investigate |
 | P-06 | 44% tier2_skipped not reflected in UI | Low | Skipped holdings have tickers but aren't surfaced in NeedsAttention | deferred |
-| P-07 | Pipeline returns `success: true` despite 9/10 ETFs failing | High | `pipeline.py:583` hardcodes `success=True` in happy path; only goes `false` on exception | pending |
+| P-07 | Pipeline returns `success: true` despite 9/10 ETFs failing | High | `pipeline.py:583` hardcoded `success=True` | **COMPLETE** (derived from ETF ratio, 6 tests) |
 | P-08 | Hive contribution default verified correct | Resolved | Default is `"true"` in code; this machine had persisted `"false"` | no change needed |
 | P-09 | WORKER_URL for enrichment proxy | Resolved | Hardcoded Cloudflare Worker default in `config.py:56`. No env var needed. | no change needed |
 | P-10 | Frontend has no `degraded` concept | Note | `RunPipelineResultSchema` is binary `success: boolean`. XRayView throws on `success=false`. No `runStatus` field. | assess with P-07 |
