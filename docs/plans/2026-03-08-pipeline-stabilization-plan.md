@@ -109,6 +109,16 @@ The Hive itself is a Supabase PostgreSQL database with:
 
 **This is the most important test phase. Every other phase is secondary to this.**
 
+Per spec (`docs/specs/identity_resolution_details.md` Section 15):
+- Resolution Rate target: **>95%** of holdings resolved
+- Cache Hit Rate target: **>80%** from local/Hive
+- API Dependency target: **<20%** of resolutions hit external APIs
+
+Per architecture (`docs/architecture/identity_resolution.md`):
+- Identity Resolution is **Stage 0** of the pipeline — before decomposition can aggregate
+- Without ISINs, "NVIDIA CORP" and "NVIDIA Corp" are treated as different securities
+- Every API success is contributed to Hive — community builds shared knowledge base
+
 | # | Test | How | Expected |
 |---|------|-----|----------|
 | Z1 | ISIN resolution rate per ETF | Check `resolution_stats` per ETF after pipeline run | >80% for each ETF |
