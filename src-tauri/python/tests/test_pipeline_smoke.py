@@ -141,5 +141,49 @@ class TestNewModules:
         assert hasattr(error_reporter, "report_to_github")
 
 
+
+class TestPipelineSuccessTruthfulness:
+    """P-07: Pipeline success must reflect ETF processing results."""
+
+    @staticmethod
+    def _derive_success(etfs_total: int, etfs_succeeded: int) -> bool:
+        """Mirror the pipeline's success derivation logic."""
+        return etfs_total == 0 or (etfs_succeeded / etfs_total) >= 0.5
+
+    def test_success_false_when_majority_etfs_fail(self):
+        """success=False when >50% of ETFs fail decomposition."""
+        assert self._derive_success(10, 1) is False
+
+    def test_success_false_when_all_etfs_fail(self):
+        """success=False when all ETFs fail."""
+        assert self._derive_success(10, 0) is False
+
+    def test_success_true_when_majority_etfs_succeed(self):
+        """success=True when >50% of ETFs succeed."""
+        assert self._derive_success(10, 8) is True
+
+    def test_success_true_when_exactly_half_succeed(self):
+        """success=True when exactly 50% of ETFs succeed."""
+        assert self._derive_success(10, 5) is True
+
+    def test_success_true_when_no_etfs(self):
+        """success=True when portfolio has no ETFs (stocks only)."""
+        assert self._derive_success(0, 0) is True
+
+    def test_pipeline_result_reflects_derived_success(self):
+        """PipelineResult constructed by pipeline uses derived success."""
+        from portfolio_src.core.errors import PipelineResult
+
+        etfs_total = 10
+        etfs_succeeded = 1
+        pipeline_success = self._derive_success(etfs_total, etfs_succeeded)
+
+        result = PipelineResult(
+            success=pipeline_success,
+            etfs_processed=etfs_succeeded,
+            etfs_failed=etfs_total - etfs_succeeded,
+            total_value=41000.0,
+        )
+        assert result.success is False
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

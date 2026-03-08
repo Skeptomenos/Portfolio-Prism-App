@@ -579,9 +579,14 @@ class Pipeline:
             )
             broadcast_summary(summary)
 
+            # Derive success from ETF processing results
+            etfs_total = len(etf_positions)
+            etfs_succeeded = len(holdings_map)
+            pipeline_success = etfs_total == 0 or (etfs_succeeded / etfs_total) >= 0.5
+
             return PipelineResult(
-                success=True,
-                etfs_processed=len(holdings_map),
+                success=pipeline_success,
+                etfs_processed=etfs_succeeded,
                 etfs_failed=len(decompose_errors),
                 total_value=total_value,
                 errors=errors,
