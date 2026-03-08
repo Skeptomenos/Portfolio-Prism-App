@@ -1,0 +1,188 @@
+{
+  "timestamp": "2026-03-06T19:01:03.319290",
+  "metrics": {
+    "direct_holdings": 20,
+    "etf_positions": 10,
+    "etfs_processed": 0,
+    "tier1_resolved": 0,
+    "tier1_failed": 10
+  },
+  "performance": {
+    "execution_time_seconds": 4.66,
+    "phase_durations": {
+      "initialization": 0.114,
+      "data_loading": 0.217,
+      "etf_decomposition": 1.193,
+      "enrichment": 2.589,
+      "aggregation": 0.22,
+      "reporting": 0.108
+    },
+    "hive_hit_rate": 90.0,
+    "api_fallback_rate": 10.0,
+    "total_assets_processed": 20,
+    "hive_hits_count": 18,
+    "hive_misses_count": 2,
+    "api_calls_count": 2,
+    "contributions_count": 2
+  },
+  "decomposition": {
+    "per_etf": []
+  },
+  "enrichment": {
+    "stats": {
+      "hive_hits": 18,
+      "api_calls": 2,
+      "new_contributions": 2
+    },
+    "hive_log": {
+      "hits": [
+        "AU0000066086",
+        "CA22587M1068",
+        "DE0005493092",
+        "DE0007500001",
+        "DE0008404005",
+        "DE000A161408",
+        "DE000TKMS001",
+        "KYG9830T1067",
+        "US00287Y1091",
+        "US0079031078",
+        "US02079K3059",
+        "US0231351067",
+        "US1667641005",
+        "US30303M1027",
+        "US5949181045",
+        "US67066G1040",
+        "US69608A1088",
+        "US88160R1014"
+      ],
+      "contributions": ["CA87320M2004", "XF000BTC0017"]
+    }
+  },
+  "failures": [
+    {
+      "severity": "ERROR",
+      "stage": "ETF_DECOMPOSITION",
+      "item": "IE00B4L5Y983",
+      "issue": "NO_ADAPTER",
+      "error": "No adapter registered for this ISIN",
+      "fix": "Add adapter or upload to manual_holdings/IE00B4L5Y983.csv"
+    },
+    {
+      "severity": "ERROR",
+      "stage": "ETF_DECOMPOSITION",
+      "item": "IE00B3WJKG14",
+      "issue": "NO_ADAPTER",
+      "error": "No adapter registered for this ISIN",
+      "fix": "Add adapter or upload to manual_holdings/IE00B3WJKG14.csv"
+    },
+    {
+      "severity": "ERROR",
+      "stage": "ETF_DECOMPOSITION",
+      "item": "IE00B53SZB19",
+      "issue": "NO_ADAPTER",
+      "error": "No adapter registered for this ISIN",
+      "fix": "Add adapter or upload to manual_holdings/IE00B53SZB19.csv"
+    },
+    {
+      "severity": "ERROR",
+      "stage": "ETF_DECOMPOSITION",
+      "item": "IE0031442068",
+      "issue": "NO_ADAPTER",
+      "error": "No adapter registered for this ISIN",
+      "fix": "Add adapter or upload to manual_holdings/IE0031442068.csv"
+    },
+    {
+      "severity": "ERROR",
+      "stage": "ETF_DECOMPOSITION",
+      "item": "DE000A0F5UF5",
+      "issue": "NO_ADAPTER",
+      "error": "No adapter registered for this ISIN",
+      "fix": "Add adapter or upload to manual_holdings/DE000A0F5UF5.csv"
+    },
+    {
+      "severity": "ERROR",
+      "stage": "ETF_DECOMPOSITION",
+      "item": "IE00BYVQ9F29",
+      "issue": "NO_ADAPTER",
+      "error": "No adapter registered for this ISIN",
+      "fix": "Add adapter or upload to manual_holdings/IE00BYVQ9F29.csv"
+    },
+    {
+      "severity": "ERROR",
+      "stage": "ETF_DECOMPOSITION",
+      "item": "IE00BL25JP72",
+      "issue": "NO_ADAPTER",
+      "error": "No adapter registered for this ISIN",
+      "fix": "Add adapter or upload to manual_holdings/IE00BL25JP72.csv"
+    },
+    {
+      "severity": "ERROR",
+      "stage": "ETF_DECOMPOSITION",
+      "item": "IE00B5BMR087",
+      "issue": "NO_ADAPTER",
+      "error": "No adapter registered for this ISIN",
+      "fix": "Add adapter or upload to manual_holdings/IE00B5BMR087.csv"
+    },
+    {
+      "severity": "ERROR",
+      "stage": "ETF_DECOMPOSITION",
+      "item": "LU0908500753",
+      "issue": "NO_ADAPTER",
+      "error": "No adapter registered for this ISIN",
+      "fix": "Add adapter or upload to manual_holdings/LU0908500753.csv"
+    },
+    {
+      "severity": "ERROR",
+      "stage": "ETF_DECOMPOSITION",
+      "item": "FR0010361683",
+      "issue": "NO_ADAPTER",
+      "error": "No adapter registered for this ISIN",
+      "fix": "Add adapter or upload to manual_holdings/FR0010361683.csv"
+    }
+  ],
+  "data_quality": {
+    "quality_score": 0.65,
+    "is_trustworthy": false,
+    "total_issues": 2,
+    "by_severity": {
+      "critical": 1,
+      "high": 1,
+      "medium": 0,
+      "low": 0
+    },
+    "by_category": {
+      "schema": 0,
+      "weight": 0,
+      "resolution": 0,
+      "enrichment": 0,
+      "currency": 0,
+      "value": 2
+    },
+    "issues": [
+      {
+        "severity": "critical",
+        "category": "value",
+        "code": "TOTAL_MISMATCH_LARGE",
+        "message": "Aggregated total differs from expected by 84.8%",
+        "fix_hint": "Large discrepancy indicates calculation errors or missing data",
+        "item": "portfolio",
+        "phase": "AGGREGATION",
+        "timestamp": "2026-03-06T18:01:02.993512+00:00",
+        "expected": "41774.38",
+        "actual": "6360.48"
+      },
+      {
+        "severity": "high",
+        "category": "value",
+        "code": "PERCENTAGE_SUM_LOW",
+        "message": "Portfolio percentages sum to only 15.2%",
+        "fix_hint": "Some exposures may be missing from the aggregation",
+        "item": "portfolio",
+        "phase": "AGGREGATION",
+        "timestamp": "2026-03-06T18:01:02.993527+00:00",
+        "expected": "~100%",
+        "actual": "15.2%"
+      }
+    ]
+  }
+}
