@@ -18,10 +18,28 @@
  *   })
  */
 import { spawn, ChildProcess } from 'child_process'
+import { existsSync } from 'fs'
+import { mkdir, rm, writeFile } from 'fs/promises'
+import path from 'path'
 import { setupServer } from 'msw/node'
 import { http, HttpResponse } from 'msw'
 
 let pythonProcess: ChildProcess | null = null
+
+const TEST_ECHO_TOKEN = 'integration-test-token'
+const TEST_STARTUP_TIMEOUT_MS = 15000
+const TEST_POLL_INTERVAL_MS = 250
+const PYTHON_WORKDIR = path.resolve(process.cwd(), 'src-tauri', 'python')
+const TEST_DATA_DIR = path.resolve(process.cwd(), '.tmp', 'integration-data')
+const TEST_OUTPUTS_DIR = path.join(TEST_DATA_DIR, 'outputs')
+const TEST_UV_CACHE_DIR = path.resolve(process.cwd(), '.tmp', 'uv-cache')
+const LOCAL_PYTHON_PATH =
+  process.platform === 'win32'
+    ? path.join(PYTHON_WORKDIR, '.venv', 'Scripts', 'python.exe')
+    : path.join(PYTHON_WORKDIR, '.venv', 'bin', 'python')
+
+let testEchoBridgePort = 5001
+let testEchoBridgeUrl = `http://127.0.0.1:${testEchoBridgePort}`
 
 // MSW handlers for external APIs only
 // Internal IPC is not mocked - we test the real Python sidecar
@@ -39,6 +57,71 @@ const externalApiHandlers = [
 
 export const server = setupServer(...externalApiHandlers)
 
+async function allocateEchoBridgePort(): Promise<number> {
+  const basePort = 20000
+  const portRange = 20000
+  return basePort + Math.floor(Math.random() * portRange)
+}
+
+async function prepareIntegrationEnvironment(): Promise<void> {
+  await rm(TEST_DATA_DIR, { recursive: true, force: true })
+  await mkdir(TEST_OUTPUTS_DIR, { recursive: true })
+  await mkdir(TEST_UV_CACHE_DIR, { recursive: true })
+  testEchoBridgePort = await allocateEchoBridgePort()
+  testEchoBridgeUrl = `http://127.0.0.1:${testEchoBridgePort}`
+  process.env.VITE_ECHO_BRIDGE_TOKEN = TEST_ECHO_TOKEN
+  process.env.VITE_ECHO_BRIDGE_URL = testEchoBridgeUrl
+}
+
+async function waitForSidecarReady(): Promise<void> {
+  const deadline = Date.now() + TEST_STARTUP_TIMEOUT_MS
+
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(`${testEchoBridgeUrl}/health`)
+      if (response.ok) {
+        return
+      }
+    } catch {
+      // Sidecar is still starting up.
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, TEST_POLL_INTERVAL_MS))
+  }
+
+  throw new Error(`Python sidecar startup timeout after ${TEST_STARTUP_TIMEOUT_MS}ms`)
+}
+
+function getPythonCommand(): { command: string; args: string[] } {
+  if (existsSync(LOCAL_PYTHON_PATH)) {
+    return {
+      command: LOCAL_PYTHON_PATH,
+      args: [
+        'prism_headless.py',
+        '--http',
+        '--host',
+        '127.0.0.1',
+        '--port',
+        String(testEchoBridgePort),
+      ],
+    }
+  }
+
+  return {
+    command: 'uv',
+    args: [
+      'run',
+      'python',
+      'prism_headless.py',
+      '--http',
+      '--host',
+      '127.0.0.1',
+      '--port',
+      String(testEchoBridgePort),
+    ],
+  }
+}
+
 /**
  * Start the Python sidecar for integration tests.
  *
@@ -48,31 +131,63 @@ export const server = setupServer(...externalApiHandlers)
  * @throws {Error} If sidecar fails to start within 10 seconds
  */
 export async function startPythonSidecar(): Promise<void> {
+  await prepareIntegrationEnvironment()
+
   return new Promise((resolve, reject) => {
-    pythonProcess = spawn('uv', ['run', 'python', 'prism_headless.py', '--http'], {
-      cwd: 'src-tauri/python',
+    const { command, args } = getPythonCommand()
+    let settled = false
+    let stderrOutput = ''
+
+    const finish = (error?: Error) => {
+      if (settled) {
+        return
+      }
+      settled = true
+
+      if (error) {
+        void stopPythonSidecar().finally(() => reject(error))
+        return
+      }
+
+      resolve()
+    }
+
+    pythonProcess = spawn(command, args, {
+      cwd: PYTHON_WORKDIR,
       env: {
         ...process.env,
-        PRISM_ECHO_TOKEN: 'integration-test-token',
+        PRISM_ECHO_TOKEN: TEST_ECHO_TOKEN,
+        PRISM_DATA_DIR: TEST_DATA_DIR,
+        UV_CACHE_DIR: TEST_UV_CACHE_DIR,
       },
     })
 
-    pythonProcess.stdout?.on('data', (data: Buffer) => {
-      const output = data.toString()
-      // Echo Bridge prints this when ready
-      if (output.includes('Echo Bridge listening') || output.includes('Starting HTTP server')) {
-        resolve()
-      }
-    })
-
     pythonProcess.stderr?.on('data', (data: Buffer) => {
-      console.error(`Python stderr: ${data.toString()}`)
+      const chunk = data.toString()
+      stderrOutput += chunk
+      console.error(`Python stderr: ${chunk}`)
     })
 
-    pythonProcess.on('error', reject)
+    pythonProcess.on('error', (error) => finish(error))
+    pythonProcess.on('exit', (code, signal) => {
+      if (settled) {
+        return
+      }
 
-    // Timeout after 10 seconds
-    setTimeout(() => reject(new Error('Python sidecar startup timeout')), 10000)
+      const details = stderrOutput.trim()
+      const suffix = details ? `\n${details}` : ''
+      finish(
+        new Error(`Python sidecar exited before ready (code=${code}, signal=${signal})${suffix}`)
+      )
+    })
+
+    void waitForSidecarReady()
+      .then(() => finish())
+      .catch((error: Error) => {
+        const details = stderrOutput.trim()
+        const suffix = details ? `\n${details}` : ''
+        finish(new Error(`${error.message}${suffix}`))
+      })
   })
 }
 
@@ -83,9 +198,32 @@ export async function startPythonSidecar(): Promise<void> {
  */
 export async function stopPythonSidecar(): Promise<void> {
   if (pythonProcess) {
-    pythonProcess.kill('SIGTERM')
+    const runningProcess = pythonProcess
     pythonProcess = null
+
+    await new Promise<void>((resolve) => {
+      const timeout = setTimeout(() => {
+        runningProcess.kill('SIGKILL')
+        resolve()
+      }, 2000)
+
+      runningProcess.once('exit', () => {
+        clearTimeout(timeout)
+        resolve()
+      })
+
+      runningProcess.kill('SIGTERM')
+    })
   }
+}
+
+export async function writePipelineHealthReport(reportPayload: unknown): Promise<void> {
+  await mkdir(TEST_OUTPUTS_DIR, { recursive: true })
+  await writeFile(
+    path.join(TEST_OUTPUTS_DIR, 'pipeline_health.json'),
+    JSON.stringify(reportPayload),
+    'utf8'
+  )
 }
 
 /**

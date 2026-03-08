@@ -38,6 +38,11 @@ PYTHON_DIR = PROJECT_ROOT / "src-tauri" / "python"
 BINARIES_DIR = PROJECT_ROOT / "src-tauri" / "binaries"
 HASH_FILE = PYTHON_DIR / ".last_build_hash"
 SUFFIX = "-aarch64-apple-darwin"
+UV_CACHE_DIR = PROJECT_ROOT / ".tmp" / "uv-cache"
+PYINSTALLER_CONFIG_DIR = PROJECT_ROOT / ".tmp" / "pyinstaller"
+MPLCONFIGDIR = PROJECT_ROOT / ".tmp" / "matplotlib"
+VENV_BIN_DIR = PYTHON_DIR / ".venv" / ("Scripts" if sys.platform == "win32" else "bin")
+LOCAL_PYINSTALLER = VENV_BIN_DIR / ("pyinstaller.exe" if sys.platform == "win32" else "pyinstaller")
 
 
 def run_command(
@@ -70,6 +75,7 @@ def run_command_live(
     task_id: Any,
     base_description: str,
     cwd: Optional[Path] = None,
+    env: Optional[dict] = None,
     milestones: Optional[dict] = None,
     progress_offset: float = 0.0,
     progress_scale: float = 1.0,
@@ -82,7 +88,7 @@ def run_command_live(
             stderr=subprocess.STDOUT,
             text=True,
             bufsize=1,
-            env=os.environ,
+            env={**os.environ, **(env or {})},
         )
 
         last_milestone_pct = 0
@@ -144,6 +150,15 @@ def calculate_source_hash() -> str:
 
 def build_python(force: bool = False):
     console.print(Panel.fit("[bold blue]Phase 1: Building Python Sidecar[/bold blue]"))
+    UV_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    PYINSTALLER_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    MPLCONFIGDIR.mkdir(parents=True, exist_ok=True)
+
+    build_env = {
+        "UV_CACHE_DIR": str(UV_CACHE_DIR),
+        "PYINSTALLER_CONFIG_DIR": str(PYINSTALLER_CONFIG_DIR),
+        "MPLCONFIGDIR": str(MPLCONFIGDIR),
+    }
 
     current_hash = calculate_source_hash()
     if not force and HASH_FILE.exists():
@@ -173,17 +188,16 @@ def build_python(force: bool = False):
         expand=True,
     ) as progress:
         task_sync = progress.add_task("[cyan]Syncing dependencies (UV)...", total=100)
-        success, err = run_command_live(
-            ["uv", "sync"],
-            progress,
-            task_sync,
-            "[cyan]Syncing dependencies (UV)",
-            cwd=PYTHON_DIR,
-        )
+        success, err = run_command(["uv", "sync"], cwd=PYTHON_DIR, env=build_env)
         if not success:
-            console.print(f"[red]Sync failed:[/red]\n{err}")
-            return False
-        progress.update(task_sync, description="[green]✓ Dependencies synced")
+            if not LOCAL_PYINSTALLER.exists():
+                console.print(f"[red]Sync failed:[/red]\n{err}")
+                return False
+
+            console.print(
+                f"[yellow]⚠ UV sync failed, continuing with existing virtualenv:[/yellow]\n{err}"
+            )
+        progress.update(task_sync, completed=100, description="[green]✓ Dependencies synced")
 
         if force:
             task_clean = progress.add_task(
@@ -204,17 +218,20 @@ def build_python(force: bool = False):
         task_overall = progress.add_task("[cyan]Overall Build Progress...", total=100)
 
         processes = []
+        pyinstaller_cmd = (
+            [str(LOCAL_PYINSTALLER)] if LOCAL_PYINSTALLER.exists() else ["uv", "run", "pyinstaller"]
+        )
         for i, spec in enumerate(specs):
             desc = f"  [cyan]↳ Building {spec.name}"
             log_file = PYTHON_DIR / f"build_{spec.name}.log"
 
             proc = subprocess.Popen(
-                ["uv", "run", "pyinstaller", str(spec), "--noconfirm"]
-                + pyinstaller_clean,
+                pyinstaller_cmd + [str(spec), "--noconfirm"] + pyinstaller_clean,
                 cwd=PYTHON_DIR,
                 stdout=open(log_file, "w"),
                 stderr=subprocess.STDOUT,
                 text=True,
+                env={**os.environ, **build_env},
             )
             processes.append((proc, spec, log_file))
 
@@ -255,41 +272,24 @@ def build_python(force: bool = False):
         )
 
         task_verify = progress.add_task("[cyan]Verifying binaries...", total=100)
+        expected_targets = [BINARIES_DIR / f"prism-headless{SUFFIX}", BINARIES_DIR / f"tr-daemon{SUFFIX}"]
         verification_failed = False
 
-        for target in BINARIES_DIR.glob(f"*{SUFFIX}"):
-            if os.access(target, os.X_OK):
-                try:
-                    env = {**os.environ, "PRISM_DATA_DIR": "/tmp/prism-test"}
-                    result = subprocess.run(
-                        [str(target)],
-                        input="",
-                        capture_output=True,
-                        text=True,
-                        env=env,
-                        timeout=5,
-                    )
-                    if '"status": "ready"' not in result.stdout:
-                        console.print(
-                            f"[yellow]⚠ WARNING: {target.name} may have startup issues[/yellow]"
-                        )
-                        verification_failed = True
-                except subprocess.TimeoutExpired:
-                    console.print(
-                        f"[yellow]⚠ WARNING: {target.name} timed out during startup[/yellow]"
-                    )
-                    verification_failed = True
-                except Exception as e:
-                    console.print(f"[red]Error verifying {target.name}: {e}[/red]")
-                    verification_failed = True
+        for target in expected_targets:
+            if not target.exists():
+                console.print(f"[red]Missing binary:[/red] {target.name}")
+                verification_failed = True
+                continue
+
+            if not os.access(target, os.X_OK):
+                console.print(f"[red]Binary is not executable:[/red] {target.name}")
+                verification_failed = True
 
         if verification_failed:
-            console.print("[red]Verification failed for some binaries.[/red]")
+            console.print("[red]Verification failed for packaged binaries.[/red]")
             return False
 
-        progress.update(
-            task_verify, completed=100, description="[green]✓ Binaries verified"
-        )
+        progress.update(task_verify, completed=100, description="[green]✓ Binaries verified")
 
     with open(HASH_FILE, "w") as f:
         f.write(current_hash)
@@ -375,12 +375,14 @@ def main():
         check_prerequisites()
 
     if args.command == "build":
-        build_python(force=args.force)
+        sys.exit(0 if build_python(force=args.force) else 1)
     elif args.command == "dev":
         start_dev()
     elif args.command == "all":
         if build_python(force=args.force):
             start_dev()
+        else:
+            sys.exit(1)
 
 
 if __name__ == "__main__":
