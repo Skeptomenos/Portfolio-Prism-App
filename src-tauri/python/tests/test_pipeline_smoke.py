@@ -185,5 +185,95 @@ class TestPipelineSuccessTruthfulness:
             total_value=41000.0,
         )
         assert result.success is False
+
+
+class TestWeightColumnRecognition:
+    """P-11: Decomposer must recognize 'weight_percentage' column from all adapters."""
+
+    def test_normalize_weight_format_recognizes_weight_percentage(self):
+        """_normalize_weight_format must detect the weight_percentage column."""
+        from portfolio_src.core.services.decomposer import _normalize_weight_format
+
+        # DataFrame mimicking iShares adapter output
+        holdings = pd.DataFrame({
+            "ticker": ["AAPL", "MSFT", "NVDA"],
+            "name": ["Apple Inc.", "Microsoft Corp.", "NVIDIA Corp."],
+            "weight_percentage": [5.5, 3.2, 2.8],  # percentage format
+        })
+
+        result = _normalize_weight_format(holdings, "IE00B4L5Y983")
+
+        # The function should have found the column (not returned unchanged)
+        assert "weight_percentage" in result.columns
+        # Weights should still be in percentage format (>1.0, so no conversion)
+        assert result["weight_percentage"].max() == 5.5
+
+    def test_normalize_weight_format_converts_decimal_weight_percentage(self):
+        """_normalize_weight_format converts decimal weight_percentage to percentage."""
+        from portfolio_src.core.services.decomposer import _normalize_weight_format
+
+        # DataFrame with decimal weights (sum <= 2.0, max <= 1.0)
+        holdings = pd.DataFrame({
+            "ticker": ["AAPL", "MSFT"],
+            "name": ["Apple Inc.", "Microsoft Corp."],
+            "weight_percentage": [0.055, 0.032],  # decimal format
+        })
+
+        result = _normalize_weight_format(holdings, "IE00B4L5Y983")
+
+        # Should be converted to percentage
+        assert result["weight_percentage"].iloc[0] == pytest.approx(5.5, abs=0.01)
+
+    def test_resolve_holdings_uses_weight_percentage_for_tier_classification(self):
+        """_resolve_holdings_isins must read weight_percentage, not default to 0.0."""
+        from unittest.mock import MagicMock
+        from portfolio_src.core.services.decomposer import Decomposer
+        from portfolio_src.data.resolution import ResolutionResult
+
+        # Create a mock resolver that records what weight it receives
+        mock_resolver = MagicMock()
+        mock_resolver.resolve.return_value = ResolutionResult(
+            isin="US0378331005",
+            status="resolved",
+            detail="mock",
+            source="test",
+            confidence=0.95,
+        )
+
+        decomposer = Decomposer(
+            holdings_cache=MagicMock(),
+            adapter_registry=MagicMock(),
+            isin_resolver=mock_resolver,
+        )
+
+        holdings = pd.DataFrame({
+            "ticker": ["AAPL"],
+            "name": ["Apple Inc."],
+            "weight_percentage": [5.5],  # 5.5% weight — clearly tier1
+        })
+
+        result_df, stats = decomposer._resolve_holdings_isins(holdings, "IE00B4L5Y983")
+
+        # The resolver must have been called (not skipped as tier2)
+        assert mock_resolver.resolve.called, (
+            "Resolver was never called — weight_percentage column was not recognized, "
+            "weight defaulted to 0.0, and the holding was skipped as tier2."
+        )
+
+        # Check the weight passed to the resolver was 5.5, not 0.0
+        call_kwargs = mock_resolver.resolve.call_args
+        actual_weight = call_kwargs.kwargs.get("weight", call_kwargs[1].get("weight", None))
+        if actual_weight is None:
+            # Positional args: resolve(ticker, name, provider_isin, weight, etf_isin)
+            actual_weight = call_kwargs[0][3] if len(call_kwargs[0]) > 3 else 0.0
+        assert actual_weight == pytest.approx(5.5, abs=0.01), (
+            f"Resolver received weight={actual_weight}, expected 5.5. "
+            f"The weight_percentage column was not read correctly."
+        )
+
+        # The holding should be resolved, not skipped
+        assert stats["resolved"] == 1
+        assert stats.get("unresolved", 0) == 0
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

@@ -44,7 +44,7 @@ def _normalize_weight_format(holdings: pd.DataFrame, etf_isin: str) -> pd.DataFr
     it's decimal format and should be multiplied by 100.
     """
     weight_col = None
-    for col in ["weight", "Weight", "weight_pct", "Weight_Pct"]:
+    for col in ["weight", "Weight", "weight_pct", "Weight_Pct", "weight_percentage"]:
         if col in holdings.columns:
             weight_col = col
             break
@@ -335,7 +335,7 @@ class Decomposer:
             holdings["resolution_confidence"] = 0.0
 
         weight_col = None
-        for col in ["weight", "Weight", "weight_pct", "Weight_Pct"]:
+        for col in ["weight", "Weight", "weight_pct", "Weight_Pct", "weight_percentage"]:
             if col in holdings.columns:
                 weight_col = col
                 break
