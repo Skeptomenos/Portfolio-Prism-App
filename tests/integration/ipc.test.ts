@@ -23,7 +23,7 @@ describe('IPC integration', () => {
     expect(health.sessionId).toBeDefined()
   })
 
-  it('fetches pipeline report from the real sidecar', async () => {
+  it('fetches pipeline report envelope from the real sidecar', async () => {
     const reportPayload = {
       timestamp: new Date().toISOString(),
       metrics: {
@@ -52,9 +52,16 @@ describe('IPC integration', () => {
     }
 
     await writePipelineHealthReport(reportPayload)
-    const report = await getPipelineReport()
+    const envelope = await getPipelineReport()
 
-    expect(report.metrics).toEqual(reportPayload.metrics)
-    expect(report.performance.total_assets_processed).toBe(0)
+    expect(envelope.status).toBe('ready')
+    expect(envelope.validationErrors).toEqual([])
+
+    if (envelope.status !== 'ready') {
+      throw new Error(`Expected ready pipeline report, received ${envelope.status}`)
+    }
+
+    expect(envelope.report.metrics).toEqual(reportPayload.metrics)
+    expect(envelope.report.performance.total_assets_processed).toBe(0)
   })
 })
