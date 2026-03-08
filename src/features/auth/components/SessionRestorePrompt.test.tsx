@@ -9,10 +9,13 @@ vi.mock('../../../lib/ipc', () => ({
   syncPortfolio: vi.fn(),
 }))
 
+const mockSetAuthState = vi.fn()
+const mockAddToast = vi.fn()
+
 vi.mock('../../../store/useAppStore', () => ({
   useAppStore: () => ({
-    setAuthState: vi.fn(),
-    addToast: vi.fn(),
+    setAuthState: mockSetAuthState,
+    addToast: mockAddToast,
     activePortfolioId: 1,
   }),
 }))
@@ -249,5 +252,60 @@ describe('SessionRestorePrompt', () => {
     await waitFor(() => {
       expect(mockOnRestoreComplete).toHaveBeenCalled()
     })
+  })
+
+  it('does not duplicate sync — child should not call syncPortfolio since parent will', async () => {
+    vi.mocked(ipc.trRestoreSession).mockResolvedValue({
+      authState: 'authenticated',
+      message: 'Session restored.',
+    })
+
+    render(
+      <SessionRestorePrompt
+        sessionData={mockSessionData}
+        onFreshLogin={mockOnFreshLogin}
+        onRestoreComplete={mockOnRestoreComplete}
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Restore Session' }))
+
+    await waitFor(() => {
+      expect(mockOnRestoreComplete).toHaveBeenCalled()
+    })
+
+    // The child should NOT call syncPortfolio — the parent owns post-restore sync
+    expect(ipc.syncPortfolio).not.toHaveBeenCalled()
+  })
+
+  it('does not duplicate auth state — child should not call setAuthState since parent will', async () => {
+    vi.mocked(ipc.trRestoreSession).mockResolvedValue({
+      authState: 'authenticated',
+      message: 'Session restored.',
+    })
+    vi.mocked(ipc.syncPortfolio).mockResolvedValue({
+      syncedPositions: 10,
+      newPositions: 2,
+      updatedPositions: 8,
+      totalValue: 75000,
+      durationMs: 1500,
+    })
+
+    render(
+      <SessionRestorePrompt
+        sessionData={mockSessionData}
+        onFreshLogin={mockOnFreshLogin}
+        onRestoreComplete={mockOnRestoreComplete}
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Restore Session' }))
+
+    await waitFor(() => {
+      expect(mockOnRestoreComplete).toHaveBeenCalled()
+    })
+
+    // The child should NOT call setAuthState — the parent owns auth state truth
+    expect(mockSetAuthState).not.toHaveBeenCalled()
   })
 })

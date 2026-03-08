@@ -6,7 +6,7 @@
 
 import { useState } from 'react'
 import { useAppStore } from '../../../store/useAppStore'
-import { trRestoreSession, syncPortfolio } from '../../../lib/ipc'
+import { trRestoreSession } from '../../../lib/ipc'
 import type { SessionCheck } from '../../../types'
 
 const styles = {
@@ -138,7 +138,7 @@ export const SessionRestorePrompt = ({
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const { setAuthState, addToast, activePortfolioId } = useAppStore()
+  const { addToast } = useAppStore()
 
   const maskPhoneNumber = (phone?: string | null): string => {
     if (!phone) return '••• •••• ••••'
@@ -161,27 +161,10 @@ export const SessionRestorePrompt = ({
       const authStatus = await trRestoreSession()
 
       if (authStatus.authState === 'authenticated') {
-        setAuthState('authenticated')
-
-        // Trigger portfolio sync
-        try {
-          await syncPortfolio(activePortfolioId, false)
-          addToast({
-            type: 'success',
-            title: 'Session restored',
-            message: 'Portfolio synced successfully',
-          })
-        } catch {
-          addToast({
-            type: 'warning',
-            title: 'Session restored',
-            message: 'Portfolio sync pending',
-          })
-        }
-
+        // Delegate all post-restore work (auth state, sync, navigation) to the parent.
+        // The child only performs the IPC restore call.
         onRestoreComplete()
       } else {
-        setAuthState('idle')
         setError(authStatus.message || 'Session has expired. Please login again.')
         setTimeout(() => {
           onFreshLogin()
@@ -190,7 +173,6 @@ export const SessionRestorePrompt = ({
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to restore session'
       setError(message)
-      setAuthState('idle')
     } finally {
       setIsLoading(false)
     }
