@@ -35,6 +35,21 @@ class TestTRDaemonInit:
         assert isinstance(data_dir, Path)
         assert "PortfolioPrism" in str(data_dir)
 
+    def test_get_data_dir_respects_prism_data_dir_env(self):
+        """_get_data_dir must return PRISM_DATA_DIR when the env var is set."""
+        daemon = TRDaemon()
+        custom_dir = "/tmp/prism-test-custom-data"
+        with patch.dict("os.environ", {"PRISM_DATA_DIR": custom_dir}):
+            data_dir = daemon._get_data_dir()
+        assert str(data_dir) == custom_dir
+
+    def test_get_data_dir_falls_back_without_env(self):
+        """_get_data_dir must fall back to platform default when env var is unset."""
+        daemon = TRDaemon()
+        with patch.dict("os.environ", {}, clear=True):
+            data_dir = daemon._get_data_dir()
+        assert isinstance(data_dir, Path)
+        assert "PortfolioPrism" in str(data_dir)
 
 class TestHandleLogin:
     """Tests for handle_login method."""

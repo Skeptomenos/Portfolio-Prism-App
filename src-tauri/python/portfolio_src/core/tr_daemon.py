@@ -59,6 +59,10 @@ class TRDaemon:
         self._cached_auth_status = "idle"
 
     def _get_data_dir(self) -> Path:
+        """Get data directory, respecting PRISM_DATA_DIR env var."""
+        env_dir = os.getenv("PRISM_DATA_DIR")
+        if env_dir:
+            return Path(env_dir)
         home = Path.home()
         if platform.system() == "Darwin":
             return home / "Library" / "Application Support" / "PortfolioPrism"
