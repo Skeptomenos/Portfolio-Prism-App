@@ -2,7 +2,7 @@
 
 > **Branch:** `pipeline/stabilize-xray-hive`
 > **Created:** 2026-03-08
-> **Status:** P-01 and P-07 COMPLETE. Remaining: P-05 (investigate), P-06 (deferred), P-10 (deferred)
+> **Status:** P-01/P-07 COMPLETE. **P-11 is the next critical fix** (ISIN resolution broken). P-05/P-06/P-10 deferred.
 > **Predecessor:** Session restore fixes on `codex/stabilize-ipc-xray` (completed)
 
 ---
@@ -11,51 +11,81 @@
 
 Systematically test, dogfood, and fix the X-Ray analysis pipeline end-to-end, including Hive contribution, so that every pipeline stage produces truthful, visible results and failures are never silent.
 
-## Architecture Summary (from investigation)
+## Domain Context: ISIN-First Strategy
+
+The core value proposition of Portfolio Prism is **ISIN-level aggregation**:
+
+1. **The Problem:** ETF providers give tickers for each underlying holding (e.g., `AAPL`, `AZN.L`).
+   Tickers are market-specific — `AAPL` on NASDAQ vs `APC` on Xetra are different listings
+   of the same company. You cannot map a ticker from one exchange to a ticker on another.
+2. **The Solution:** The pipeline resolves every ticker to its **ISIN** (International Securities
+   Identification Number), which is the globally unique identifier. Only with ISINs can you
+   detect that your NVIDIA stock and the NVIDIA inside your MSCI World ETF are the same holding.
+3. **The Pipeline:** Decompose ETF → Resolve Ticker-to-ISIN → Enrich with metadata (sector/geo) →
+   Aggregate by ISIN for **True Holding Exposure**.
+4. **The Hive:** Because external API resolution (Wikidata, Finnhub) is slow and rate-limited,
+   every successful Ticker → ISIN resolution is auto-contributed to the Supabase **Hive** database.
+   The idea: every user contributing makes the experience better for the next user.
+   This is opt-in-by-default (setting `hive_contribution_enabled`, default `"true"`).
+
+**Without ISIN resolution, the pipeline produces nothing meaningful.** Decomposition extracts
+tickers but the critical ticker→ISIN mapping is where the value lies. This is why P-11 is the
+highest priority remaining fix.
+
+## Architecture Summary
 
 The pipeline is a 6-phase linear orchestrator in `core/pipeline.py`:
 
 ```
-LOAD → DECOMPOSE → ENRICH → AGGREGATE → REPORT → HARVEST
+LOAD → DECOMPOSE → RESOLVE ISINs → ENRICH → AGGREGATE → REPORT → HARVEST
 ```
 
 | Phase | Service | What it does | Key dependency |
 |-------|---------|-------------|----------------|
 | 1. Load | `_load_portfolio()` | Reads positions from SQLite, splits into direct (stocks) vs ETFs | `data/database.py` |
-| 2. Decompose | `Decomposer` | X-rays ETFs into underlying holdings via adapter → cache → Hive cascade | `adapters/registry.py`, `holdings_cache`, `ISINResolver` |
-| 3. Enrich | `Enricher` | Adds sector/geography metadata via `HiveEnrichmentService` | `HiveClient`, Finnhub/Wikidata/yFinance fallbacks |
-| 4. Aggregate | `Aggregator` | Fuses direct + ETF holdings, normalizes weights, groups by sector/region | Pure computation |
-| 5. Report | `_write_reports()` | Writes exposure CSV, holdings breakdown, health report, error log | `SnapshotRepository` |
-| 6. Harvest | `harvest_cache()` | Auto-contributes new securities to Hive (non-fatal) | `HiveClient` |
+| 2. Decompose | `Decomposer` | X-rays ETFs into underlying holdings via adapter → cache → Hive cascade | `adapters/registry.py`, `holdings_cache` |
+| 3. Resolve | `ISINResolver` (inside Decomposer) | Resolves tickers to ISINs via: local_cache → Hive → Wikidata → Finnhub → yFinance | `data/resolution.py` |
+| 4. Enrich | `Enricher` | Adds sector/geography metadata via `HiveEnrichmentService` | `HiveClient`, proxy worker |
+| 5. Aggregate | `Aggregator` | Fuses direct + ETF holdings by ISIN, normalizes weights, groups by sector/region | Pure computation |
+| 6. Report | `_write_reports()` | Writes exposure CSV, holdings breakdown, health report, error log | `SnapshotRepository` |
+| 7. Harvest | `harvest_cache()` | Auto-contributes newly-resolved ISINs to Hive (non-fatal) | `HiveClient` |
+
+### ISIN Resolution Cascade (per holding)
+
+```
+1. Provider ISIN (if the adapter already gave one)       → confidence 1.00
+2. Manual enrichments (user-provided ticker→ISIN map)    → confidence 0.85
+3. LocalCache (SQLite backed by Hive sync, 1000 entries) → confidence 0.95
+4. Hive network lookup (Supabase listings table)         → confidence 0.90
+5. API calls (tier1 only, weight > threshold):
+   a. Wikidata SPARQL                                    → confidence 0.80
+   b. Finnhub (via Cloudflare Worker proxy)               → confidence 0.75
+   c. yFinance (unreliable fallback)                      → confidence 0.70
+6. Mark as unresolved
+```
+
+Holdings below `tier1_threshold` (0.1% weight) are skipped as tier2 — not worth the API call.
 
 ### Hive Contribution Flow
 
 Hive contribution happens at two points:
-1. **During decomposition**: When an adapter fetches ETF holdings and resolves ISINs, successful resolutions are contributed back to the Hive community database (`_contribute_to_hive_async`, fire-and-forget daemon thread).
-2. **During harvest**: After all phases complete, `harvest_cache()` contributes newly-discovered securities.
+1. **During ISIN resolution**: When an API call resolves a ticker→ISIN, the result is
+   pushed to Hive via `_push_to_hive()` — making it available for all users.
+2. **During harvest**: After pipeline completes, `harvest_cache()` bulk-contributes
+   newly-discovered securities to the Hive `assets` and `listings` tables.
 
 The Hive itself is a Supabase PostgreSQL database with:
 - `assets` (ISIN → name, asset_class)
-- `listings` (ticker/exchange → ISIN)
+- `listings` (ticker/exchange → ISIN) — **the key table for resolution**
 - `aliases` (name → ISIN)
 - `etf_holdings` (ETF ISIN → holdings + weights)
 - `contributions` (audit log)
-
-### Known Issues (from investigation report)
-
-| Issue | Severity | Details |
-|-------|----------|---------|
-| 44% of holdings are `tier2_skipped` | Medium | Below 0.5% weight threshold, have tickers but no resolved ISINs |
-| 2 Amundi ETFs always fail | Medium | Different adapter format, requires manual upload |
-| Geography coverage 4.2% | High | Critical gap — enrichment APIs don't return geography consistently |
-| Sector coverage 55.9% | Medium | Matches ISIN resolution rate — unresolved holdings can't be enriched |
-| `is_trustworthy=true` despite gaps | High | Quality score 1.0 despite 44% skipped — may mislead users |
 
 ### Key Contracts
 
 - **Pipeline result**: `PipelineResult(success, etfs_processed, etfs_failed, total_value, errors, warnings, harvested_count)`
 - **Pipeline report envelope**: `PipelineReportEnvelope` with statuses `missing | invalid | ready`
-- **Run status convention**: `success` (all ETFs decomposed), `degraded` (some failed), `failed` (critical failure). Pipeline `is_trustworthy=false` must NEVER be reported as `success` (AGENTS.md anti-pattern).
+- **Run status**: `success` derived from `(etfs_succeeded / etfs_total) >= 0.5` (fixed in P-07)
 - **Health report**: Written to `outputs/pipeline_health.json` — consumed by Health route and X-Ray UI
 
 ---
@@ -439,22 +469,115 @@ so the frontend can show nuanced state. For now, P-07's binary fix is sufficient
 ## Execution Order (Updated)
 
 ```
-P-01 (resource_path fix) ------> unblocks iShares ETF decomposition
-                                  unblocks ishares_config.json deployment
-                                  unblocks ticker_map.json deployment
+P-01 (resource_path fix) ------> COMPLETE: 8/10 ETFs decompose, 3522 holdings
   |
   v
-P-07 (success truthfulness) ---> pipeline reports correct success/failure
+P-07 (success truthfulness) ---> COMPLETE: derived from ETF ratio
   |
   v
-P-05 (geography) --------------> investigate after ETFs decompose
+P-11 (weight column fix) ------> NEXT: unblocks ISIN resolution for 3522 holdings
   |
   v
-Dogfood full pipeline ----------> verify all routes show correct data
+P-12 (enrichment + Hive) ------> AUTO: once ISINs resolve, enrichment + contribution works
+  |
+  v
+P-05 (geography) --------------> investigate after P-11 (may improve with more ISINs)
+  |
+  v
+Dogfood full pipeline ----------> verify True Holding Exposure works end-to-end
 ```
 
 **Resolved (no action):** P-02 (merged), P-03 (documented), P-04 (correct), P-08 (correct), P-09 (correct)
 **Deferred:** P-06 (tier2 UI), P-10 (degraded concept)
+
+---
+
+## P-11: Fix weight column mismatch in decomposer (CRITICAL)
+
+**This is the highest-priority remaining fix. Without it, the entire ISIN-first strategy is broken.**
+
+### Root cause (VERIFIED)
+
+The decomposer's `_resolve_holdings_isins()` at line 338 searches for weight columns:
+```python
+for col in ["weight", "Weight", "weight_pct", "Weight_Pct"]:
+```
+
+But the iShares adapter saves holdings CSVs with the column name `weight_percentage`.
+Since the column isn't found, `weight_col = None` and all 3,522 holdings get `weight = 0.0`.
+
+With `tier1_threshold = 0.1` (from pipeline.py:185), the tier check at resolution.py:183 is:
+```python
+is_tier2 = weight <= self.tier1_threshold  # 0.0 <= 0.1 = True for ALL holdings
+```
+
+Every single holding is classified as tier2 and **skipped entirely** — no ISIN resolution.
+
+### Evidence
+
+```
+Pipeline health report after P-01 fix:
+  etfs_processed: 8
+  total_underlying: 3,522
+  ISIN resolution rate: 0% (ALL 8 ETFs show LOW_RESOLUTION_RATE: 0%)
+  quality_score: 0.0
+  is_trustworthy: false
+  
+Manual resolver test:
+  AAPL  → US0378331005 (resolved, local_cache_ticker, confidence 0.95)
+  AZN.L → GB0009895292 (resolved, local_cache_ticker, confidence 0.95)
+  MSFT  → US5949181045 (resolved, local_cache_ticker, confidence 0.95)
+  
+Proof: the resolver WORKS. The weight column mismatch prevents it from running.
+```
+
+### Fix
+
+| File | Change |
+|------|--------|
+| `src-tauri/python/portfolio_src/core/services/decomposer.py:338` | Add `"weight_percentage"` to the weight column lookup list |
+| `src-tauri/python/tests/test_pipeline_smoke.py` or new test | Add test: resolution rate > 0 when holdings have weight_percentage column |
+
+### TDD Steps
+1. **Red:** Add test that creates a holdings DataFrame with `weight_percentage` column and verifies
+   that `_resolve_holdings_isins()` passes non-zero weights to the resolver (not all tier2-skipped).
+2. **Fix decomposer.py line 338:** Add `"weight_percentage"` to the list:
+   ```python
+   for col in ["weight", "Weight", "weight_pct", "Weight_Pct", "weight_percentage"]:
+   ```
+3. **Green:** Run test.
+4. **Dogfood:** Re-run pipeline in headed browser. Verify:
+   - ISIN resolution rate > 50% for tier1 holdings
+   - Resolved ISINs contributed to Hive
+   - Enrichment covers resolved holdings (sector/geography)
+   - True Holding Exposure shows cross-ETF overlap on Dashboard
+
+### Acceptance criteria
+- [ ] Weight column `weight_percentage` is recognized by the decomposer
+- [ ] ISIN resolution rate > 50% for holdings above tier1 threshold
+- [ ] Hive contributions include newly-resolved ETF holding ISINs (not just 20 direct stocks)
+- [ ] Health report shows improved quality_score and is_trustworthy
+- [ ] Dashboard True Exposure section shows meaningful cross-ETF overlap data
+
+### Expected impact
+
+With 3,522 underlying holdings and ~1,000 ISINs already in the local Hive cache:
+- **Immediate:** ~30-50% resolution from local cache alone
+- **After API calls:** ~60-80% resolution (Wikidata + Finnhub for uncached tickers)
+- **After Hive contribution:** resolved ISINs auto-contributed, improving hit rate for all users
+- **True Exposure:** Dashboard will show real cross-ETF overlap (e.g., NVIDIA in 3 ETFs + direct)
+
+---
+
+## P-12: Enrichment + Hive contribution for ETF holdings (downstream of P-11)
+
+Currently enrichment and Hive contributions only work for the 20 direct stock positions.
+Once P-11 is fixed and ISINs resolve for the 3,522 ETF holdings:
+- Enrichment will add sector/geography metadata to resolved holdings
+- Hive harvest will contribute newly-resolved ISINs
+- Hive hit rate should increase significantly (currently 83.1% for direct stocks only)
+
+**No code change needed.** This is automatically unblocked by P-11.
 
 ---
 
