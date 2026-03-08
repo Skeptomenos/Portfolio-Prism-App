@@ -209,10 +209,10 @@ class TestIntegration:
     """Integration tests for the refactored headless engine."""
 
     def test_all_handlers_registered(self):
-        """All 20 handlers are registered in the registry."""
+        """All 23 handlers are registered in the registry."""
         from portfolio_src.headless.handlers import HANDLER_REGISTRY
 
-        assert len(HANDLER_REGISTRY) == 20
+        assert len(HANDLER_REGISTRY) == 23
 
     def test_dispatch_available(self):
         """Dispatch function is importable from main package."""

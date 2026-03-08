@@ -11,14 +11,17 @@ mod commands;
 mod python_engine;
 
 use commands::{
-    get_dashboard_data, get_engine_health, get_hive_contribution, get_overlap_analysis,
-    get_pipeline_report, get_positions, get_true_holdings, run_pipeline, set_hive_contribution,
-    sync_portfolio, tr_check_saved_session, tr_get_auth_status, tr_login, tr_logout, tr_submit_2fa,
-    upload_holdings,
+    commit_holdings_upload, get_dashboard_data, get_engine_health, get_hive_contribution,
+    get_overlap_analysis, get_pending_reviews, get_pipeline_report, get_positions,
+    get_recent_reports, get_true_holdings, log_event, pick_holdings_file,
+    preview_holdings_upload, run_pipeline, set_hive_contribution, sync_portfolio,
+    tr_check_saved_session, tr_get_auth_status, tr_get_stored_credentials, tr_login,
+    tr_logout, tr_restore_session, tr_submit_2fa, upload_holdings,
 };
 use python_engine::{PythonEngine, StdoutMessage};
 use std::fs::{File, OpenOptions};
 use std::sync::Arc;
+use serde_json::json;
 use tauri::{Emitter, Manager};
 use tauri_plugin_shell::process::CommandEvent;
 use tauri_plugin_shell::ShellExt;
@@ -169,7 +172,41 @@ pub fn run() {
                                         "pipeline_progress" => "pipeline-progress",
                                         other => other,
                                     };
-                                    let _ = app_handle.emit(event_name, event.data);
+
+                                    let payload = match event.event.as_str() {
+                                        "sync_progress" => {
+                                            let progress = event
+                                                .data
+                                                .get("progress")
+                                                .and_then(|value| value.as_u64())
+                                                .unwrap_or(0);
+                                            let message = event
+                                                .data
+                                                .get("message")
+                                                .and_then(|value| value.as_str())
+                                                .unwrap_or_default();
+                                            let phase = event
+                                                .data
+                                                .get("phase")
+                                                .and_then(|value| value.as_str())
+                                                .unwrap_or("sync");
+                                            let status = if phase == "complete" || progress >= 100 {
+                                                "complete"
+                                            } else {
+                                                "syncing"
+                                            };
+
+                                            json!({
+                                                "status": status,
+                                                "progress": progress,
+                                                "message": message,
+                                                "phase": phase,
+                                            })
+                                        }
+                                        _ => event.data,
+                                    };
+
+                                    let _ = app_handle.emit(event_name, payload);
                                 }
                             }
                         }
@@ -217,14 +254,22 @@ pub fn run() {
             sync_portfolio,
             tr_get_auth_status,
             tr_check_saved_session,
+            tr_get_stored_credentials,
+            tr_restore_session,
             tr_login,
             tr_submit_2fa,
             tr_logout,
+            log_event,
+            get_recent_reports,
+            get_pending_reviews,
             run_pipeline,
             get_pipeline_report,
             get_true_holdings,
             get_overlap_analysis,
             upload_holdings,
+            preview_holdings_upload,
+            commit_holdings_upload,
+            pick_holdings_file,
             set_hive_contribution,
             get_hive_contribution
         ])

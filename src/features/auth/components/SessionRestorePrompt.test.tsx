@@ -5,7 +5,7 @@ import * as ipc from '../../../lib/ipc'
 import type { SessionCheck } from '../../../types'
 
 vi.mock('../../../lib/ipc', () => ({
-  trGetAuthStatus: vi.fn(),
+  trRestoreSession: vi.fn(),
   syncPortfolio: vi.fn(),
 }))
 
@@ -94,7 +94,7 @@ describe('SessionRestorePrompt', () => {
   })
 
   it('shows loading state when restoring session', async () => {
-    vi.mocked(ipc.trGetAuthStatus).mockImplementation(() => new Promise(() => {}))
+    vi.mocked(ipc.trRestoreSession).mockImplementation(() => new Promise(() => {}))
 
     render(
       <SessionRestorePrompt
@@ -111,10 +111,10 @@ describe('SessionRestorePrompt', () => {
     })
   })
 
-  it('calls onRestoreComplete on successful restore', async () => {
-    vi.mocked(ipc.trGetAuthStatus).mockResolvedValue({
+  it('calls restore session IPC and completes on successful restore', async () => {
+    vi.mocked(ipc.trRestoreSession).mockResolvedValue({
       authState: 'authenticated',
-      hasStoredCredentials: true,
+      message: 'Session restored.',
     })
     vi.mocked(ipc.syncPortfolio).mockResolvedValue({
       syncedPositions: 10,
@@ -135,14 +135,15 @@ describe('SessionRestorePrompt', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Restore Session' }))
 
     await waitFor(() => {
+      expect(ipc.trRestoreSession).toHaveBeenCalledTimes(1)
       expect(mockOnRestoreComplete).toHaveBeenCalled()
     })
   })
 
   it('shows error when session has expired', async () => {
-    vi.mocked(ipc.trGetAuthStatus).mockResolvedValue({
+    vi.mocked(ipc.trRestoreSession).mockResolvedValue({
       authState: 'idle',
-      hasStoredCredentials: false,
+      message: 'Session expired. Please log in again.',
     })
 
     render(
@@ -161,7 +162,7 @@ describe('SessionRestorePrompt', () => {
   })
 
   it('shows error on restore failure', async () => {
-    vi.mocked(ipc.trGetAuthStatus).mockRejectedValue(new Error('Network error'))
+    vi.mocked(ipc.trRestoreSession).mockRejectedValue(new Error('Network error'))
 
     render(
       <SessionRestorePrompt
@@ -179,7 +180,7 @@ describe('SessionRestorePrompt', () => {
   })
 
   it('disables buttons during loading', async () => {
-    vi.mocked(ipc.trGetAuthStatus).mockImplementation(() => new Promise(() => {}))
+    vi.mocked(ipc.trRestoreSession).mockImplementation(() => new Promise(() => {}))
 
     render(
       <SessionRestorePrompt
@@ -229,9 +230,9 @@ describe('SessionRestorePrompt', () => {
   })
 
   it('still calls onRestoreComplete even if sync fails', async () => {
-    vi.mocked(ipc.trGetAuthStatus).mockResolvedValue({
+    vi.mocked(ipc.trRestoreSession).mockResolvedValue({
       authState: 'authenticated',
-      hasStoredCredentials: true,
+      message: 'Session restored.',
     })
     vi.mocked(ipc.syncPortfolio).mockRejectedValue(new Error('Sync failed'))
 

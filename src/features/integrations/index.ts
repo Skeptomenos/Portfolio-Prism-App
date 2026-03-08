@@ -10,6 +10,7 @@ export type {
 
 export {
   trCheckSavedSession,
+  trRestoreSession,
   trLogin,
   trLoginWithStoredCredentials,
   trLogout,

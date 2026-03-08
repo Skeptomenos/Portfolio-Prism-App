@@ -30,6 +30,7 @@ from portfolio_src.headless.handlers.tr_auth import (
     handle_tr_get_auth_status,
     handle_tr_check_saved_session,
     handle_tr_get_stored_credentials,
+    handle_tr_restore_session,
     handle_tr_login,
     handle_tr_submit_2fa,
     handle_tr_logout,
@@ -40,6 +41,8 @@ from portfolio_src.headless.handlers.sync import (
 )
 from portfolio_src.headless.handlers.holdings import (
     handle_upload_holdings,
+    handle_preview_holdings_upload,
+    handle_commit_holdings_upload,
     handle_get_true_holdings,
     handle_get_pipeline_report,
 )
@@ -71,6 +74,7 @@ HANDLER_REGISTRY: dict[str, HandlerFunc] = {
     "tr_get_auth_status": handle_tr_get_auth_status,
     "tr_check_saved_session": handle_tr_check_saved_session,
     "tr_get_stored_credentials": handle_tr_get_stored_credentials,
+    "tr_restore_session": handle_tr_restore_session,
     "tr_login": handle_tr_login,
     "tr_submit_2fa": handle_tr_submit_2fa,
     "tr_logout": handle_tr_logout,
@@ -79,6 +83,8 @@ HANDLER_REGISTRY: dict[str, HandlerFunc] = {
     "run_pipeline": handle_run_pipeline,
     # Holdings
     "upload_holdings": handle_upload_holdings,
+    "preview_holdings_upload": handle_preview_holdings_upload,
+    "commit_holdings_upload": handle_commit_holdings_upload,
     "get_true_holdings": handle_get_true_holdings,
     "get_pipeline_report": handle_get_pipeline_report,
     # Telemetry
@@ -103,6 +109,7 @@ __all__ = [
     "handle_tr_get_auth_status",
     "handle_tr_check_saved_session",
     "handle_tr_get_stored_credentials",
+    "handle_tr_restore_session",
     "handle_tr_login",
     "handle_tr_submit_2fa",
     "handle_tr_logout",
@@ -111,6 +118,8 @@ __all__ = [
     "handle_run_pipeline",
     # Holdings
     "handle_upload_holdings",
+    "handle_preview_holdings_upload",
+    "handle_commit_holdings_upload",
     "handle_get_true_holdings",
     "handle_get_pipeline_report",
     # Telemetry

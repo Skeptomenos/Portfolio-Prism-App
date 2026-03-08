@@ -9,6 +9,7 @@ import {
   runPipeline,
   trGetAuthStatus,
   trCheckSavedSession,
+  trRestoreSession,
   trGetStoredCredentials,
   trLogin,
   trSubmit2FA,
@@ -186,6 +187,108 @@ describe('IPC Layer', () => {
       const result = await runPipeline()
 
       expect(result).toEqual({ success: true, errors: [], durationMs: 100 })
+    })
+
+    it('trGetAuthStatus accepts nullable backend fields', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            success: true,
+            data: {
+              authState: 'idle',
+              hasStoredCredentials: true,
+              lastError: null,
+            },
+          }),
+      })
+
+      const result = await trGetAuthStatus()
+
+      expect(result).toEqual({
+        authState: 'idle',
+        hasStoredCredentials: true,
+        lastError: null,
+      })
+    })
+
+    it('trCheckSavedSession accepts nullable phoneNumber', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            success: true,
+            data: {
+              hasSession: true,
+              phoneNumber: null,
+              prompt: 'restore_session',
+            },
+          }),
+      })
+
+      const result = await trCheckSavedSession()
+
+      expect(result).toEqual({
+        hasSession: true,
+        phoneNumber: null,
+        prompt: 'restore_session',
+      })
+    })
+
+    it('logs auth contract validation drift for session check', async () => {
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              success: true,
+              data: {
+                hasSession: true,
+                phoneNumber: null,
+                prompt: 'invalid_prompt',
+              },
+            }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ success: true, data: true }),
+        })
+
+      await expect(trCheckSavedSession()).rejects.toThrow(
+        'IPC validation failed for tr_check_saved_session'
+      )
+      await new Promise((resolve) => setTimeout(resolve, 0))
+
+      expect(mockFetch).toHaveBeenCalledTimes(2)
+      const logCallBody = JSON.parse(mockFetch.mock.calls[1][1].body)
+      expect(logCallBody.command).toBe('log_event')
+      expect(logCallBody.payload.component).toBe('integrations')
+      expect(logCallBody.payload.category).toBe('contract_drift')
+      expect(logCallBody.payload.context.command).toBe('tr_check_saved_session')
+      expect(logCallBody.payload.context.errorHash).toMatch(/^[0-9a-f]{8}$/)
+    })
+
+    it('trRestoreSession calls the dedicated restore command', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            success: true,
+            data: {
+              authState: 'authenticated',
+              message: 'Session restored.',
+            },
+          }),
+      })
+
+      const result = await trRestoreSession()
+
+      const callBody = JSON.parse(mockFetch.mock.calls[0][1].body)
+      expect(callBody.command).toBe('tr_restore_session')
+      expect(result).toEqual({
+        authState: 'authenticated',
+        message: 'Session restored.',
+      })
     })
 
     it('trLogin sends credentials', async () => {
@@ -413,22 +516,28 @@ describe('IPC Layer', () => {
 
     it('getPipelineReport returns report data', async () => {
       const mockReport = {
-        timestamp: '2026-01-26T10:00:00Z',
-        metrics: {
-          direct_holdings: 5,
-          etf_positions: 3,
-          etfs_processed: 3,
-          tier1_resolved: 100,
-          tier1_failed: 2,
+        status: 'ready',
+        reportVersion: 1,
+        generatedAt: '2026-01-26T10:00:00Z',
+        report: {
+          timestamp: '2026-01-26T10:00:00Z',
+          metrics: {
+            direct_holdings: 5,
+            etf_positions: 3,
+            etfs_processed: 3,
+            tier1_resolved: 100,
+            tier1_failed: 2,
+          },
+          performance: {
+            execution_time_seconds: 5.5,
+            phase_durations: {},
+            hive_hit_rate: 0.85,
+            api_fallback_rate: 0.15,
+            total_assets_processed: 105,
+          },
+          failures: [],
         },
-        performance: {
-          execution_time_seconds: 5.5,
-          phase_durations: {},
-          hive_hit_rate: 0.85,
-          api_fallback_rate: 0.15,
-          total_assets_processed: 105,
-        },
-        failures: [],
+        validationErrors: [],
       }
       mockFetch.mockResolvedValue({
         ok: true,
@@ -441,6 +550,41 @@ describe('IPC Layer', () => {
 
       const result = await getPipelineReport()
       expect(result).toEqual(mockReport)
+    })
+
+    it('logs report contract validation drift for pipeline report envelope', async () => {
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              success: true,
+              data: {
+                status: 'ready',
+                reportVersion: 1,
+                generatedAt: null,
+                report: null,
+                validationErrors: [],
+              },
+            }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ success: true, data: true }),
+        })
+
+      await expect(getPipelineReport()).rejects.toThrow(
+        'IPC validation failed for get_pipeline_report'
+      )
+      await new Promise((resolve) => setTimeout(resolve, 0))
+
+      expect(mockFetch).toHaveBeenCalledTimes(2)
+      const logCallBody = JSON.parse(mockFetch.mock.calls[1][1].body)
+      expect(logCallBody.command).toBe('log_event')
+      expect(logCallBody.payload.component).toBe('pipeline')
+      expect(logCallBody.payload.category).toBe('contract_drift')
+      expect(logCallBody.payload.context.command).toBe('get_pipeline_report')
+      expect(logCallBody.payload.context.errorHash).toMatch(/^[0-9a-f]{8}$/)
     })
 
     it('getRecentReports returns empty array on error', async () => {

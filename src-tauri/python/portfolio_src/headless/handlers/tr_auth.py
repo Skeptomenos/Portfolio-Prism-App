@@ -182,6 +182,33 @@ async def handle_tr_get_stored_credentials(cmd_id: int, payload: dict[str, Any])
         return error_response(cmd_id, "TR_CREDENTIALS_ERROR", str(e))
 
 
+async def handle_tr_restore_session(cmd_id: int, payload: dict[str, Any]) -> dict[str, Any]:
+    """Attempt to restore a saved Trade Republic session explicitly."""
+    try:
+        auth_manager = get_auth_manager()
+        result = await auth_manager.try_restore_session()
+
+        auth_state = result.state.value
+        if auth_state == "waiting_for_2fa":
+            auth_state = "waiting_2fa"
+
+        data: dict[str, Any] = {
+            "authState": auth_state,
+            "message": result.message,
+        }
+        if auth_state == "waiting_2fa":
+            data["countdown"] = 30
+
+        return success_response(cmd_id, data)
+    except Exception as e:
+        logger.error(
+            "Restore session error",
+            extra={"error": str(e), "error_type": type(e).__name__},
+            exc_info=True,
+        )
+        return error_response(cmd_id, "TR_RESTORE_ERROR", str(e))
+
+
 async def handle_tr_login(cmd_id: int, payload: dict[str, Any]) -> dict[str, Any]:
     """Start Trade Republic login process with phone + PIN.
 

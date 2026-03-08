@@ -6,7 +6,7 @@
 
 import { useState } from 'react'
 import { useAppStore } from '../../../store/useAppStore'
-import { trGetAuthStatus, syncPortfolio } from '../../../lib/ipc'
+import { trRestoreSession, syncPortfolio } from '../../../lib/ipc'
 import type { SessionCheck } from '../../../types'
 
 const styles = {
@@ -140,7 +140,7 @@ export const SessionRestorePrompt = ({
 
   const { setAuthState, addToast, activePortfolioId } = useAppStore()
 
-  const maskPhoneNumber = (phone?: string): string => {
+  const maskPhoneNumber = (phone?: string | null): string => {
     if (!phone) return '••• •••• ••••'
 
     if (phone.startsWith('+49')) {
@@ -158,7 +158,7 @@ export const SessionRestorePrompt = ({
     setError(null)
 
     try {
-      const authStatus = await trGetAuthStatus()
+      const authStatus = await trRestoreSession()
 
       if (authStatus.authState === 'authenticated') {
         setAuthState('authenticated')
@@ -181,7 +181,8 @@ export const SessionRestorePrompt = ({
 
         onRestoreComplete()
       } else {
-        setError('Session has expired. Please login again.')
+        setAuthState('idle')
+        setError(authStatus.message || 'Session has expired. Please login again.')
         setTimeout(() => {
           onFreshLogin()
         }, 1500)

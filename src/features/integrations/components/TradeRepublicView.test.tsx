@@ -16,13 +16,16 @@ vi.mock('../../../lib/ipc', () => ({
 }))
 
 const mockSetAuthState = vi.fn()
+const mockSetAuthError = vi.fn()
 const mockAddToast = vi.fn()
 const mockSetHasUnsavedChanges = vi.fn()
 
 vi.mock('../../../store/useAppStore', () => ({
   useAppStore: () => ({
     authState: 'idle',
+    authError: null,
     setAuthState: mockSetAuthState,
+    setAuthError: mockSetAuthError,
     activePortfolioId: 1,
     addToast: mockAddToast,
     hasUnsavedChanges: false,
@@ -74,7 +77,9 @@ describe('TradeRepublicView - Authenticated', () => {
     vi.doMock('../../store/useAppStore', () => ({
       useAppStore: () => ({
         authState: 'authenticated',
+        authError: null,
         setAuthState: mockSetAuthState,
+        setAuthError: mockSetAuthError,
         activePortfolioId: 1,
         addToast: mockAddToast,
         hasUnsavedChanges: false,
@@ -108,7 +113,9 @@ describe('TradeRepublicView - Sync functionality', () => {
     vi.doMock('../../store/useAppStore', () => ({
       useAppStore: () => ({
         authState: 'authenticated',
+        authError: null,
         setAuthState: mockSetAuthState,
+        setAuthError: mockSetAuthError,
         activePortfolioId: 1,
         addToast: mockAddToast,
         hasUnsavedChanges: false,
@@ -135,7 +142,9 @@ describe('TradeRepublicView - Logout', () => {
     vi.doMock('../../store/useAppStore', () => ({
       useAppStore: () => ({
         authState: 'authenticated',
+        authError: null,
         setAuthState: mockSetAuthState,
+        setAuthError: mockSetAuthError,
         activePortfolioId: 1,
         addToast: mockAddToast,
         hasUnsavedChanges: false,

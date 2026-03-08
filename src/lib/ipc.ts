@@ -21,8 +21,10 @@ import type {
   TauriCommands,
   TrueHoldingsResponse,
   SystemLogReport,
+  HoldingsUploadPreview,
+  ManualHoldingDraft,
   UploadHoldingsResult,
-  PipelineHealthReport,
+  PipelineReportEnvelope,
 } from '../types'
 
 import { EngineHealthSchema } from './schemas/health'
@@ -37,11 +39,13 @@ import {
 import {
   PortfolioSyncResultSchema,
   PositionsResponseSchema,
+  HoldingsUploadPreviewSchema,
+  ManualHoldingDraftSchema,
   UploadHoldingsResultSchema,
   SystemLogReportSchema,
   RunPipelineResultSchema,
   HiveContributionResultSchema,
-  PipelineHealthReportSchema,
+  PipelineReportEnvelopeSchema,
 } from './schemas/ipc'
 
 export class IPCValidationError extends Error {
@@ -55,9 +59,46 @@ export class IPCValidationError extends Error {
   }
 }
 
+const CONTRACT_FAILURE_COMMANDS: Partial<
+  Record<keyof TauriCommands, { component: string; category: string }>
+> = {
+  tr_check_saved_session: { component: 'integrations', category: 'contract_drift' },
+  tr_get_auth_status: { component: 'integrations', category: 'contract_drift' },
+  tr_restore_session: { component: 'integrations', category: 'contract_drift' },
+  get_pipeline_report: { component: 'pipeline', category: 'contract_drift' },
+  run_pipeline: { component: 'pipeline', category: 'contract_drift' },
+}
+
+function computeStableHash(seed: string): string {
+  let hash = 5381
+  for (let index = 0; index < seed.length; index += 1) {
+    hash = ((hash << 5) + hash + seed.charCodeAt(index)) >>> 0
+  }
+  return hash.toString(16).padStart(8, '0')
+}
+
 export function validateResponse<T>(command: string, data: unknown, schema: z.ZodType<T>): T {
   const result = schema.safeParse(data)
   if (!result.success) {
+    const mappedCommand = CONTRACT_FAILURE_COMMANDS[command as keyof TauriCommands]
+    if (mappedCommand) {
+      const issues = result.error.issues.map((issue) => ({
+        path: issue.path.join('.'),
+        message: issue.message,
+      }))
+      const errorHash = computeStableHash(`${command}|${JSON.stringify(issues)}`)
+      void logEvent(
+        'ERROR',
+        `IPC contract validation failed for ${command}`,
+        {
+          command,
+          errorHash,
+          issues,
+        },
+        mappedCommand.component,
+        mappedCommand.category
+      )
+    }
     throw new IPCValidationError(command, result.error.issues)
   }
   return result.data
@@ -75,6 +116,8 @@ const pendingRequests = new Map<string, Promise<unknown>>()
  * @throws Error if VITE_ECHO_BRIDGE_TOKEN is not set
  */
 let _cachedEchoToken: string | null = null
+let _cachedEchoBridgeUrl: string | null = null
+
 function getEchoBridgeToken(): string {
   if (_cachedEchoToken !== null) {
     return _cachedEchoToken
@@ -90,6 +133,17 @@ function getEchoBridgeToken(): string {
 
   _cachedEchoToken = token
   return token
+}
+
+function getEchoBridgeUrl(): string {
+  if (_cachedEchoBridgeUrl !== null) {
+    return _cachedEchoBridgeUrl
+  }
+
+  const configuredUrl = import.meta.env.VITE_ECHO_BRIDGE_URL || 'http://127.0.0.1:5001'
+  const normalizedUrl = configuredUrl.replace(/\/$/, '')
+  _cachedEchoBridgeUrl = normalizedUrl
+  return normalizedUrl
 }
 
 async function deduplicatedCall<T>(key: string, fn: () => Promise<T>): Promise<T> {
@@ -117,7 +171,8 @@ async function callCommand<K extends keyof TauriCommands>(
 
   try {
     const echoToken = getEchoBridgeToken()
-    const response = await fetch('http://127.0.0.1:5001/command', {
+    const echoBridgeUrl = getEchoBridgeUrl()
+    const response = await fetch(`${echoBridgeUrl}/command`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -168,7 +223,7 @@ async function callCommand<K extends keyof TauriCommands>(
       throw error
     }
     logger.error('[IPC] Echo-Bridge connection failed', error instanceof Error ? error : undefined)
-    throw new Error('Echo-Bridge unreachable. Check if the Python engine is running on port 5001.')
+    throw new Error('Echo-Bridge unreachable. Check if the Python engine is running.')
   }
 }
 
@@ -297,6 +352,21 @@ export async function trCheckSavedSession(): Promise<SessionCheck> {
 }
 
 /**
+ * Attempt to restore a saved Trade Republic session explicitly.
+ */
+export async function trRestoreSession(): Promise<AuthResponse> {
+  try {
+    const data = await deduplicatedCall('tr_restore_session', () =>
+      callCommand('tr_restore_session', {})
+    )
+    return validateResponse('tr_restore_session', data, AuthResponseSchema)
+  } catch (error) {
+    logger.error('[IPC] tr_restore_session failed', error instanceof Error ? error : undefined)
+    throw error
+  }
+}
+
+/**
  * Check if stored Trade Republic credentials exist.
  * SECURITY: Only returns masked phone for UI display, never plaintext credentials.
  */
@@ -409,6 +479,59 @@ export async function uploadHoldings(
 }
 
 /**
+ * Open the native Tauri file picker for manual holdings uploads.
+ */
+export async function pickHoldingsFile(): Promise<string> {
+  try {
+    const data = await callCommand('pick_holdings_file', {})
+    return validateResponse('pick_holdings_file', data, z.string())
+  } catch (error) {
+    logger.error('[IPC] pick_holdings_file failed', error instanceof Error ? error : undefined)
+    throw error
+  }
+}
+
+/**
+ * Parse a holdings file and return a reviewable preview without saving it.
+ */
+export async function previewHoldingsUpload(
+  filePath: string,
+  etfIsin: string
+): Promise<HoldingsUploadPreview> {
+  try {
+    const data = await callCommand('preview_holdings_upload', { filePath, etfIsin })
+    return validateResponse('preview_holdings_upload', data, HoldingsUploadPreviewSchema)
+  } catch (error) {
+    logger.error('[IPC] preview_holdings_upload failed', error instanceof Error ? error : undefined)
+    throw error
+  }
+}
+
+/**
+ * Persist reviewed holdings rows to the backend cache.
+ */
+export async function commitHoldingsUpload(
+  etfIsin: string,
+  holdings: ManualHoldingDraft[]
+): Promise<UploadHoldingsResult> {
+  try {
+    const validatedHoldings = validateResponse(
+      'commit_holdings_upload.holdings',
+      holdings,
+      z.array(ManualHoldingDraftSchema)
+    )
+    const data = await callCommand('commit_holdings_upload', {
+      etfIsin,
+      holdings: validatedHoldings,
+    })
+    return validateResponse('commit_holdings_upload', data, UploadHoldingsResultSchema)
+  } catch (error) {
+    logger.error('[IPC] commit_holdings_upload failed', error instanceof Error ? error : undefined)
+    throw error
+  }
+}
+
+/**
  * Get decomposed true holdings with resolution metadata
  */
 export async function getTrueHoldings(): Promise<TrueHoldingsResponse> {
@@ -467,12 +590,12 @@ export async function getPendingReviews(): Promise<SystemLogReport[]> {
 /**
  * Get the latest pipeline health report
  */
-export async function getPipelineReport(): Promise<PipelineHealthReport> {
+export async function getPipelineReport(): Promise<PipelineReportEnvelope> {
   try {
     const data = await deduplicatedCall('get_pipeline_report', () =>
       callCommand('get_pipeline_report', {})
     )
-    return validateResponse('get_pipeline_report', data, PipelineHealthReportSchema)
+    return validateResponse('get_pipeline_report', data, PipelineReportEnvelopeSchema)
   } catch (error) {
     logger.error('[IPC] get_pipeline_report failed', error instanceof Error ? error : undefined)
     throw error

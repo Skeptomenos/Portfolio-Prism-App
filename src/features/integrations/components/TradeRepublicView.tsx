@@ -22,6 +22,7 @@ import {
 import type { SessionCheck, AuthResponse, Position } from '../../../types'
 import { sanitizeErrorMessage } from '../../../lib/errors'
 import { logger } from '../../../lib/logger'
+import { invalidatePortfolioQueries } from '../../../lib/queryClient'
 
 const styles = {
   container: {
@@ -198,7 +199,9 @@ const styles = {
 export const TradeRepublicView = (): JSX.Element => {
   const {
     authState,
+    authError,
     setAuthState,
+    setAuthError,
     activePortfolioId,
     addToast,
     hasUnsavedChanges,
@@ -265,16 +268,18 @@ export const TradeRepublicView = (): JSX.Element => {
   // Handle login success
   const handleLoginSuccess = useCallback(
     (response: AuthResponse, credentials?: { phone: string; pin: string; remember: boolean }) => {
+      setAuthError(null)
       setAuthResponse(response)
       if (credentials) {
         setLoginCredentials(credentials)
       }
     },
-    []
+    [setAuthError]
   )
 
   // Handle 2FA success - auto-sync after login
   const handleTwoFactorSuccess = useCallback(async () => {
+    setAuthError(null)
     setAuthState('authenticated')
     setLoginCredentials(null)
     setAuthResponse(null)
@@ -289,6 +294,7 @@ export const TradeRepublicView = (): JSX.Element => {
 
     try {
       const result = await syncPortfolio(activePortfolioId, false)
+      invalidatePortfolioQueries(activePortfolioId)
       addToast({
         type: 'success',
         title: 'Portfolio synced',
@@ -306,10 +312,11 @@ export const TradeRepublicView = (): JSX.Element => {
     } finally {
       setIsSyncing(false)
     }
-  }, [setAuthState, refetchPositions, activePortfolioId, addToast])
+  }, [setAuthError, setAuthState, refetchPositions, activePortfolioId, addToast])
 
   // Handle session restore - auto-sync after restore
   const handleRestoreComplete = useCallback(async () => {
+    setAuthError(null)
     setAuthState('authenticated')
 
     // Auto-sync after session restore
@@ -322,6 +329,7 @@ export const TradeRepublicView = (): JSX.Element => {
 
     try {
       const result = await syncPortfolio(activePortfolioId, false)
+      invalidatePortfolioQueries(activePortfolioId)
       addToast({
         type: 'success',
         title: 'Portfolio synced',
@@ -341,12 +349,13 @@ export const TradeRepublicView = (): JSX.Element => {
     } finally {
       setIsSyncing(false)
     }
-  }, [setAuthState, refetchPositions, activePortfolioId, addToast])
+  }, [setAuthError, setAuthState, refetchPositions, activePortfolioId, addToast])
 
   // Handle fresh login
   const handleFreshLogin = useCallback(() => {
+    setAuthError(null)
     setSessionData({ hasSession: false, prompt: 'login_required' })
-  }, [])
+  }, [setAuthError])
 
   // Handle sync
   const handleSync = useCallback(async () => {
@@ -362,6 +371,7 @@ export const TradeRepublicView = (): JSX.Element => {
     setIsSyncing(true)
     try {
       const result = await syncPortfolio(activePortfolioId, false)
+      invalidatePortfolioQueries(activePortfolioId)
       addToast({
         type: 'success',
         title: 'Portfolio synced',
@@ -391,6 +401,7 @@ export const TradeRepublicView = (): JSX.Element => {
     setIsLoggingOut(true)
     try {
       await trLogout()
+      setAuthError(null)
       setAuthState('idle')
       setSessionData(null)
       setLocalPositions([])
@@ -409,7 +420,7 @@ export const TradeRepublicView = (): JSX.Element => {
     } finally {
       setIsLoggingOut(false)
     }
-  }, [addToast, setAuthState])
+  }, [addToast, setAuthError, setAuthState])
 
   // Handle position update (local only for now)
   const handlePositionUpdate = useCallback(
@@ -471,6 +482,7 @@ export const TradeRepublicView = (): JSX.Element => {
     if (sessionData?.hasSession) {
       return (
         <div style={styles.authContainer}>
+          {authError && <div style={styles.warningBanner}>{authError}</div>}
           <SessionRestorePrompt
             sessionData={sessionData}
             onFreshLogin={handleFreshLogin}
@@ -483,6 +495,7 @@ export const TradeRepublicView = (): JSX.Element => {
     // Show login form
     return (
       <div style={styles.authContainer}>
+        {authError && <div style={styles.warningBanner}>{authError}</div>}
         <LoginForm onLoginSuccess={handleLoginSuccess} />
       </div>
     )

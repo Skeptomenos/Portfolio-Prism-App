@@ -1,5 +1,6 @@
 export {
   trCheckSavedSession,
+  trRestoreSession,
   trLogin,
   trLoginWithStoredCredentials,
   trLogout,

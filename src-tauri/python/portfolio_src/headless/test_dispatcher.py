@@ -24,6 +24,7 @@ class TestHandlerRegistry:
             "get_positions",
             "tr_get_auth_status",
             "tr_check_saved_session",
+            "tr_restore_session",
             "tr_get_stored_credentials",
             "tr_login",
             "tr_submit_2fa",
@@ -31,6 +32,8 @@ class TestHandlerRegistry:
             "sync_portfolio",
             "run_pipeline",
             "upload_holdings",
+            "preview_holdings_upload",
+            "commit_holdings_upload",
             "get_true_holdings",
             "get_pipeline_report",
             "log_event",
@@ -44,7 +47,7 @@ class TestHandlerRegistry:
 
     def test_registry_has_expected_handler_count(self):
         """Should have expected number of handlers registered."""
-        assert len(HANDLER_REGISTRY) == 20
+        assert len(HANDLER_REGISTRY) == 23
 
     def test_all_handlers_are_callable(self):
         """All registered handlers should be callable."""
@@ -148,7 +151,7 @@ class TestDispatcherHelpers:
         commands = get_available_commands()
 
         assert isinstance(commands, list)
-        assert len(commands) == 20
+        assert len(commands) == 23
         assert commands == sorted(commands)
 
     def test_is_command_registered_returns_true_for_valid(self):

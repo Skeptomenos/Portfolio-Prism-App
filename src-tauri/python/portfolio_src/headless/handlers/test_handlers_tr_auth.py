@@ -7,6 +7,7 @@ from portfolio_src.headless.handlers.tr_auth import (
     handle_tr_login,
     handle_tr_logout,
     handle_tr_get_auth_status,
+    handle_tr_restore_session,
     handle_tr_submit_2fa,
     handle_tr_check_saved_session,
 )
@@ -143,3 +144,47 @@ class TestTRLogout:
         assert result["success"] is True
         assert result["data"]["authState"] == "idle"
         assert "session cleared" in result["data"]["message"].lower()
+
+
+class TestTRRestoreSession:
+    """Tests for handle_tr_restore_session handler."""
+
+    @pytest.mark.asyncio
+    @patch("portfolio_src.headless.handlers.tr_auth.get_auth_manager")
+    async def test_returns_authenticated_when_restore_succeeds(self, mock_get_auth):
+        """Should return authenticated state when try_restore_session succeeds."""
+        mock_auth = MagicMock()
+        mock_auth.try_restore_session = AsyncMock(
+            return_value=MagicMock(
+                success=True,
+                state=MagicMock(value="authenticated"),
+                message="Session restored.",
+            )
+        )
+        mock_get_auth.return_value = mock_auth
+
+        result = await handle_tr_restore_session(cmd_id=10, payload={})
+
+        assert result["success"] is True
+        assert result["data"]["authState"] == "authenticated"
+        assert result["data"]["message"] == "Session restored."
+
+    @pytest.mark.asyncio
+    @patch("portfolio_src.headless.handlers.tr_auth.get_auth_manager")
+    async def test_returns_idle_when_restore_finds_expired_session(self, mock_get_auth):
+        """Should return idle state with message when restore cannot recover the session."""
+        mock_auth = MagicMock()
+        mock_auth.try_restore_session = AsyncMock(
+            return_value=MagicMock(
+                success=False,
+                state=MagicMock(value="idle"),
+                message="Session expired. Please log in again.",
+            )
+        )
+        mock_get_auth.return_value = mock_auth
+
+        result = await handle_tr_restore_session(cmd_id=11, payload={})
+
+        assert result["success"] is True
+        assert result["data"]["authState"] == "idle"
+        assert "expired" in result["data"]["message"].lower()

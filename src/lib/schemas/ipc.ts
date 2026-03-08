@@ -71,6 +71,28 @@ export type PositionsResponse = z.infer<typeof PositionsResponseSchema>
 // Upload Holdings Result
 // =============================================================================
 
+export const ManualHoldingDraftSchema = z.object({
+  rowId: z.number().optional(),
+  isin: z.string(),
+  name: z.string(),
+  ticker: z.string().nullable().optional(),
+  weight: z.number(),
+})
+
+export type ManualHoldingDraft = z.infer<typeof ManualHoldingDraftSchema>
+
+export const HoldingsUploadPreviewSchema = z.object({
+  isin: z.string(),
+  filePath: z.string(),
+  fileName: z.string(),
+  holdingsCount: z.number(),
+  totalWeight: z.number(),
+  warnings: z.array(z.string()),
+  rows: z.array(ManualHoldingDraftSchema),
+})
+
+export type HoldingsUploadPreview = z.infer<typeof HoldingsUploadPreviewSchema>
+
 export const UploadHoldingsResultSchema = z.object({
   success: z.boolean(),
   holdingsCount: z.number(),
@@ -257,3 +279,39 @@ export const PipelineHealthReportSchema = z.object({
 })
 
 export type PipelineHealthReport = z.infer<typeof PipelineHealthReportSchema>
+
+export const PipelineReportStatusSchema = z.enum(['missing', 'invalid', 'ready'])
+
+export type PipelineReportStatus = z.infer<typeof PipelineReportStatusSchema>
+
+const MissingPipelineReportEnvelopeSchema = z.object({
+  status: z.literal('missing'),
+  reportVersion: z.number(),
+  generatedAt: z.null(),
+  report: z.null(),
+  validationErrors: z.array(z.string()),
+})
+
+const InvalidPipelineReportEnvelopeSchema = z.object({
+  status: z.literal('invalid'),
+  reportVersion: z.number(),
+  generatedAt: z.string().nullable(),
+  report: z.null(),
+  validationErrors: z.array(z.string()).min(1),
+})
+
+const ReadyPipelineReportEnvelopeSchema = z.object({
+  status: z.literal('ready'),
+  reportVersion: z.number(),
+  generatedAt: z.string(),
+  report: PipelineHealthReportSchema,
+  validationErrors: z.array(z.string()),
+})
+
+export const PipelineReportEnvelopeSchema = z.discriminatedUnion('status', [
+  MissingPipelineReportEnvelopeSchema,
+  InvalidPipelineReportEnvelopeSchema,
+  ReadyPipelineReportEnvelopeSchema,
+])
+
+export type PipelineReportEnvelope = z.infer<typeof PipelineReportEnvelopeSchema>

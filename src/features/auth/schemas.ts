@@ -5,12 +5,12 @@ export const AuthStateSchema = z.enum(['idle', 'waiting_2fa', 'authenticated', '
 export const AuthStatusSchema = z.object({
   authState: AuthStateSchema,
   hasStoredCredentials: z.boolean(),
-  lastError: z.string().optional(),
+  lastError: z.string().nullable().optional(),
 })
 
 export const SessionCheckSchema = z.object({
   hasSession: z.boolean(),
-  phoneNumber: z.string().optional(),
+  phoneNumber: z.string().nullable().optional(),
   prompt: z.enum(['restore_session', 'login_required']),
 })
 

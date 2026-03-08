@@ -8,6 +8,7 @@
 export {
   trGetAuthStatus,
   trCheckSavedSession,
+  trRestoreSession,
   trGetStoredCredentials,
   trLogin,
   trLoginWithStoredCredentials,

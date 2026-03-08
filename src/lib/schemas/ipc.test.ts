@@ -8,6 +8,7 @@ import {
   RunPipelineResultSchema,
   HiveContributionResultSchema,
   PipelineHealthReportSchema,
+  PipelineReportEnvelopeSchema,
 } from './ipc'
 
 describe('PortfolioSyncResultSchema', () => {
@@ -261,5 +262,60 @@ describe('PipelineHealthReportSchema', () => {
       },
     }
     expect(() => PipelineHealthReportSchema.parse(valid)).not.toThrow()
+  })
+})
+
+describe('PipelineReportEnvelopeSchema', () => {
+  it('validates missing report envelopes', () => {
+    expect(() =>
+      PipelineReportEnvelopeSchema.parse({
+        status: 'missing',
+        reportVersion: 1,
+        generatedAt: null,
+        report: null,
+        validationErrors: [],
+      })
+    ).not.toThrow()
+  })
+
+  it('validates ready report envelopes', () => {
+    expect(() =>
+      PipelineReportEnvelopeSchema.parse({
+        status: 'ready',
+        reportVersion: 1,
+        generatedAt: '2026-01-26T10:00:00Z',
+        report: {
+          timestamp: '2026-01-26T10:00:00Z',
+          metrics: {
+            direct_holdings: 5,
+            etf_positions: 3,
+            etfs_processed: 3,
+            tier1_resolved: 100,
+            tier1_failed: 2,
+          },
+          performance: {
+            execution_time_seconds: 5.5,
+            phase_durations: {},
+            hive_hit_rate: 0.85,
+            api_fallback_rate: 0.15,
+            total_assets_processed: 105,
+          },
+          failures: [],
+        },
+        validationErrors: [],
+      })
+    ).not.toThrow()
+  })
+
+  it('requires validation errors for invalid envelopes', () => {
+    expect(() =>
+      PipelineReportEnvelopeSchema.parse({
+        status: 'invalid',
+        reportVersion: 1,
+        generatedAt: '2026-01-26T10:00:00Z',
+        report: null,
+        validationErrors: ['decomposition.etfs_processed must be a number'],
+      })
+    ).not.toThrow()
   })
 })

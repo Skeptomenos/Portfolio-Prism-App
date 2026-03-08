@@ -30,9 +30,22 @@ import type {
   PortfolioSyncResult as _PortfolioSyncResult,
   Position as _Position,
   PositionsResponse as _PositionsResponse,
+  HoldingsUploadPreview as _HoldingsUploadPreview,
+  ManualHoldingDraft as _ManualHoldingDraft,
   UploadHoldingsResult as _UploadHoldingsResult,
   SystemLogReport as _SystemLogReport,
+  ETFResolutionDetail as _ETFResolutionDetail,
+  DecompositionSummary as _DecompositionSummary,
+  EnrichmentStats as _EnrichmentStats,
+  HiveLog as _HiveLog,
+  EnrichmentInfo as _EnrichmentInfo,
+  PerformanceMetrics as _PerformanceMetrics,
+  PipelineFailure as _PipelineFailure,
+  ETFStats as _ETFStats,
+  DataQualityIssue as _DataQualityIssue,
+  DataQuality as _DataQuality,
   PipelineHealthReport as _PipelineHealthReport,
+  PipelineReportEnvelope as _PipelineReportEnvelope,
 } from '../lib/schemas/ipc'
 
 // =============================================================================
@@ -54,9 +67,22 @@ export type LogoutResponse = _LogoutResponse
 export type PortfolioSyncResult = _PortfolioSyncResult
 export type Position = _Position
 export type PositionsResponse = _PositionsResponse
+export type HoldingsUploadPreview = _HoldingsUploadPreview
+export type ManualHoldingDraft = _ManualHoldingDraft
 export type UploadHoldingsResult = _UploadHoldingsResult
 export type SystemLogReport = _SystemLogReport
+export type ETFResolutionDetail = _ETFResolutionDetail
+export type DecompositionSummary = _DecompositionSummary
+export type EnrichmentStats = _EnrichmentStats
+export type HiveLog = _HiveLog
+export type EnrichmentInfo = _EnrichmentInfo
+export type PerformanceMetrics = _PerformanceMetrics
+export type PipelineFailure = _PipelineFailure
+export type ETFStats = _ETFStats
+export type DataQualityIssue = _DataQualityIssue
+export type DataQuality = _DataQuality
 export type PipelineHealthReport = _PipelineHealthReport
+export type PipelineReportEnvelope = _PipelineReportEnvelope
 
 export { EngineHealthSchema } from '../lib/schemas/health'
 export {
@@ -80,11 +106,14 @@ export {
   PortfolioSyncResultSchema,
   PositionSchema,
   PositionsResponseSchema,
+  HoldingsUploadPreviewSchema,
+  ManualHoldingDraftSchema,
   UploadHoldingsResultSchema,
   SystemLogReportSchema,
   RunPipelineResultSchema,
   HiveContributionResultSchema,
   PipelineHealthReportSchema,
+  PipelineReportEnvelopeSchema,
 } from '../lib/schemas/ipc'
 
 // =============================================================================
@@ -103,6 +132,7 @@ export interface SyncProgress {
   status: 'idle' | 'syncing' | 'complete' | 'error'
   progress: number
   message: string
+  phase?: string
 }
 
 // =============================================================================
@@ -198,6 +228,10 @@ export interface TauriCommands {
     args: Record<string, never>
     returns: SessionCheck
   }
+  tr_restore_session: {
+    args: Record<string, never>
+    returns: AuthResponse
+  }
   tr_get_stored_credentials: {
     args: Record<string, never>
     returns: { hasCredentials: boolean; maskedPhone: string | null }
@@ -220,11 +254,23 @@ export interface TauriCommands {
   }
   get_pipeline_report: {
     args: Record<string, never>
-    returns: PipelineHealthReport
+    returns: PipelineReportEnvelope
   }
   get_true_holdings: {
     args: Record<string, never>
     returns: TrueHoldingsResponse
+  }
+  pick_holdings_file: {
+    args: Record<string, never>
+    returns: string
+  }
+  preview_holdings_upload: {
+    args: { filePath: string; etfIsin: string }
+    returns: HoldingsUploadPreview
+  }
+  commit_holdings_upload: {
+    args: { etfIsin: string; holdings: ManualHoldingDraft[] }
+    returns: UploadHoldingsResult
   }
   upload_holdings: {
     args: { filePath: string; etfIsin: string }

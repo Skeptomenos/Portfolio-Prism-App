@@ -11,17 +11,29 @@ import { ToastContainer } from './components/ui/Toast'
 import { FeedbackDialog } from './components/feedback/FeedbackDialog'
 import { useCurrentView, useAppStore, useSetSessionId } from './store/useAppStore'
 import { useTauriEvents } from './hooks/useTauriEvents'
-import { getEnvironment, trCheckSavedSession, trGetAuthStatus, getEngineHealth } from './lib/ipc'
+import {
+  getEnvironment,
+  IPCValidationError,
+  trCheckSavedSession,
+  trGetAuthStatus,
+  getEngineHealth,
+} from './lib/ipc'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
 import { logger } from './lib/logger'
 
 // Re-export ViewType from types for backward compatibility
 export type { ViewType } from './types'
 
+const SAVED_SESSION_RESTORE_MESSAGE =
+  'A saved Trade Republic session was found. Restore it or sign in again.'
+const INVALID_AUTH_CONTRACT_MESSAGE =
+  'Auth bootstrap contract validation failed. Inspect diagnostics and sign in again.'
+
 function App(): JSX.Element {
   const currentView = useCurrentView()
   const setCurrentView = useAppStore((state) => state.setCurrentView)
   const setAuth = useAppStore((state) => state.setAuthState)
+  const setAuthError = useAppStore((state) => state.setAuthError)
   const setSavedPhone = useAppStore((state) => state.setSavedPhone)
   const setSessionId = useSetSessionId()
   const isFeedbackOpen = useAppStore((state) => state.isFeedbackOpen)
@@ -32,6 +44,8 @@ function App(): JSX.Element {
 
   useEffect(() => {
     const initApp = async (): Promise<void> => {
+      let savedPhone: string | null = null
+
       try {
         const health = await getEngineHealth()
         if (health.sessionId) {
@@ -39,21 +53,35 @@ function App(): JSX.Element {
         }
 
         const session = await trCheckSavedSession()
+        savedPhone = session.phoneNumber ?? null
+        setSavedPhone(savedPhone)
 
-        if (session.hasSession) {
-          const status = await trGetAuthStatus()
-          if (status.authState === 'authenticated') {
-            setAuth('authenticated')
-            setSavedPhone(session.phoneNumber || null)
-            return
-          }
+        if (!session.hasSession) {
+          setAuthError(null)
+          setSavedPhone(null)
+          setAuth('idle')
+          setCurrentView('trade-republic')
+          return
         }
 
+        const status = await trGetAuthStatus()
+        if (status.authState === 'authenticated') {
+          setAuthError(null)
+          setAuth('authenticated')
+          setCurrentView('dashboard')
+          return
+        }
+
+        const restoreMessage = status.lastError || SAVED_SESSION_RESTORE_MESSAGE
+        setAuthError(restoreMessage)
         setAuth('idle')
         setCurrentView('trade-republic')
       } catch (error) {
         logger.error('[App] Initialization failed', error instanceof Error ? error : undefined)
-        setAuth('idle')
+        const isContractError = error instanceof IPCValidationError
+        setSavedPhone(savedPhone)
+        setAuth(isContractError ? 'error' : 'idle')
+        setAuthError(isContractError ? INVALID_AUTH_CONTRACT_MESSAGE : null)
         setCurrentView('trade-republic')
       }
     }

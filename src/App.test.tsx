@@ -1,8 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from './test/utils'
+import { render, screen, waitFor } from './test/utils'
 import App from './App'
+import { useAppStore } from './store/useAppStore'
+import { authInitialState } from './features/auth/store/authSlice'
+import { uiInitialState } from './store/uiSlice'
+import { IPCValidationError } from './lib/ipc'
 
 vi.mock('./lib/ipc', () => ({
+  IPCValidationError: class IPCValidationError extends Error {
+    constructor(command: string) {
+      super(`IPC validation failed for ${command}`)
+      this.name = 'IPCValidationError'
+    }
+  },
   getEngineHealth: vi.fn(() =>
     Promise.resolve({ version: '1.0.0', memoryUsageMb: 100, sessionId: 'test' })
   ),
@@ -70,6 +80,42 @@ vi.mock('./lib/ipc', () => ({
   ),
 }))
 
+vi.mock('./components/Sidebar', () => ({
+  default: () => <aside data-testid="sidebar">Sidebar</aside>,
+}))
+
+vi.mock('./features/dashboard', () => ({
+  Dashboard: () => <div data-testid="dashboard-view">Dashboard</div>,
+}))
+
+vi.mock('./features/xray', () => ({
+  XRayView: () => <div data-testid="xray-view">X-Ray</div>,
+}))
+
+vi.mock('./components/views/HealthView', () => ({
+  default: () => <div data-testid="health-view">Health</div>,
+}))
+
+vi.mock('./features/portfolio', () => ({
+  HoldingsView: () => <div data-testid="holdings-view">Holdings</div>,
+}))
+
+vi.mock('./features/integrations', () => ({
+  TradeRepublicView: () => <div data-testid="trade-republic-view">Trade Republic</div>,
+}))
+
+vi.mock('./components/ui/Toast', () => ({
+  ToastContainer: () => <div data-testid="toast-container">Toasts</div>,
+}))
+
+vi.mock('./components/feedback/FeedbackDialog', () => ({
+  FeedbackDialog: () => <div data-testid="feedback-dialog">Feedback</div>,
+}))
+
+vi.mock('./components/common/ErrorBoundary', () => ({
+  ErrorBoundary: ({ children }: { children: JSX.Element }) => children,
+}))
+
 vi.mock('./lib/tauri', () => ({
   isTauri: vi.fn(() => false),
   invoke: vi.fn(),
@@ -83,6 +129,10 @@ vi.mock('./hooks/useTauriEvents', () => ({
 describe('App', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    useAppStore.setState({
+      ...authInitialState,
+      ...uiInitialState,
+    })
   })
 
   it('renders without crashing', () => {
@@ -110,5 +160,90 @@ describe('App', () => {
     const main = document.querySelector('main')
     expect(main).toBeInTheDocument()
     expect(main).toHaveStyle({ flex: '1' })
+  })
+
+  it('marks the user authenticated when bootstrap finds an active saved session', async () => {
+    const ipc = await import('./lib/ipc')
+
+    vi.mocked(ipc.trCheckSavedSession).mockResolvedValue({
+      hasSession: true,
+      phoneNumber: null,
+      prompt: 'restore_session',
+    })
+    vi.mocked(ipc.trGetAuthStatus).mockResolvedValue({
+      authState: 'authenticated',
+      hasStoredCredentials: true,
+      lastError: null,
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      const state = useAppStore.getState()
+      expect(state.authState).toBe('authenticated')
+      expect(state.savedPhone).toBeNull()
+      expect(state.currentView).toBe('dashboard')
+    })
+  })
+
+  it('routes to Trade Republic when no saved session exists', async () => {
+    const ipc = await import('./lib/ipc')
+
+    vi.mocked(ipc.trCheckSavedSession).mockResolvedValue({
+      hasSession: false,
+      phoneNumber: null,
+      prompt: 'login_required',
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      const state = useAppStore.getState()
+      expect(state.authState).toBe('idle')
+      expect(state.currentView).toBe('trade-republic')
+      expect(state.authError).toBeNull()
+    })
+  })
+
+  it('surfaces an expired saved session instead of treating it as a generic missing session', async () => {
+    const ipc = await import('./lib/ipc')
+
+    vi.mocked(ipc.trCheckSavedSession).mockResolvedValue({
+      hasSession: true,
+      phoneNumber: '+49***1234',
+      prompt: 'restore_session',
+    })
+    vi.mocked(ipc.trGetAuthStatus).mockResolvedValue({
+      authState: 'idle',
+      hasStoredCredentials: true,
+      lastError: null,
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      const state = useAppStore.getState()
+      expect(state.authState).toBe('idle')
+      expect(state.currentView).toBe('trade-republic')
+      expect(state.savedPhone).toBe('+49***1234')
+      expect(state.authError).toMatch(/restore it or sign in again/i)
+    })
+  })
+
+  it('marks contract drift as an invalid bootstrap state', async () => {
+    const ipc = await import('./lib/ipc')
+
+    vi.mocked(ipc.trCheckSavedSession).mockRejectedValue(
+      new IPCValidationError('tr_check_saved_session')
+    )
+
+    render(<App />)
+
+    await waitFor(() => {
+      const state = useAppStore.getState()
+      expect(state.authState).toBe('error')
+      expect(state.currentView).toBe('trade-republic')
+      expect(state.authError).toMatch(/contract/i)
+    })
   })
 })
