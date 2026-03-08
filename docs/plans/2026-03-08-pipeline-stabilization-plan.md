@@ -280,6 +280,8 @@ These should be documented as expected behavior.
 | P-08 | Hive contribution default verified correct | Resolved | Default is `"true"` in code; this machine had persisted `"false"` | no change needed |
 | P-09 | WORKER_URL for enrichment proxy | Resolved | Hardcoded Cloudflare Worker default in `config.py:56`. No env var needed. | no change needed |
 | P-10 | Frontend has no `degraded` concept | Note | `RunPipelineResultSchema` is binary `success: boolean`. XRayView throws on `success=false`. No `runStatus` field. | assess with P-07 |
+| P-11 | ISIN resolution at 0% for ALL ETFs — core value proposition broken | **Critical** | Weight column mismatch: cached CSV has `weight_percentage`, decomposer looks for `weight`/`Weight`/`weight_pct`/`Weight_Pct`. Weight defaults to 0.0 → all holdings classified as tier2 → all skipped. | **pending** |
+| P-12 | Enrichment/Hive contribution only works for 20 direct stocks, not 3522 ETF holdings | **Critical** | Downstream of P-11. Without ISINs, holdings can't be enriched or contributed to Hive. | blocked on P-11 |
 
 ---
 
