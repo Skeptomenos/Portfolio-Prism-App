@@ -7,9 +7,22 @@
 
 ---
 
-## Goal
+## Primary Objective
 
-Systematically test, dogfood, and fix the X-Ray analysis pipeline end-to-end, including Hive contribution, so that every pipeline stage produces truthful, visible results and failures are never silent.
+**100% ISIN enrichment for all holdings.** Every holding extracted from every ETF must have
+a resolved ISIN. This is the single most important pipeline metric. Without ISINs, there is
+no True Holding Exposure, no cross-ETF overlap detection, and no meaningful Hive contributions.
+
+The pipeline is only successful when:
+1. Every tier1 holding (weight > threshold) has a resolved ISIN
+2. Every resolved ISIN is contributed to the Hive
+3. The resulting True Exposure correctly aggregates holdings by ISIN across all ETFs and direct positions
+
+## Secondary Objectives
+
+- All pipeline stages produce truthful, visible results (never silent failures)
+- Hive contribution works for ETF holdings (not just direct stocks)
+- Data quality scores reflect reality
 
 ## Domain Context: ISIN-First Strategy
 
@@ -92,6 +105,21 @@ The Hive itself is a Supabase PostgreSQL database with:
 
 ## Test & Dogfood Plan
 
+### Phase 0: ISIN Resolution Rate (PRIMARY METRIC)
+
+**This is the most important test phase. Every other phase is secondary to this.**
+
+| # | Test | How | Expected |
+|---|------|-----|----------|
+| Z1 | ISIN resolution rate per ETF | Check `resolution_stats` per ETF after pipeline run | >80% for each ETF |
+| Z2 | Overall ISIN resolution rate | Check aggregate resolution stats | >80% across all 3,522+ holdings |
+| Z3 | Zero unresolved tier1 holdings | Check for tier1 holdings (weight > 0.1%) without ISINs | 0 unresolved tier1 |
+| Z4 | Resolution sources distribution | Check `by_source` in resolution stats | Mix of local_cache, hive, api (not all "skipped") |
+| Z5 | Hive contributions from ETF resolution | Check Hive contribution count after run | Includes newly-resolved ETF holdings (not just 20 direct stocks) |
+| Z6 | True Exposure shows cross-ETF overlap | Check Dashboard True Exposure section | Shows holdings appearing in multiple ETFs (e.g., NVIDIA, Apple) |
+| Z7 | Resolved ISINs are valid format | Validate all resolved ISINs match `^[A-Z]{2}[A-Z0-9]{9}[0-9]$` | 100% valid |
+| Z8 | Second run has higher Hive hit rate | Run pipeline twice | Second run has higher `hive_hit_rate` (contributed ISINs now in cache) |
+
 ### Phase A: Pipeline Trigger & Basic Execution
 
 | # | Test | How | Expected |
@@ -122,6 +150,7 @@ The Hive itself is a Supabase PostgreSQL database with:
 | C2 | Tier2 skipped holdings | Check `tier2_skipped` count | Reported in resolution stats, not hidden |
 | C3 | Resolution confidence scores | Check resolution output | Scores match: direct=1.0, cache=0.95, hive=0.90, api=0.70-0.80 |
 | C4 | ISINResolver respects threshold | Check `tier1_threshold` behavior | Holdings below threshold get ticker-only resolution |
+| C5 | Weight column recognized for all adapters | Check weight is non-zero during resolution | `weight_percentage` column must be included |
 
 ### Phase D: Enrichment
 
@@ -554,18 +583,21 @@ Proof: the resolver WORKS. The weight column mismatch prevents it from running.
 
 ### Acceptance criteria
 - [ ] Weight column `weight_percentage` is recognized by the decomposer
-- [ ] ISIN resolution rate > 50% for holdings above tier1 threshold
+- [ ] **100% ISIN resolution for all tier1 holdings** (weight > 0.1%)
+- [ ] Resolution rate > 80% across all ETF holdings (including tier2 that have Hive/cache hits)
 - [ ] Hive contributions include newly-resolved ETF holding ISINs (not just 20 direct stocks)
-- [ ] Health report shows improved quality_score and is_trustworthy
+- [ ] Health report shows `is_trustworthy: true` (quality_score > 0.95)
 - [ ] Dashboard True Exposure section shows meaningful cross-ETF overlap data
+- [ ] Second pipeline run has higher Hive hit rate than first (newly contributed ISINs are reused)
 
 ### Expected impact
 
 With 3,522 underlying holdings and ~1,000 ISINs already in the local Hive cache:
 - **Immediate:** ~30-50% resolution from local cache alone
-- **After API calls:** ~60-80% resolution (Wikidata + Finnhub for uncached tickers)
-- **After Hive contribution:** resolved ISINs auto-contributed, improving hit rate for all users
+- **After API calls:** target 100% tier1 resolution (Wikidata + Finnhub for uncached tickers)
+- **After Hive contribution:** resolved ISINs auto-contributed, improving hit rate for ALL users
 - **True Exposure:** Dashboard will show real cross-ETF overlap (e.g., NVIDIA in 3 ETFs + direct)
+- **Virtuous cycle:** each user's pipeline run enriches the Hive, making the next user's run faster and more complete
 
 ---
 
