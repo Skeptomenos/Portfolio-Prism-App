@@ -436,7 +436,8 @@ These should be documented as expected behavior.
 | P-17 | True Exposure stored as CSV (legacy) | High | Needs SQLite with timestamps for 3/6/12 month tracking | **pending** |
 | P-18 | Hive decomposition freshness timestamps | Medium | Need `contributed_at` / `source_date` for staleness assessment | **pending** |
 | P-19 | Per-ETF validation gates show 0% resolution | **High** | `HOLDING_COLUMN_ALIASES` missing resolution_status, sector, geography | **COMPLETE** (quality_score 0.0→0.27, per-ETF rates now 50-77%) |
-| P-20 | Enrichment API calls need per-run cap | Medium | Trying to enrich 850 ISINs via Finnhub in one run causes 30min+ timeout. yfinance fallback also fails. Need max 200 API calls per run with incremental cache building. | **pending** |
+| P-20 | ~~Enrichment API calls need per-run cap~~ | ~~Medium~~ | **SUPERSEDED by P-21.** Finnhub per-ISIN approach replaced by provider metadata + Wikidata bulk SPARQL. | **superseded** |
+| P-21 | Enrichment architecture: provider metadata + Wikidata bulk SPARQL | **High** | Three-layer approach: (1) Adapters preserve sector/geography from provider CSV/XLSX (iShares has `Standort`/`Börse` but drops them!), (2) Wikidata bulk SPARQL fills gaps (850 ISINs in 1 query), (3) Cache + Hive persists. Replaces per-ISIN Finnhub calls. | **pending** |
 
 ---
 
