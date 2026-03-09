@@ -58,24 +58,35 @@ class HiveEnrichmentService:
         remaining_isins = []
 
         # Step 1: Check LocalCache first (fast, offline-capable)
+        # Only count as a cache hit if we have REAL sector/geography data,
+        # not just asset_class mapped to sector.
+        needs_enrichment = []
         for isin in isins:
             cached_asset = self.local_cache.get_asset(isin)
             if cached_asset and cached_asset.name and cached_asset.name != "Unknown":
-                metadata[isin] = {
-                    "isin": cached_asset.isin,
-                    "name": cached_asset.name,
-                    "sector": cached_asset.sector if cached_asset.sector != "Unknown" else cached_asset.asset_class,
-                    "geography": cached_asset.geography,
-                    "asset_class": cached_asset.asset_class,
-                }
-                sources[isin] = "hive"
+                has_real_sector = cached_asset.sector not in ("Unknown", cached_asset.asset_class)
+                has_real_geography = cached_asset.geography != "Unknown"
+                if has_real_sector and has_real_geography:
+                    # Full cache hit — real sector AND geography available
+                    metadata[isin] = {
+                        "isin": cached_asset.isin,
+                        "name": cached_asset.name,
+                        "sector": cached_asset.sector,
+                        "geography": cached_asset.geography,
+                        "asset_class": cached_asset.asset_class,
+                    }
+                    sources[isin] = "hive"
+                else:
+                    # Partial cache hit — have name/ISIN but need sector/geography from API
+                    needs_enrichment.append(isin)
             else:
                 remaining_isins.append(isin)
 
-        cache_hits = len(isins) - len(remaining_isins)
+        cache_hits = len(isins) - len(remaining_isins) - len(needs_enrichment)
         if cache_hits > 0:
             logger.debug(
-                "LocalCache hit", extra={"cache_hits": cache_hits, "total_isins": len(isins)}
+                "LocalCache hit",
+                extra={"cache_hits": cache_hits, "needs_enrichment": len(needs_enrichment), "total_isins": len(isins)},
             )
 
         # Step 2: Try HiveClient.batch_lookup for remaining ISINs
@@ -107,6 +118,9 @@ class HiveEnrichmentService:
                         )
                 else:
                     missing_isins.append(isin)
+
+        # Merge: ISINs needing enrichment (partial cache hits) also go to API
+        missing_isins.extend(needs_enrichment)
 
         contributed_isins: List[str] = []
 
