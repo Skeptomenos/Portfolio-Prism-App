@@ -109,7 +109,11 @@ async def dispatch(cmd: Any) -> dict[str, Any]:
         if asyncio.iscoroutinefunction(handler):
             return await handler(cmd_id, payload)
         else:
-            return handler(cmd_id, payload)
+            # Run sync handlers in thread executor to avoid blocking the event loop.
+            # This is critical for SSE: the event loop must stay free to stream
+            # progress events while the pipeline runs.
+            loop = asyncio.get_running_loop()
+            return await loop.run_in_executor(None, handler, cmd_id, payload)
     except Exception as e:
         # Log full error details server-side for debugging
         logger.error(
