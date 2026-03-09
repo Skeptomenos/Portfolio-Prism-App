@@ -72,11 +72,19 @@ async def handle_run_pipeline(cmd_id: int, payload: dict[str, Any]) -> dict[str,
     """Run the analytics pipeline.
 
     Thin handler that delegates to SyncService.
+    Runs the synchronous pipeline in a thread executor to keep the event loop
+    free for SSE progress streaming.
     """
+    import asyncio
+
     service = get_sync_service()
 
     try:
-        result = service.run_pipeline(progress_callback=emit_progress)
+        # Run pipeline in thread executor so SSE can stream progress in real-time
+        loop = asyncio.get_running_loop()
+        result = await loop.run_in_executor(
+            None, service.run_pipeline, emit_progress
+        )
 
         return success_response(
             cmd_id,
