@@ -354,27 +354,50 @@ class Decomposer:
                 extra={"total_tickers": len(all_tickers), "cache_hits": sum(1 for v in batch_cache_hits.values() if v)},
             )
 
-        # BATCH OPTIMIZATION 2: pre-fetch uncached tickers from Hive in one RPC call
+        # BATCH OPTIMIZATION 2: variant-aware Hive lookup
+        # Generate all ticker variants (e.g., AZN.L -> [AZN.L, AZN, AZN.LN])
+        # and send ALL variants in one batch query to the Hive.
         uncached_tickers = [t for t in all_tickers if t and not batch_cache_hits.get(t)]
-        batch_hive_hits: Dict[str, Optional[str]] = {}
+        batch_hive_hits: Dict[str, Optional[str]] = {}  # original_ticker -> ISIN
         if uncached_tickers and self.isin_resolver and hasattr(self.isin_resolver, '_hive_client'):
             hive_client = self.isin_resolver._hive_client
+            ticker_parser = getattr(self.isin_resolver, '_ticker_parser', None)
             if hive_client and hive_client.is_configured:
-                batch_hive_hits = hive_client.batch_resolve_tickers(uncached_tickers)
-                hive_hit_count = sum(1 for v in batch_hive_hits.values() if v)
+                # Build variant -> original_ticker mapping
+                variant_to_original: Dict[str, str] = {}
+                for ticker in uncached_tickers:
+                    if ticker_parser:
+                        variants = ticker_parser.generate_variants(ticker)
+                        for v in variants:
+                            variant_to_original[v] = ticker
+                    else:
+                        variant_to_original[ticker] = ticker
+
+                all_variants = list(variant_to_original.keys())
+                raw_hive_results = hive_client.batch_resolve_tickers(all_variants)
+
+                # Map variant results back to original tickers
+                for variant, isin in raw_hive_results.items():
+                    if isin:
+                        original = variant_to_original.get(variant, variant)
+                        if original not in batch_hive_hits:  # first match wins
+                            batch_hive_hits[original] = isin
+
+                hive_hit_count = len(batch_hive_hits)
                 logger.info(
-                    "Batch Hive lookup",
+                    "Batch Hive lookup (variant-aware)",
                     extra={
                         "uncached_tickers": len(uncached_tickers),
+                        "variants_queried": len(all_variants),
                         "hive_hits": hive_hit_count,
                         "remaining_for_api": len(uncached_tickers) - hive_hit_count,
                     },
                 )
                 # Cache Hive results locally for future runs
                 if self.isin_resolver._local_cache:
-                    for t, isin in batch_hive_hits.items():
+                    for ticker, isin in batch_hive_hits.items():
                         if isin:
-                            self.isin_resolver._local_cache.upsert_listing(t, 'UNKNOWN', isin, 'USD')
+                            self.isin_resolver._local_cache.upsert_listing(ticker, 'UNKNOWN', isin, 'USD')
 
         for idx, row in holdings.iterrows():
             ticker = str(row.get("ticker", "")).strip()
