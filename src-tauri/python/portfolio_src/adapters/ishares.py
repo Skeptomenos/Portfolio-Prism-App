@@ -16,6 +16,50 @@ from portfolio_src.config import CONFIG_DIR
 # Path to the external configuration file
 CONFIG_PATH = CONFIG_DIR / "ishares_config.json"
 
+# German → English normalization for iShares CSV metadata
+SECTOR_DE_TO_EN = {
+    "IT": "Technology",
+    "Energie": "Energy",
+    "Financials": "Financials",
+    "Gesundheitsversorgung": "Healthcare",
+    "Immobilien": "Real Estate",
+    "Industrie": "Industrials",
+    "Kommunikation": "Communication Services",
+    "Materialien": "Materials",
+    "Nichtzyklische Konsumgüter": "Consumer Staples",
+    "Zyklische Konsumgüter": "Consumer Discretionary",
+    "Zyklische Konsumgüter ": "Consumer Discretionary",  # trailing space in some CSVs
+    "Versorger": "Utilities",
+    "Sonstige": "Other",
+    "Cash und/oder Derivate": "Cash",
+}
+
+COUNTRY_DE_TO_EN = {
+    "Vereinigte Staaten": "United States",
+    "Vereinigtes Königreich": "United Kingdom",
+    "Deutschland": "Germany",
+    "Frankreich": "France",
+    "Japan": "Japan",
+    "Kanada": "Canada",
+    "Schweiz": "Switzerland",
+    "Australien": "Australia",
+    "Niederlande": "Netherlands",
+    "Schweden": "Sweden",
+    "Dänemark": "Denmark",
+    "Spanien": "Spain",
+    "Italien": "Italy",
+    "Hongkong": "Hong Kong",
+    "Singapur": "Singapore",
+    "Irland": "Ireland",
+    "Finnland": "Finland",
+    "Norwegen": "Norway",
+    "Österreich": "Austria",
+    "Belgien": "Belgium",
+    "Portugal": "Portugal",
+    "Israel": "Israel",
+    "Neuseeland": "New Zealand",
+}
+
 
 class ISharesAdapter:
     """
@@ -179,25 +223,28 @@ class ISharesAdapter:
             holdings_df = pd.read_csv(csv_data, skiprows=2)
             logger.info("Parsed CSV", extra={"row_count": len(holdings_df)})
 
-            # We need: Ticker (raw from provider), Name, Weight, Location, and Exchange.
-            # Note: iShares CSV does NOT contain ISIN, so we preserve raw ticker and construct Yahoo-compatible ticker.
-            holdings_df = holdings_df[
-                ["Emittententicker", "Name", "Gewichtung (%)", "Standort", "Börse"]
-            ].copy()
+            # Extract all useful columns from the iShares CSV.
+            # Sektor and Standort provide first-class sector/geography metadata.
+            available_cols = ["Emittententicker", "Name", "Gewichtung (%)", "Standort", "Börse"]
+            optional_cols = ["Sektor", "Anlageklasse"]
+            for col in optional_cols:
+                if col in holdings_df.columns:
+                    available_cols.append(col)
+            holdings_df = holdings_df[[c for c in available_cols if c in holdings_df.columns]].copy()
 
             # Preserve the raw ticker from provider before any transformations
             holdings_df["raw_ticker"] = holdings_df["Emittententicker"]
 
-            holdings_df.rename(
-                columns={
-                    "Emittententicker": "ticker",
-                    "Name": "name",
-                    "Gewichtung (%)": "weight_percentage",
-                    "Standort": "location",
-                    "Börse": "exchange",
-                },
-                inplace=True,
-            )
+            rename_map = {
+                "Emittententicker": "ticker",
+                "Name": "name",
+                "Gewichtung (%)": "weight_percentage",
+                "Standort": "location",
+                "Börse": "exchange",
+                "Sektor": "sector_raw",
+                "Anlageklasse": "asset_class_raw",
+            }
+            holdings_df.rename(columns={k: v for k, v in rename_map.items() if k in holdings_df.columns}, inplace=True)
 
             logger.info("4. Standardized column names.")
 
@@ -293,10 +340,21 @@ class ISharesAdapter:
 
             holdings_df["ticker"] = holdings_df.apply(clean_and_suffix_ticker, axis=1)
 
-            # Clean up temp columns
-            holdings_df.drop(columns=["location", "exchange", "suffix"], inplace=True)
+            # Normalize German metadata to English and rename to standard columns
+            if "location" in holdings_df.columns:
+                holdings_df["geography"] = holdings_df["location"].map(
+                    lambda x: COUNTRY_DE_TO_EN.get(str(x).strip(), str(x))
+                )
+            if "sector_raw" in holdings_df.columns:
+                holdings_df["sector"] = holdings_df["sector_raw"].map(
+                    lambda x: SECTOR_DE_TO_EN.get(str(x).strip(), str(x))
+                )
 
-            logger.info("5. Cleaned, converted weights, and applied ticker suffixes.")
+            # Drop temp columns used for ticker suffixing, keep geography/sector
+            drop_cols = ["location", "exchange", "suffix", "sector_raw", "asset_class_raw"]
+            holdings_df.drop(columns=[c for c in drop_cols if c in holdings_df.columns], inplace=True)
+
+            logger.info("5. Cleaned, converted weights, applied ticker suffixes, normalized metadata.")
 
             return holdings_df
 

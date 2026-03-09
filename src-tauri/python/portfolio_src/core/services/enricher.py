@@ -127,16 +127,56 @@ class HiveEnrichmentService:
         if missing_isins:
             examples = ", ".join(missing_isins[:3]) + ("..." if len(missing_isins) > 3 else "")
             logger.info(
-                "Hive miss, calling fallback APIs",
+                "Enriching via Wikidata bulk SPARQL",
                 extra={"miss_count": len(missing_isins), "examples": examples},
             )
-            fallback_results = self.fallback_service.get_metadata_batch(missing_isins)
 
-            new_contributions = []
+            # Primary: Wikidata bulk SPARQL (replaces per-ISIN Finnhub)
+            from portfolio_src.data.wikidata_enrichment import WikidataEnrichmentService
+            wikidata_service = WikidataEnrichmentService()
+            wikidata_results = wikidata_service.enrich_batch(missing_isins)
+
+            # Merge Wikidata results into metadata
+            still_missing = []
+            for isin in missing_isins:
+                if isin in wikidata_results:
+                    wd = wikidata_results[isin]
+                    metadata[isin] = {
+                        "isin": isin,
+                        "name": wd.get("name", "Unknown"),
+                        "sector": wd.get("sector", "Unknown"),
+                        "geography": wd.get("geography", "Unknown"),
+                        "asset_class": "Stock",
+                        "source": "wikidata",
+                    }
+                    sources[isin] = "wikidata"
+                else:
+                    still_missing.append(isin)
+
+            # Legacy fallback: Finnhub/yFinance for ISINs not in Wikidata
+            fallback_results = {}
+            if still_missing:
+                logger.info(
+                    "Wikidata miss, trying legacy fallback",
+                    extra={"miss_count": len(still_missing)},
+                )
+                try:
+                    fallback_results = self.fallback_service.get_metadata_batch(still_missing)
+                except Exception as e:
+                    logger.warning("Legacy fallback failed", extra={"error": str(e)})
+
+            # Combine all results for contribution
+            all_new_results = {}
+            all_new_results.update({isin: metadata[isin] for isin in missing_isins if isin in wikidata_results})
+            all_new_results.update(fallback_results)
+
+            # Update metadata with fallback results
             for isin, data in fallback_results.items():
                 metadata[isin] = data
                 sources[isin] = data.get("source", "api")
 
+            new_contributions = []
+            for isin, data in all_new_results.items():
                 new_contributions.append(
                     AssetEntry(
                         isin=isin,
@@ -163,7 +203,8 @@ class HiveEnrichmentService:
 
             if new_contributions:
                 logger.info(
-                    "Contributing new assets to Hive", extra={"count": len(new_contributions)}
+                    "Contributing enriched assets to Hive",
+                    extra={"count": len(new_contributions), "wikidata": len(wikidata_results), "fallback": len(fallback_results)},
                 )
                 self.hive_client.batch_contribute(new_contributions)
 
