@@ -349,8 +349,12 @@ These should be documented as expected behavior.
 | P-08 | Hive contribution default verified correct | Resolved | Default is `"true"` in code; this machine had persisted `"false"` | no change needed |
 | P-09 | WORKER_URL for enrichment proxy | Resolved | Hardcoded Cloudflare Worker default in `config.py:56`. No env var needed. | no change needed |
 | P-10 | Frontend has no `degraded` concept | Note | `RunPipelineResultSchema` is binary `success: boolean`. XRayView throws on `success=false`. No `runStatus` field. | assess with P-07 |
-| P-11 | ISIN resolution at 0% for ALL ETFs — core value proposition broken | **Critical** | Weight column mismatch: cached CSV has `weight_percentage`, decomposer looks for `weight`/`Weight`/`weight_pct`/`Weight_Pct`. Weight defaults to 0.0 → all holdings classified as tier2 → all skipped. | **pending** |
-| P-12 | Enrichment/Hive contribution only works for 20 direct stocks, not 3522 ETF holdings | **Critical** | Downstream of P-11. Without ISINs, holdings can't be enriched or contributed to Hive. | blocked on P-11 |
+| P-11 | ISIN resolution at 0% due to weight column mismatch | **Critical** | `weight_percentage` missing from decomposer lookup | **COMPLETE** (99.9% resolution, 852/853) |
+| P-12 | Enrichment only covers direct stocks, not ETF holdings | **Critical** | Downstream of P-11 | **investigate** (enrichment count barely changed post-P-11) |
+| P-13 | Health report shows 0% resolution despite 99.9% actual | High | Health report writer reads wrong/stale resolution stats from decomposer | **investigate** |
+| P-14 | Aggregated total differs from portfolio by 84.8% | **Critical** | Aggregator likely treats ETF-internal weights as portfolio-level weights without scaling by ETF portfolio weight | **investigate** |
+| P-15 | Resolution source field is `nan` for ~490 of 852 resolved holdings | Medium | Resolver returns `source=None` for local_cache hits; not propagated to output CSV | **investigate** |
+| P-16 | First pipeline run takes ~21 minutes (1269s) | Medium | ISIN resolution makes API calls (Wikidata SPARQL) for ~188 tier1 uncached tickers per ETF; expected to improve on second run via Hive cache | **verify** (run pipeline again) |
 
 ---
 
@@ -505,28 +509,35 @@ so the frontend can show nuanced state. For now, P-07's binary fix is sufficient
 
 ---
 
-## Execution Order (Updated)
+## Execution Order (Updated post-P-11)
 
 ```
 P-01 (resource_path fix) ------> COMPLETE: 8/10 ETFs decompose, 3522 holdings
-  |
-  v
 P-07 (success truthfulness) ---> COMPLETE: derived from ETF ratio
+P-11 (weight column fix) ------> COMPLETE: 99.9% ISIN resolution (852/853)
+
+REMAINING (priority order):
+
+P-14 (total mismatch 84.8%) ---> INVESTIGATE: aggregator weight scaling is wrong
+  |                                This makes True Exposure numbers unreliable
+  v
+P-13 (health report 0%) -------> INVESTIGATE: report writer reads wrong resolution stats
+  |                                Makes the Health view misleading
+  v
+P-12 (enrichment scaling) -----> INVESTIGATE: enrichment didn't scale with resolved ISINs
+  |                                Only 20 more API calls despite 852 resolved ISINs
+  v
+P-15 (source field nan) -------> INVESTIGATE: ~490 resolved holdings have no source
   |
   v
-P-11 (weight column fix) ------> NEXT: unblocks ISIN resolution for 3522 holdings
+P-16 (21min runtime) ----------> VERIFY: second run should be faster via Hive cache
   |
   v
-P-12 (enrichment + Hive) ------> AUTO: once ISINs resolve, enrichment + contribution works
-  |
-  v
-P-05 (geography) --------------> investigate after P-11 (may improve with more ISINs)
-  |
-  v
-Dogfood full pipeline ----------> verify True Holding Exposure works end-to-end
+P-05 (geography) --------------> investigate after above
 ```
 
-**Resolved (no action):** P-02 (merged), P-03 (documented), P-04 (correct), P-08 (correct), P-09 (correct)
+**Completed:** P-01, P-02 (merged), P-07, P-11
+**Resolved (no code change):** P-03 (documented), P-04 (correct), P-08 (correct), P-09 (correct)
 **Deferred:** P-06 (tier2 UI), P-10 (degraded concept)
 
 ---
