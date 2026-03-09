@@ -43,8 +43,7 @@ The core value proposition of Portfolio Prism is **ISIN-level aggregation**:
    This is opt-in-by-default (setting `hive_contribution_enabled`, default `"true"`).
 
 **Without ISIN resolution, the pipeline produces nothing meaningful.** Decomposition extracts
-tickers but the critical ticker→ISIN mapping is where the value lies. This is why P-11 is the
-highest priority remaining fix.
+tickers but the critical ticker→ISIN mapping is where the value lies.
 
 ## Architecture Summary
 
@@ -57,8 +56,8 @@ LOAD → DECOMPOSE → RESOLVE ISINs → ENRICH → AGGREGATE → REPORT → HAR
 | Phase | Service | What it does | Key dependency |
 |-------|---------|-------------|----------------|
 | 1. Load | `_load_portfolio()` | Reads positions from SQLite, splits into direct (stocks) vs ETFs | `data/database.py` |
-| 2. Decompose | `Decomposer` | X-rays ETFs into underlying holdings via adapter → cache → Hive cascade | `adapters/registry.py`, `holdings_cache` |
-| 3. Resolve | `ISINResolver` (inside Decomposer) | Resolves tickers to ISINs via: local_cache → Hive → Wikidata → Finnhub → yFinance | `data/resolution.py` |
+| 2. Decompose | `Decomposer` | X-rays ETFs into underlying holdings via cache → Hive → adapter cascade | `adapters/registry.py`, `holdings_cache` |
+| 3. Resolve | `ISINResolver` (inside Decomposer) | Resolves tickers to ISINs via: local_cache → Hive → provider → Wikidata → Finnhub → yFinance → manual | `data/resolution.py` |
 | 4. Enrich | `Enricher` | Adds sector/geography metadata via `HiveEnrichmentService` | `HiveClient`, proxy worker |
 | 5. Aggregate | `Aggregator` | Fuses direct + ETF holdings by ISIN, normalizes weights, groups by sector/region | Pure computation |
 | 6. Report | `_write_reports()` | Writes exposure CSV, holdings breakdown, health report, error log | `SnapshotRepository` |
@@ -66,16 +65,18 @@ LOAD → DECOMPOSE → RESOLVE ISINs → ENRICH → AGGREGATE → REPORT → HAR
 
 ### ISIN Resolution Cascade (per holding)
 
+See `docs/specs/pipeline_definition_of_done.md` Section 2 for canonical cascade.
+
 ```
-1. Provider ISIN (if the adapter already gave one)       → confidence 1.00
-2. Manual enrichments (user-provided ticker→ISIN map)    → confidence 0.85
-3. LocalCache (SQLite backed by Hive sync, 1000 entries) → confidence 0.95
-4. Hive network lookup (Supabase listings table)         → confidence 0.90
-5. API calls (tier1 only, weight > threshold):
+1. Local cache (SQLite, user's previous resolutions)     → confidence 0.95
+2. Hive (Supabase listings, community-contributed)        → confidence 0.90
+3. Provider ISIN (already in adapter data, e.g. Amundi)   → confidence 1.00
+4. API calls (tier1 only, weight > threshold):
    a. Wikidata SPARQL                                    → confidence 0.80
    b. Finnhub (via Cloudflare Worker proxy)               → confidence 0.75
    c. yFinance (unreliable fallback)                      → confidence 0.70
-6. Mark as unresolved
+5. Manual entry (flag for user)                           → confidence 0.85
+6. Mark as unresolved                                    → confidence 0.00
 ```
 
 Holdings below `tier1_threshold` (0.1% weight) are skipped as tier2 — not worth the API call.
@@ -226,15 +227,12 @@ Per architecture (`docs/architecture/identity_resolution.md`):
 7. **G1-G7**: Frontend rendering (we already have 4 E2E specs for route-level checks)
 8. **H1-H4**: Envelope contract (already tested in `tests/integration/ipc.test.ts`)
 
-## Questions Before Execution
+## Questions (All Answered)
 
-1. **Supabase credentials**: Does this machine have `SUPABASE_URL` and `SUPABASE_ANON_KEY` configured? Hive tests (Phase F) require these. If not, contribution tests will verify graceful degradation only.
-
-2. **Finnhub/external API keys**: Are Finnhub, Wikidata, or other enrichment API keys configured? Enrichment tests (Phase D) depend on this. Without them, we test cache-only enrichment.
-
-3. **Amundi ETFs**: The investigation report shows 2 Amundi ETFs (LU0908500753, FR0010361683) always fail. Is fixing these in scope, or should we document and move on?
-
-4. **`is_trustworthy` threshold**: The pipeline currently reports `quality_score=1.0` and `is_trustworthy=true` even with 44% skipped holdings. Should we fix this to be stricter, or is tier2_skipped intentionally excluded from the trust calculation?
+1. **Supabase credentials**: Yes — `SUPABASE_URL` and `SUPABASE_ANON_KEY` added to `.env`.
+2. **Finnhub/external API keys**: Finnhub via Cloudflare Worker proxy (no key needed). Wikidata is free.
+3. **Amundi ETFs**: Document only — manual upload is by design.
+4. **`is_trustworthy` threshold**: Already correct (`score >= 0.95`). Make stricter = verified, no change needed.
 
 ## Files to Read Before Code Changes
 
@@ -333,6 +331,33 @@ These should be documented as expected behavior.
 - `output/playwright/dogfood/holdings-after-pipeline.png`
 
 ---
+
+### Post-P-11 Dogfood Run (2026-03-08 ~23:10)
+
+**Setup:** Engine with P-01 + P-07 + P-11 fixes, full env, Hive contribution enabled.
+
+| Metric | Value |
+|--------|-------|
+| Duration | 1,269s (~21 min) |
+| ETFs decomposed | 8/10 (2 Amundi manual = expected) |
+| Total underlying | 3,522 |
+| ISIN resolution | 852/853 (99.9%) |
+| Resolution sources | provider=354, api_wikidata=9, ~490 source=nan (cache) |
+| Enrichment | hive_hits=690, api_calls=160, contributions=160 |
+| Hive hit rate | 81.2% |
+| Quality score | 0.0 (incorrect — P-13) |
+| is_trustworthy | false (incorrect — P-13) |
+| Aggregated total mismatch | 84.8% (P-14) |
+| Console errors | 0 |
+
+**5 significant observations from this run:**
+1. **P-14 (CRITICAL):** Aggregated total differs from portfolio by 84.8% — weight scaling is wrong
+2. **P-13 (HIGH):** Health report shows 0% resolution despite 99.9% actual — reporting bug
+3. **P-12 (CRITICAL):** Enrichment barely scaled (160 vs expected 850) — not enriching ETF holdings
+4. **P-15 (MEDIUM):** ~490 resolved holdings have `nan` source — tracking gap
+5. **P-16 (MEDIUM):** 21 minutes first run — expected, need to verify second run improvement
+
+**Evidence:** `output/playwright/dogfood/xray-after-p11-fix.png`
 
 ## Implementation Plan
 
@@ -650,17 +675,138 @@ KNOWN GAP -- P-13: Health report still shows 0% resolution rate
 
 ---
 
-## P-12: Enrichment + Hive contribution for ETF holdings (downstream of P-11)
+## P-12: Enrichment didn't scale with resolved ISINs (INVESTIGATE)
 
-Currently enrichment and Hive contributions only work for the 20 direct stock positions.
-Once P-11 is fixed and ISINs resolve for the 3,522 ETF holdings:
-- Enrichment will add sector/geography metadata to resolved holdings
-- Hive harvest will contribute newly-resolved ISINs
-- Hive hit rate should increase significantly (currently 83.1% for direct stocks only)
+**Original assumption was wrong.** P-12 was expected to auto-resolve once P-11 fixed ISIN resolution.
+However, post-P-11 dogfood shows enrichment barely changed:
 
-**No code change needed.** This is automatically unblocked by P-11.
+| Metric | Before P-11 | After P-11 | Expected |
+|--------|-------------|------------|----------|
+| Hive hits | 690 | 690 | ~850 |
+| API calls | 140 | 160 | ~850 |
+| Contributions | 140 | 160 | ~850 |
+| Assets processed | 830 | 850 | ~853 |
+
+Only 20 more API calls despite going from 0% to 99.9% ISIN resolution.
+The enrichment pipeline is NOT enriching all 852 resolved ISINs.
+
+#### Investigation needed
+- Read `enricher.py` to understand what triggers enrichment for each ISIN
+- Check if enrichment only runs on direct holdings, not decomposed ETF holdings
+- Check if enrichment deduplicates by ISIN (many ETFs share the same companies)
+- Trace the data flow: resolved ISIN → enrichment input → enrichment output
+
+#### Files
+- `src-tauri/python/portfolio_src/core/services/enricher.py`
+- `src-tauri/python/portfolio_src/data/enrichment.py`
+- `src-tauri/python/portfolio_src/core/pipeline.py` (enrichment phase)
 
 ---
+
+## P-13: Health report shows 0% resolution despite 99.9% actual (INVESTIGATE)
+
+The `pipeline_health.json` writer reads resolution stats from the decomposer but reports 0%
+for every ETF. The `true_exposure_report.csv` proves 852/853 ISINs resolved.
+
+#### Investigation needed
+- Read the health report writer in `pipeline.py` (`_write_reports()`)
+- Check how resolution stats flow from `decomposer._resolution_stats` to the health report
+- Determine if the stats dictionary is populated AFTER the report is written (timing issue)
+- Or if the report writer reads a different field than what the decomposer populates
+
+#### Files
+- `src-tauri/python/portfolio_src/core/pipeline.py` (report writing phase)
+- `src-tauri/python/portfolio_src/core/services/decomposer.py` (`_resolution_stats`)
+- `src-tauri/python/portfolio_src/core/contracts/quality.py` (quality score calculation)
+
+---
+
+## P-14: Aggregated total differs from portfolio by 84.8% (INVESTIGATE)
+
+The aggregator produces a total that is 84.8% lower than the actual portfolio value of €41,547.
+This means the weight scaling is fundamentally wrong.
+
+**Hypothesis:** The aggregator treats ETF-internal holding weights (e.g., "Apple is 5.33% of MSCI World")
+as portfolio-level weights, instead of computing: `portfolio_exposure = etf_portfolio_weight × holding_etf_weight`.
+
+#### Investigation needed
+- Read `aggregator.py` to understand how weights are calculated
+- Check if ETF portfolio weight is passed to the aggregator
+- Check if the formula `etf_weight_in_portfolio × holding_weight_in_etf` is used
+- Verify with a manual calculation: if MSCI World is 20% of portfolio and Apple is 5% of MSCI World,
+  then Apple's portfolio exposure from that ETF should be 1% (0.20 × 0.05)
+
+#### Files
+- `src-tauri/python/portfolio_src/core/services/aggregator.py`
+- `src-tauri/python/portfolio_src/core/pipeline.py` (aggregation phase, what data is passed)
+
+---
+
+## P-15: Resolution source field `nan` for ~490 holdings (INVESTIGATE)
+
+The `true_exposure_report.csv` shows 852 resolved ISINs but only 354 have `source=provider`
+and 9 have `source=api_wikidata`. The remaining ~490 have `source=nan`.
+
+These likely came from the Hive local cache but the source field is not propagated.
+
+#### Investigation needed
+- Check `ISINResolver.resolve()` return value for cache hits — does it set `source`?
+- Check how `decomposer._resolve_holdings_isins()` writes source back to the DataFrame
+- Check how `pipeline._write_reports()` reads source from the DataFrame
+
+#### Files
+- `src-tauri/python/portfolio_src/data/resolution.py` (`resolve()` method)
+- `src-tauri/python/portfolio_src/core/services/decomposer.py` (`_resolve_holdings_isins()`)
+
+---
+
+## P-16: First pipeline run takes 21 minutes (VERIFY)
+
+Expected for first run with many uncached tickers. Need to verify second run is faster.
+
+#### Verification steps
+1. Run pipeline again (same portfolio, same engine session)
+2. Compare duration, Hive hit rate, and API call count to first run
+3. If significantly faster (>50% improvement), mark as resolved
+4. If not improved, investigate cache population and Hive contribution timing
+
+---
+
+## P-17: True Exposure storage migration CSV → SQLite (PENDING)
+
+True exposure data is currently written to `true_exposure_report.csv`.
+Per DoD Section 6, this should be stored in SQLite (`prism.db`) with timestamps
+to enable historical tracking over 3, 6, 12 months.
+
+#### Implementation needed
+- Design `true_exposure` and `pipeline_runs` tables in `prism.db`
+- Add migration to `database.py`
+- Update `pipeline.py` report writer to insert into SQLite
+- Keep CSV generation as an export option
+- Schema: ISIN, name, sector, geography, total_exposure, resolution_confidence,
+  resolution_source, portfolio_percentage, run_id, run_timestamp
+
+#### Files
+- `src-tauri/python/portfolio_src/data/database.py` (schema, migration)
+- `src-tauri/python/portfolio_src/core/pipeline.py` (report writer)
+
+---
+
+## P-18: Hive decomposition freshness timestamps (PENDING)
+
+ETF decomposition contributions to the Hive currently lack timestamps.
+Per DoD Section 1, every contribution MUST include `contributed_at` and `source_date`.
+
+#### Implementation needed
+- Add `contributed_at` and `source_date` columns to Hive ETF holdings table (Supabase)
+- Update `hive_client.py` to include timestamps when contributing decomposition data
+- Update decomposer to check Hive data staleness (>30 days) before using it
+- When stale, prefer adapter, then contribute fresh data back
+
+#### Files
+- `src-tauri/python/portfolio_src/data/hive_client.py`
+- `src-tauri/python/portfolio_src/core/services/decomposer.py`
+- `supabase/` (migration for new columns)
 
 ## Resolved Issues
 
