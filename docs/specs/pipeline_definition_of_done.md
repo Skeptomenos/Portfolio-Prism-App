@@ -35,14 +35,24 @@ cross-ETF overlap detection, and no meaningful Hive contributions.
 ### Freshness and staleness
 
 ETF providers publish holding compositions with varying frequency:
-- **iShares (BlackRock):** Daily portfolio composition files (PCF) for authorized participants.
-  Public-facing full holdings CSVs updated daily on ishares.com.
+- **iShares (BlackRock):** Daily updates on ishares.com.
 - **Vanguard:** Daily holdings updates. Underlying indices rebalance quarterly.
-- **Amundi:** Monthly update cycle for public-facing data. Some funds update less frequently.
+- **Amundi:** Monthly update cycle for public-facing data.
 
-**Staleness threshold:** Hive data older than **30 days** should be considered stale.
-When Hive data is stale, prefer the adapter (fresh from provider). After adapter success,
-contribute fresh data back to the Hive to update the community's copy.
+In practice, ETF compositions don't change dramatically day-to-day. The holdings
+list stays the same — only the weights shift as stock prices move. Major compositional
+changes happen at **index rebalancing** (quarterly: March, June, September, December).
+Between rebalances, the only changes are corporate actions (mergers, IPOs, delistings).
+
+For ISIN resolution, stale weights don't matter — we need to know **which companies**
+are in the ETF, not their exact weight to the decimal. A 2-week-old holdings list
+has the same companies as today's.
+
+**Staleness threshold: 30 days** (initial setting). This is conservative — safe for all
+providers including Amundi's monthly cycle. Can be reduced when we have active users
+and more Hive contribution data to work with. When Hive data is stale, prefer the
+adapter (fresh from provider). After adapter success, contribute fresh data back to
+the Hive to update the community's copy.
 
 **Hive contribution metadata:** Every ETF decomposition contributed to the Hive MUST include:
 - `contributed_at` timestamp (when the data was contributed)
