@@ -354,6 +354,28 @@ class Decomposer:
                 extra={"total_tickers": len(all_tickers), "cache_hits": sum(1 for v in batch_cache_hits.values() if v)},
             )
 
+        # BATCH OPTIMIZATION 2: pre-fetch uncached tickers from Hive in one RPC call
+        uncached_tickers = [t for t in all_tickers if t and not batch_cache_hits.get(t)]
+        batch_hive_hits: Dict[str, Optional[str]] = {}
+        if uncached_tickers and self.isin_resolver and hasattr(self.isin_resolver, '_hive_client'):
+            hive_client = self.isin_resolver._hive_client
+            if hive_client and hive_client.is_configured:
+                batch_hive_hits = hive_client.batch_resolve_tickers(uncached_tickers)
+                hive_hit_count = sum(1 for v in batch_hive_hits.values() if v)
+                logger.info(
+                    "Batch Hive lookup",
+                    extra={
+                        "uncached_tickers": len(uncached_tickers),
+                        "hive_hits": hive_hit_count,
+                        "remaining_for_api": len(uncached_tickers) - hive_hit_count,
+                    },
+                )
+                # Cache Hive results locally for future runs
+                if self.isin_resolver._local_cache:
+                    for t, isin in batch_hive_hits.items():
+                        if isin:
+                            self.isin_resolver._local_cache.upsert_listing(t, 'UNKNOWN', isin, 'USD')
+
         for idx, row in holdings.iterrows():
             ticker = str(row.get("ticker", "")).strip()
             name = str(row.get("name", "")).strip()
@@ -393,7 +415,20 @@ class Decomposer:
                 holdings.at[idx, "resolution_confidence"] = 0.95
                 continue
 
-            # SLOW PATH: full resolver cascade (Hive network, API, etc.)
+            # FAST PATH 2: check batch Hive result
+            hive_isin = batch_hive_hits.get(ticker)
+            if hive_isin and is_valid_isin(hive_isin):
+                resolved_count += 1
+                source = "hive_batch"
+                resolution_sources[source] = resolution_sources.get(source, 0) + 1
+                holdings.at[idx, "isin"] = hive_isin
+                holdings.at[idx, "resolution_status"] = "resolved"
+                holdings.at[idx, "resolution_detail"] = "batch_hive"
+                holdings.at[idx, "resolution_source"] = source
+                holdings.at[idx, "resolution_confidence"] = 0.90
+                continue
+
+            # SLOW PATH: full resolver cascade (API calls, etc.)
             result = self.isin_resolver.resolve(
                 ticker=ticker,
                 name=name,
