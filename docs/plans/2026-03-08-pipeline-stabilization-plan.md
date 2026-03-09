@@ -2,7 +2,7 @@
 
 > **Branch:** `pipeline/stabilize-xray-hive`
 > **Created:** 2026-03-08
-> **Status:** 7 fixes complete (P-01/P-07/P-11/P-13/P-14/P-19 + gate fix). quality_score 0→0.52. Resolution issues eliminated. Remaining: enrichment coverage (P-05), storage (P-17/P-18), tracking (P-15/P-16).
+> **Status:** 8 fixes shipped. quality_score 0→0.52. Resolution: DONE. Enrichment: infrastructure in place, needs API call cap (P-20).
 > **Pipeline DoD:** `docs/specs/pipeline_definition_of_done.md` (canonical success criteria)
 > **Predecessor:** Session restore fixes on `codex/stabilize-ipc-xray` (completed)
 
@@ -436,6 +436,7 @@ These should be documented as expected behavior.
 | P-17 | True Exposure stored as CSV (legacy) | High | Needs SQLite with timestamps for 3/6/12 month tracking | **pending** |
 | P-18 | Hive decomposition freshness timestamps | Medium | Need `contributed_at` / `source_date` for staleness assessment | **pending** |
 | P-19 | Per-ETF validation gates show 0% resolution | **High** | `HOLDING_COLUMN_ALIASES` missing resolution_status, sector, geography | **COMPLETE** (quality_score 0.0→0.27, per-ETF rates now 50-77%) |
+| P-20 | Enrichment API calls need per-run cap | Medium | Trying to enrich 850 ISINs via Finnhub in one run causes 30min+ timeout. yfinance fallback also fails. Need max 200 API calls per run with incremental cache building. | **pending** |
 
 ---
 
