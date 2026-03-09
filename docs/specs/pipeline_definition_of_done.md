@@ -72,7 +72,7 @@ the Hive to update the community's copy.
 
 ## 2. ISIN Resolution
 
-### Cascade order: local cache → Hive → provider → Wikidata → Finnhub → yFinance → manual
+### Cascade order: local cache → Hive → provider → Wikidata (bulk) → manual
 
 | Priority | Source | Confidence | Cost | Notes |
 |----------|--------|------------|------|-------|
@@ -80,9 +80,12 @@ the Hive to update the community's copy.
 | 2 | **Hive** (Supabase listings) | 0.90 | Free | Another user contributed this resolution |
 | 3 | **Provider data** | 1.00 | Free | ISIN already in adapter output (e.g., Amundi includes ISINs) |
 | 4 | **Wikidata** SPARQL | 0.80 | Free | High quality, community maintained |
-| 5 | **Finnhub** (via proxy) | 0.75 | Rate-limited | Good for metadata enrichment |
-| 6 | **yFinance** | 0.70 | Unreliable | Last resort automated source |
-| 7 | **Manual entry** | 0.85 | User action | Flag for user to provide ISIN manually |
+| 5 | **Wikidata** SPARQL (bulk) | 0.80 | Free | Up to 1000 ISINs per query via VALUES clause |
+| 6 | **Manual entry** | 0.85 | User action | Flag for user to provide ISIN manually |
+
+**Note:** Finnhub and yFinance remain as legacy fallbacks in the codebase but are NOT the
+primary resolution path. The bulk Wikidata approach replaces per-ISIN API calls.
+Metadata enrichment (sector/geography) uses the separate architecture in Section 4.
 
 **Note:** Provider data at position 3 means: if the ETF adapter already included an ISIN in
 the holdings output (e.g., Amundi XLSX includes ISINs), use it. This is not an API call —
@@ -116,13 +119,34 @@ it's data already present from the decomposition step.
 
 ## 4. Enrichment
 
+### Architecture: Provider Metadata + Wikidata Bulk SPARQL
+
+Enrichment uses a three-layer approach, prioritizing first-class data from the ETF provider:
+
+**Layer 1 — Provider metadata (at decomposition time):**
+Each adapter extracts ALL available metadata from the provider's holdings file, not just
+ticker/name/weight. Provider data is authoritative and free:
+- **iShares:** `Standort` (country), `Börse` (exchange) available in CSV
+- **Amundi/VanEck:** Investigate what metadata columns are available in their download formats
+- Any columns the adapter finds (sector, country, geography, exchange, asset_class) are passed through
+
+**Layer 2 — Wikidata bulk SPARQL (for gaps):**
+After adapter extraction, any holdings still missing sector or geography are enriched via a single
+Wikidata SPARQL query using the `VALUES` clause (up to 1000 ISINs per request).
+This replaces the per-ISIN Finnhub API approach which caused 30min+ timeouts.
+
+**Layer 3 — Cache + Hive (persist for all users):**
+All enriched metadata is written back to local cache AND contributed to Hive.
+Next run serves from cache. Each user's enrichment benefits all future users.
+
 ### Requirements
 
-- Every resolved ISIN is enriched with **sector** metadata
-- Every resolved ISIN is enriched with **geography** metadata
-- Enrichment sources tracked in health report (hive_hits, api_calls, contributions)
+- Adapters preserve all available metadata from provider files
+- Holdings missing sector/geography after adapter extraction are batch-enriched via Wikidata
+- Every enriched ISIN is cached locally AND contributed to Hive
 - Enrichment failure is graceful — pipeline continues without crashing
-- Enrichment scales with resolved ISINs — if 852 ISINs resolved, ~852 should be enriched
+- Enrichment scales: if 852 ISINs resolved, ~852 should be enriched
+- Second pipeline run should serve most enrichment from cache (near-instant)
 
 ---
 

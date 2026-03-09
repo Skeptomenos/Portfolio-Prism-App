@@ -57,8 +57,8 @@ LOAD → DECOMPOSE → RESOLVE ISINs → ENRICH → AGGREGATE → REPORT → HAR
 |-------|---------|-------------|----------------|
 | 1. Load | `_load_portfolio()` | Reads positions from SQLite, splits into direct (stocks) vs ETFs | `data/database.py` |
 | 2. Decompose | `Decomposer` | X-rays ETFs into underlying holdings via cache → Hive → adapter cascade | `adapters/registry.py`, `holdings_cache` |
-| 3. Resolve | `ISINResolver` (inside Decomposer) | Resolves tickers to ISINs via: local_cache → Hive → provider → Wikidata → Finnhub → yFinance → manual | `data/resolution.py` |
-| 4. Enrich | `Enricher` | Adds sector/geography metadata via `HiveEnrichmentService` | `HiveClient`, proxy worker |
+| 3. Resolve | `ISINResolver` (inside Decomposer) | Resolves tickers to ISINs via: local_cache → Hive → provider → Wikidata (bulk) → manual | `data/resolution.py` |
+| 4. Enrich | `Enricher` | Adds sector/geography: provider CSV metadata → Wikidata bulk SPARQL → cache + Hive | `enricher.py`, `local_cache.py` |
 | 5. Aggregate | `Aggregator` | Fuses direct + ETF holdings by ISIN, normalizes weights, groups by sector/region | Pure computation |
 | 6. Report | `_write_reports()` | Writes exposure CSV, holdings breakdown, health report, error log | `SnapshotRepository` |
 | 7. Harvest | `harvest_cache()` | Auto-contributes newly-resolved ISINs to Hive (non-fatal) | `HiveClient` |
@@ -71,12 +71,11 @@ See `docs/specs/pipeline_definition_of_done.md` Section 2 for canonical cascade.
 1. Local cache (SQLite, user's previous resolutions)     → confidence 0.95
 2. Hive (Supabase listings, community-contributed)        → confidence 0.90
 3. Provider ISIN (already in adapter data, e.g. Amundi)   → confidence 1.00
-4. API calls (tier1 only, weight > threshold):
-   a. Wikidata SPARQL                                    → confidence 0.80
-   b. Finnhub (via Cloudflare Worker proxy)               → confidence 0.75
-   c. yFinance (unreliable fallback)                      → confidence 0.70
+4. Wikidata SPARQL bulk (up to 1000 ISINs per query)      → confidence 0.80
 5. Manual entry (flag for user)                           → confidence 0.85
 6. Mark as unresolved                                    → confidence 0.00
+
+Note: Finnhub/yFinance remain as legacy fallbacks but are NOT in the primary cascade.
 ```
 
 Holdings below `tier1_threshold` (0.1% weight) are skipped as tier2 — not worth the API call.

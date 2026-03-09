@@ -109,22 +109,21 @@ See `docs/specs/pipeline_definition_of_done.md` Section 2 for canonical cascade.
 | 1 | Local SQLite cache | 0.95 | Free | User's previous resolutions |
 | 2 | The Hive (Supabase) | 0.90 | Free | Community-contributed |
 | 3 | Provider-supplied ISIN | 1.00 | Free | Already in adapter data (e.g., Amundi) |
-| 4 | Wikidata SPARQL | 0.80 | Free | High quality, community maintained |
-| 5 | Finnhub API (via proxy) | 0.75 | Rate-limited | Good for sector/country metadata |
-| 6 | yFinance | 0.70 | Unreliable | Last resort automated source |
-| 7 | Manual entry | 0.85 | User action | Flag for user to provide ISIN |
-| 8 | Unresolved | 0.0 | - | Log for review, negative-cache for 24h |
+| 4 | Wikidata SPARQL (bulk) | 0.80 | Free | Up to 1000 ISINs per query via VALUES clause |
+| 5 | Manual entry | 0.85 | User action | Flag for user to provide ISIN |
+| 6 | Unresolved | 0.0 | - | Log for review, negative-cache for 24h |
 
-**Note:** OpenFIGI was in the original design but is not currently implemented.
+**Note:** Finnhub and yFinance remain as legacy fallbacks in the codebase but are NOT the primary
+resolution path. The bulk Wikidata approach replaces sequential per-ISIN API calls.
 
 ### 6.1 External Data Sources
 
 | Source | Type | Cost | Rate Limit | Best For | Notes |
 |--------|------|------|------------|----------|-------|
-| **Wikidata** | SPARQL | Free | None | ISIN lookup by name/ticker | High quality, community maintained |
-| **OpenFIGI** | REST API | Free | 250/min | Ticker→ISIN, FIGI mapping | Industry standard symbology |
-| **Finnhub** | REST API | Free tier | 60/min | Metadata enrichment | Good for sector/country |
-| **yFinance** | Scraping | Free | Unstable | Fallback | Unreliable, use as last resort |
+| **Wikidata** | SPARQL (bulk) | Free | None for <1000 ISINs | ISIN lookup, sector, country | Primary source. `VALUES` clause for batch queries |
+| **OpenFIGI** | REST API | Free | 25,000/min with key | Ticker→ISIN, FIGI mapping | `marketSector` is coarse ("Equity", not "Technology") |
+| **Finnhub** | REST API | Free tier | 60/min | Legacy fallback | Good data but too slow for bulk (per-ISIN calls) |
+| **yFinance** | Scraping | Free | Unstable | Legacy fallback | Unreliable, import failures observed |
 
 #### Alternative Sources (Future Consideration)
 
@@ -229,22 +228,35 @@ To prevent cold start data quality issues, pre-populate the Hive before launch:
 
 ## 10. Metadata Enrichment
 
-When hitting external APIs, capture all available metadata—not just ISIN.
+Enrichment follows a three-layer architecture (see `docs/specs/pipeline_definition_of_done.md` Section 4):
+
+### Layer 1: Provider Metadata (at decomposition time)
+Adapters extract all available metadata from the provider's holdings file:
+- Sector, country/geography, exchange, asset_class
+- This is first-class, authoritative data — no API calls needed
+
+### Layer 2: Wikidata Bulk SPARQL (for gaps)
+Holdings missing sector or geography after adapter extraction are batch-enriched:
+- Single SPARQL query with `VALUES` clause for up to 1000 ISINs
+- Returns sector (P452) and country (P17)
+- Free, no API key, no rate limiting for this volume
+
+### Layer 3: Cache + Hive (persist for all users)
+All enriched metadata is persisted:
+- Written to local SQLite cache (`cache_assets.sector`, `cache_assets.geography`)
+- Contributed to Hive `assets` table
+- Next run serves from cache; each user's enrichment benefits all future users
 
 | Field | Source Priority | Storage |
 |-------|-----------------|---------|
 | **ISIN** | All sources | Required |
-| **Sector** | Finnhub > Wikidata > yFinance | Hive `assets.sector` |
-| **Country** | Finnhub > Wikidata | Hive `assets.geography` |
-| **Currency** | Exchange inference > API | Hive `listings.currency` |
-| **Asset Class** | API response | Hive `assets.asset_class` |
+| **Sector** | Provider CSV > Wikidata (bulk) > local cache | Hive `assets.sector`, local `cache_assets.sector` |
+| **Country** | Provider CSV > Wikidata (bulk) > local cache | Hive `assets.geography`, local `cache_assets.geography` |
+| **Currency** | Exchange inference > provider data | Hive `listings.currency` |
+| **Asset Class** | Provider data > API response | Hive `assets.asset_class` |
 
-**Conflict Resolution:** When sources disagree (e.g., OpenFIGI says "Technology", yFinance says "Electronics"):
-- Store all values with source attribution
-- Use highest-confidence source for display
-- Flag conflicts for review
-
-**MVP Focus:** Store ISIN + sector + country. Full metadata in v1+.
+**Note:** Finnhub and yFinance remain as legacy fallbacks but are NOT the primary enrichment path.
+The per-ISIN Finnhub approach caused 30min+ timeouts for 850 ISINs and is replaced by the bulk approach.
 
 ---
 

@@ -161,23 +161,17 @@ CASCADE (for each normalized identifier):
      │         │
      │        MISS
      │         ▼
-     ├──▶ Wikidata ────HIT──▶ Cache + Contribute to Hive, Return (0.80)
-     │         │
-     │        MISS
-     │         ▼
-     ├──▶ Finnhub ─────HIT──▶ Cache + Contribute to Hive, Return (0.75)
-     │         │
-     │        MISS
-     │         ▼
-     ├──▶ yFinance ────HIT──▶ Cache + Contribute to Hive, Return (0.70)
+     ├──▶ Wikidata (bulk) ─HIT──▶ Cache + Contribute to Hive, Return (0.80)
      │         │
      │        MISS
      │         ▼
      └──▶ Manual entry ────▶ Flag for user, Return (confidence 0.0)
 ```
 
-**Note:** OpenFIGI removed from cascade (not currently implemented).
-See `docs/specs/pipeline_definition_of_done.md` for full cascade requirements.
+**Note:** Finnhub and yFinance remain as legacy fallbacks but are NOT in the primary cascade.
+The bulk Wikidata approach (SPARQL `VALUES` clause, up to 1000 ISINs per query) replaces
+sequential per-ISIN API calls which caused 30min+ timeouts.
+See `docs/specs/pipeline_definition_of_done.md` for full cascade and enrichment architecture.
 
 ---
 
