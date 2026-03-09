@@ -1009,11 +1009,17 @@ the frontend receives duplicate ISIN entries from the aggregation output.
 
 ## P-23: Pipeline progress bar stuck at 0% (HIGH)
 
-### Root cause (VERIFIED — neither original hypothesis was correct)
+### Root cause (VERIFIED — pipeline blocks the async event loop)
 
-The SSE infrastructure works correctly:
-- Backend: `broadcast_progress()` sends events with rate limiting, verified in engine logs
-- Frontend: `usePipelineProgress()` hook connects to `/events`, parses JSON, reconnects
+**Neither original hypothesis was correct. The SSE infrastructure is fine.** The real
+issue: the pipeline runs synchronous Python code (ISIN resolution, API calls, DB writes)
+in the FastAPI event loop thread, blocking ALL async operations including SSE streaming.
+
+Evidence: `curl http://127.0.0.1:5001/events` during pipeline run = 10s timeout, 0 bytes.
+The endpoint can't yield even its initial "connected" event because the event loop is blocked.
+
+The `broadcast_progress()` function uses `call_soon_threadsafe()` correctly, but the SSE
+response generator can't iterate because the event loop is busy with synchronous work.
 - SSE connection IS established, events ARE sent and received
 
 **The real issue: nothing reads the SSE progress state.**
@@ -1040,10 +1046,10 @@ The SSE infrastructure works correctly:
 4. Verify: during pipeline run, progress bar updates in real-time
 
 ### Acceptance criteria
+- [ ] SSE endpoint responds during pipeline run (curl test passes)
 - [ ] Progress bar updates in real-time (0% → 100%)
 - [ ] Phase labels update (Load → Decompose → Enrich → Aggregate → Report)
-- [ ] Progress message shows current activity ("Decomposing ETF 3/10...")
-- [ ] No more "0% Initializing pipeline..." stuck state
+- [ ] Pipeline runs in thread executor, event loop stays free
 
 ---
 
