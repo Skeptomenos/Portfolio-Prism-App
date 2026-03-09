@@ -305,8 +305,13 @@ def handle_get_true_holdings(cmd_id: int, payload: dict[str, Any]) -> dict[str, 
             if col not in df.columns:
                 df[col] = default
 
-        grouped = df.groupby(["child_isin", "child_name"], as_index=False).agg(
+        # Group by ISIN only — NOT by (ISIN, name).
+        # Different sources may use different names for the same company
+        # (e.g., "NVIDIA" from direct holdings vs "NVIDIA CORP" from ETF decomposition).
+        # The ISIN is the canonical identifier — names are display-only.
+        grouped = df.groupby("child_isin", as_index=False).agg(
             {
+                "child_name": "first",
                 "value_eur": "sum",
                 "sector": "first",
                 "geography": "first",
