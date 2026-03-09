@@ -64,8 +64,8 @@ class HiveEnrichmentService:
                 metadata[isin] = {
                     "isin": cached_asset.isin,
                     "name": cached_asset.name,
-                    "sector": cached_asset.asset_class,
-                    "geography": "Unknown",
+                    "sector": cached_asset.sector if cached_asset.sector != "Unknown" else cached_asset.asset_class,
+                    "geography": cached_asset.geography,
                     "asset_class": cached_asset.asset_class,
                 }
                 sources[isin] = "hive"
@@ -133,6 +133,19 @@ class HiveEnrichmentService:
                     )
                 )
                 contributed_isins.append(isin)
+
+                # Write sector/geography back to local cache for next run
+                sector = data.get("sector", "Unknown")
+                geography = data.get("geography", "Unknown")
+                if sector != "Unknown" or geography != "Unknown":
+                    self.local_cache.upsert_asset(
+                        isin=isin,
+                        name=data.get("name", "Unknown"),
+                        asset_class=data.get("asset_class", "Stock"),
+                        base_currency="EUR",
+                        sector=sector,
+                        geography=geography,
+                    )
 
             if new_contributions:
                 logger.info(

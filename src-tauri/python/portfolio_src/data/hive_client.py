@@ -56,6 +56,8 @@ class AssetEntry:
     exchange: Optional[str] = None
     currency: Optional[str] = None  # Trading currency (from listings table)
     enrichment_status: str = "stub"
+    sector: str = "Unknown"
+    geography: str = "Unknown"
 
     # Metadata for caching
     contributor_count: int = 1

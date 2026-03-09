@@ -29,7 +29,8 @@ class CachedAsset:
     name: str
     asset_class: str
     base_currency: str
-
+    sector: str = "Unknown"
+    geography: str = "Unknown"
 
 @dataclass
 class CachedListing:
@@ -88,6 +89,8 @@ class LocalCache:
                 name TEXT NOT NULL,
                 asset_class VARCHAR(20) NOT NULL,
                 base_currency VARCHAR(3) NOT NULL,
+                sector TEXT DEFAULT 'Unknown',
+                geography TEXT DEFAULT 'Unknown',
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
@@ -118,6 +121,7 @@ class LocalCache:
                 row_count INTEGER DEFAULT 0
             );
 
+            -- Indexes for fast lookup
             -- Indexes for fast lookup
             CREATE INDEX IF NOT EXISTS idx_cache_listings_ticker
                 ON cache_listings (UPPER(ticker));
@@ -171,6 +175,21 @@ class LocalCache:
 
         conn.commit()
         logger.debug("LocalCache schema initialized", extra={"db_path": str(self.db_path)})
+
+    def _migrate_add_sector_geography(self) -> None:
+        """Add sector/geography columns to cache_assets if they don't exist.
+
+        Safe to run multiple times — ALTER TABLE fails silently if columns exist.
+        """
+        conn = self._get_connection()
+        for col in ["sector", "geography"]:
+            try:
+                conn.execute(
+                    f"ALTER TABLE cache_assets ADD COLUMN {col} TEXT DEFAULT 'Unknown'"
+                )
+                conn.commit()
+            except Exception:
+                pass  # Column already exists
 
     # =========================================================================
     # READ OPERATIONS
@@ -257,6 +276,8 @@ class LocalCache:
                 name=row["name"],
                 asset_class=row["asset_class"],
                 base_currency=row["base_currency"],
+                sector=row["sector"] if "sector" in row.keys() else "Unknown",
+                geography=row["geography"] if "geography" in row.keys() else "Unknown",
             )
         return None
 
@@ -307,21 +328,25 @@ class LocalCache:
         name: str,
         asset_class: str,
         base_currency: str,
+        sector: str = "Unknown",
+        geography: str = "Unknown",
     ) -> bool:
-        """Upsert a single asset."""
+        """Upsert a single asset with sector and geography."""
         conn = self._get_connection()
         try:
             conn.execute(
                 """
-                INSERT INTO cache_assets (isin, name, asset_class, base_currency, updated_at)
-                VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+                INSERT INTO cache_assets (isin, name, asset_class, base_currency, sector, geography, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                 ON CONFLICT(isin) DO UPDATE SET
                     name = excluded.name,
                     asset_class = excluded.asset_class,
                     base_currency = excluded.base_currency,
+                    sector = CASE WHEN excluded.sector != 'Unknown' THEN excluded.sector ELSE cache_assets.sector END,
+                    geography = CASE WHEN excluded.geography != 'Unknown' THEN excluded.geography ELSE cache_assets.geography END,
                     updated_at = CURRENT_TIMESTAMP
                 """,
-                (isin, name, asset_class, base_currency),
+                (isin, name, asset_class, base_currency, sector, geography),
             )
             conn.commit()
             return True
