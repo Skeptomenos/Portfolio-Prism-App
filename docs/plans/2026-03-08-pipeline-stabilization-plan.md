@@ -871,3 +871,93 @@ Per DoD Section 1, every contribution MUST include `contributed_at` and `source_
 | P-04 | `is_trustworthy` already correct at `score >= 0.95`; current run shows 0.49 = correctly untrusted |
 | P-08 | Hive contribution default is `"true"` (enabled); this machine had persisted override |
 | P-09 | WORKER_URL has hardcoded Cloudflare Worker default; no env config needed |
+
+---
+
+## P-21: Enrichment Architecture — Provider Metadata + Wikidata Bulk SPARQL
+
+### Root cause (VERIFIED)
+
+The enricher calls Finnhub per-ISIN (850 sequential API calls → 30min timeout). The data
+we need (sector + country) is available from two faster sources:
+
+**Source 1: iShares CSV already has the data (VERIFIED)**
+The raw iShares CSV contains columns we currently discard:
+- `Sektor` — 13 GICS-style sectors in German (IT, Energie, Financials, etc.)
+- `Standort` — 25 country names in German (Vereinigte Staaten, Deutschland, etc.)
+- `Anlageklasse` — asset class (Aktien, Futures, etc.)
+The adapter at `ishares.py:184-186` only extracts 5 of 12 columns, then drops `location`/`exchange` at line 297.
+
+**Source 2: Wikidata bulk SPARQL (VERIFIED)**
+- 852 ISINs in a single POST request: **746 found (88%)** in 16.7 seconds
+- Country coverage: 98% of found ISINs
+- Sector coverage: 88% of found ISINs
+- Multiple rows per ISIN (e.g., Boeing has 5 sectors) — take first result
+- Must use POST (GET hits URL length limit for >100 ISINs)
+
+### Implementation Plan
+
+#### Step 1: iShares adapter — preserve Sektor + Standort columns
+**File:** `src-tauri/python/portfolio_src/adapters/ishares.py`
+**Changes:**
+- Line 184-186: Extract `Sektor` and `Standort` in addition to current 5 columns
+- Map German → English for both sector and country (static lookup table)
+- Line 297: Stop dropping `location` column. Keep as `geography`
+- Add `sector` column from `Sektor`
+- Test: verify holdings DataFrame has `sector` and `geography` after adapter fetch
+
+**German → English mapping needed:**
+```
+Sectors: IT→Technology, Energie→Energy, Financials→Financials, Gesundheitsversorgung→Healthcare,
+  Immobilien→Real Estate, Industrie→Industrials, Kommunikation→Communication Services,
+  Materialien→Materials, Nichtzyklische Konsumgüter→Consumer Staples,
+  Zyklische Konsumgüter→Consumer Discretionary, Versorger→Utilities, Sonstige→Other
+
+Countries: Vereinigte Staaten→United States, Vereinigtes Königreich→United Kingdom,
+  Deutschland→Germany, Frankreich→France, Japan→Japan, Kanada→Canada,
+  Schweiz→Switzerland, Australien→Australia, Niederlande→Netherlands,
+  Schweden→Sweden, Dänemark→Denmark, Spanien→Spain, Italien→Italy,
+  Hongkong→Hong Kong, Singapur→Singapore
+```
+
+#### Step 2: Wikidata bulk SPARQL service
+**File:** `src-tauri/python/portfolio_src/data/wikidata_enrichment.py` (NEW)
+**Changes:**
+- New `WikidataEnrichmentService` class with `enrich_batch(isins: List[str]) -> Dict[str, dict]`
+- SPARQL query with VALUES clause, POST to `https://query.wikidata.org/sparql`
+- Dedup strategy: take first sector result per ISIN, always take country
+- Return format: `{isin: {sector: str, geography: str}}`
+- Timeout: 60 seconds
+- Batch size: up to 1000 ISINs per query (Wikidata limit)
+
+#### Step 3: Wire into HiveEnrichmentService
+**File:** `src-tauri/python/portfolio_src/core/services/enricher.py`
+**Changes:**
+- Line 133: Replace `self.fallback_service.get_metadata_batch(missing_isins)` with
+  `WikidataEnrichmentService().enrich_batch(missing_isins)`
+- Write results back to local cache (already implemented)
+- Contribute to Hive (already implemented)
+
+#### Step 4: Other adapters — investigate metadata columns
+**Files:** `adapters/amundi.py`, `adapters/vaneck.py`
+- Read what columns the raw download contains
+- If sector/country available, preserve them (same pattern as iShares)
+- If not available, document as known gap — Wikidata fills it
+
+### TDD Steps
+1. **Red:** Test iShares adapter returns DataFrame with `sector` and `geography` columns
+2. **Red:** Test WikidataEnrichmentService returns sector/country for known ISINs
+3. **Red:** Test HiveEnrichmentService uses Wikidata instead of Finnhub for missing ISINs
+4. **Fix:** Implement steps 1-3
+5. **Green:** All tests pass
+6. **Dogfood:** Run pipeline, verify quality_score > 0.95
+
+### Acceptance criteria
+- [ ] iShares adapter preserves Sektor (→ sector) and Standort (→ geography) from CSV
+- [ ] German sector/country names normalized to English
+- [ ] Wikidata bulk SPARQL enriches remaining gaps (POST, up to 1000 ISINs)
+- [ ] quality_score > 0.95 after pipeline run
+- [ ] is_trustworthy = true
+- [ ] Enrichment completes in < 30 seconds (not 30 minutes)
+- [ ] Enriched data cached locally AND contributed to Hive
+- [ ] Second pipeline run serves enrichment from cache (near-instant)
