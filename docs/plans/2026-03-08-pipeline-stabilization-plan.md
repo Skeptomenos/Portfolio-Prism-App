@@ -1074,37 +1074,49 @@ for each holding:
 1. all_tickers = extract from DataFrame
 2. batch_cache = local_cache.batch_get_isins(all_tickers)    # 1 SQLite query (DONE)
 3. uncached = tickers not in batch_cache
-4. batch_hive = hive_client.batch_resolve_tickers(uncached)  # 1-10 Supabase RPCs  
-5. For hits: set ISIN directly (fast path)
-6. For remaining: ISINResolver.resolve() (slow path — API)
+4. For each uncached ticker: generate_variants() -> collect all variants
+5. batch_hive = hive_client.batch_resolve_tickers(all_variants)  # ~21 RPCs (NEW)
+6. Map variant results back to original tickers
+7. For hits: set ISIN directly (fast path)
+8. For remaining: ISINResolver.resolve() (slow path)
 ```
+
+#### Implementation: Variant-Aware Batch Hive Lookup
+
+**Problem (discovered during dogfood):** Batch Hive sends `AAPL.O` but Hive stores `AAPL`. No match.
+
+**Fix:** Generate all ticker variants BEFORE the batch Hive call:
+```python
+variant_to_ticker = {}  # variant -> original_ticker
+ticker_parser = self.isin_resolver._ticker_parser
+for ticker in uncached_tickers:
+    variants = ticker_parser.generate_variants(ticker)  # ['AZN.L', 'AZN', 'AZN.LN']
+    for v in variants:
+        variant_to_ticker[v] = ticker
+
+batch_hive = hive_client.batch_resolve_tickers(list(variant_to_ticker.keys()))
+
+for variant, isin in batch_hive.items():
+    if isin:
+        hive_results[variant_to_ticker[variant]] = isin
+```
+
+**Numbers:** ~700 uncached tickers x ~3 variants = ~2100 variant strings.
+Chunked at 100/RPC = ~21 RPCs. Previously: ~1000 sequential RPCs.
 
 #### Files to change
 
 | File | Change |
 |------|--------|
-| `decomposer.py:_resolve_holdings_isins()` | Add batch Hive lookup between local cache and per-holding loop |
-| No changes to `hive_client.py` | `batch_resolve_tickers()` already exists |
-| No changes to `resolution.py` | `resolve()` stays as slow-path fallback |
-
-#### Access pattern
-The decomposer needs access to `hive_client`. Currently it only has `isin_resolver`.
-Access via `self.isin_resolver._hive_client` (already used internally by the resolver).
-Alternatively, pass `hive_client` to the decomposer constructor.
-
-#### TDD Steps
-1. Verify `batch_resolve_tickers_rpc` exists in Supabase (may need migration)
-2. Implement batch Hive lookup in decomposer after local batch cache
-3. Holdings found in batch Hive: set ISIN, skip per-holding resolve
-4. Dogfood: run pipeline, target < 3 minutes
+| `decomposer.py:_resolve_holdings_isins()` | Replace plain batch Hive with variant-aware batch |
+| Need `TickerParser` in decomposer | Access via `self.isin_resolver._ticker_parser` |
 
 #### Acceptance criteria
 - [x] Finnhub fallback removed
-- [x] Batch local cache lookup implemented
-- [ ] Batch Hive lookup for local cache misses
+- [x] Batch local cache lookup
+- [x] Batch Hive lookup (basic, without variants)
+- [ ] Variant-aware batch Hive (generate_variants before batch)
 - [ ] Pipeline < 3 minutes on warm run
-- [ ] Per-holding slow path < 50 tickers
----
 
 ## P-25: Manual ISIN entry UI for unresolved holdings (HIGH)
 
