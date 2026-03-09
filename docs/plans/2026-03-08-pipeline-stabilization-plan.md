@@ -1042,50 +1042,68 @@ Two possible causes:
 
 ## P-24: Pipeline takes 12 minutes despite cached data (HIGH)
 
-### Root cause (VERIFIED)
-Three bottlenecks identified from engine logs:
+### Root cause (VERIFIED from dogfood)
 
-**Bottleneck 1: Legacy Finnhub/yfinance fallback (primary — ~8 minutes)**
-After Wikidata bulk returns 746/852 ISINs, the remaining ~106 ISINs fall through to
-`self.fallback_service.get_metadata_batch(still_missing)` which tries:
-- Finnhub API per-ISIN (rate limited, sequential)
-- yfinance per-ISIN (import failures, each times out)
-Engine logs show hundreds of `yfinance failed` warnings.
+**Bottleneck 1 (FIXED): Legacy Finnhub/yfinance fallback — was ~8 minutes**
+Removed. No more yfinance import failures.
 
-**Bottleneck 2: Sequential ISIN resolution per holding (~3 minutes)**
-The decomposer's `_resolve_holdings_isins()` iterates 700+ tier1 holdings one by one,
-calling `ISINResolver.resolve()` for each. Even with cache hits, 700 sequential
-lookups take time. Should use `batch_get_isins()` from LocalCache.
+**Bottleneck 2 (PARTIALLY FIXED): Sequential ISIN resolution — still ~10 minutes**
+The decomposer iterates 700+ tier1 holdings per ETF. Each uncached holding calls
+`ISINResolver.resolve()` → `_resolve_via_hive()` → `hive_client.resolve_ticker(ticker)`
+= one Supabase RPC call per ticker. ~1000 sequential RPCs = ~10 minutes.
 
-**Bottleneck 3: Hive sync at startup (~30 seconds)**
-The local cache syncs from Hive on engine startup. Minor but adds latency.
+Local batch cache lookup added (1 SQLite query) but most tickers aren't in local cache yet —
+they're only in the Hive (Supabase).
 
-### Fix
+### Implementation: Batch Hive Lookup in Decomposer
 
-**Immediate (remove yfinance, cap Finnhub):**
-- In `enricher.py`: if Wikidata found 746/852, accept that. Don't fall back to Finnhub/yfinance
-  for the remaining 106. Mark them as `sector: Unknown, geography: Unknown` and move on.
-- This alone should reduce pipeline from 12min → ~3min.
+**Key discovery: `hive_client.batch_resolve_tickers()` already exists!**
+Uses `batch_resolve_tickers_rpc` with chunking (100 per RPC). Currently unused.
 
-**Next (batch resolution):**
-- In `decomposer.py _resolve_holdings_isins()`: extract all tickers first, call
-  `local_cache.batch_get_isins(tickers)` in one SQLite query, then only call the
-  resolver for tickers not found in the batch.
-- This should reduce decomposition from ~3min → ~30s.
+#### Current flow (SLOW):
+```
+for each holding:
+  → ISINResolver.resolve(ticker)
+    → local_cache.get_isin_by_ticker(ticker)    # 1 SQLite query
+    → hive_client.resolve_ticker(ticker)          # 1 Supabase RPC
+  = ~1000 Supabase RPCs
+```
 
-**Target:** Pipeline completes in < 60 seconds for cached runs.
+#### Target flow (FAST):
+```
+1. all_tickers = extract from DataFrame
+2. batch_cache = local_cache.batch_get_isins(all_tickers)    # 1 SQLite query (DONE)
+3. uncached = tickers not in batch_cache
+4. batch_hive = hive_client.batch_resolve_tickers(uncached)  # 1-10 Supabase RPCs  
+5. For hits: set ISIN directly (fast path)
+6. For remaining: ISINResolver.resolve() (slow path — API)
+```
 
-### Files
-- `src-tauri/python/portfolio_src/core/services/enricher.py:133` (fallback call)
-- `src-tauri/python/portfolio_src/core/services/decomposer.py` (sequential resolution)
-- `src-tauri/python/portfolio_src/data/local_cache.py` (batch_get_isins)
+#### Files to change
 
-### Acceptance criteria
-- [ ] Pipeline completes in < 60 seconds on cached run
-- [ ] No yfinance import errors in engine logs
-- [ ] Wikidata-missed ISINs marked as Unknown, not sent to Finnhub
-- [ ] ISIN resolution uses batch cache lookup
+| File | Change |
+|------|--------|
+| `decomposer.py:_resolve_holdings_isins()` | Add batch Hive lookup between local cache and per-holding loop |
+| No changes to `hive_client.py` | `batch_resolve_tickers()` already exists |
+| No changes to `resolution.py` | `resolve()` stays as slow-path fallback |
 
+#### Access pattern
+The decomposer needs access to `hive_client`. Currently it only has `isin_resolver`.
+Access via `self.isin_resolver._hive_client` (already used internally by the resolver).
+Alternatively, pass `hive_client` to the decomposer constructor.
+
+#### TDD Steps
+1. Verify `batch_resolve_tickers_rpc` exists in Supabase (may need migration)
+2. Implement batch Hive lookup in decomposer after local batch cache
+3. Holdings found in batch Hive: set ISIN, skip per-holding resolve
+4. Dogfood: run pipeline, target < 3 minutes
+
+#### Acceptance criteria
+- [x] Finnhub fallback removed
+- [x] Batch local cache lookup implemented
+- [ ] Batch Hive lookup for local cache misses
+- [ ] Pipeline < 3 minutes on warm run
+- [ ] Per-holding slow path < 50 tickers
 ---
 
 ## P-25: Manual ISIN entry UI for unresolved holdings (HIGH)
