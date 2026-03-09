@@ -437,6 +437,9 @@ These should be documented as expected behavior.
 | P-19 | Per-ETF validation gates show 0% resolution | **High** | `HOLDING_COLUMN_ALIASES` missing resolution_status, sector, geography | **COMPLETE** (quality_score 0.0→0.27, per-ETF rates now 50-77%) |
 | P-20 | ~~Enrichment API calls need per-run cap~~ | ~~Medium~~ | **SUPERSEDED by P-21.** Finnhub per-ISIN approach replaced by provider metadata + Wikidata bulk SPARQL. | **superseded** |
 | P-21 | Enrichment architecture: provider metadata + Wikidata bulk SPARQL | **High** | Three-layer approach: (1) Adapters preserve sector/geography from provider CSV/XLSX (iShares has `Standort`/`Börse` but drops them!), (2) Wikidata bulk SPARQL fills gaps (850 ISINs in 1 query), (3) Cache + Hive persists. Replaces per-ISIN Finnhub calls. | **pending** |
+| P-22 | **NVIDIA dedup failure: same ISIN appears twice in True Exposure** | **Critical** | Aggregator groups by ISIN but `US67066G1040` appears as "NVIDIA" (direct) and "NVIDIA CORP" (ETF decomposition). True Exposure shows both instead of merging. This defeats the core ISIN-first value proposition. Root cause: aggregator may compare names instead of ISINs, or the ISIN matching is case/format sensitive. | **investigate** |
+| P-23 | **Pipeline progress bar stuck at 0%** | **High** | Backend sends SSE events (progress 5%→25%) but frontend shows 0% "Initializing...". Early progress events emitted before SSE connection established → frontend misses them. | **investigate** |
+| P-24 | **Pipeline takes 10min despite cached data** | **High** | Three bottlenecks: (1) ISIN resolution iterates 700+ holdings sequentially per ETF (should batch-lookup from cache), (2) Legacy Finnhub fallback runs 106 per-ISIN API calls for ISINs not in Wikidata (should be removed/capped), (3) yfinance import failures cause slow timeouts. Target: <60 seconds for cached run. | **investigate** |
 
 ---
 
