@@ -153,28 +153,17 @@ class HiveEnrichmentService:
                 else:
                     still_missing.append(isin)
 
-            # Legacy fallback: Finnhub/yFinance for ISINs not in Wikidata
-            fallback_results = {}
+            # ISINs not found in Wikidata: mark as Unknown and move on.
+            # Legacy Finnhub/yfinance fallback is disabled — it caused 10min+ timeouts
+            # with hundreds of yfinance import failures. See P-24.
             if still_missing:
                 logger.info(
-                    "Wikidata miss, trying legacy fallback",
-                    extra={"miss_count": len(still_missing)},
+                    "Wikidata miss, marking as Unknown",
+                    extra={"miss_count": len(still_missing), "examples": ", ".join(still_missing[:3])},
                 )
-                try:
-                    fallback_results = self.fallback_service.get_metadata_batch(still_missing)
-                except Exception as e:
-                    logger.warning("Legacy fallback failed", extra={"error": str(e)})
 
-            # Combine all results for contribution
-            all_new_results = {}
-            all_new_results.update({isin: metadata[isin] for isin in missing_isins if isin in wikidata_results})
-            all_new_results.update(fallback_results)
-
-            # Update metadata with fallback results
-            for isin, data in fallback_results.items():
-                metadata[isin] = data
-                sources[isin] = data.get("source", "api")
-
+            # Combine all Wikidata results for contribution
+            all_new_results = {isin: metadata[isin] for isin in missing_isins if isin in wikidata_results}
             new_contributions = []
             for isin, data in all_new_results.items():
                 new_contributions.append(
