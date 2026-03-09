@@ -344,6 +344,16 @@ class Decomposer:
         unresolved_count = 0
         resolution_sources: Dict[str, int] = {}
 
+        # BATCH OPTIMIZATION: pre-fetch all tickers from cache in one SQL query
+        all_tickers = holdings["ticker"].dropna().astype(str).str.strip().tolist()
+        batch_cache_hits: Dict[str, Optional[str]] = {}
+        if self.isin_resolver and hasattr(self.isin_resolver, '_local_cache') and self.isin_resolver._local_cache:
+            batch_cache_hits = self.isin_resolver._local_cache.batch_get_isins(all_tickers)
+            logger.debug(
+                "Batch cache lookup",
+                extra={"total_tickers": len(all_tickers), "cache_hits": sum(1 for v in batch_cache_hits.values() if v)},
+            )
+
         for idx, row in holdings.iterrows():
             ticker = str(row.get("ticker", "")).strip()
             name = str(row.get("name", "")).strip()
@@ -370,6 +380,20 @@ class Decomposer:
                 holdings.at[idx, "resolution_confidence"] = 0.0
                 continue
 
+            # FAST PATH: check batch cache result before calling full resolver
+            cached_isin = batch_cache_hits.get(ticker)
+            if cached_isin and is_valid_isin(cached_isin):
+                resolved_count += 1
+                source = "local_cache_ticker"
+                resolution_sources[source] = resolution_sources.get(source, 0) + 1
+                holdings.at[idx, "isin"] = cached_isin
+                holdings.at[idx, "resolution_status"] = "resolved"
+                holdings.at[idx, "resolution_detail"] = "batch_cache"
+                holdings.at[idx, "resolution_source"] = source
+                holdings.at[idx, "resolution_confidence"] = 0.95
+                continue
+
+            # SLOW PATH: full resolver cascade (Hive network, API, etc.)
             result = self.isin_resolver.resolve(
                 ticker=ticker,
                 name=name,
