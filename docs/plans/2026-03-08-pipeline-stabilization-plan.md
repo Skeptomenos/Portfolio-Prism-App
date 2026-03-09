@@ -2,7 +2,7 @@
 
 > **Branch:** `pipeline/stabilize-xray-hive`
 > **Created:** 2026-03-08
-> **Status:** P-01/P-07/P-11/P-13/P-14 COMPLETE. P-12 RESOLVED. Remaining: P-15/P-16/P-17/P-18/P-05.
+> **Status:** P-01/P-07/P-11/P-13/P-14/P-19 COMPLETE. P-12 RESOLVED. quality_score 0→0.27. Remaining: P-15/P-16/P-17/P-18/P-05.
 > **Pipeline DoD:** `docs/specs/pipeline_definition_of_done.md` (canonical success criteria)
 > **Predecessor:** Session restore fixes on `codex/stabilize-ipc-xray` (completed)
 
@@ -435,7 +435,7 @@ These should be documented as expected behavior.
 | P-16 | Pipeline performance: 21min → 9min on second run | Medium | Cache helps but not dramatically. Partially verified. | **partially verified** |
 | P-17 | True Exposure stored as CSV (legacy) | High | Needs SQLite with timestamps for 3/6/12 month tracking | **pending** |
 | P-18 | Hive decomposition freshness timestamps | Medium | Need `contributed_at` / `source_date` for staleness assessment | **pending** |
-| P-19 | Per-ETF validation gates show 0% resolution despite 99.9% actual | **High** | Resolved ISINs and enrichment data not written back to per-ETF holdings DataFrames. Validation gates check per-ETF DataFrames → see 0% → quality_score=0.0 → is_trustworthy=false. **This is the root cause of the quality score being wrong.** | **investigate** |
+| P-19 | Per-ETF validation gates show 0% resolution | **High** | `HOLDING_COLUMN_ALIASES` missing resolution_status, sector, geography | **COMPLETE** (quality_score 0.0→0.27, per-ETF rates now 50-77%) |
 
 ---
 
