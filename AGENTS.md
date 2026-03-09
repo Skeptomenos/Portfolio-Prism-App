@@ -4,6 +4,13 @@
 
 Privacy-first desktop portfolio analyzer. **Tauri v2** shell (Rust) + **React/Vite/TS** frontend + **Python sidecar** analytics engine. Local-first SQLite (`prism.db`). Community data via Supabase Hive. No bundled Chromium.
 
+### Domain Philosophy: ISIN-First Strategy
+The primary value proposition of Portfolio Prism is **ISIN-level aggregation**. 
+- **The Problem:** ETF providers provide tickers, which are market-specific (e.g., `AAPL` on NASDAQ vs `APC` on Xetra). Tickers are NOT unique global identifiers.
+- **The Solution:** The pipeline MUST resolve every ticker/name to its **ISIN** (International Securities Identification Number). This is Stage 0 of the pipeline (`ISINResolver`).
+- **The Engine:** Decompose ETF → Resolve Ticker-to-ISIN → Enrich metadata (Sector/Geo) → Aggregate by ISIN for "True Holding Exposure."
+- **The Hive:** Because external API resolution is slow and rate-limited, every successful Ticker → ISIN resolution is auto-contributed to the Supabase **HIVE** database. This community-driven data sharing is the key to scaling performance for all users.
+
 ## STRUCTURE
 
 ```
