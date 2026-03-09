@@ -1,13 +1,13 @@
 # Identity Resolution Specification
 
 > **Purpose:** Define the system for resolving arbitrary security identifiers to canonical ISINs.
-> **Status:** Draft
-> **Last Updated:** 2025-12-26
+> **Status:** Active (implemented, under stabilization)
+> **Last Updated:** 2026-03-08
 > **Related:**
-> - `keystone/strategy/identity-resolution.md` (resolution logic)
-> - `keystone/architecture/identity-resolution.md` (components & integration)
-> - `keystone/strategy/hive-architecture.md` (trust & validation model)
-> - `keystone/strategy/external-integrations.md` (confidence scoring)
+> - `docs/architecture/identity_resolution.md` (component architecture, data flow)
+> - `docs/specs/pipeline_definition_of_done.md` (pipeline success criteria)
+> - `docs/specs/supabase_hive.md` (Hive community database, trust model)
+> - `docs/plans/2026-03-08-pipeline-stabilization-plan.md` (active stabilization work)
 
 ---
 
@@ -75,43 +75,47 @@ ETF holdings data comes from multiple providers with **inconsistent identifiers*
 
 ## 5. Requirements
 
-### 4.1 Functional Requirements
+### 5.1 Functional Requirements
 
-| ID | Requirement |
-|----|-------------|
-| FR-1 | Resolve ticker symbols to ISINs |
-| FR-2 | Resolve company names to ISINs |
-| FR-3 | Validate and pass through existing ISINs |
-| FR-4 | Parse provider-specific file formats (iShares CSV, Vanguard XLSX, Amundi XLSX) |
-| FR-5 | Contribute new resolutions to The Hive immediately on API success |
-| FR-6 | Cache resolutions locally for offline use |
-| FR-7 | Report unresolved identifiers for manual review |
-
-### 4.2 Non-Functional Requirements
-
-| ID | Requirement | Target |
+| ID | Requirement | Status |
 |----|-------------|--------|
-| NFR-1 | Resolution rate | >95% of holdings resolved |
-| NFR-2 | Cache hit rate | >80% from local/Hive |
-| NFR-3 | Resolution latency | <100ms average |
-| NFR-4 | API call reduction | <20% of resolutions hit external APIs |
+| FR-1 | Resolve ticker symbols to ISINs | Implemented (`data/resolution.py`) |
+| FR-2 | Resolve company names to ISINs | Implemented (NameNormalizer) |
+| FR-3 | Validate and pass through existing ISINs | Implemented |
+| FR-4 | Parse provider-specific file formats (iShares CSV, Amundi XLSX) | Implemented (`adapters/`) |
+| FR-5 | Contribute new resolutions to The Hive immediately on API success | Implemented |
+| FR-6 | Cache resolutions locally for offline use | Implemented (`local_cache.py`) |
+| FR-7 | Report unresolved identifiers for manual review | Implemented (Action Queue UI) |
+| FR-8 | Flag unresolved holdings for manual ISIN entry | Not yet implemented (P-11 follow-up) |
+
+### 5.2 Non-Functional Requirements
+
+| ID | Requirement | Target | Current Status |
+|----|-------------|--------|----------------|
+| NFR-1 | Resolution rate | >95% of holdings resolved | 99.9% achieved (852/853) after P-11 fix |
+| NFR-2 | Cache hit rate | >80% from local/Hive | 81.2% achieved |
+| NFR-3 | Resolution latency | <100ms average for cache hits | Not measured yet |
+| NFR-4 | API dependency | Tracked as health metric | 160 API calls / 850 total = 18.8% |
 
 ---
 
 ## 6. Resolution Cascade
 
 Order matters. Stop at first successful resolution.
+See `docs/specs/pipeline_definition_of_done.md` Section 2 for canonical cascade.
 
-| Priority | Source | Confidence | Cost |
-|----------|--------|------------|------|
-| 1 | Direct ISIN validation | 1.0 | Free |
-| 2 | Local SQLite cache | 0.95 | Free |
-| 3 | The Hive (Supabase) | 0.90 | Free |
-| 4 | Wikidata SPARQL | 0.80 | Free |
-| 5 | OpenFIGI | 0.80 | Free (rate-limited) |
-| 6 | Finnhub API | 0.75 | Rate-limited |
-| 7 | yFinance | 0.70 | Unreliable |
-| 8 | Unresolved | 0.0 | Log for review |
+| Priority | Source | Confidence | Cost | Notes |
+|----------|--------|------------|------|-------|
+| 1 | Local SQLite cache | 0.95 | Free | User's previous resolutions |
+| 2 | The Hive (Supabase) | 0.90 | Free | Community-contributed |
+| 3 | Provider-supplied ISIN | 1.00 | Free | Already in adapter data (e.g., Amundi) |
+| 4 | Wikidata SPARQL | 0.80 | Free | High quality, community maintained |
+| 5 | Finnhub API (via proxy) | 0.75 | Rate-limited | Good for sector/country metadata |
+| 6 | yFinance | 0.70 | Unreliable | Last resort automated source |
+| 7 | Manual entry | 0.85 | User action | Flag for user to provide ISIN |
+| 8 | Unresolved | 0.0 | - | Log for review, negative-cache for 24h |
+
+**Note:** OpenFIGI was in the original design but is not currently implemented.
 
 ### 6.1 External Data Sources
 
@@ -137,7 +141,7 @@ Order matters. Stop at first successful resolution.
 
 ## 7. Normalization Rules
 
-### 6.1 Name Normalization
+### 7.1 Name Normalization
 
 **Goal:** "NVIDIA CORP", "Nvidia Corp", "NVIDIA Corporation" → "NVIDIA"
 
@@ -150,7 +154,7 @@ Order matters. Stop at first successful resolution.
 
 **Suffixes to strip:** CORPORATION, CORP, INCORPORATED, INC, LIMITED, LTD, PLC, AG, SA, NV, SE, CLASS A/B/C, REG, ADR, ADS, GDR
 
-### 6.2 Ticker Parsing
+### 7.2 Ticker Parsing
 
 **Goal:** Extract root ticker from various formats
 
@@ -290,22 +294,23 @@ Aliases can become stale due to corporate actions (mergers, name changes, ticker
 
 ---
 
-## 14. Implementation Phases
+## 14. Implementation Status
 
-| Phase | Scope | Deliverables |
-|-------|-------|--------------|
-| 1 | Core Infrastructure | ISINResolver, NameNormalizer, TickerParser, local cache |
-| 2 | Provider Parsers | ISharesParser, VanguardParser, AmundiParser |
-| 3 | Hive Integration | Eager contribution, fuzzy lookup |
-| 4 | Pipeline Integration | Wire into decomposition, add metrics |
+| Phase | Scope | Status |
+|-------|-------|--------|
+| 1 | Core Infrastructure (ISINResolver, NameNormalizer, TickerParser, local cache) | **Implemented** |
+| 2 | Provider Adapters (iShares, Amundi, VanEck) | **Implemented** |
+| 3 | Hive Integration (eager contribution, lookup) | **Implemented** |
+| 4 | Pipeline Integration (wired into decomposition, metrics) | **Implemented** |
+| 5 | Stabilization (P-01 config, P-11 weight column, P-14 aggregation) | **In Progress** |
 
 ---
 
 ## 15. Success Metrics
 
-| Metric | Target | How to Measure |
-|--------|--------|----------------|
-| Resolution Rate | >95% | Resolved / Total holdings |
-| Cache Hit Rate | >80% | Cache hits / Total lookups |
-| Hive Growth | +100/week | New aliases contributed |
-| API Dependency | <20% | API calls / Total resolutions |
+| Metric | Target | Current (2026-03-08) | How to Measure |
+|--------|--------|---------------------|----------------|
+| Resolution Rate | >95% | 99.9% (852/853) | Resolved / Total holdings |
+| Cache Hit Rate | >80% | 81.2% | Cache hits / Total lookups |
+| Hive Growth | +100/week | 160 contributed this session | New aliases contributed per pipeline run |
+| API Dependency | Decreasing over time | 18.8% (health metric) | API calls / Total resolutions |

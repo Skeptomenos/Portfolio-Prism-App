@@ -68,11 +68,15 @@ contribute fresh data back to the Hive to update the community's copy.
 |----------|--------|------------|------|-------|
 | 1 | **Local cache** (SQLite) | 0.95 | Free | User already resolved this ticker before |
 | 2 | **Hive** (Supabase listings) | 0.90 | Free | Another user contributed this resolution |
-| 3 | **Provider data** | 1.00 | Free | Some adapters include ISINs (e.g., Amundi) |
+| 3 | **Provider data** | 1.00 | Free | ISIN already in adapter output (e.g., Amundi includes ISINs) |
 | 4 | **Wikidata** SPARQL | 0.80 | Free | High quality, community maintained |
 | 5 | **Finnhub** (via proxy) | 0.75 | Rate-limited | Good for metadata enrichment |
 | 6 | **yFinance** | 0.70 | Unreliable | Last resort automated source |
 | 7 | **Manual entry** | 0.85 | User action | Flag for user to provide ISIN manually |
+
+**Note:** Provider data at position 3 means: if the ETF adapter already included an ISIN in
+the holdings output (e.g., Amundi XLSX includes ISINs), use it. This is not an API call —
+it's data already present from the decomposition step.
 
 ### Requirements
 

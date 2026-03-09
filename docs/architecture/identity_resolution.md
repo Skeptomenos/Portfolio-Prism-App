@@ -1,41 +1,44 @@
 # Identity Resolution Architecture
 
 > **Purpose:** Define how identity resolution components are structured and integrated.
-> **Related:** 
-> - `keystone/specs/identity_resolution.md` (requirements & formats)
-> - `keystone/strategy/identity-resolution.md` (resolution logic)
-> - `keystone/strategy/hive-architecture.md` (trust & validation model)
-> **Last Updated:** 2025-12-26
+> **Related:**
+> - `docs/specs/identity_resolution_details.md` (requirements, formats, confidence scoring)
+> - `docs/specs/pipeline_definition_of_done.md` (pipeline success criteria)
+> - `docs/specs/supabase_hive.md` (Hive community database, trust model)
+> - `docs/architecture/analytics_pipeline.md` (pipeline architecture)
+> **Last Updated:** 2026-03-08
 
 ---
 
 ## 1. System Context
 
-Identity resolution is **Stage 0** of the X-Ray pipeline, before decomposition.
+Identity resolution runs **inside the decomposition phase** of the X-Ray pipeline.
+For each ETF holding extracted by the adapter, the ISINResolver attempts to resolve
+the ticker/name to a canonical ISIN before aggregation can group holdings across ETFs.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                           X-RAY PIPELINE                                 │
+│                           X-RAY PIPELINE                               │
 ├─────────────────────────────────────────────────────────────────────────┤
-│                                                                          │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌────────┐ │
-│  │   STAGE 0    │    │   STAGE 1    │    │   STAGE 2    │    │STAGE 3 │ │
-│  │              │    │              │    │              │    │        │ │
-│  │   Identity   │───▶│ Decompose    │───▶│  Aggregate   │───▶│ Enrich │ │
-│  │  Resolution  │    │  ETFs into   │    │   by ISIN    │    │  with  │ │
-│  │              │    │  Holdings    │    │              │    │  Data  │ │
-│  └──────────────┘    └──────────────┘    └──────────────┘    └────────┘ │
-│         │                                                                │
-│         │ Resolves: Ticker/Name → ISIN                                  │
-│         │ Enables: Accurate aggregation across ETFs                     │
-│                                                                          │
+│                                                                       │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌───────┐ │
+│  │  DECOMPOSE   │    │   RESOLVE    │    │   ENRICH     │    │ AGGR. │ │
+│  │  ETFs into   │───▶│  Ticker →    │───▶│  Sector +    │───▶│ by    │ │
+│  │  Holdings    │    │  ISIN        │    │  Geography   │    │ ISIN  │ │
+│  └──────────────┘    └──────────────┘    └──────────────┘    └───────┘ │
+│                         │                                              │
+│                         │ Resolves: Ticker/Name → ISIN                │
+│                         │ Contributes: to Hive on success             │
+│                         │ Enables: Aggregation by canonical ISIN      │
+│                                                                       │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Why Stage 0?**
-- Decomposition needs ISINs to aggregate holdings across ETFs
+**Why does resolution happen inside decomposition?**
+- Decomposition extracts holdings with tickers/names from ETF providers
+- Resolution MUST run on each holding before aggregation can group by ISIN
 - Without resolution, "NVIDIA CORP" and "NVIDIA Corp" are treated as different securities
-- Resolution must happen before any cross-ETF analysis
+- Resolution results are contributed to Hive immediately, benefiting all users
 
 ---
 
@@ -154,11 +157,11 @@ CASCADE (for each normalized identifier):
      │         │
      │        MISS
      │         ▼
-     ├──▶ Wikidata ────HIT──▶ Cache + Contribute to Hive, Return (0.80)
+     ├──▶ Provider ────HIT──▶ Return (confidence 1.0, already in data)
      │         │
      │        MISS
      │         ▼
-     ├──▶ OpenFIGI ────HIT──▶ Cache + Contribute to Hive, Return (0.80)
+     ├──▶ Wikidata ────HIT──▶ Cache + Contribute to Hive, Return (0.80)
      │         │
      │        MISS
      │         ▼
@@ -170,8 +173,11 @@ CASCADE (for each normalized identifier):
      │         │
      │        MISS
      │         ▼
-     └──▶ Unresolved ────────▶ Log, Return (confidence 0.0)
+     └──▶ Manual entry ────▶ Flag for user, Return (confidence 0.0)
 ```
+
+**Note:** OpenFIGI removed from cascade (not currently implemented).
+See `docs/specs/pipeline_definition_of_done.md` for full cascade requirements.
 
 ---
 
@@ -240,73 +246,74 @@ CREATE INDEX idx_aliases_isin ON security_aliases(isin);
 
 ### 5.1 Entry Point
 
-Resolution is called from `decomposition.py` before processing holdings:
+Resolution is called from `decomposer.py` during the decomposition phase:
 
 ```
-decomposition.py
+decomposer.py (_resolve_holdings_isins)
      │
-     │  # Before: holdings processed without ISIN validation
-     │  # After:  holdings resolved first
+     │  For each holding in ETF:
+     │    1. Read weight from weight_percentage column
+     │    2. Classify as tier1 (weight > threshold) or tier2
+     │    3. Call ISINResolver.resolve(ticker, name, weight)
+     │    4. Write resolved ISIN back to holding DataFrame
      │
      ▼
-┌─────────────────────────────────────┐
-│ def decompose_etf(etf_holdings):    │
-│                                     │
-│     resolver = ISINResolver()       │  ◀── NEW
-│                                     │
-│     for holding in etf_holdings:    │
-│         enriched = resolver.resolve(holding)  ◀── NEW
-│         # Continue with enriched holding
-│                                     │
-└─────────────────────────────────────┘
+ISINResolver (data/resolution.py)
+     │
+     │  Runs cascade: cache → Hive → provider → APIs → manual
+     │  On API success: auto-contribute to Hive
+     │
+     ▼
+EnrichedHolding (isin, ticker, name, weight, confidence, source)
 ```
 
-### 5.2 HiveClient Extensions
+### 5.2 Actual File Locations (as implemented)
 
-Add methods to existing `hive_client.py`:
-
-| Method | Purpose |
-|--------|---------|
-| `lookup_by_alias(alias, alias_type)` | Query Hive for ISIN by alias |
-| `contribute_alias(isin, alias, alias_type, source, confidence)` | Add new alias mapping |
-| `batch_contribute(aliases)` | Bulk contribute (for offline sync) |
-
-### 5.3 New vs Modified Files
-
-| Action | File | Changes |
-|--------|------|---------|
-| **NEW** | `portfolio_src/data/resolver.py` | ISINResolver class |
-| **NEW** | `portfolio_src/data/normalizer.py` | NameNormalizer, TickerParser |
-| **NEW** | `portfolio_src/data/parsers/ishares.py` | ISharesParser |
-| **NEW** | `portfolio_src/data/parsers/vanguard.py` | VanguardParser |
-| **NEW** | `portfolio_src/data/parsers/amundi.py` | AmundiParser |
-| **MODIFY** | `portfolio_src/data/hive_client.py` | Add alias lookup/contribute |
-| **MODIFY** | `portfolio_src/core/decomposition.py` | Call resolver before processing |
-| **MODIFY** | `portfolio_src/data/database.py` | Add isin_cache table |
-
+| File | Role | Status |
+|------|------|--------|
+| `portfolio_src/data/resolution.py` | ISINResolver orchestrator | Implemented |
+| `portfolio_src/data/normalizer.py` | NameNormalizer, TickerParser | Implemented |
+| `portfolio_src/data/local_cache.py` | Local SQLite cache (hive_cache.db) | Implemented |
+| `portfolio_src/data/hive_client.py` | Supabase Hive client | Implemented |
+| `portfolio_src/data/manual_enrichments.py` | Manual ticker→ISIN mappings | Implemented |
+| `portfolio_src/adapters/ishares.py` | iShares CSV adapter | Implemented |
+| `portfolio_src/adapters/amundi.py` | Amundi XLSX adapter | Implemented |
+| `portfolio_src/adapters/vaneck.py` | VanEck adapter | Implemented |
+| `portfolio_src/core/services/decomposer.py` | Decomposition + resolution integration | Implemented |
+| `portfolio_src/core/services/enricher.py` | Sector/geography enrichment | Implemented |
+| `portfolio_src/core/services/aggregator.py` | ISIN-based aggregation | Implemented |
 ---
 
-## 6. File Structure
+## 6. File Structure (as implemented)
 
 ```
 src-tauri/python/portfolio_src/
 ├── data/
-│   ├── resolver.py          # NEW: ISINResolver orchestrator
-│   ├── normalizer.py        # NEW: NameNormalizer, TickerParser
-│   ├── hive_client.py       # MODIFY: Add alias methods
-│   ├── database.py          # MODIFY: Add cache table
-│   └── parsers/             # NEW: Provider-specific parsers
-│       ├── __init__.py
-│       ├── base.py          # ProviderParser base class
-│       ├── ishares.py       # ISharesParser
-│       ├── vanguard.py      # VanguardParser
-│       └── amundi.py        # AmundiParser
+│   ├── resolution.py        # ISINResolver orchestrator
+│   ├── normalizer.py        # NameNormalizer, TickerParser
+│   ├── local_cache.py       # SQLite cache (hive_cache.db)
+│   ├── hive_client.py       # Supabase Hive client
+│   ├── manual_enrichments.py # Manual ticker→ISIN mappings
+│   ├── enrichment.py        # Metadata enrichment service
+│   ├── holdings_cache.py    # ETF holdings cache (working dir)
+│   └── proxy_client.py      # Finnhub proxy endpoints
 │
-├── core/
-│   └── decomposition.py     # MODIFY: Integrate resolver
+├── adapters/
+│   ├── registry.py          # AdapterRegistry (ISIN → adapter mapping)
+│   ├── base.py              # Base adapter class
+│   ├── ishares.py           # iShares CSV adapter
+│   ├── amundi.py            # Amundi XLSX adapter
+│   └── vaneck.py            # VanEck adapter
 │
-└── models/
-    └── holding.py           # MODIFY: Add EnrichedHolding
+├── core/services/
+│   ├── decomposer.py        # ETF decomposition + ISIN resolution
+│   ├── enricher.py          # Sector/geography enrichment
+│   └── aggregator.py        # ISIN-based true exposure aggregation
+│
+└── core/contracts/
+    ├── quality.py           # Quality scoring (is_trustworthy)
+    ├── gates.py             # Validation gates
+    └── pipeline_report.py   # Health report contract
 ```
 
 ---
