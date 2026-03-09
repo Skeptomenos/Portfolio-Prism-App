@@ -2,7 +2,7 @@
 
 > **Branch:** `pipeline/stabilize-xray-hive`
 > **Created:** 2026-03-08
-> **Status:** P-01/P-07/P-11/P-13/P-14/P-19 COMPLETE. P-12 RESOLVED. quality_score 0→0.27. Remaining: P-15/P-16/P-17/P-18/P-05.
+> **Status:** 7 fixes complete (P-01/P-07/P-11/P-13/P-14/P-19 + gate fix). quality_score 0→0.52. Resolution issues eliminated. Remaining: enrichment coverage (P-05), storage (P-17/P-18), tracking (P-15/P-16).
 > **Pipeline DoD:** `docs/specs/pipeline_definition_of_done.md` (canonical success criteria)
 > **Predecessor:** Session restore fixes on `codex/stabilize-ipc-xray` (completed)
 
