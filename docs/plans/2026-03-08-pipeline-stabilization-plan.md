@@ -1009,33 +1009,40 @@ the frontend receives duplicate ISIN entries from the aggregation output.
 
 ## P-23: Pipeline progress bar stuck at 0% (HIGH)
 
-### Root cause
-The backend sends SSE progress events correctly (verified in engine logs):
-```
-progress: 0 → 5 → 10 → 15 → 25 → 26 → 27 ... → 80 → 100
-```
-But the frontend shows 0% "Initializing pipeline..." throughout the entire 12-minute run.
+### Root cause (VERIFIED — neither original hypothesis was correct)
 
-Two possible causes:
-1. **SSE connection race:** Frontend establishes SSE connection AFTER the early progress events
-   are emitted. Events 0-25% are lost because no listener was ready.
-2. **Event type mismatch:** Backend sends `sync_progress` events but the frontend may listen
-   for a different event name during pipeline (vs sync) operations.
+The SSE infrastructure works correctly:
+- Backend: `broadcast_progress()` sends events with rate limiting, verified in engine logs
+- Frontend: `usePipelineProgress()` hook connects to `/events`, parses JSON, reconnects
+- SSE connection IS established, events ARE sent and received
 
-### Investigation needed
-- Read the frontend SSE listener code in `src/lib/ipc.ts` or `src/hooks/`
-- Check what event name the frontend listens for
-- Check when the SSE connection is established relative to the pipeline trigger
-- Check if the SSE events use `event: sync_progress` or `event: pipeline_progress`
+**The real issue: nothing reads the SSE progress state.**
 
-### Files
-- `src/lib/ipc.ts` or `src/hooks/useSSE.ts` (frontend SSE listener)
-- `src-tauri/python/portfolio_src/headless/transports/echo_bridge.py` (SSE event emitter)
-- `src/features/xray/components/PipelineStepper.tsx` (progress UI component)
+- `XRayView.tsx:44` calls `usePipelineProgress()` but **discards the return value**
+  (comment: "SSE connection for pipeline progress (side effect only)")
+- `PipelineStepper` receives `report={diagnostics}` — builds steps from the **stale health report**,
+  not from live SSE progress
+- The "0% Initializing pipeline..." overlay is rendered when `isAnalyzing=true` but never
+  updates progress because nothing passes the SSE state to it
+
+### Fix
+
+| File | Change |
+|------|--------|
+| `XRayView.tsx:44` | Capture SSE state: `const pipelineProgress = usePipelineProgress()` |
+| `XRayView.tsx:~270` | Pass SSE state to the analyzing overlay: `progress={pipelineProgress.progress}` `message={pipelineProgress.message}` `phase={pipelineProgress.phase}` |
+| Overlay component | Read and display the live progress/message/phase instead of hardcoded "0% Initializing..." |
+
+### TDD Steps
+1. Read the overlay component that shows "0% Initializing..." (likely inline in XRayView)
+2. Pass `pipelineProgress` state to it
+3. Render `progress`, `message`, `phase` from SSE state
+4. Verify: during pipeline run, progress bar updates in real-time
 
 ### Acceptance criteria
-- [ ] Progress bar updates in real-time during pipeline run (0% → 100%)
+- [ ] Progress bar updates in real-time (0% → 100%)
 - [ ] Phase labels update (Load → Decompose → Enrich → Aggregate → Report)
+- [ ] Progress message shows current activity ("Decomposing ETF 3/10...")
 - [ ] No more "0% Initializing pipeline..." stuck state
 
 ---
@@ -1120,32 +1127,66 @@ Chunked at 100/RPC = ~21 RPCs. Previously: ~1000 sequential RPCs.
 
 ## P-25: Manual ISIN entry UI for unresolved holdings (HIGH)
 
-### Problem
-When the pipeline can't resolve a ticker to an ISIN (after all cascade steps fail),
-the user has no way to fix it. The ~106 unresolved holdings are invisible in the UI.
-The Action Queue shows failed ETFs but NOT individual unresolved holdings within
-successfully decomposed ETFs.
+### Investigation Results (VERIFIED)
 
-### Requirements
-1. **Backend:** Accept manual ISIN entries via IPC command
-   - `manual_enrichments.py` already has some infrastructure for this
-   - Need: `set_manual_isin(ticker, name, isin, etf_context)` IPC command
-   - Persist in local cache + contribute to Hive
-2. **Frontend:** Show unresolved holdings in X-Ray with input fields
-   - New section in X-Ray: "Unresolved Holdings" or extend NeedsAttention
-   - Each row: ticker, name, weight, ETF context, ISIN input field
-   - On submit: call IPC, re-run affected resolution, update UI
-3. **Pipeline integration:** After manual entry, next pipeline run should use the cached ISIN
+**Backend (mostly ready):**
+- `manual_enrichments.py` has full CRUD:
+  - `save_manual_enrichment(ticker, isin)` — validates ISIN format, persists to `config/manual_enrichments.json`
+  - `save_manual_enrichments_bulk(mappings)` — bulk save
+  - `load_manual_enrichments()` — already called by `ISINResolver.resolve()` at cascade position 2
+  - `get_suggestion_for_ticker()` — can provide ISIN suggestions from pre-populated file
+  - `delete_manual_enrichment(ticker)` — remove a mapping
+- **Missing:** IPC handler to expose `save_manual_enrichment` to the frontend
 
-### Files
-- `src-tauri/python/portfolio_src/data/manual_enrichments.py` (backend storage)
-- `src-tauri/python/portfolio_src/headless/handlers/` (new IPC command)
-- `src/features/xray/components/NeedsAttentionSection.tsx` (extend or new component)
-- `src/lib/ipc.ts` + `src/lib/schemas/ipc.ts` (new IPC wrapper + schema)
+**Frontend (partially ready):**
+- `UnresolvedIsinsList.tsx` ALREADY EXISTS — shows ticker, name, weight, parent ETF, reason badge
+- `NeedsAttentionSection.tsx` ALREADY EXISTS — renders unresolved holdings with click handler
+- **Missing:** ISIN input field in each row, submit handler, IPC call
+
+### Implementation Plan
+
+#### Step 1: Backend IPC handler
+| File | Change |
+|------|--------|
+| `headless/handlers/holdings.py` | Add `handle_set_manual_isin(cmd_id, payload)` |
+| `headless/handlers/__init__.py` | Register command `set_manual_isin` |
+
+Payload: `{"ticker": "AZN.L", "isin": "GB0009895292"}`
+Response: `{"success": true, "ticker": "AZN.L", "isin": "GB0009895292"}`
+
+Handler calls:
+1. `save_manual_enrichment(ticker, isin)` — persist to JSON
+2. `local_cache.upsert_listing(ticker, 'MANUAL', isin, 'EUR')` — cache for next run
+3. Contribute to Hive (optional, if Hive contribution enabled)
+
+#### Step 2: Frontend IPC wrapper + schema
+| File | Change |
+|------|--------|
+| `src/lib/schemas/ipc.ts` | Add `SetManualIsinRequestSchema`, `SetManualIsinResponseSchema` |
+| `src/lib/ipc.ts` | Add `setManualIsin(ticker, isin)` wrapper |
+
+#### Step 3: Add ISIN input to UnresolvedIsinsList
+| File | Change |
+|------|--------|
+| `src/components/common/UnresolvedIsinsList.tsx` | Add ISIN input + submit button per row |
+
+Each row gets:
+- Text input for ISIN (placeholder: "Enter ISIN, e.g., US0378331005")
+- Submit button
+- Success/error feedback
+- On submit: call `setManualIsin(ticker, isin)`, show result, update row status
+
+### TDD Steps
+1. Backend: test `handle_set_manual_isin` returns success for valid ISIN
+2. Backend: test `handle_set_manual_isin` returns error for invalid ISIN format
+3. Frontend: test `UnresolvedIsinsList` renders input field
+4. Integration: submit ISIN, verify it persists in `manual_enrichments.json`
+5. Dogfood: enter ISIN for unresolved ticker, re-run pipeline, verify it resolves
 
 ### Acceptance criteria
-- [ ] X-Ray shows list of unresolved holdings with ticker, name, weight, ETF
-- [ ] User can enter ISIN for each unresolved holding
-- [ ] Manual entry is persisted in local cache
-- [ ] Manual entry is contributed to Hive (so other users benefit)
+- [ ] IPC command `set_manual_isin` registered and working
+- [ ] X-Ray unresolved list shows ISIN input field per row
+- [ ] User can enter ISIN, get validation feedback
+- [ ] Manual entry persisted in local cache AND `manual_enrichments.json`
+- [ ] Manual entry contributed to Hive (if enabled)
 - [ ] Next pipeline run uses the manual ISIN (resolution_source: "manual")
