@@ -2,7 +2,7 @@
 
 > **Branch:** `pipeline/stabilize-xray-hive`
 > **Created:** 2026-03-08
-> **Status:** P-01/P-07/P-11 COMPLETE. 8 issues remaining (P-12 through P-18 + P-05). DoD spec created.
+> **Status:** P-01/P-07/P-11/P-13/P-14 COMPLETE. P-12 RESOLVED. Remaining: P-15/P-16/P-17/P-18/P-05.
 > **Pipeline DoD:** `docs/specs/pipeline_definition_of_done.md` (canonical success criteria)
 > **Predecessor:** Session restore fixes on `codex/stabilize-ipc-xray` (completed)
 
@@ -377,8 +377,8 @@ These should be documented as expected behavior.
 | P-10 | Frontend has no `degraded` concept | Note | `RunPipelineResultSchema` is binary `success: boolean`. XRayView throws on `success=false`. No `runStatus` field. | assess with P-07 |
 | P-11 | ISIN resolution at 0% due to weight column mismatch | **Critical** | `weight_percentage` missing from decomposer lookup | **COMPLETE** (99.9% resolution, 852/853) |
 | P-12 | Enrichment only covers direct stocks, not ETF holdings | ~~Critical~~ | **RESOLVED:** Enrichment deduplicates by ISIN (3522 holdings → 850 unique). 690 cache + 160 API = 850 total. Working correctly. | **RESOLVED** |
-| P-13 | Health report shows 0% resolution despite 99.9% actual | High | **ROOT CAUSE FOUND:** `_write_health_report()` line 753 hardcodes `tier1_resolved: 0`. Never reads decomposer resolution stats. | **fix pending** |
-| P-14 | Aggregated total differs from portfolio by 84.8% | **Critical** | **ROOT CAUSE FOUND:** `get_value_column()` returns `None` for ETF positions (column is `price`, not `market_value`). ETF value defaults to 0.0. All ETF holding exposures calculate to 0.0. Only direct stocks (~15.2%) have non-zero exposure. | **fix pending** |
+| P-13 | Health report shows 0% resolution | High | `_write_health_report()` hardcoded `tier1_resolved: 0` | **COMPLETE** (now reads decomposer stats: 2069 resolved, 58.7%) |
+| P-14 | Aggregated total differs by 84.8% | **Critical** | `get_value_column()` returns None for ETFs | **COMPLETE** (now uses quantity*price fallback, 0.4% mismatch) |
 | P-15 | Resolution source field is `nan` for ~490 of 852 resolved holdings | Medium | Resolver returns `source=None` for local_cache hits; not propagated to output CSV | **investigate** |
 | P-16 | First pipeline run takes ~21 minutes (1269s) | Medium | ISIN resolution makes API calls (Wikidata SPARQL) for ~188 tier1 uncached tickers per ETF; expected to improve on second run via Hive cache | **verify** (run pipeline again) |
 | P-17 | True Exposure stored as CSV (legacy) — needs SQLite with historical tracking | High | CSV cannot track changes over time; need timestamped snapshots in prism.db for 3/6/12 month comparison | **pending** |
