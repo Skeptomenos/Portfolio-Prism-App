@@ -187,6 +187,102 @@ class TestPipelineSuccessTruthfulness:
         assert result.success is False
 
 
+
+class TestAggregatorETFValueCalculation:
+    """P-14: Aggregator must calculate ETF value from quantity*price when no market_value column."""
+
+    def test_etf_exposure_nonzero_with_quantity_and_price(self):
+        """ETF holdings should have non-zero exposure when ETF has quantity and price columns."""
+        from portfolio_src.core.services.aggregator import Aggregator
+
+        aggregator = Aggregator()
+
+        direct = pd.DataFrame({
+            "isin": ["US67066G1040"],
+            "name": ["NVIDIA"],
+            "quantity": [10],
+            "price": [120.0],
+            "sector": ["Technology"],
+            "geography": ["US"],
+        })
+
+        etfs = pd.DataFrame({
+            "isin": ["IE00B4L5Y983"],
+            "name": ["MSCI World"],
+            "quantity": [50],
+            "price": [80.0],  # total value = 4000
+            "asset_class": ["ETF"],
+        })
+
+        holdings = pd.DataFrame({
+            "isin": ["US0378331005", "US5949181045"],
+            "name": ["Apple", "Microsoft"],
+            "weight_percentage": [5.0, 3.0],  # 5% and 3% of ETF
+            "sector": ["Technology", "Technology"],
+            "geography": ["US", "US"],
+        })
+
+        result, errors = aggregator.aggregate(
+            direct, etfs, {"IE00B4L5Y983": holdings}
+        )
+
+        # Apple should have exposure = 4000 * 5/100 = 200
+        apple = result[result["isin"] == "US0378331005"]
+        assert not apple.empty, "Apple not found in aggregated results"
+        apple_exposure = float(apple["total_exposure"].iloc[0])
+        assert apple_exposure > 0, (
+            f"Apple exposure is {apple_exposure}, expected ~200. "
+            f"Aggregator failed to calculate ETF value from quantity*price."
+        )
+        assert abs(apple_exposure - 200.0) < 1.0, (
+            f"Apple exposure is {apple_exposure}, expected 200.0 (4000 * 5%)"
+        )
+
+    def test_aggregated_total_matches_portfolio(self):
+        """Aggregated total exposure should match portfolio total within 5%."""
+        from portfolio_src.core.services.aggregator import Aggregator
+
+        aggregator = Aggregator()
+
+        direct = pd.DataFrame({
+            "isin": ["US67066G1040"],
+            "name": ["NVIDIA"],
+            "quantity": [10],
+            "price": [120.0],
+            "sector": ["Technology"],
+            "geography": ["US"],
+        })
+
+        etfs = pd.DataFrame({
+            "isin": ["IE00B4L5Y983"],
+            "name": ["MSCI World"],
+            "quantity": [50],
+            "price": [80.0],
+            "asset_class": ["ETF"],
+        })
+
+        # Holdings that sum to ~100% weight
+        holdings = pd.DataFrame({
+            "isin": ["US0378331005", "US5949181045"],
+            "name": ["Apple", "Microsoft"],
+            "weight_percentage": [60.0, 40.0],
+            "sector": ["Technology", "Technology"],
+            "geography": ["US", "US"],
+        })
+
+        result, errors = aggregator.aggregate(
+            direct, etfs, {"IE00B4L5Y983": holdings}
+        )
+
+        portfolio_total = 10 * 120.0 + 50 * 80.0  # 1200 + 4000 = 5200
+        aggregated_total = float(result["total_exposure"].sum())
+        mismatch_pct = abs(aggregated_total - portfolio_total) / portfolio_total * 100
+
+        assert mismatch_pct < 5.0, (
+            f"Aggregated total ({aggregated_total:.0f}) differs from portfolio total "
+            f"({portfolio_total:.0f}) by {mismatch_pct:.1f}%. Must be within 5%."
+        )
+
 class TestWeightColumnRecognition:
     """P-11: Decomposer must recognize 'weight_percentage' column from all adapters."""
 

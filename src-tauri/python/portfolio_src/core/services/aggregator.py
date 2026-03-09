@@ -273,10 +273,21 @@ class Aggregator:
         for _, etf in etf_positions.iterrows():
             etf_isin = str(etf.get(isin_col, "")) if isin_col else ""
 
-            val = etf.get(value_col, 0.0) if value_col else 0.0
-            if isinstance(val, pd.Series):
-                val = val.iloc[0]
-            etf_value = float(val or 0.0)
+            # Calculate ETF market value: prefer total value column, fall back to quantity*price
+            etf_value = 0.0
+            if value_col:
+                val = etf.get(value_col, 0.0)
+                if isinstance(val, pd.Series):
+                    val = val.iloc[0]
+                etf_value = float(val or 0.0)
+            if etf_value == 0.0:
+                # Fallback: calculate from quantity * price
+                qty = float(etf.get("quantity", 0) or 0)
+                for price_col in ["price", "current_price", "tr_price"]:
+                    price_val = etf.get(price_col)
+                    if price_val is not None:
+                        etf_value = qty * float(price_val)
+                        break
 
             if etf_isin and etf_isin in holdings_map:
                 holdings = holdings_map[etf_isin]

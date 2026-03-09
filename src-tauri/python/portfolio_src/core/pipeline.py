@@ -744,14 +744,18 @@ class Pipeline:
         hive_log = monitor.get_hive_log()
         metrics = monitor.get_metrics()
 
+        resolution_stats = decomposer.get_resolution_stats() if decomposer else {}
+
         health_data = {
             "timestamp": datetime.now().isoformat(),
             "metrics": {
                 "direct_holdings": len(direct_positions),
                 "etf_positions": len(etf_positions),
                 "etfs_processed": len([e for e in per_etf if e["status"] == "success"]),
-                "tier1_resolved": 0,
-                "tier1_failed": len(errors),
+                "tier1_resolved": resolution_stats.get("resolved", 0),
+                "tier1_failed": resolution_stats.get("unresolved", 0),
+                "resolution_rate": resolution_stats.get("resolution_rate", "N/A"),
+                "resolution_by_source": resolution_stats.get("by_source", {}),
             },
             "performance": metrics,
             "decomposition": {
