@@ -2,7 +2,8 @@
 
 > **Branch:** `pipeline/stabilize-xray-hive`
 > **Created:** 2026-03-08
-> **Status:** P-01/P-07/P-11 COMPLETE. **99.9% ISIN resolution achieved.** Health report gap remaining (P-13).
+> **Status:** P-01/P-07/P-11 COMPLETE. 8 issues remaining (P-12 through P-18 + P-05). DoD spec created.
+> **Pipeline DoD:** `docs/specs/pipeline_definition_of_done.md` (canonical success criteria)
 > **Predecessor:** Session restore fixes on `codex/stabilize-ipc-xray` (completed)
 
 ---
@@ -355,6 +356,8 @@ These should be documented as expected behavior.
 | P-14 | Aggregated total differs from portfolio by 84.8% | **Critical** | Aggregator likely treats ETF-internal weights as portfolio-level weights without scaling by ETF portfolio weight | **investigate** |
 | P-15 | Resolution source field is `nan` for ~490 of 852 resolved holdings | Medium | Resolver returns `source=None` for local_cache hits; not propagated to output CSV | **investigate** |
 | P-16 | First pipeline run takes ~21 minutes (1269s) | Medium | ISIN resolution makes API calls (Wikidata SPARQL) for ~188 tier1 uncached tickers per ETF; expected to improve on second run via Hive cache | **verify** (run pipeline again) |
+| P-17 | True Exposure stored as CSV (legacy) — needs SQLite with historical tracking | High | CSV cannot track changes over time; need timestamped snapshots in prism.db for 3/6/12 month comparison | **pending** |
+| P-18 | Hive decomposition contributions lack freshness timestamps | Medium | Without `contributed_at` / `source_date`, staleness cannot be assessed; adapter should be preferred over stale Hive data (>30 days) | **pending** |
 
 ---
 
@@ -511,29 +514,39 @@ so the frontend can show nuanced state. For now, P-07's binary fix is sufficient
 
 ## Execution Order (Updated post-P-11)
 
+**Objective:** achieve 100% success of the Pipeline Definition of Done
+(`docs/specs/pipeline_definition_of_done.md`).
+
 ```
-P-01 (resource_path fix) ------> COMPLETE: 8/10 ETFs decompose, 3522 holdings
-P-07 (success truthfulness) ---> COMPLETE: derived from ETF ratio
-P-11 (weight column fix) ------> COMPLETE: 99.9% ISIN resolution (852/853)
+COMPLETED:
+  P-01 (resource_path fix) ------> 8/10 ETFs decompose, 3522 holdings
+  P-07 (success truthfulness) ---> derived from ETF ratio
+  P-11 (weight column fix) ------> 99.9% ISIN resolution (852/853)
 
 REMAINING (priority order):
 
-P-14 (total mismatch 84.8%) ---> INVESTIGATE: aggregator weight scaling is wrong
-  |                                This makes True Exposure numbers unreliable
-  v
-P-13 (health report 0%) -------> INVESTIGATE: report writer reads wrong resolution stats
-  |                                Makes the Health view misleading
-  v
-P-12 (enrichment scaling) -----> INVESTIGATE: enrichment didn't scale with resolved ISINs
-  |                                Only 20 more API calls despite 852 resolved ISINs
-  v
-P-15 (source field nan) -------> INVESTIGATE: ~490 resolved holdings have no source
-  |
-  v
-P-16 (21min runtime) ----------> VERIFY: second run should be faster via Hive cache
-  |
-  v
-P-05 (geography) --------------> investigate after above
+  P-14 (total mismatch 84.8%) ---> CRITICAL: aggregator weight scaling broken
+    |                                True Exposure numbers are wrong
+    v
+  P-13 (health report 0%) -------> HIGH: report writer shows wrong resolution stats
+    |
+    v
+  P-12 (enrichment scaling) -----> CRITICAL: enrichment didn't scale with ISINs
+    |
+    v
+  P-17 (true exposure storage) --> HIGH: migrate from CSV to SQLite with timestamps
+    |
+    v
+  P-15 (source field nan) -------> MEDIUM: ~490 resolved holdings lack source tracking
+    |
+    v
+  P-18 (Hive freshness) ---------> MEDIUM: add contributed_at/source_date to Hive
+    |
+    v
+  P-16 (21min runtime) ----------> VERIFY: second run should be faster via Hive cache
+    |
+    v
+  P-05 (geography) --------------> investigate after above
 ```
 
 **Completed:** P-01, P-02 (merged), P-07, P-11
