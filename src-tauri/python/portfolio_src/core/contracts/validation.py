@@ -267,18 +267,30 @@ def validate_enrichment_coverage(
     etf_isin: str,
     phase: str = "ENRICHMENT",
 ) -> List[ValidationIssue]:
-    """Validate enrichment coverage for holdings."""
+    """Validate enrichment coverage for holdings.
+    
+    Only counts holdings that were resolved (not tier2-skipped).
+    Skipped holdings can't be enriched because they have no ISIN.
+    """
     issues: List[ValidationIssue] = []
 
     if not holdings:
         return issues
 
-    total = len(holdings)
+    # Exclude skipped holdings from enrichment coverage calculation
+    resolved_holdings = [
+        h for h in holdings
+        if getattr(h, "resolution_status", None) != ResolutionStatus.SKIPPED
+    ]
+    total = len(resolved_holdings)
+    if total == 0:
+        return issues  # All holdings skipped, no enrichment to check
+
     unknown_sector = sum(
-        1 for h in holdings if getattr(h, "sector", "Unknown") == "Unknown"
+        1 for h in resolved_holdings if getattr(h, "sector", "Unknown") == "Unknown"
     )
     unknown_geography = sum(
-        1 for h in holdings if getattr(h, "geography", "Unknown") == "Unknown"
+        1 for h in resolved_holdings if getattr(h, "geography", "Unknown") == "Unknown"
     )
 
     sector_coverage = 1 - (unknown_sector / total)
