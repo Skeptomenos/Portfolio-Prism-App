@@ -30,6 +30,11 @@ HOLDING_COLUMN_ALIASES: Dict[str, List[str]] = {
     "name": ["name", "Name", "holding_name"],
     "weight_percentage": ["weight", "weight_percentage", "Weight"],
     "isin": ["isin", "ISIN"],
+    "resolution_status": ["resolution_status"],
+    "resolution_confidence": ["resolution_confidence"],
+    "resolution_source": ["resolution_source"],
+    "sector": ["sector", "Sector"],
+    "geography": ["geography", "Geography", "country", "region"],
 }
 
 

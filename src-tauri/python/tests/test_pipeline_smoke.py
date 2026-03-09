@@ -371,5 +371,63 @@ class TestWeightColumnRecognition:
         assert stats["resolved"] == 1
         assert stats.get("unresolved", 0) == 0
 
+
+
+class TestValidationGatesResolutionTracking:
+    """P-19: Validation gates must see resolved ISINs from decomposer."""
+
+    def test_dataframe_to_holdings_preserves_resolution_status(self):
+        """dataframe_to_holdings must map resolution_status column to HoldingRecord."""
+        from portfolio_src.core.contracts.converters import dataframe_to_holdings
+        from portfolio_src.core.contracts.schemas import ResolutionStatus
+
+        # DataFrame mimicking decomposer output after ISIN resolution
+        df = pd.DataFrame({
+            "ticker": ["AAPL", "MSFT", "NVDA"],
+            "name": ["Apple", "Microsoft", "NVIDIA"],
+            "weight_percentage": [5.0, 3.0, 2.0],
+            "isin": ["US0378331005", "US5949181045", "US67066G1040"],
+            "resolution_status": ["resolved", "resolved", "resolved"],
+            "resolution_confidence": [0.95, 0.90, 0.80],
+            "resolution_source": ["local_cache", "hive", "wikidata"],
+        })
+
+        holdings, quality = dataframe_to_holdings(df)
+
+        assert len(holdings) == 3
+        for h in holdings:
+            assert h.resolution_status == ResolutionStatus.RESOLVED, (
+                f"{h.ticker} has resolution_status={h.resolution_status}, expected RESOLVED. "
+                f"The converter is not reading the resolution_status column from the DataFrame."
+            )
+
+    def test_etf_decomposition_resolved_count_nonzero(self):
+        """ETFDecomposition.resolved_count must be > 0 when holdings are resolved."""
+        from portfolio_src.core.contracts.converters import dataframe_to_holdings
+        from portfolio_src.core.contracts.schemas import ETFDecomposition
+
+        df = pd.DataFrame({
+            "ticker": ["AAPL", "MSFT"],
+            "name": ["Apple", "Microsoft"],
+            "weight_percentage": [5.0, 3.0],
+            "isin": ["US0378331005", "US5949181045"],
+            "resolution_status": ["resolved", "resolved"],
+        })
+
+        holdings, _ = dataframe_to_holdings(df)
+
+        decomposition = ETFDecomposition(
+            etf_isin="IE00B4L5Y983",
+            etf_name="MSCI World",
+            etf_value=4000.0,
+            holdings=holdings,
+            source="cached",
+        )
+
+        assert decomposition.resolved_count == 2, (
+            f"resolved_count={decomposition.resolved_count}, expected 2. "
+            f"The validation gates will report 0% resolution."
+        )
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
