@@ -359,6 +359,58 @@ These should be documented as expected behavior.
 
 **Evidence:** `output/playwright/dogfood/xray-after-p11-fix.png`
 
+### Post-P-14/P-13 Dogfood Run (2026-03-09 ~08:00)
+
+**Setup:** Engine with all fixes (P-01, P-07, P-11, P-14, P-13), full env, second pipeline run.
+
+| Metric | Value | Change from prev run |
+|--------|-------|---------------------|
+| Duration | ~9 min | Improved from 21 min |
+| ETFs decomposed | 8/10 | Same |
+| ISIN resolution (aggregated) | 852/853 (99.9%) | Same |
+| ISIN resolution (per-holding) | 2069/3522 (58.7%) | NEW metric visible |
+| Resolution sources | local_cache=1715, existing=354, tier2_skipped=1328 | Cache working |
+| Aggregated total | €41,699 | Fixed (was 0) |
+| Mismatch | 0.4% | Fixed (was 84.8%) |
+| Active errors | 2 | Improved from 9 |
+| Console errors | 0 | Same |
+
+**6 significant observations from this run:**
+
+1. **Per-ETF validation gates still show 0% resolution (NEW ISSUE P-19)**
+   Despite 852/853 ISINs resolved at the aggregate level, every ETF's validation gate
+   reports `LOW_RESOLUTION_RATE: 0%`. This drives `quality_score: 0.0` and `is_trustworthy: false`.
+   Root cause hypothesis: the resolved ISINs are NOT being written back to the per-ETF holdings
+   DataFrames that the validation gates inspect. The resolution results flow to the aggregated
+   `true_exposure_report.csv` but the per-ETF DataFrames still have empty `isin` columns.
+   This is the single biggest remaining quality gap.
+
+2. **Sector and geography coverage 0% per ETF (related to P-19)**
+   Same root cause: enrichment runs on unique ISINs but results aren't propagated back to
+   per-ETF holdings DataFrames. The validation gates see 0% sector and 0% geography.
+   16 medium issues, each penalizing the quality score.
+
+3. **Resolution rate 58.7% vs 99.9% confusion**
+   58.7% = per-holding count (2069 of 3522, includes 1328 tier2_skipped).
+   99.9% = unique ISINs after aggregation (852 of 853).
+   Both are correct at their respective levels. The 58.7% will always be lower because tier2
+   holdings (weight < 0.1%) are intentionally skipped from API resolution.
+
+4. **Second run improved from 21min to ~9min (P-16 partially verified)**
+   Local cache now serves 1715 resolutions (vs API calls on first run).
+   Still not instant because cache sync from Hive takes time at startup.
+
+5. **Active errors dropped from 9 to 2**
+   Only the 2 Amundi ETFs remain. All 7 iShares adapter errors are gone.
+
+6. **`is_trustworthy: false` despite correct data**
+   The quality system is driven by per-ETF validation gates. Since gates show 0%
+   resolution and 0% enrichment coverage, quality_score = 0.0.
+   The actual output data (true_exposure_report.csv) is correct.
+   Fixing P-19 should make `is_trustworthy: true`.
+
+**Evidence:** `output/playwright/dogfood/health-after-p14-p13-fix.png`
+
 ## Implementation Plan
 
 ### Issue Index (verified 2026-03-08)
@@ -380,9 +432,10 @@ These should be documented as expected behavior.
 | P-13 | Health report shows 0% resolution | High | `_write_health_report()` hardcoded `tier1_resolved: 0` | **COMPLETE** (now reads decomposer stats: 2069 resolved, 58.7%) |
 | P-14 | Aggregated total differs by 84.8% | **Critical** | `get_value_column()` returns None for ETFs | **COMPLETE** (now uses quantity*price fallback, 0.4% mismatch) |
 | P-15 | Resolution source field is `nan` for ~490 of 852 resolved holdings | Medium | Resolver returns `source=None` for local_cache hits; not propagated to output CSV | **investigate** |
-| P-16 | First pipeline run takes ~21 minutes (1269s) | Medium | ISIN resolution makes API calls (Wikidata SPARQL) for ~188 tier1 uncached tickers per ETF; expected to improve on second run via Hive cache | **verify** (run pipeline again) |
-| P-17 | True Exposure stored as CSV (legacy) — needs SQLite with historical tracking | High | CSV cannot track changes over time; need timestamped snapshots in prism.db for 3/6/12 month comparison | **pending** |
-| P-18 | Hive decomposition contributions lack freshness timestamps | Medium | Without `contributed_at` / `source_date`, staleness cannot be assessed; adapter should be preferred over stale Hive data (>30 days) | **pending** |
+| P-16 | Pipeline performance: 21min → 9min on second run | Medium | Cache helps but not dramatically. Partially verified. | **partially verified** |
+| P-17 | True Exposure stored as CSV (legacy) | High | Needs SQLite with timestamps for 3/6/12 month tracking | **pending** |
+| P-18 | Hive decomposition freshness timestamps | Medium | Need `contributed_at` / `source_date` for staleness assessment | **pending** |
+| P-19 | Per-ETF validation gates show 0% resolution despite 99.9% actual | **High** | Resolved ISINs and enrichment data not written back to per-ETF holdings DataFrames. Validation gates check per-ETF DataFrames → see 0% → quality_score=0.0 → is_trustworthy=false. **This is the root cause of the quality score being wrong.** | **investigate** |
 
 ---
 
