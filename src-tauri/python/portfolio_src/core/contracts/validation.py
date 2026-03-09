@@ -196,15 +196,28 @@ def validate_resolution_rate(
     min_rate: float = 0.80,
     phase: str = "ETF_DECOMPOSITION",
 ) -> List[ValidationIssue]:
-    """Validate ISIN resolution rate for an ETF decomposition."""
+    """Validate ISIN resolution rate for an ETF decomposition.
+    
+    Only counts holdings that were actually attempted (not tier2-skipped).
+    Tier2 holdings (weight below threshold) are intentionally skipped from
+    API resolution and should not penalize the resolution rate.
+    """
     issues: List[ValidationIssue] = []
 
     if not decomposition.holdings:
         return issues
 
-    total = len(decomposition.holdings)
-    resolved = decomposition.resolved_count
-    rate = resolved / total if total > 0 else 0.0
+    # Exclude tier2-skipped holdings from the denominator
+    attempted = [
+        h for h in decomposition.holdings
+        if h.resolution_status != ResolutionStatus.SKIPPED
+    ]
+    total = len(attempted)
+    if total == 0:
+        return issues  # All holdings were skipped (very small weights), no issue
+
+    resolved = sum(1 for h in attempted if h.resolution_status == ResolutionStatus.RESOLVED)
+    rate = resolved / total
 
     if rate < 0.50:
         issues.append(

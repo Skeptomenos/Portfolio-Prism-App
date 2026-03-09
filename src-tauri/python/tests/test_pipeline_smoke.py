@@ -429,5 +429,62 @@ class TestValidationGatesResolutionTracking:
             f"The validation gates will report 0% resolution."
         )
 
+
+
+class TestResolutionRateExcludesSkipped:
+    """Validation gate should exclude tier2-skipped from resolution rate denominator."""
+
+    def test_resolution_rate_excludes_skipped_holdings(self):
+        """100% resolution when all attempted holdings are resolved, even if some are skipped."""
+        from portfolio_src.core.contracts.schemas import ETFDecomposition, HoldingRecord, ResolutionStatus
+        from portfolio_src.core.contracts.validation import validate_resolution_rate
+
+        holdings = [
+            HoldingRecord(name="Apple", weight_percentage=5.0, isin="US0378331005",
+                          resolution_status=ResolutionStatus.RESOLVED),
+            HoldingRecord(name="Microsoft", weight_percentage=3.0, isin="US5949181045",
+                          resolution_status=ResolutionStatus.RESOLVED),
+            HoldingRecord(name="Tiny Corp", weight_percentage=0.05,
+                          resolution_status=ResolutionStatus.SKIPPED),
+            HoldingRecord(name="Micro Inc", weight_percentage=0.02,
+                          resolution_status=ResolutionStatus.SKIPPED),
+        ]
+
+        decomp = ETFDecomposition(
+            etf_isin="IE00B4L5Y983", etf_name="Test", etf_value=1000.0,
+            holdings=holdings, source="test"
+        )
+
+        issues = validate_resolution_rate(decomp)
+        # 2/2 attempted resolved = 100%, should produce zero issues
+        assert len(issues) == 0, (
+            f"Expected 0 issues (100% of attempted resolved), got {len(issues)}: "
+            f"{[i.message for i in issues]}"
+        )
+
+    def test_resolution_rate_fails_when_attempted_unresolved(self):
+        """Should report issue when attempted (non-skipped) holdings are unresolved."""
+        from portfolio_src.core.contracts.schemas import ETFDecomposition, HoldingRecord, ResolutionStatus
+        from portfolio_src.core.contracts.validation import validate_resolution_rate
+
+        holdings = [
+            HoldingRecord(name="Apple", weight_percentage=5.0, isin="US0378331005",
+                          resolution_status=ResolutionStatus.RESOLVED),
+            HoldingRecord(name="Unknown Corp", weight_percentage=3.0,
+                          resolution_status=ResolutionStatus.UNRESOLVED),
+            HoldingRecord(name="Tiny Corp", weight_percentage=0.05,
+                          resolution_status=ResolutionStatus.SKIPPED),
+        ]
+
+        decomp = ETFDecomposition(
+            etf_isin="IE00B4L5Y983", etf_name="Test", etf_value=1000.0,
+            holdings=holdings, source="test"
+        )
+
+        issues = validate_resolution_rate(decomp)
+        # 1/2 attempted resolved = 50%, should produce a resolution issue
+        assert len(issues) == 1
+        assert issues[0].code in ("LOW_RESOLUTION_RATE", "MODERATE_RESOLUTION_RATE")
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
