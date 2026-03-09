@@ -65,6 +65,7 @@ class LocalCache:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
 
         self._init_schema()
+        self._migrate_add_sector_geography()
 
     def _get_connection(self) -> sqlite3.Connection:
         """Get thread-local database connection."""

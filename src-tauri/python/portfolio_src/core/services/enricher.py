@@ -193,7 +193,7 @@ class HiveEnrichmentService:
             if new_contributions:
                 logger.info(
                     "Contributing enriched assets to Hive",
-                    extra={"count": len(new_contributions), "wikidata": len(wikidata_results), "fallback": len(fallback_results)},
+                    extra={"count": len(new_contributions), "wikidata": len(wikidata_results)},
                 )
                 self.hive_client.batch_contribute(new_contributions)
 
