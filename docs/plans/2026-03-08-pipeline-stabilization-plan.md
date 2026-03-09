@@ -595,7 +595,7 @@ so the frontend can show nuanced state. For now, P-07's binary fix is sufficient
 
 ---
 
-## Execution Order (Updated post-P-11)
+## Execution Order (Updated post-dogfood)
 
 **Objective:** achieve 100% success of the Pipeline Definition of Done
 (`docs/specs/pipeline_definition_of_done.md`).
@@ -605,35 +605,40 @@ COMPLETED:
   P-01 (resource_path fix) ------> 8/10 ETFs decompose, 3522 holdings
   P-07 (success truthfulness) ---> derived from ETF ratio
   P-11 (weight column fix) ------> 99.9% ISIN resolution (852/853)
+  P-13 (health report) ----------> reads real resolution stats
+  P-14 (aggregator value) -------> 0.4% mismatch (was 84.8%)
+  P-19 (validation gates) -------> resolution status flows through
+  P-21 (enrichment arch) --------> provider metadata + Wikidata bulk
+  Gate fixes --------------------- tier2-skipped excluded from denominators
+  Schema fix -------------------- sector/geography on HoldingRecord
+  Result: quality_score=1.0, is_trustworthy=true, 0 issues
 
-REMAINING (priority order):
+NEXT (priority order):
 
-  P-14 (total mismatch 84.8%) ---> CRITICAL: aggregator weight scaling broken
-    |                                True Exposure numbers are wrong
+  P-22 (NVIDIA dedup) -----------> CRITICAL: same ISIN appears twice in True Exposure
+    |                                Core value proposition broken
     v
-  P-13 (health report 0%) -------> HIGH: report writer shows wrong resolution stats
+  P-24 (12min pipeline) ---------> HIGH: remove legacy fallback + batch resolution
+    |                                Target: <60s cached run
+    v
+  P-23 (progress bar 0%) --------> HIGH: SSE events lost, frontend shows no progress
     |
     v
-  P-12 (enrichment scaling) -----> CRITICAL: enrichment didn't scale with ISINs
+  P-25 (manual ISIN entry UI) ---> HIGH: 106 unresolved holdings need user input
     |
     v
-  P-17 (true exposure storage) --> HIGH: migrate from CSV to SQLite with timestamps
+  P-17 (true exposure storage) --> migrate from CSV to SQLite with timestamps
     |
     v
-  P-15 (source field nan) -------> MEDIUM: ~490 resolved holdings lack source tracking
+  P-15 (source field nan) -------> ~490 resolved holdings lack source tracking
     |
     v
-  P-18 (Hive freshness) ---------> MEDIUM: add contributed_at/source_date to Hive
-    |
-    v
-  P-16 (21min runtime) ----------> VERIFY: second run should be faster via Hive cache
-    |
-    v
-  P-05 (geography) --------------> investigate after above
+  P-18 (Hive freshness) ---------> add contributed_at/source_date to Hive
 ```
 
-**Completed:** P-01, P-02 (merged), P-07, P-11
-**Resolved (no code change):** P-03 (documented), P-04 (correct), P-08 (correct), P-09 (correct)
+**Completed:** P-01, P-02 (merged), P-07, P-11, P-13, P-14, P-19, P-21, gate fixes, schema fix
+**Resolved (no code change):** P-03 (documented), P-04 (correct), P-08 (correct), P-09 (correct), P-12 (not a bug)
+**Superseded:** P-05 (absorbed into P-21), P-16 (absorbed into P-24), P-20 (superseded by P-21)
 **Deferred:** P-06 (tier2 UI), P-10 (degraded concept)
 
 ---
@@ -965,3 +970,152 @@ Countries: Vereinigte Staaten→United States, Vereinigtes Königreich→United 
 - [ ] Enrichment completes in < 30 seconds (not 30 minutes)
 - [ ] Enriched data cached locally AND contributed to Hive
 - [ ] Second pipeline run serves enrichment from cache (near-instant)
+
+---
+
+## P-22: NVIDIA dedup failure — same ISIN appears twice in True Exposure (CRITICAL)
+
+### Root cause
+The True Exposure card shows NVIDIA twice:
+- Row 1: **NVIDIA CORP** — Direct + 7 ETFs = €3,566
+- Row 4: **NVIDIA** — Direct + 7 ETFs = €1,642
+
+Same ISIN `US67066G1040` but different names. This means the aggregator is NOT grouping
+by ISIN correctly for at least some holdings. The ISIN-first strategy requires that all
+holdings with the same ISIN are merged into a single row regardless of name differences.
+
+React also warns: `Encountered two children with the same key US67066G1040` — confirming
+the frontend receives duplicate ISIN entries from the aggregation output.
+
+### Investigation needed
+- Read `aggregator.py` `_merge_exposures()` or the groupby logic
+- Check if the aggregation groups by ISIN or by (ISIN, name)
+- Check if the direct holding "NVIDIA" and ETF holding "NVIDIA CORP" have different ISIN formats
+  (e.g., one padded, one trimmed, or case difference)
+- Check `true_exposure_report.csv` — does it contain two rows for US67066G1040?
+- Check if the issue is in the backend (aggregator) or frontend (TrueExposureCard)
+
+### Files
+- `src-tauri/python/portfolio_src/core/services/aggregator.py` (groupby/merge logic)
+- `src/features/dashboard/components/TrueExposureCard.tsx` (frontend rendering)
+- `~/Library/.../PortfolioPrism/outputs/true_exposure_report.csv` (check for duplicate ISINs)
+
+### Acceptance criteria
+- [ ] Same ISIN always produces exactly one row in True Exposure, regardless of name differences
+- [ ] React duplicate key warning for US67066G1040 eliminated
+- [ ] NVIDIA shows as single entry: "Direct + 7 ETFs" with combined exposure ~€5,208
+
+---
+
+## P-23: Pipeline progress bar stuck at 0% (HIGH)
+
+### Root cause
+The backend sends SSE progress events correctly (verified in engine logs):
+```
+progress: 0 → 5 → 10 → 15 → 25 → 26 → 27 ... → 80 → 100
+```
+But the frontend shows 0% "Initializing pipeline..." throughout the entire 12-minute run.
+
+Two possible causes:
+1. **SSE connection race:** Frontend establishes SSE connection AFTER the early progress events
+   are emitted. Events 0-25% are lost because no listener was ready.
+2. **Event type mismatch:** Backend sends `sync_progress` events but the frontend may listen
+   for a different event name during pipeline (vs sync) operations.
+
+### Investigation needed
+- Read the frontend SSE listener code in `src/lib/ipc.ts` or `src/hooks/`
+- Check what event name the frontend listens for
+- Check when the SSE connection is established relative to the pipeline trigger
+- Check if the SSE events use `event: sync_progress` or `event: pipeline_progress`
+
+### Files
+- `src/lib/ipc.ts` or `src/hooks/useSSE.ts` (frontend SSE listener)
+- `src-tauri/python/portfolio_src/headless/transports/echo_bridge.py` (SSE event emitter)
+- `src/features/xray/components/PipelineStepper.tsx` (progress UI component)
+
+### Acceptance criteria
+- [ ] Progress bar updates in real-time during pipeline run (0% → 100%)
+- [ ] Phase labels update (Load → Decompose → Enrich → Aggregate → Report)
+- [ ] No more "0% Initializing pipeline..." stuck state
+
+---
+
+## P-24: Pipeline takes 12 minutes despite cached data (HIGH)
+
+### Root cause (VERIFIED)
+Three bottlenecks identified from engine logs:
+
+**Bottleneck 1: Legacy Finnhub/yfinance fallback (primary — ~8 minutes)**
+After Wikidata bulk returns 746/852 ISINs, the remaining ~106 ISINs fall through to
+`self.fallback_service.get_metadata_batch(still_missing)` which tries:
+- Finnhub API per-ISIN (rate limited, sequential)
+- yfinance per-ISIN (import failures, each times out)
+Engine logs show hundreds of `yfinance failed` warnings.
+
+**Bottleneck 2: Sequential ISIN resolution per holding (~3 minutes)**
+The decomposer's `_resolve_holdings_isins()` iterates 700+ tier1 holdings one by one,
+calling `ISINResolver.resolve()` for each. Even with cache hits, 700 sequential
+lookups take time. Should use `batch_get_isins()` from LocalCache.
+
+**Bottleneck 3: Hive sync at startup (~30 seconds)**
+The local cache syncs from Hive on engine startup. Minor but adds latency.
+
+### Fix
+
+**Immediate (remove yfinance, cap Finnhub):**
+- In `enricher.py`: if Wikidata found 746/852, accept that. Don't fall back to Finnhub/yfinance
+  for the remaining 106. Mark them as `sector: Unknown, geography: Unknown` and move on.
+- This alone should reduce pipeline from 12min → ~3min.
+
+**Next (batch resolution):**
+- In `decomposer.py _resolve_holdings_isins()`: extract all tickers first, call
+  `local_cache.batch_get_isins(tickers)` in one SQLite query, then only call the
+  resolver for tickers not found in the batch.
+- This should reduce decomposition from ~3min → ~30s.
+
+**Target:** Pipeline completes in < 60 seconds for cached runs.
+
+### Files
+- `src-tauri/python/portfolio_src/core/services/enricher.py:133` (fallback call)
+- `src-tauri/python/portfolio_src/core/services/decomposer.py` (sequential resolution)
+- `src-tauri/python/portfolio_src/data/local_cache.py` (batch_get_isins)
+
+### Acceptance criteria
+- [ ] Pipeline completes in < 60 seconds on cached run
+- [ ] No yfinance import errors in engine logs
+- [ ] Wikidata-missed ISINs marked as Unknown, not sent to Finnhub
+- [ ] ISIN resolution uses batch cache lookup
+
+---
+
+## P-25: Manual ISIN entry UI for unresolved holdings (HIGH)
+
+### Problem
+When the pipeline can't resolve a ticker to an ISIN (after all cascade steps fail),
+the user has no way to fix it. The ~106 unresolved holdings are invisible in the UI.
+The Action Queue shows failed ETFs but NOT individual unresolved holdings within
+successfully decomposed ETFs.
+
+### Requirements
+1. **Backend:** Accept manual ISIN entries via IPC command
+   - `manual_enrichments.py` already has some infrastructure for this
+   - Need: `set_manual_isin(ticker, name, isin, etf_context)` IPC command
+   - Persist in local cache + contribute to Hive
+2. **Frontend:** Show unresolved holdings in X-Ray with input fields
+   - New section in X-Ray: "Unresolved Holdings" or extend NeedsAttention
+   - Each row: ticker, name, weight, ETF context, ISIN input field
+   - On submit: call IPC, re-run affected resolution, update UI
+3. **Pipeline integration:** After manual entry, next pipeline run should use the cached ISIN
+
+### Files
+- `src-tauri/python/portfolio_src/data/manual_enrichments.py` (backend storage)
+- `src-tauri/python/portfolio_src/headless/handlers/` (new IPC command)
+- `src/features/xray/components/NeedsAttentionSection.tsx` (extend or new component)
+- `src/lib/ipc.ts` + `src/lib/schemas/ipc.ts` (new IPC wrapper + schema)
+
+### Acceptance criteria
+- [ ] X-Ray shows list of unresolved holdings with ticker, name, weight, ETF
+- [ ] User can enter ISIN for each unresolved holding
+- [ ] Manual entry is persisted in local cache
+- [ ] Manual entry is contributed to Hive (so other users benefit)
+- [ ] Next pipeline run uses the manual ISIN (resolution_source: "manual")
