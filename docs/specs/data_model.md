@@ -2,7 +2,10 @@
 
 > **Purpose:** Source of Truth for the Database (SQLite), Analytics Cache (Parquet), and Community Hive (Supabase).
 > **Usage:** Used by Python (Pydantic/SQLAlchemy) and Rust (SQLx) to ensure data integrity.
-> **See Tech Spec:** `keystone/specs/tech.md` for technology choices.
+> **Redesign:** See `docs/architecture/unified_data_schema.md` for the planned unified schema (P-28).
+> This document describes the current schema. The P-28 redesign adds: securities with FIGI/LEI/GICS 3-level,
+> ticker_mappings with variants, name_mappings for fuzzy matching, security_tags for thematic analysis,
+> and true_exposure snapshots for temporal tracking.
 
 ---
 

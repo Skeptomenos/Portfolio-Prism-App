@@ -2,9 +2,10 @@
 
 > **Purpose:** Define what a complete, successful pipeline run looks like.
 > **Status:** Active
-> **Last Updated:** 2026-03-08
+> **Last Updated:** 2026-03-09
 > **Related:**
 > - `docs/architecture/analytics_pipeline.md` (pipeline architecture)
+> - `docs/architecture/unified_data_schema.md` (target schema for local cache + Hive)
 > - `docs/architecture/identity_resolution.md` (ISIN resolution architecture)
 > - `docs/specs/identity_resolution_details.md` (resolution cascade, confidence scores)
 > - `docs/specs/supabase_hive.md` (Hive community database)

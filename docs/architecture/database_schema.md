@@ -2,7 +2,9 @@
 
 > **Purpose:** Defines the persistent, relational structure for the community asset universe (The Hive).
 > **Scope:** Schema for Supabase PostgreSQL.
-> **Strategy:** See `keystone/strategy/hive-architecture.md` for strategic rationale.
+> **Strategy:** See `docs/architecture/unified_data_schema.md` for the planned unified schema.
+> **Note:** This document describes the CURRENT schema. The planned P-28 redesign unifies
+> local cache and Hive into a shared schema. See unified_data_schema.md for the target state.
 
 ---
 

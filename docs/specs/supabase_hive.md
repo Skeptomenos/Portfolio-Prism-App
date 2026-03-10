@@ -1,9 +1,11 @@
 # Supabase Specification
 
 > **Version:** 1.0.0  
-> **Last Updated:** 2025-12-26  
+> **Last Updated:** 2026-03-09
 > **Project:** Portfolio Prism - Hive Database
 
+> **Schema Redesign:** See `docs/architecture/unified_data_schema.md` for the planned unified schema (P-28).
+> Current schema in `supabase/schema.sql`. Planned: shared schema between local SQLite and Hive PostgreSQL.
 ---
 
 ## Overview
