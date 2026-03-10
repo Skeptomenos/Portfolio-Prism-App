@@ -443,7 +443,7 @@ These should be documented as expected behavior.
 | P-25 | **Manual ISIN entry UI for unresolved holdings** | **High** | When pipeline can't resolve a ticker to ISIN (after all cascade steps fail), it must: (1) Flag the holding visibly in the X-Ray UI, (2) Show ticker, name, weight, ETF context, (3) Provide an input field for the user to manually enter the ISIN, (4) Persist the manual entry in local cache + contribute to Hive. Currently the Action Queue only shows failed ETFs, not individual unresolved holdings within successful ETFs. Needs both backend support (manual_enrichments.py) and frontend UI (new component in X-Ray). | **pending** |
 | P-26 | Browser tab crashes during pipeline at ~25% | ~~Medium~~ | Was Playwright timeout, not a real crash. Verified: browser stays alive throughout. | **RESOLVED** (not a bug) |
 | P-27 | Sub-ETF progress during decomposition | Medium | During decomposition, each ETF (e.g., MSCI World with 1,330 holdings) shows as a single step at 25% for several minutes. No visibility into per-holding resolution progress within the ETF. Should emit sub-progress: "Decomposing ETF 1/10: resolving 350/700 holdings..." so the user sees the pipeline is actively working, not stuck. | **pending** |
-| P-28 | **Unified Data Schema: local cache + Hive refactor** | **High** | Redesign local cache and Hive to share identical schema. New tables: `securities` (ISIN + FIGI + LEI + GICS 3-level + geography/region/market_type), `ticker_mappings` (all variants), `name_mappings` (normalized lookup), `security_tags` (thematic analysis), `etf_compositions` (with staleness). Local-only: `pipeline_runs`, `true_exposure` (temporal snapshots), `portfolio_goals`. Enables: same queries on both stores, 100% cache hit on second run, temporal pie charts, theme chain analysis, goal-based gap analysis. See `docs/architecture/unified_data_schema.md`. | **design complete, implementation pending** |
+| P-28 | **Unified Data Schema: local cache + Hive refactor** | **High** | Design complete. Supabase verified: 1,104 assets, 2,193 listings (row limit raised to 10,000). RLS blocks direct writes, RPCs bypass. Only 2 read RPCs exist. Supabase CLI via `npx supabase`. Migration files in `supabase/migrations/`. Need new RPCs + migration for new tables. See P-28 readiness checklist in implementation section. | **design complete, readiness verified** |
 
 ---
 
@@ -1199,3 +1199,83 @@ Each row gets:
 - [ ] Manual entry persisted in local cache AND `manual_enrichments.json`
 - [ ] Manual entry contributed to Hive (if enabled)
 - [ ] Next pipeline run uses the manual ISIN (resolution_source: "manual")
+
+---
+
+## P-28: Implementation Readiness (VERIFIED)
+
+### Access verified
+
+| Tool | Status | Details |
+|------|--------|---------|
+| Supabase CLI | **Working** | v2.75.0, project linked (`dqtewajqqgngdgddycmr`) |
+| `supabase db push` | **Available** | Can deploy new migrations |
+| Hive read (RPC) | **Working** | 1,104 assets, 2,193 listings (row limit 10,000) |
+| Hive write (RPC) | **Working** | `contribute_alias`, `batch_contribute` bypass RLS |
+| Hive tables | **All exist** | assets, listings, aliases, etf_holdings, etf_history, provider_mappings, contributions |
+| Local cache | **Understood** | `local_cache.py` extensively modified, migration pattern proven |
+| Python tests | **Working** | `uv run pytest` (192+ pass) |
+| Frontend tests | **Working** | Vitest (400) + Playwright E2E (18) |
+| Dogfood | **Working** | Headed browser, SSE streaming, real portfolio |
+
+### Current Hive schema (from `supabase/schema.sql`)
+
+```
+assets:           isin PK, name, wkn, asset_class (enum), base_currency, sector, geography, enrichment_status
+listings:         (ticker, exchange) PK, isin FK, currency
+aliases:          id UUID PK, alias, isin FK, alias_type, language, source, confidence, currency, exchange, contributor_hash
+etf_holdings:     (etf_isin, holding_isin) PK, weight, confidence_score, last_updated
+etf_history:      id UUID PK, etf_isin FK, holdings_json JSONB, contributor_id
+provider_mappings: (provider, provider_id) PK, isin FK
+contributions:    id UUID PK, contributor_id, target_table, payload JSONB, trust_score, error_message
+```
+
+### Schema gap analysis (current vs target)
+
+| Target table | Current equivalent | Gap |
+|-------------|-------------------|-----|
+| `securities` | `assets` | Add: figi, lei, cfi_code, industry_group, industry, region, market_type, currency, market_cap_tier |
+| `ticker_mappings` | `listings` | Add: trading_currency, confidence, source, verified_at |
+| `name_mappings` | `aliases` (partial) | aliases has more fields (language, contributor_hash). name_mappings is simpler. Can coexist or migrate. |
+| `security_tags` | Does not exist | New table |
+| `etf_compositions` | `etf_holdings` | Current requires holding_isin FK (can't store unresolved). Need to relax FK. Add: holding_ticker, holding_name, source, source_date |
+| `pipeline_runs` | Does not exist | Local only, new table |
+| `true_exposure` | Does not exist | Local only, new table |
+| `portfolio_goals` | Does not exist | Local only, new table |
+
+### Migration strategy
+
+**Phase 1: Extend existing tables (non-breaking)**
+- ALTER `assets`: add nullable columns (figi, lei, industry, industry_group, region, market_type, currency, market_cap_tier, cfi_code)
+- ALTER `listings`: add nullable columns (trading_currency, confidence, source, verified_at)
+- No data loss, no breaking changes, existing RPCs keep working
+
+**Phase 2: New tables**
+- CREATE `security_tags` in Supabase + local SQLite
+- CREATE `name_mappings` in Supabase + local SQLite (or repurpose `aliases`)
+- CREATE `pipeline_runs`, `true_exposure`, `portfolio_goals` in local SQLite only
+- Create new RPCs: `batch_resolve_tickers_with_variants_rpc`, `batch_upsert_name_mappings_rpc`
+
+**Phase 3: Pipeline integration**
+- Update ISINResolver to query new schema
+- Update Decomposer to write all ticker/name variants
+- Update Enricher to write sector/industry/geography
+- Update report writer to create `true_exposure` snapshots
+
+**Phase 4: Frontend integration** (separate feature work)
+- X-Ray: show industry, tags, name variants
+- Dashboard: temporal charts, theme analysis
+- Goals: target allocation UI
+
+### No open questions remaining
+All questions from the earlier checklist are answered:
+- Supabase access: verified (CLI + RPCs)
+- Row limit: raised to 10,000
+- Local cache: stays SQLite (correct for desktop app)
+- OpenFIGI: integrate for FIGI + CFI
+- Wikidata: primary source for metadata
+- Tags: junction table (not JSON)
+- Region/market_type: lookup table from geography
+- market_cap_tier: defer (nullable column now)
+- portfolio_goals UI: separate feature
+- Migration: extend existing tables first (non-breaking)
