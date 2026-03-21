@@ -1,0 +1,22 @@
+Here are all branches:
+
+**Local branches:**
+| Branch                            | Status      |
+| --------------------------------- | ----------- |
+| `chore/migrate-planning-to-wrapper` |             |
+| `chore/rules-and-agents-rewrite`    |             |
+| `main`                              | * (current) |
+
+**Remote branches (`origin`):**
+| Branch                                    | Notes           |
+| ----------------------------------------- | --------------- |
+| `origin/main`                               | HEAD            |
+| `origin/chore/migrate-planning-to-wrapper`  | tracked locally |
+| `origin/chore/rules-and-agents-rewrite`     | —               |
+| `origin/codex/stabilize-ipc-xray`           | remote only     |
+| `origin/feat/tr-auth-state-machine`         | remote only     |
+| `origin/fix/pipeline-tuning`                | remote only     |
+| `origin/ralph/validation-gates-integration` | remote only     |
+| `origin/refactor-2026`                      | remote only     |
+
+You're currently on `main`. There are 3 local branches and 8 remote branches (including `HEAD`).

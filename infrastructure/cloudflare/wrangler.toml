@@ -1,0 +1,97 @@
+name = "portfolio-prism-proxy"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# Environment variables (secrets - set via wrangler secret put)
+# FINNHUB_API_KEY - Finnhub API key
+# GITHUB_TOKEN - GitHub personal access token
+# GITHUB_REPO - Repository for feedback issues (e.g., "user/portfolio-prism")
+
+[vars]
+# Non-secret variables can go here
+# Environment identifier for CORS and logging behavior
+ENVIRONMENT = "production"
+
+# =============================================================================
+# Observability Configuration (Hardened for Production)
+# =============================================================================
+# SECURITY: Sampling rates are reduced to minimize exposure of sensitive data.
+# API responses containing financial data should not be persisted in logs.
+# Only errors and high-level request metadata are retained.
+
+[observability]
+# Master switch - enable for production monitoring
+enabled = true
+# SECURITY: 10% sampling reduces risk of logging sensitive API responses
+# while still providing visibility into worker health
+head_sampling_rate = 0.1
+
+[observability.logs]
+enabled = true
+# SECURITY: Only sample 10% of logs to reduce PII/financial data exposure
+# Error logs are always captured regardless of sampling
+head_sampling_rate = 0.1
+# SECURITY: Disable log persistence to prevent storing API responses
+# that may contain financial data or user information.
+# Logs are available in real-time dashboard but not retained.
+persist = false
+# Keep invocation-level logs for debugging (no response bodies)
+invocation_logs = true
+
+[observability.traces]
+enabled = true
+# SECURITY: Disable trace persistence - traces may capture request/response bodies
+persist = false
+# SECURITY: 10% sampling for traces
+head_sampling_rate = 0.1
+
+# =============================================================================
+# Rate Limiting Configuration
+# =============================================================================
+# KV-based rate limiting persists across worker restarts and edge locations.
+# This prevents rate limit bypass via worker restarts or geo-distribution.
+#
+# SETUP INSTRUCTIONS:
+# 1. Create the KV namespace:
+#    wrangler kv:namespace create "RATE_LIMIT_KV"
+# 2. Copy the ID from the output and update the 'id' field below
+# 3. For preview/dev environment:
+#    wrangler kv:namespace create "RATE_LIMIT_KV" --preview
+#    Update preview_id with the output
+#
+# The worker will automatically use KV when the binding is available,
+# falling back to in-memory rate limiting if KV is not configured.
+
+[[kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+# TODO: Replace with actual KV namespace ID after running wrangler kv:namespace create
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+# preview_id = "REPLACE_WITH_PREVIEW_KV_NAMESPACE_ID"
+
+# =============================================================================
+# Environment-Specific Configuration
+# =============================================================================
+# Production inherits all settings above.
+# Development/preview can override with looser settings below.
+
+[env.dev]
+name = "portfolio-prism-proxy-dev"
+
+[env.dev.vars]
+ENVIRONMENT = "development"
+
+# Dev environment can have higher sampling for debugging
+[env.dev.observability]
+enabled = true
+head_sampling_rate = 1.0
+
+[env.dev.observability.logs]
+enabled = true
+head_sampling_rate = 1.0
+persist = true
+invocation_logs = true
+
+[env.dev.observability.traces]
+enabled = true
+persist = true
+head_sampling_rate = 1.0

@@ -1,0 +1,302 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Fixed
+
+- **Fix useEffect race condition in TwoFactorModal (Task 5.3.3):**
+  - Wrapped `handleVerify` in `useCallback` with proper dependency array (`code`, `setAuthState`, `addToast`, `onSuccess`).
+  - Added `isSubmittingRef` guard to prevent double-submission in React StrictMode.
+  - Moved auto-submit useEffect after handleVerify definition to resolve declaration order.
+  - Updated useEffect dependencies to include `isLoading` and `handleVerify`.
+  - Prevents race condition where rapid state changes could trigger multiple API calls.
+
+### Security
+
+- **Feedback payload size validation (Task 4.2.4):**
+  - Added `MAX_PAYLOAD_SIZE` constant (10KB) to prevent abuse via oversized payloads.
+  - Added `validatePayloadSize()` function that checks `Content-Length` header.
+  - Applied validation to `/feedback` and `/report` endpoints in Cloudflare Worker.
+  - Returns HTTP 413 (Payload Too Large) when limit exceeded.
+  - Protects against memory/bandwidth abuse on user-content endpoints.
+
+- **Production CSP hardening with environment-specific configs (Task 4.2.1):**
+  - Created `src-tauri/tauri.prod.conf.json` with strict CSP for production builds.
+  - Removes `'unsafe-inline'` and `'unsafe-eval'` from `script-src` in production (XSS protection).
+  - Restricts `connect-src` from wildcard `*.workers.dev` to specific worker domain.
+  - Added `npm run tauri:build` script that applies production CSP via `--config` flag.
+  - Updated dev config to include Google Fonts (`fonts.googleapis.com`, `fonts.gstatic.com`).
+  - Created `docs/security/CSP.md` documenting dev vs prod CSP differences.
+
+- **Tightened Rust dependency version constraints + added cargo-deny (Task 4.1.1):**
+  - Updated version constraints in `src-tauri/Cargo.toml` from major-only (`"1"`, `"2"`) to minor (`"1.0"`, `"2.0"`) to prevent unexpected breaking changes.
+  - Created `src-tauri/deny.toml` for cargo-deny security scanning.
+  - Configuration denies known vulnerabilities and yanked packages.
+  - Warns about unmaintained packages and multiple versions.
+  - Enforces license allowlist (MIT, Apache-2.0, BSD, ISC, MPL-2.0, Zlib).
+  - Denies wildcard version specifiers and unknown registries.
+
+- **Enhanced PII scrubber with ReDoS protection (Task 3.5):**
+  - Added credit card pattern detection (Visa, Mastercard, Amex, Discover).
+  - Added SSN pattern detection (requires dashes/spaces for disambiguation).
+  - Added IPv4 and IPv6 address pattern detection.
+  - Added Unix and Windows file path pattern detection.
+  - Refactored all regex patterns to avoid catastrophic backtracking (ReDoS).
+  - Added input length truncation (100KB max) to prevent DoS attacks.
+  - Reordered patterns so more specific patterns (credit cards, IP, SSN) run before general PHONE pattern.
+  - Added 41 comprehensive unit tests in `src/lib/scrubber.test.ts`.
+
+- **Removed direct Finnhub API fallback from enrichment.py (Task 1.2.3):**
+  - Eliminated security bypass where `FINNHUB_API_KEY` env var could trigger direct API calls, exposing keys in client binary.
+  - All Finnhub calls now route exclusively through Cloudflare Worker proxy.
+  - Enforces AGENTS.md constraint: "API keys MUST be proxied via Cloudflare Worker — never in client."
+  - Falls through to Wikidata when proxy is unavailable (graceful degradation without key exposure).
+
+### Added
+
+- **Phase 1 Pipeline Contracts - Data Validation at Phase Boundaries:**
+  - Created `portfolio_src/core/contracts/` package as single source of truth for pipeline data validation.
+  - **quality.py**: `DataQuality` score tracking with severity-based penalties (CRITICAL=0.25, HIGH=0.10, MEDIUM=0.03, LOW=0.01). Score starts at 1.0, trustworthy threshold >= 0.95.
+  - **schemas.py**: Pydantic models for all 4 pipeline phases - `LoadedPosition`, `HoldingRecord`, `ETFDecomposition`, `EnrichedHolding`, `AggregatedExposureRecord` with computed fields and ISIN validation.
+  - **validation.py**: Phase-specific validation functions that return issues without raising exceptions. Detects weight format errors, resolution rate issues, enrichment coverage gaps, and aggregation mismatches.
+  - **gates.py**: `ValidationGates` orchestrator that accumulates quality across pipeline phases and provides JSON-serializable summaries.
+  - **converters.py**: DataFrame↔Pydantic bidirectional conversion with column alias mapping for Trade Republic compatibility.
+  - **Test suite**: 111 tests with 99% coverage across `test_schemas.py`, `test_quality.py`, `test_validation.py`, `test_gates.py`, `test_converters.py`, and `test_smoke.py`.
+  - **Test factories**: `tests/contracts/factories.py` with `make_loaded_position`, `make_holding_record`, `make_etf_decomposition`, etc.
+
+### Fixed
+
+- **Value Calculation Bug Fix (All 3 Phases) - GitHub Issues #36, #37:**
+  - Fixed critical bug where per-unit prices were displayed as total position values.
+  - Bitcoin: Now shows correct value (17.18) instead of price (74,372).
+  - NVIDIA: Now shows correct value (1,679.41) instead of price (159.84).
+  
+  **Phase 1 - Vectorized Calculation (70% -> 85%):**
+  - Added `get_total_value_column()` and `get_unit_price_column()` with semantic separation.
+  - Added `calculate_position_values()` vectorized function as single source of truth.
+  - Deprecated `get_value_column()` with warning.
+  - Updated `pipeline.py` to use vectorized calculation.
+  - Added 32 unit tests in `tests/test_utils.py`.
+  
+  **Phase 2 - Canonical Position Model (85% -> 90%):**
+  - Added `CanonicalPosition` dataclass with computed `market_value` property.
+  - Added `TradeRepublicAdapter` and `ManualCSVAdapter` for data normalization.
+  - Added 21 unit tests in `tests/test_adapters.py`.
+  
+  **Phase 3 - SQLite Storage (90% -> 95%):**
+  - Added `PipelineDatabase` with GENERATED `market_value` column.
+  - Added `positions`, `holdings_breakdown`, and `pipeline_runs` tables.
+  - Added 7 unit tests in `tests/test_pipeline_db.py`.
+  
+  **Total: 60 new tests, confidence 70% -> 95%.**
+
+- **GitHub Issues #28-#33 Resolution:**
+  - #28: Created `batch_contribute_assets` RPC in Supabase to fix duplicate Hive contributions
+  - #29: Added "Exposure Distribution" explanation subtitle in HoldingsView
+  - #30: Added "Confidence Score" explanation to ResolutionStatusBadge tooltip
+  - #31: Added direct holdings to `holdings_breakdown.csv` for true exposure calculation
+  - #32: Added True Exposure widget to Dashboard showing combined direct + indirect holdings
+  - #33: Implemented ActionQueue Ignore button with localStorage persistence, Fix button shows "Coming Soon"
+
+### Changed
+
+- **Operation Silent Night - Print Cleanup:**
+  - Replaced 90 `print()` statements with `logger` calls across 15 Python files.
+  - Improves observability with structured logging (debug, info, warning, error levels).
+  - Preserved IPC protocol prints in `tr_daemon.py`, `stdin_loop.py`, and `sync.py`.
+  - All 13 `test_tr_daemon_subprocess.py` tests pass (IPC integrity verified).
+  - Files modified: tr_daemon.py, tr_bridge.py, validation.py, position_keeper.py, hive_client.py, ishares.py, vanguard.py, amundi.py, xtrackers.py, vaneck.py, pdf_parser/parser.py, echo_bridge.py, metrics.py.
+
+### Added
+
+- **Atomic JSON Write Fix:**
+  - Added `write_json_atomic()` utility function using temp file + rename pattern.
+  - Updated `pipeline.py` to use atomic write for `pipeline_health.json`.
+  - Updated `health.py` to use atomic write for JSON state.
+  - Prevents file corruption if process is interrupted mid-write.
+  - Fixes issues #12, #13 (truncated JSON causing cascading failures).
+
+- **HealthView Null Safety Fix:**
+  - Added `SystemLogReport` type for telemetry data with proper nullable fields.
+  - Fixed crash when `report.category` is null (now displays "UNKNOWN").
+  - Fixed "Invalid Date" when `report.reported_at` is null (now displays "N/A").
+  - Fixed undefined display when `report.component` is null (now displays "unknown").
+  - Updated `getRecentReports()` return type from `any[]` to `SystemLogReport[]`.
+
+- **ResolutionTable Type Cleanup:**
+  - Added `weight_sum` to `ETFResolutionDetail` type (matches backend output).
+  - Removed dead `etf_stats` legacy field from `PipelineHealthReport`.
+  - Removed legacy fallback and `as any` casts in ResolutionTable.tsx.
+  - Fixed 5 TypeScript errors that were blocking the build.
+
+- **Identity Resolution Phase 6C - UI Integration:**
+  - Integrated ResolutionHealthCard, NeedsAttentionSection, and FilterBar into HoldingsView.
+  - Added ResolutionStatusBadge to holdings list items and decomposition panel.
+  - Added filter/sort/search state management with useMemo for performance.
+  - Updated IPC types: `getTrueHoldings()` now returns typed `TrueHoldingsResponse`.
+  - Added keyboard accessibility to GlassCard (role, tabIndex, onKeyDown for Enter/Space).
+  - Added resolution details section in decomposition panel (ISIN, confidence, source).
+
+- **Identity Resolution Phase 5 - Format Logging (Observability):**
+  - Added `detect_format()` to `TickerParser` to classify tickers (bloomberg, reuters, yahoo_dash, numeric, plain).
+  - Added `format_logs` table to LocalCache for tracking resolution attempts by format and API source.
+  - Integrated logging into `_resolve_via_api()` to capture success/failure rates for Finnhub and yFinance.
+  - Added 14 unit tests in `test_resolution_phase5.py` covering format detection and logging infrastructure.
+
+- **Identity Resolution Phase 4 - Per-Holding Provenance:**
+  - Added `resolution_source` and `resolution_confidence` columns to holdings DataFrames.
+  - Decomposer stores provenance for all resolution outcomes: existing ISINs (provider/1.0), resolved (source/confidence from result), skipped (None/0.0), unresolved (None/0.0).
+  - Enrichment stores provenance and preserves existing provenance when skipping resolution.
+  - Aggregator preserves provenance during groupby: takes max confidence, maps source from max-confidence row.
+  - Grouping preserves provenance with same max-confidence pattern.
+  - Added 18 unit tests in `test_resolution_phase4.py` covering provenance storage, confidence values, aggregation, and backward compatibility.
+
+- **Identity Resolution Phase 3 - Persistent Negative Cache:**
+  - Added `isin_cache` table to LocalCache SQLite schema for persistent resolution caching.
+  - Added LocalCache methods: `get_isin_cache()`, `set_isin_cache()`, `is_negative_cached()`, `cleanup_expired_cache()`.
+  - Replaced in-memory negative cache with SQLite-backed cache (survives app restarts).
+  - Added TTL constants per spec: 24 hours for unresolved, 1 hour for rate-limited entries.
+  - Added `_call_finnhub_with_status()` to track rate limit responses.
+  - Added `_cache_positive_result()` to cache successful API resolutions.
+  - Removed legacy `enrichment_cache.json` loading (CACHE_PATH, `_load_cache()`, `self.cache`).
+  - Added 20 unit tests in `test_resolution_phase3.py` covering cache schema, positive/negative caching, expiration, and legacy removal.
+
+- **Identity Resolution Phase 2 - API Cascade Reorder & Confidence Scoring:**
+  - Added `confidence` field to `ResolutionResult` dataclass (0.0-1.0 scale).
+  - Added confidence constants: `CONFIDENCE_PROVIDER` (1.0), `CONFIDENCE_LOCAL_CACHE` (0.95), `CONFIDENCE_HIVE` (0.90), `CONFIDENCE_MANUAL` (0.85), `CONFIDENCE_WIKIDATA` (0.80), `CONFIDENCE_FINNHUB` (0.75), `CONFIDENCE_YFINANCE` (0.70).
+  - Reordered API cascade: Wikidata (free) → Finnhub (rate-limited) → yFinance (unreliable).
+  - Added batched Wikidata SPARQL queries using VALUES clause for efficient multi-variant lookups.
+  - Added in-memory negative cache to prevent repeated API calls for known failures (5-minute TTL).
+  - Implemented tiered variant strategy: batch all variants for Wikidata, primary ticker only for Finnhub, top 2 variants for yFinance.
+  - Added 16 unit tests covering confidence scores, cascade order, negative cache, and batch Wikidata.
+
+- **Identity Resolution Schema Implementation:** Deployed schema changes to support identity resolution.
+  - Supabase `aliases` table: Added 6 new columns (source, confidence, currency, exchange, currency_source, contributor_hash) with constraints.
+  - Supabase `assets` table: Added `sector` and `geography` columns.
+  - Updated `lookup_alias_rpc` to return 9 columns (was 5).
+  - Updated `contribute_alias` to accept 10 parameters (was 4).
+  - Local SQLite: Added `isin_cache` table for offline resolution caching with negative cache support.
+  - Documentation: Updated `hive-database-schema.md`, `data_schema.md`, `functions.sql`, `schema.sql`.
+  - Python client: Added `AliasLookupResult` dataclass, updated `lookup_by_alias` to return rich result, added `lookup_alias_isin` convenience method.
+
+### Changed
+
+- **Specs Consolidation:** Reduced specs directory from 14 to 10 files (-280 lines, 14% reduction).
+  - Archived obsolete planning docs (`problem.md`, `options.md`, `requirements.md`) to `specs/archive/`.
+  - Merged EARS requirements into `product.md` Section 7.
+  - Merged `build_optimization_implementation.md` into `build_optimization.md`.
+  - Removed duplicate Hive schema from `data_schema.md` (cross-references Supabase docs).
+  - Updated cross-references in `global.md`, `EXECUTION.md`, `README.md`.
+- **Plans Archival:** Moved all 28 completed implementation plans to `plans/archive/`.
+  - Includes: Hive phases 0-5, Pipeline plans, Echo-Sentinel plans, etc.
+  - Deleted `proposals/` directory (contained only obsolete restructure proposal).
+
+### Removed
+
+- **Legacy CSV Resolution:** Removed `AssetUniverse` class and `asset_universe.csv` files.
+  - Deleted `USE_LEGACY_CSV` feature flag from config.
+  - All ISIN resolution now uses Hive + LocalCache exclusively.
+  - Removed CSV references from `migration.py`, `lifecycle.py`, `enrichment.py`.
+  - Updated `harvesting.py` to push to Hive instead of CSV.
+  - Simplified codebase by ~300 lines.
+
+### Optimization
+
+- **Pipeline Initialization:** Prevented redundant service re-initialization in `Pipeline._init_services` to improve repeated run performance.
+
+### Fixed
+
+- **Sector/Geography Allocation:** Fixed 4653% allocation bug by calculating percentages from `total_exposure` sums instead of summing pre-calculated percentages.
+- **UI Progress Bar:** Fixed 0% progress bar issue by normalizing backend progress scale (0.0-1.0) to UI scale (0-100) automatically.
+- **Background Sync:** Moved Hive cache synchronization to a background thread in `ISINResolver` to prevent UI freeze on startup.
+- **Warning Reporting:** Updated pipeline status to report "completed with warnings" if partial failures occurred (e.g. unresolved ETFs).
+- **Pipeline Breakdown Report:** Fixed missing ETF values in breakdown report by adding fallback calculation (quantity * price) when pre-calculated value columns are missing.
+- **Hive Data Flow Fix:** Resolved 0% Hive hit rate caused by `sync_universe()` querying non-existent `master_view`.
+  - `sync_universe()` now uses `get_all_assets_rpc` and `get_all_listings_rpc` (RLS bypass).
+  - `get_etf_holdings()` now uses new `get_etf_holdings_rpc` function.
+  - `HiveEnrichmentService` now checks `LocalCache` first before `HiveClient.batch_lookup()`.
+  - Added `aliases` table to `schema.sql` for documentation completeness.
+
+### Changed
+
+- **Supabase Folder Consolidation:** Merged `infrastructure/supabase/` into `supabase/` (Supabase CLI standard).
+  - Single source of truth for schema, functions, and migrations.
+  - `functions.sql` now includes all bulk sync RPCs (355 lines).
+  - Updated 8 documentation files to reference new paths.
+  - Deprecated `community_sync.py` references in legacy `reference_dashboard/`.
+
+### Added
+
+- **Hive Extension (Phases 0-4):** Complete ISIN resolution infrastructure for X-Ray pipeline.
+  - Phase 0: `aliases` table + 7 RPC functions with `SECURITY DEFINER` for RLS bypass.
+  - Phase 1: HiveClient read methods (`resolve_ticker`, `batch_resolve_tickers`, `lookup_by_alias`).
+  - Phase 2: LocalCache SQLite for offline-capable resolution.
+  - Phase 3: ISINResolver dual-path refactor with `USE_LEGACY_CSV` feature flag.
+  - Phase 4: Decomposer wiring - ISINResolver injected into ETF decomposition pipeline.
+  - 63 unit tests covering all new functionality.
+
+### Changed
+
+- **Framework Migration:** Migrated from Anamnesis to **Keystone v4.4** framework.
+- **Directory Restructuring:** Renamed `anamnesis/` to `keystone/` and moved project state to `keystone/project/`.
+- **Protocol Upgrade:** Implemented **OODA Loop** for debugging and **First Principles** for thinking.
+
+### Performance
+
+- **ISIN Resolution:** Reduced decomposition time from 97s to 0.1s per ETF (970x improvement) by skipping Hive network calls for tier2 holdings.
+
+### Added
+
+- **Echo-Sentinel:** Zero-effort crash reporting system with privacy-first design.
+  - Auto-captures Python (`sys.excepthook`) and React (`ErrorBoundary`) errors to SQLite.
+  - Auto-categorizes errors by component (integrations, data, pipeline) and category (api_error, crash, etc.).
+  - Calculates stable `error_hash` for deduplication across users/sessions.
+  - Sentinel audits previous session on startup, batches errors, and reports to GitHub.
+  - Cloudflare Worker `/report` endpoint with server-side deduplication (searches existing issues by hash).
+  - Telemetry settings UI in Health dashboard (Auto/Review/Off modes).
+  - Architecture documented in `keystone/architecture/ECHO_SENTINEL_ARCHITECTURE.md`.
+- **Global Feedback Modal:** Refactored feedback dialog to a root-level modal with automatic view context injection.
+- **Tailwind v3 Stability:** Aligned dependencies with stable v3.4.17 to resolve build failures.
+- **GitHub Actions CI/CD:** Automated build pipeline for macOS DMG release (`.github/workflows/release.yml`).
+- **Portfolio Chart:** 30-day value history chart with gradient area fill (`PortfolioChart.tsx`).
+- **Sparklines:** Mini-charts for "Day Change" and "Total Value" cards.
+- **History Manager:** Python backend service for calculating historical portfolio values (T-30).
+
+---
+
+## [0.1.0] - 2024-12-19
+
+### Added
+
+- Trade Republic 2FA login integration via subprocess daemon architecture
+- TR daemon protocol for JSON-RPC communication over stdin/stdout
+- Session persistence via pytr native cookie storage
+- Compatibility layer for pytr v0.4.2 method name typo
+- Initial Tauri + Python sidecar integration
+- PyInstaller bundled Streamlit dashboard
+- PII Scrubbing for logs
+- Hive (Supabase) Sync Client
+
+### Changed
+
+- Binary size optimized (~90MB)
+- Repository flattened to standard Tauri layout
+
+### Fixed
+
+- Resolved `RuntimeError: There is no current event loop` by isolating pytr in subprocess
+- Fixed binary startup hang on macOS ARM64 using `collect_submodules`
+- Fixed PII leakage in logs (IBAN/Phone/Email scrubbing)
+
+### Added
+
+- Initial Tauri + Python sidecar integration
+- PyInstaller bundled Streamlit dashboard
+- POC analytics engine transplanted to `portfolio_src/`
+- Dynamic port binding for sidecar
+- Dead man's switch for process cleanup

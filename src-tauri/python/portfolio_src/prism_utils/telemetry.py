@@ -1,0 +1,606 @@
+"""
+Telemetry Module - Automatic error reporting to GitHub Issues.
+
+Reports errors with rate limiting to avoid spam:
+- AdapterNotFound: 1 per ISIN ever
+- ScraperFailed: 1 per ISIN per day
+- ISINNotResolved: 1 per ISIN ever
+- UnexpectedError: 5 per session
+
+Privacy:
+- Only error type, message, and ISIN are sent
+- No portfolio data or credentials
+- Opt-out via TELEMETRY_ENABLED=false
+"""
+
+import hashlib
+import json
+import os
+import uuid
+from datetime import datetime
+from pathlib import Path
+from typing import List, Optional
+from urllib.request import urlopen, Request
+from urllib.error import HTTPError, URLError
+
+from portfolio_src.prism_utils.logging_config import get_logger
+from portfolio_src.config import WORKER_URL
+
+logger = get_logger(__name__)
+
+# GitHub repository info
+GITHUB_OWNER = "Skeptomenos"
+GITHUB_REPO = "Portfolio-Prism"
+
+# Paths
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+TELEMETRY_STATE_FILE = PROJECT_ROOT / "data" / "working" / ".telemetry_state.json"
+
+# Rate limits (per day) - higher limits during development
+RATE_LIMITS = {
+    "adapter_not_found": {"per_isin": True, "max_per_day": None},
+    "scraper_failed": {"per_isin": True, "max_per_day": 10},
+    "isin_not_resolved": {"per_isin": True, "max_per_day": None},
+    "unexpected_error": {"per_isin": False, "max_per_day": 50},
+    "missing_asset": {"per_isin": True, "max_per_day": None},
+    "weight_validation": {"per_isin": True, "max_per_day": 5},
+    "enrichment_gap": {"per_isin": True, "max_per_day": 3},
+    "quality_summary": {"per_isin": False, "max_per_day": 10},
+}
+
+
+class Telemetry:
+    """
+    Automatic error reporting to GitHub Issues.
+
+    Reports are rate-limited and anonymized.
+    Opt-out via TELEMETRY_ENABLED=false env var.
+    """
+
+    def __init__(self, github_token: Optional[str] = None):
+        """
+        Initialize telemetry.
+
+        Args:
+            github_token: GitHub PAT for creating issues. If not provided,
+                          reads from GITHUB_ISSUES_TOKEN env var.
+        """
+        self.github_token = github_token or os.getenv("GITHUB_ISSUES_TOKEN")
+        self.enabled = os.getenv("TELEMETRY_ENABLED", "true").lower() == "true"
+        self._session_id = str(uuid.uuid4())[:8]
+        self._state = self._load_state()
+        self._api_base = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}"
+
+        if not self.enabled:
+            logger.info("Telemetry disabled via TELEMETRY_ENABLED=false")
+        elif not self.github_token:
+            logger.debug("No GitHub token available, telemetry reports will be cached")
+
+    def get_session_id(self) -> str:
+        """Return the current session ID."""
+        return self._session_id
+
+    def _load_state(self) -> dict:
+        """Load telemetry state from disk."""
+        if TELEMETRY_STATE_FILE.exists():
+            try:
+                return json.loads(TELEMETRY_STATE_FILE.read_text())
+            except Exception:
+                pass
+        return {
+            "reported_isins": {},  # {isin: {error_type: last_reported}}
+            "daily_counts": {},  # {date: {error_type: count}}
+            "pending_reports": [],  # Reports waiting to be sent
+        }
+
+    def _save_state(self) -> None:
+        """Save telemetry state to disk."""
+        TELEMETRY_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        TELEMETRY_STATE_FILE.write_text(json.dumps(self._state, indent=2))
+
+    def _should_report(self, error_type: str, isin: Optional[str] = None) -> bool:
+        """Check if this error should be reported based on rate limits."""
+        if not self.enabled:
+            return False
+
+        limits = RATE_LIMITS.get(error_type, {"per_isin": False, "max_per_day": 5})
+        today = datetime.now().strftime("%Y-%m-%d")
+
+        # Check per-ISIN limit
+        if limits["per_isin"] and isin:
+            reported = self._state.get("reported_isins", {}).get(isin, {})
+            if error_type in reported:
+                last_reported = reported[error_type]
+                # For per-day limits, check if it was today
+                if limits["max_per_day"]:
+                    if last_reported.startswith(today):
+                        return False
+                else:
+                    # Already reported ever
+                    return False
+
+        # Check daily limit
+        if limits["max_per_day"]:
+            daily = self._state.get("daily_counts", {}).get(today, {})
+            count = daily.get(error_type, 0)
+            if count >= limits["max_per_day"]:
+                return False
+
+        return True
+
+    def _mark_reported(self, error_type: str, isin: Optional[str] = None) -> None:
+        """Mark an error as reported."""
+        now = datetime.now().isoformat()
+        today = datetime.now().strftime("%Y-%m-%d")
+
+        # Update per-ISIN tracking
+        if isin:
+            if "reported_isins" not in self._state:
+                self._state["reported_isins"] = {}
+            if isin not in self._state["reported_isins"]:
+                self._state["reported_isins"][isin] = {}
+            self._state["reported_isins"][isin][error_type] = now
+
+        # Update daily counts
+        if "daily_counts" not in self._state:
+            self._state["daily_counts"] = {}
+        if today not in self._state["daily_counts"]:
+            self._state["daily_counts"][today] = {}
+        current = self._state["daily_counts"][today].get(error_type, 0)
+        self._state["daily_counts"][today][error_type] = current + 1
+
+        self._save_state()
+
+    def report_error(
+        self,
+        error_type: str,
+        title: str,
+        body: str,
+        isin: Optional[str] = None,
+        labels: Optional[list] = None,
+        error_hash: Optional[str] = None,
+    ) -> Optional[str]:
+        """
+        Report an error to GitHub Issues.
+
+        Args:
+            error_type: Type of error (for rate limiting)
+            title: Issue title
+            body: Issue body (markdown)
+            isin: Related ISIN (for rate limiting)
+            labels: GitHub labels to apply
+            error_hash: Stable hash for deduplication
+
+        Returns:
+            Issue URL if created, None if rate-limited or failed
+        """
+        if not self._should_report(error_type, isin):
+            logger.debug("Rate limited", extra={"error_type": error_type, "isin": isin})
+            return None
+
+        # Add metadata to body
+        full_body = (
+            f"{body}\n\n"
+            f"---\n"
+            f"*Auto-reported by Portfolio Prism*\n\n"
+            f"| Key | Value |\n"
+            f"|-----|-------|\n"
+            f"| Session | `{self._session_id}` |\n"
+            f"| Timestamp | {datetime.now().isoformat()} |\n"
+            f"| Docker Mode | {os.getenv('DOCKER_MODE', 'false')} |\n"
+        )
+
+        if not self.github_token and not WORKER_URL:
+            logger.warning(
+                "Telemetry: No credentials configured. "
+                "Set GITHUB_ISSUES_TOKEN or WORKER_URL to enable error reporting."
+            )
+            self._state.setdefault("pending_reports", []).append(
+                {
+                    "error_type": error_type,
+                    "title": title,
+                    "body": full_body,
+                    "isin": isin,
+                    "labels": labels or [],
+                    "error_hash": error_hash,
+                    "created_at": datetime.now().isoformat(),
+                }
+            )
+            self._save_state()
+            logger.debug("Cached telemetry report", extra={"title": title})
+            return None
+
+        try:
+            result = self._create_issue(title, full_body, labels or [], error_hash)
+            self._mark_reported(error_type, isin)
+            issue_url = result.get("issue_url") or result.get("html_url")
+            logger.info("Reported issue", extra={"issue_url": issue_url})
+            return issue_url
+        except Exception as e:
+            logger.warning(
+                "Failed to report issue", extra={"error": str(e), "error_type": type(e).__name__}
+            )
+            return None
+
+    def _create_issue(
+        self,
+        title: str,
+        body: str,
+        labels: list,
+        error_hash: Optional[str] = None,
+    ) -> dict:
+        """Create a GitHub issue (via proxy if configured)."""
+        data = {
+            "type": "auto-report",
+            "title": title,
+            "message": body,
+            "labels": labels,
+            "error_hash": error_hash,
+        }
+
+        if WORKER_URL:
+            url = f"{WORKER_URL}/report"
+            req = Request(url, method="POST")
+            req.add_header("Content-Type", "application/json")
+            req.add_header("User-Agent", "Portfolio-Prism")
+        else:
+            # Local dev mode: direct GitHub API call
+            url = f"{self._api_base}/issues"
+            # Direct call doesn't support dedup easily without more logic,
+            # but we prioritize proxy mode for production.
+            req = Request(url, method="POST")
+            req.add_header("Authorization", f"Bearer {self.github_token}")
+            req.add_header("Accept", "application/vnd.github.v3+json")
+            req.add_header("Content-Type", "application/json")
+            req.add_header("User-Agent", "Portfolio-Prism")
+
+            # Format for direct GitHub API
+            direct_data = {
+                "title": title,
+                "body": f"{body}\n\n<!-- error_hash: {error_hash} -->" if error_hash else body,
+                "labels": labels,
+            }
+            req.data = json.dumps(direct_data).encode()
+
+            with urlopen(req, timeout=30) as response:
+                return json.loads(response.read().decode())
+
+        req.data = json.dumps(data).encode()
+
+        with urlopen(req, timeout=30) as response:
+            return json.loads(response.read().decode())
+
+    # Convenience methods for specific error types
+
+    def report_adapter_not_found(self, isin: str, provider: Optional[str] = None) -> Optional[str]:
+        """Report a missing adapter for an ISIN."""
+        title = f"Missing adapter for {isin}"
+        body = (
+            f"## Missing Adapter\n\n"
+            f"No adapter is available to fetch holdings for this ETF.\n\n"
+            f"| Field | Value |\n"
+            f"|-------|-------|\n"
+            f"| ISIN | `{isin}` |\n"
+        )
+        if provider:
+            body += f"| Provider | {provider} |\n"
+
+        body += (
+            f"\n### Requested Action\n"
+            f"Please add this ETF to the adapter registry or create a new adapter.\n"
+        )
+
+        return self.report_error(
+            error_type="adapter_not_found",
+            title=title,
+            body=body,
+            isin=isin,
+            labels=["enhancement", "adapter"],
+        )
+
+    def report_scraper_failed(
+        self,
+        isin: str,
+        adapter: str,
+        error: str,
+    ) -> Optional[str]:
+        """Report a scraper failure."""
+        title = f"Scraper failed for {isin} ({adapter})"
+        body = (
+            f"## Scraper Failure\n\n"
+            f"The {adapter} scraper failed to fetch holdings.\n\n"
+            f"| Field | Value |\n"
+            f"|-------|-------|\n"
+            f"| ISIN | `{isin}` |\n"
+            f"| Adapter | {adapter} |\n\n"
+            f"### Error\n"
+            f"```\n{error[:500]}\n```\n"
+        )
+
+        return self.report_error(
+            error_type="scraper_failed",
+            title=title,
+            body=body,
+            isin=isin,
+            labels=["bug", "scraper"],
+        )
+
+    def report_isin_not_resolved(
+        self,
+        name: str,
+        ticker: Optional[str] = None,
+        provider_isin: Optional[str] = None,
+    ) -> Optional[str]:
+        """Report an unresolved ISIN."""
+        # Generate a deterministic ID for this asset
+        asset_id = hashlib.sha256(f"{name}:{ticker}:{provider_isin}".encode()).hexdigest()[:8]
+
+        title = f"Unresolved asset: {name}"
+        body = (
+            f"## Unresolved Asset\n\n"
+            f"Could not resolve ISIN for this asset.\n\n"
+            f"| Field | Value |\n"
+            f"|-------|-------|\n"
+            f"| Name | {name} |\n"
+        )
+        if ticker:
+            body += f"| Ticker | `{ticker}` |\n"
+        if provider_isin:
+            body += f"| Provider ISIN | `{provider_isin}` |\n"
+
+        body += f"\n### Requested Action\nPlease add this asset to the asset universe.\n"
+
+        return self.report_error(
+            error_type="isin_not_resolved",
+            title=title,
+            body=body,
+            isin=asset_id,  # Use hash as pseudo-ISIN for rate limiting
+            labels=["data", "asset-universe"],
+        )
+
+    def report_missing_asset(
+        self,
+        isin: str,
+        name: Optional[str] = None,
+    ) -> Optional[str]:
+        """Report a missing asset in the universe."""
+        title = f"Missing asset: {isin}"
+        body = (
+            f"## Missing Asset\n\n"
+            f"This ISIN is not in the asset universe.\n\n"
+            f"| Field | Value |\n"
+            f"|-------|-------|\n"
+            f"| ISIN | `{isin}` |\n"
+        )
+        if name:
+            body += f"| Name | {name} |\n"
+
+        body += f"\n### Requested Action\nPlease add this asset to the asset universe CSV.\n"
+
+        return self.report_error(
+            error_type="missing_asset",
+            title=title,
+            body=body,
+            isin=isin,
+            labels=["data", "asset-universe"],
+        )
+
+    def report_weight_validation_failure(
+        self,
+        etf_isin: str,
+        weight_sum: float,
+        adapter: str,
+    ) -> Optional[str]:
+        """Report an ETF with invalid weight sum (not ~100%)."""
+        title = f"Weight validation failed: {etf_isin}"
+
+        deviation = weight_sum - 100.0
+        if deviation > 0:
+            impact = f"overcounted by {deviation:.1f}%"
+        else:
+            impact = f"undercounted by {abs(deviation):.1f}%"
+
+        body = (
+            f"## Weight Validation Failed\n\n"
+            f"ETF holdings weights do not sum to approximately 100%.\n\n"
+            f"| Field | Value |\n"
+            f"|-------|-------|\n"
+            f"| ISIN | `{etf_isin}` |\n"
+            f"| Weight Sum | {weight_sum:.2f}% |\n"
+            f"| Expected Range | 90-110% |\n"
+            f"| Adapter | {adapter} |\n\n"
+            f"### Impact\n"
+            f"Portfolio allocation is {impact}.\n\n"
+            f"### Requested Action\n"
+            f"1. Verify the adapter is parsing weights correctly\n"
+            f"2. Check if the ETF provider changed their data format\n"
+            f"3. Update the adapter if needed\n"
+        )
+
+        return self.report_error(
+            error_type="weight_validation",
+            title=title,
+            body=body,
+            isin=etf_isin,
+            labels=["data-quality", "validation", adapter],
+        )
+
+    def report_enrichment_gap(
+        self,
+        gap_type: str,
+        affected_isins: List[str],
+        coverage_rate: float,
+    ) -> Optional[str]:
+        """Report enrichment coverage gaps (missing sector/geography)."""
+        title = f"Enrichment gap: {gap_type} coverage at {coverage_rate:.0%}"
+
+        batch_hash = hashlib.sha256(",".join(sorted(affected_isins)).encode()).hexdigest()[:8]
+
+        sample_isins = affected_isins[:10]
+        isin_list = "\n".join(f"- `{isin}`" for isin in sample_isins)
+
+        body = (
+            f"## Enrichment Gap\n\n"
+            f"Missing {gap_type} data for a significant number of assets.\n\n"
+            f"| Field | Value |\n"
+            f"|-------|-------|\n"
+            f"| Gap Type | {gap_type} |\n"
+            f"| Coverage Rate | {coverage_rate:.1%} |\n"
+            f"| Affected Assets | {len(affected_isins)} |\n\n"
+            f"### Sample ISINs\n{isin_list}\n"
+        )
+
+        if len(affected_isins) > 10:
+            body += f"\n...and {len(affected_isins) - 10} more\n"
+
+        return self.report_error(
+            error_type="enrichment_gap",
+            title=title,
+            body=body,
+            isin=batch_hash,
+            labels=["data-quality", "enrichment", gap_type],
+        )
+
+    def report_quality_summary(
+        self,
+        quality: "DataQuality",
+        session_id: str,
+    ) -> Optional[str]:
+        """Report aggregated quality summary for pipeline runs with issues."""
+        from portfolio_src.core.contracts.quality import IssueSeverity
+
+        if quality.is_trustworthy:
+            return None
+
+        severity_counts = quality.issue_count_by_severity
+        critical_count = severity_counts.get("critical", 0)
+        high_count = severity_counts.get("high", 0)
+
+        if critical_count == 0 and high_count == 0:
+            return None
+
+        title = f"Quality issues: {critical_count} critical, {high_count} high"
+
+        issue_codes: dict = {}
+        for issue in quality.issues:
+            if issue.severity in (IssueSeverity.CRITICAL, IssueSeverity.HIGH):
+                issue_codes[issue.code] = issue_codes.get(issue.code, 0) + 1
+
+        code_lines = "\n".join(
+            f"| `{code}` | {count} |" for code, count in sorted(issue_codes.items())
+        )
+
+        body = (
+            f"## Quality Summary\n\n"
+            f"Pipeline run completed with significant quality issues.\n\n"
+            f"| Field | Value |\n"
+            f"|-------|-------|\n"
+            f"| Quality Score | {quality.score:.1%} |\n"
+            f"| Critical Issues | {critical_count} |\n"
+            f"| High Issues | {high_count} |\n"
+            f"| Session ID | `{session_id}` |\n\n"
+            f"### Issues by Code\n"
+            f"| Code | Count |\n"
+            f"|------|-------|\n"
+            f"{code_lines}\n"
+        )
+
+        return self.report_error(
+            error_type="quality_summary",
+            title=title,
+            body=body,
+            labels=["data-quality", "summary"],
+        )
+
+    def report_unexpected_error(
+        self,
+        error: Exception,
+        context: str = "",
+    ) -> Optional[str]:
+        """Report an unexpected error."""
+        error_hash = hashlib.sha256(str(error).encode()).hexdigest()[:8]
+        title = f"Unexpected error: {type(error).__name__}"
+
+        body = (
+            f"## Unexpected Error\n\n"
+            f"An unexpected error occurred during operation.\n\n"
+            f"### Error Details\n"
+            f"```\n{type(error).__name__}: {str(error)[:500]}\n```\n"
+        )
+        if context:
+            body += f"\n### Context\n{context}\n"
+
+        return self.report_error(
+            error_type="unexpected_error",
+            title=title,
+            body=body,
+            isin=error_hash,  # Use hash for rate limiting
+            labels=["bug"],
+        )
+
+    def flush_pending(self) -> int:
+        """
+        Flush any pending reports that were cached when no token was available.
+
+        Returns:
+            Number of reports sent
+        """
+        if not self.github_token:
+            return 0
+
+        pending = self._state.get("pending_reports", [])
+        if not pending:
+            return 0
+
+        sent = 0
+        remaining = []
+
+        for report in pending:
+            try:
+                self._create_issue(
+                    report["title"],
+                    report["body"],
+                    report.get("labels", []),
+                )
+                self._mark_reported(report["error_type"], report.get("isin"))
+                sent += 1
+            except Exception as e:
+                logger.warning(
+                    "Failed to flush report",
+                    extra={"error": str(e), "error_type": type(e).__name__},
+                )
+                remaining.append(report)
+
+        self._state["pending_reports"] = remaining
+        self._save_state()
+
+        if sent:
+            logger.info("Flushed pending telemetry reports", extra={"count": sent})
+
+        return sent
+
+    def get_stats(self) -> dict:
+        """Get telemetry statistics."""
+        today = datetime.now().strftime("%Y-%m-%d")
+        daily = self._state.get("daily_counts", {}).get(today, {})
+
+        return {
+            "enabled": self.enabled,
+            "has_token": bool(self.github_token),
+            "pending_count": len(self._state.get("pending_reports", [])),
+            "isins_tracked": len(self._state.get("reported_isins", {})),
+            "today_reports": sum(daily.values()),
+            "session_id": self._session_id,
+        }
+
+
+# Module-level singleton for convenience
+_telemetry_instance: Optional[Telemetry] = None
+
+
+def get_telemetry() -> Telemetry:
+    """Get the singleton Telemetry instance."""
+    global _telemetry_instance
+    if _telemetry_instance is None:
+        _telemetry_instance = Telemetry()
+    return _telemetry_instance

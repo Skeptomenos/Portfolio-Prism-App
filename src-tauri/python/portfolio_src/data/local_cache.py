@@ -1,0 +1,891 @@
+"""
+Local SQLite Cache for Hive Identity Domain.
+
+Provides offline-capable ticker/alias resolution by caching
+Hive data locally. Syncs on startup if stale (>24h).
+"""
+
+import sqlite3
+import threading
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Dict, List, Optional, Any
+from dataclasses import dataclass
+
+from portfolio_src.prism_utils.logging_config import get_logger
+from portfolio_src.config import DATA_DIR
+
+logger = get_logger(__name__)
+
+CACHE_TTL_HOURS = 24
+CACHE_DB_NAME = "hive_cache.db"
+
+
+@dataclass
+class CachedAsset:
+    """Cached asset record."""
+
+    isin: str
+    name: str
+    asset_class: str
+    base_currency: str
+
+
+@dataclass
+class CachedListing:
+    """Cached listing record."""
+
+    ticker: str
+    exchange: str
+    isin: str
+    currency: str
+
+
+class LocalCache:
+    """
+    SQLite-backed local cache for Hive identity domain.
+
+    Thread-safe with connection pooling per thread.
+    """
+
+    _local = threading.local()
+
+    def __init__(self, db_path: Optional[Path] = None):
+        """
+        Initialize LocalCache.
+
+        Args:
+            db_path: Path to SQLite database. Defaults to DATA_DIR.
+        """
+        if db_path is None:
+            db_path = DATA_DIR / CACHE_DB_NAME
+
+        self.db_path = db_path
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+
+        self._init_schema()
+
+    def _get_connection(self) -> sqlite3.Connection:
+        """Get thread-local database connection."""
+        if not hasattr(self._local, "connection") or self._local.connection is None:
+            self._local.connection = sqlite3.connect(
+                str(self.db_path),
+                check_same_thread=False,
+            )
+            self._local.connection.row_factory = sqlite3.Row
+            self._local.connection.execute("PRAGMA journal_mode=WAL")
+        return self._local.connection
+
+    def _init_schema(self) -> None:
+        """Initialize database schema."""
+        conn = self._get_connection()
+
+        conn.executescript(
+            """
+            -- Assets table (mirrors Hive assets)
+            CREATE TABLE IF NOT EXISTS cache_assets (
+                isin VARCHAR(12) PRIMARY KEY,
+                name TEXT NOT NULL,
+                asset_class VARCHAR(20) NOT NULL,
+                base_currency VARCHAR(3) NOT NULL,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            -- Listings table (mirrors Hive listings)
+            CREATE TABLE IF NOT EXISTS cache_listings (
+                ticker VARCHAR(30) NOT NULL,
+                exchange VARCHAR(10) NOT NULL,
+                isin VARCHAR(12) NOT NULL,
+                currency VARCHAR(3) NOT NULL,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (ticker, exchange)
+            );
+
+            -- Aliases table (mirrors Hive aliases)
+            CREATE TABLE IF NOT EXISTS cache_aliases (
+                alias VARCHAR(100) NOT NULL,
+                isin VARCHAR(12) NOT NULL,
+                alias_type VARCHAR(20) DEFAULT 'name',
+                contributor_count INTEGER DEFAULT 1,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (alias, isin)
+            );
+
+            -- Sync metadata
+            CREATE TABLE IF NOT EXISTS cache_metadata (
+                table_name VARCHAR(50) PRIMARY KEY,
+                last_sync TIMESTAMP,
+                row_count INTEGER DEFAULT 0
+            );
+
+            -- Indexes for fast lookup
+            CREATE INDEX IF NOT EXISTS idx_cache_listings_ticker
+                ON cache_listings (UPPER(ticker));
+            CREATE INDEX IF NOT EXISTS idx_cache_aliases_alias
+                ON cache_aliases (UPPER(alias));
+            CREATE INDEX IF NOT EXISTS idx_cache_listings_isin
+                ON cache_listings (isin);
+
+            -- Resolution cache (positive and negative)
+            CREATE TABLE IF NOT EXISTS isin_cache (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                alias TEXT NOT NULL,
+                alias_type TEXT NOT NULL,
+                isin TEXT,
+                resolution_status TEXT NOT NULL,
+                confidence REAL DEFAULT 0.0,
+                source TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expires_at TIMESTAMP,
+                UNIQUE(alias, alias_type)
+            );
+
+            -- Indexes for isin_cache
+            CREATE INDEX IF NOT EXISTS idx_isin_cache_alias
+                ON isin_cache (UPPER(alias));
+            CREATE INDEX IF NOT EXISTS idx_isin_cache_expires
+                ON isin_cache (expires_at);
+            CREATE INDEX IF NOT EXISTS idx_isin_cache_status
+                ON isin_cache (resolution_status);
+
+            -- Format logs table (observability for ticker format patterns)
+            CREATE TABLE IF NOT EXISTS format_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ticker_input TEXT NOT NULL,
+                ticker_tried TEXT NOT NULL,
+                format_type TEXT NOT NULL,
+                api_source TEXT NOT NULL,
+                success INTEGER NOT NULL,
+                etf_isin TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_format_logs_api
+                ON format_logs (api_source);
+            CREATE INDEX IF NOT EXISTS idx_format_logs_format
+                ON format_logs (format_type);
+            CREATE INDEX IF NOT EXISTS idx_format_logs_created
+                ON format_logs (created_at);
+        """
+        )
+
+        conn.commit()
+        logger.debug("LocalCache schema initialized", extra={"db_path": str(self.db_path)})
+
+    # =========================================================================
+    # READ OPERATIONS
+    # =========================================================================
+
+    def get_isin_by_ticker(
+        self,
+        ticker: str,
+        exchange: Optional[str] = None,
+    ) -> Optional[str]:
+        """
+        Look up ISIN by ticker symbol.
+
+        Args:
+            ticker: Ticker symbol (case-insensitive)
+            exchange: Optional exchange filter
+
+        Returns:
+            ISIN if found, None otherwise
+        """
+        conn = self._get_connection()
+
+        if exchange:
+            cursor = conn.execute(
+                """
+                SELECT isin FROM cache_listings
+                WHERE UPPER(ticker) = UPPER(?) AND UPPER(exchange) = UPPER(?)
+                LIMIT 1
+                """,
+                (ticker, exchange),
+            )
+        else:
+            cursor = conn.execute(
+                """
+                SELECT isin FROM cache_listings
+                WHERE UPPER(ticker) = UPPER(?)
+                LIMIT 1
+                """,
+                (ticker,),
+            )
+
+        row = cursor.fetchone()
+        return row["isin"] if row else None
+
+    def get_isin_by_alias(self, alias: str) -> Optional[str]:
+        """
+        Look up ISIN by name/alias (case-insensitive).
+
+        Args:
+            alias: Name or alias to search
+
+        Returns:
+            ISIN if found, None otherwise
+        """
+        if not alias or not alias.strip():
+            return None
+
+        conn = self._get_connection()
+        cursor = conn.execute(
+            """
+            SELECT isin FROM cache_aliases
+            WHERE UPPER(alias) = UPPER(?)
+            ORDER BY contributor_count DESC
+            LIMIT 1
+            """,
+            (alias.strip(),),
+        )
+
+        row = cursor.fetchone()
+        return row["isin"] if row else None
+
+    def get_asset(self, isin: str) -> Optional[CachedAsset]:
+        """Get asset details by ISIN."""
+        conn = self._get_connection()
+        cursor = conn.execute(
+            "SELECT * FROM cache_assets WHERE isin = ?",
+            (isin,),
+        )
+
+        row = cursor.fetchone()
+        if row:
+            return CachedAsset(
+                isin=row["isin"],
+                name=row["name"],
+                asset_class=row["asset_class"],
+                base_currency=row["base_currency"],
+            )
+        return None
+
+    def batch_get_isins(
+        self,
+        tickers: List[str],
+    ) -> Dict[str, Optional[str]]:
+        """
+        Batch lookup ISINs for multiple tickers.
+
+        Args:
+            tickers: List of ticker symbols
+
+        Returns:
+            Dict mapping ticker -> ISIN (or None if not found)
+        """
+        if not tickers:
+            return {}
+
+        results: Dict[str, Optional[str]] = {t: None for t in tickers}
+        conn = self._get_connection()
+
+        placeholders = ",".join("?" * len(tickers))
+        upper_tickers = [t.upper() for t in tickers]
+
+        cursor = conn.execute(
+            f"""
+            SELECT ticker, isin FROM cache_listings
+            WHERE UPPER(ticker) IN ({placeholders})
+            """,
+            upper_tickers,
+        )
+
+        for row in cursor:
+            for orig_ticker in tickers:
+                if orig_ticker.upper() == row["ticker"].upper():
+                    results[orig_ticker] = row["isin"]
+
+        return results
+
+    # =========================================================================
+    # WRITE OPERATIONS
+    # =========================================================================
+
+    def upsert_asset(
+        self,
+        isin: str,
+        name: str,
+        asset_class: str,
+        base_currency: str,
+    ) -> bool:
+        """Upsert a single asset."""
+        conn = self._get_connection()
+        try:
+            conn.execute(
+                """
+                INSERT INTO cache_assets (isin, name, asset_class, base_currency, updated_at)
+                VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(isin) DO UPDATE SET
+                    name = excluded.name,
+                    asset_class = excluded.asset_class,
+                    base_currency = excluded.base_currency,
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                (isin, name, asset_class, base_currency),
+            )
+            conn.commit()
+            return True
+        except Exception as e:
+            logger.warning(
+                "Failed to upsert asset",
+                extra={"isin": isin, "error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
+            )
+            return False
+
+    def upsert_listing(
+        self,
+        ticker: str,
+        exchange: str,
+        isin: str,
+        currency: str,
+    ) -> bool:
+        """Upsert a single listing."""
+        conn = self._get_connection()
+        try:
+            conn.execute(
+                """
+                INSERT INTO cache_listings (ticker, exchange, isin, currency, updated_at)
+                VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(ticker, exchange) DO UPDATE SET
+                    isin = excluded.isin,
+                    currency = excluded.currency,
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                (ticker, exchange, isin, currency),
+            )
+            conn.commit()
+            return True
+        except Exception as e:
+            logger.warning(
+                "Failed to upsert listing",
+                extra={"ticker": ticker, "error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
+            )
+            return False
+
+    def upsert_alias(
+        self,
+        alias: str,
+        isin: str,
+        alias_type: str = "name",
+        contributor_count: int = 1,
+    ) -> bool:
+        """Upsert a single alias."""
+        conn = self._get_connection()
+        try:
+            conn.execute(
+                """
+                INSERT INTO cache_aliases (alias, isin, alias_type, contributor_count, updated_at)
+                VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(alias, isin) DO UPDATE SET
+                    alias_type = excluded.alias_type,
+                    contributor_count = excluded.contributor_count,
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                (alias, isin, alias_type, contributor_count),
+            )
+            conn.commit()
+            return True
+        except Exception as e:
+            logger.warning(
+                "Failed to upsert alias",
+                extra={"alias": alias, "error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
+            )
+            return False
+
+    def bulk_upsert_assets(self, assets: List[Dict[str, Any]]) -> int:
+        """Bulk upsert assets. Returns count of rows affected."""
+        if not assets:
+            return 0
+
+        conn = self._get_connection()
+        try:
+            conn.executemany(
+                """
+                INSERT INTO cache_assets (isin, name, asset_class, base_currency, updated_at)
+                VALUES (:isin, :name, :asset_class, :base_currency, CURRENT_TIMESTAMP)
+                ON CONFLICT(isin) DO UPDATE SET
+                    name = excluded.name,
+                    asset_class = excluded.asset_class,
+                    base_currency = excluded.base_currency,
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                assets,
+            )
+            conn.commit()
+            return len(assets)
+        except Exception as e:
+            logger.error(
+                "Bulk upsert assets failed",
+                extra={"error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
+            )
+            return 0
+
+    def bulk_upsert_listings(self, listings: List[Dict[str, Any]]) -> int:
+        """Bulk upsert listings. Returns count of rows affected."""
+        if not listings:
+            return 0
+
+        conn = self._get_connection()
+        try:
+            conn.executemany(
+                """
+                INSERT INTO cache_listings (ticker, exchange, isin, currency, updated_at)
+                VALUES (:ticker, :exchange, :isin, :currency, CURRENT_TIMESTAMP)
+                ON CONFLICT(ticker, exchange) DO UPDATE SET
+                    isin = excluded.isin,
+                    currency = excluded.currency,
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                listings,
+            )
+            conn.commit()
+            return len(listings)
+        except Exception as e:
+            logger.error(
+                "Bulk upsert listings failed",
+                extra={"error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
+            )
+            return 0
+
+    def bulk_upsert_aliases(self, aliases: List[Dict[str, Any]]) -> int:
+        """Bulk upsert aliases. Returns count of rows affected."""
+        if not aliases:
+            return 0
+
+        conn = self._get_connection()
+        try:
+            conn.executemany(
+                """
+                INSERT INTO cache_aliases (alias, isin, alias_type, contributor_count, updated_at)
+                VALUES (:alias, :isin, :alias_type, :contributor_count, CURRENT_TIMESTAMP)
+                ON CONFLICT(alias, isin) DO UPDATE SET
+                    alias_type = excluded.alias_type,
+                    contributor_count = excluded.contributor_count,
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                aliases,
+            )
+            conn.commit()
+            return len(aliases)
+        except Exception as e:
+            logger.error(
+                "Bulk upsert aliases failed",
+                extra={"error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
+            )
+            return 0
+
+    # =========================================================================
+    # SYNC OPERATIONS
+    # =========================================================================
+
+    def sync_from_hive(self, hive_client: Any) -> Dict[str, int]:
+        """
+        Sync local cache from Hive.
+
+        Args:
+            hive_client: HiveClient instance
+
+        Returns:
+            Dict with counts: {"assets": N, "listings": N, "aliases": N}
+        """
+        logger.info("Starting LocalCache sync from Hive...")
+
+        data = hive_client.sync_identity_domain()
+        counts = {"assets": 0, "listings": 0, "aliases": 0}
+
+        if data.get("assets"):
+            counts["assets"] = self.bulk_upsert_assets(data["assets"])
+            self._update_sync_metadata("assets", counts["assets"])
+
+        if data.get("listings"):
+            counts["listings"] = self.bulk_upsert_listings(data["listings"])
+            self._update_sync_metadata("listings", counts["listings"])
+
+        if data.get("aliases"):
+            counts["aliases"] = self.bulk_upsert_aliases(data["aliases"])
+            self._update_sync_metadata("aliases", counts["aliases"])
+
+        logger.info(
+            "LocalCache sync complete",
+            extra={
+                "assets_count": counts["assets"],
+                "listings_count": counts["listings"],
+                "aliases_count": counts["aliases"],
+            },
+        )
+
+        return counts
+
+    def _update_sync_metadata(self, table_name: str, row_count: int) -> None:
+        """Update sync metadata for a table."""
+        conn = self._get_connection()
+        conn.execute(
+            """
+            INSERT INTO cache_metadata (table_name, last_sync, row_count)
+            VALUES (?, CURRENT_TIMESTAMP, ?)
+            ON CONFLICT(table_name) DO UPDATE SET
+                last_sync = CURRENT_TIMESTAMP,
+                row_count = excluded.row_count
+            """,
+            (table_name, row_count),
+        )
+        conn.commit()
+
+    # =========================================================================
+    # STALENESS CHECK
+    # =========================================================================
+
+    def is_stale(self, max_age_hours: int = CACHE_TTL_HOURS) -> bool:
+        """
+        Check if cache is stale (older than max_age_hours).
+
+        Returns True if ANY table is stale or never synced.
+        """
+        conn = self._get_connection()
+        cursor = conn.execute(
+            """
+            SELECT table_name, last_sync FROM cache_metadata
+            WHERE table_name IN ('assets', 'listings', 'aliases')
+            """
+        )
+
+        rows = cursor.fetchall()
+
+        if len(rows) < 3:
+            return True
+
+        cutoff = datetime.now() - timedelta(hours=max_age_hours)
+
+        for row in rows:
+            if row["last_sync"] is None:
+                return True
+
+            last_sync = datetime.fromisoformat(row["last_sync"])
+            if last_sync < cutoff:
+                return True
+
+        return False
+
+    def get_last_sync(self) -> Optional[datetime]:
+        """Get the oldest last_sync timestamp across all tables."""
+        conn = self._get_connection()
+        cursor = conn.execute(
+            """
+            SELECT MIN(last_sync) as oldest_sync FROM cache_metadata
+            WHERE table_name IN ('assets', 'listings', 'aliases')
+            """
+        )
+
+        row = cursor.fetchone()
+        if row and row["oldest_sync"]:
+            return datetime.fromisoformat(row["oldest_sync"])
+        return None
+
+    def get_all_isins(self) -> set:
+        """Get all ISINs from the cache."""
+        conn = self._get_connection()
+        cursor = conn.execute("SELECT DISTINCT isin FROM cache_assets")
+        return {row["isin"] for row in cursor}
+
+    def get_stats(self) -> Dict[str, Any]:
+        """Get cache statistics."""
+        conn = self._get_connection()
+
+        stats = {
+            "db_path": str(self.db_path),
+            "is_stale": self.is_stale(),
+            "last_sync": None,
+            "tables": {},
+        }
+
+        last_sync = self.get_last_sync()
+        if last_sync:
+            stats["last_sync"] = last_sync.isoformat()
+
+        cursor = conn.execute("SELECT table_name, last_sync, row_count FROM cache_metadata")
+
+        for row in cursor:
+            stats["tables"][row["table_name"]] = {
+                "last_sync": row["last_sync"],
+                "row_count": row["row_count"],
+            }
+
+        return stats
+
+    # =========================================================================
+    # ISIN CACHE OPERATIONS (Resolution Cache)
+    # =========================================================================
+
+    def get_isin_cache(
+        self,
+        alias: str,
+        alias_type: str = "ticker",
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get cached resolution result.
+
+        Returns None if:
+        - Not found
+        - Entry is expired (negative cache with passed expires_at)
+
+        Returns dict with keys:
+        - isin: Optional[str]
+        - resolution_status: str
+        - confidence: float
+        - source: Optional[str]
+        - created_at: str
+        - expires_at: Optional[str]
+        """
+        conn = self._get_connection()
+        cursor = conn.execute(
+            """
+            SELECT isin, resolution_status, confidence, source, created_at, expires_at
+            FROM isin_cache
+            WHERE UPPER(alias) = UPPER(?) AND alias_type = ?
+            LIMIT 1
+            """,
+            (alias, alias_type),
+        )
+
+        row = cursor.fetchone()
+        if not row:
+            return None
+
+        if row["expires_at"]:
+            expires_at = datetime.fromisoformat(row["expires_at"])
+            if datetime.now() > expires_at:
+                self._delete_isin_cache(alias, alias_type)
+                return None
+
+        return {
+            "isin": row["isin"],
+            "resolution_status": row["resolution_status"],
+            "confidence": row["confidence"],
+            "source": row["source"],
+            "created_at": row["created_at"],
+            "expires_at": row["expires_at"],
+        }
+
+    def set_isin_cache(
+        self,
+        alias: str,
+        alias_type: str,
+        isin: Optional[str],
+        resolution_status: str,
+        confidence: float = 0.0,
+        source: Optional[str] = None,
+        ttl_hours: Optional[int] = None,
+    ) -> bool:
+        """
+        Cache a resolution result.
+
+        Args:
+            alias: Normalized identifier
+            alias_type: "ticker" or "name"
+            isin: Resolved ISIN or None for negative cache
+            resolution_status: "resolved", "unresolved", or "rate_limited"
+            confidence: Resolution confidence (0.0 for negative)
+            source: API source or None
+            ttl_hours: Hours until expiration (None = never expires)
+
+        Returns:
+            True if successful, False otherwise
+        """
+        conn = self._get_connection()
+
+        expires_at = None
+        if ttl_hours is not None:
+            expires_at = (datetime.now() + timedelta(hours=ttl_hours)).isoformat()
+
+        try:
+            conn.execute(
+                """
+                INSERT INTO isin_cache (
+                    alias, alias_type, isin, resolution_status,
+                    confidence, source, created_at, expires_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
+                ON CONFLICT(alias, alias_type) DO UPDATE SET
+                    isin = excluded.isin,
+                    resolution_status = excluded.resolution_status,
+                    confidence = excluded.confidence,
+                    source = excluded.source,
+                    created_at = CURRENT_TIMESTAMP,
+                    expires_at = excluded.expires_at
+                """,
+                (
+                    alias,
+                    alias_type,
+                    isin,
+                    resolution_status,
+                    confidence,
+                    source,
+                    expires_at,
+                ),
+            )
+            conn.commit()
+            return True
+        except Exception as e:
+            logger.warning(
+                "Failed to cache resolution",
+                extra={"alias": alias, "error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
+            )
+            return False
+
+    def is_negative_cached(
+        self,
+        alias: str,
+        alias_type: str = "ticker",
+    ) -> bool:
+        """
+        Check if alias has unexpired negative cache entry.
+
+        Returns True if:
+        - Entry exists with resolution_status in ("unresolved", "rate_limited")
+        - Entry has not expired (expires_at > now)
+        """
+        entry = self.get_isin_cache(alias, alias_type)
+        if not entry:
+            return False
+        return entry["resolution_status"] in ("unresolved", "rate_limited")
+
+    def cleanup_expired_cache(self) -> int:
+        """
+        Delete expired cache entries.
+
+        Returns count of deleted entries.
+        """
+        conn = self._get_connection()
+        now = datetime.now().isoformat()
+        cursor = conn.execute(
+            """
+            DELETE FROM isin_cache
+            WHERE expires_at IS NOT NULL AND expires_at < ?
+            """,
+            (now,),
+        )
+        conn.commit()
+        deleted = cursor.rowcount
+        if deleted > 0:
+            logger.debug("Cleaned up expired cache entries", extra={"deleted_count": deleted})
+        return deleted
+
+    def _delete_isin_cache(self, alias: str, alias_type: str) -> None:
+        """Delete a single cache entry."""
+        conn = self._get_connection()
+        conn.execute(
+            "DELETE FROM isin_cache WHERE UPPER(alias) = UPPER(?) AND alias_type = ?",
+            (alias, alias_type),
+        )
+        conn.commit()
+
+    # =========================================================================
+    # FORMAT LOGGING OPERATIONS (Observability)
+    # =========================================================================
+
+    def log_format_attempt(
+        self,
+        ticker_input: str,
+        ticker_tried: str,
+        format_type: str,
+        api_source: str,
+        success: bool,
+        etf_isin: Optional[str] = None,
+    ) -> None:
+        """Log a format resolution attempt for analysis."""
+        conn = self._get_connection()
+        try:
+            conn.execute(
+                """
+                INSERT INTO format_logs (
+                    ticker_input, ticker_tried, format_type, api_source, success, etf_isin
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    ticker_input,
+                    ticker_tried,
+                    format_type,
+                    api_source,
+                    1 if success else 0,
+                    etf_isin,
+                ),
+            )
+            conn.commit()
+        except Exception as e:
+            logger.debug(
+                "Failed to log format attempt",
+                extra={"error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
+            )
+
+    def get_format_stats(self) -> Dict[str, Any]:
+        """Get summary statistics for format attempts."""
+        conn = self._get_connection()
+
+        cursor = conn.execute(
+            """
+            SELECT api_source, format_type,
+                   SUM(success) as successes,
+                   COUNT(*) as total
+            FROM format_logs
+            GROUP BY api_source, format_type
+            ORDER BY api_source, total DESC
+            """
+        )
+
+        stats: Dict[str, Any] = {"by_api_format": []}
+        for row in cursor.fetchall():
+            total = row["total"]
+            rate = row["successes"] / total if total > 0 else 0
+            stats["by_api_format"].append(
+                {
+                    "api": row["api_source"],
+                    "format": row["format_type"],
+                    "successes": row["successes"],
+                    "total": total,
+                    "rate": round(rate, 3),
+                }
+            )
+
+        return stats
+
+    def cleanup_old_format_logs(self, days: int = 30) -> int:
+        """Remove format logs older than N days. Returns count deleted."""
+        conn = self._get_connection()
+        cursor = conn.execute(
+            """
+            DELETE FROM format_logs
+            WHERE created_at < datetime('now', ?)
+            """,
+            (f"-{days} days",),
+        )
+        conn.commit()
+        deleted = cursor.rowcount
+        if deleted > 0:
+            logger.debug("Cleaned up old format log entries", extra={"deleted_count": deleted})
+        return deleted
+
+    def close(self) -> None:
+        """Close the database connection for the current thread."""
+        if hasattr(self._local, "connection") and self._local.connection is not None:
+            self._local.connection.close()
+            self._local.connection = None
+
+
+_local_cache: Optional[LocalCache] = None
+
+
+def get_local_cache() -> LocalCache:
+    """Get or create the singleton LocalCache instance."""
+    global _local_cache
+    if _local_cache is None:
+        _local_cache = LocalCache()
+    return _local_cache

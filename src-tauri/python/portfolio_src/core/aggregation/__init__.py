@@ -1,0 +1,237 @@
+"""
+Aggregation module for portfolio exposure calculation (v2).
+
+This module decomposes ETF holdings and aggregates all exposures
+(direct + indirect) into a single report.
+
+Public API:
+    run_aggregation(direct_positions, etf_positions, etf_holdings_map) -> DataFrame
+"""
+
+from typing import Dict
+
+import pandas as pd
+
+from portfolio_src.config import HOLDINGS_BREAKDOWN_PATH, TRUE_EXPOSURE_REPORT
+from portfolio_src.models import AggregatedExposure
+from portfolio_src.prism_utils.logging_config import get_logger
+
+from .classification import classify_etf_holdings
+from .direct import process_direct_holdings
+from .enrichment import enrich_etf_holdings, reset_resolver, set_gap_collector
+from .grouping import aggregate_indirect_holdings, calculate_indirect_values
+from .output import finalize_and_save
+
+logger = get_logger(__name__)
+
+__all__ = ["run_aggregation"]
+
+
+def run_aggregation(
+    direct_positions: pd.DataFrame,
+    etf_positions: pd.DataFrame,
+    etf_holdings_map: Dict[str, pd.DataFrame],
+) -> pd.DataFrame:
+    """
+    Run the entire exposure aggregation process.
+
+    This function:
+    1. Processes direct stock holdings
+    2. Decomposes ETF holdings via classification, enrichment, and value calculation
+    3. Aggregates all exposures by security
+    4. Saves results to CSV
+
+    Args:
+        direct_positions: DataFrame with columns [isin, name, market_value]
+        etf_positions: DataFrame with columns [isin, name, market_value]
+        etf_holdings_map: Dict mapping ETF ISIN to holdings DataFrame
+
+    Returns:
+        DataFrame with aggregated true exposure per security
+    """
+    output_filepath = str(TRUE_EXPOSURE_REPORT)
+
+    if direct_positions.empty and etf_positions.empty:
+        logger.warning("No positions found. Exiting aggregation.")
+        return pd.DataFrame()
+
+    # Initialize aggregator
+    exposures = AggregatedExposure()
+
+    # Calculate True Portfolio Value (Top-Down) for correct percentage calculations
+    # This prevents "leakage" from decomposition affecting portfolio-wide stats
+    direct_val = direct_positions["market_value"].sum() if not direct_positions.empty else 0.0
+    etf_val = etf_positions["market_value"].sum() if not etf_positions.empty else 0.0
+    true_total = direct_val + etf_val
+
+    exposures.true_total_value = true_total
+    logger.info("Aggregation initialized", extra={"true_total_value": true_total})
+
+    # Step 1: Process direct holdings
+    process_direct_holdings(direct_positions, exposures)
+
+    # Step 2: Process ETF holdings
+    logger.info("Processing indirect holdings via ETFs", extra={"etf_count": len(etf_positions)})
+
+    all_holdings = pd.DataFrame()
+
+    # Calculate total portfolio value for weight calculations
+    total_portfolio_value = etf_positions["market_value"].sum() + (
+        direct_positions["market_value"].sum() if not direct_positions.empty else 0
+    )
+
+    if not etf_positions.empty:
+        for etf in etf_positions.to_dict("records"):
+            etf_isin = etf["isin"]
+            etf_name = etf["name"]
+            etf_market_value = etf["market_value"]
+
+            # Calculate ETF weight in portfolio
+            etf_portfolio_weight = (
+                (etf_market_value / total_portfolio_value * 100)
+                if total_portfolio_value > 0
+                else 0.0
+            )
+
+            logger.info(
+                "Processing ETF",
+                extra={
+                    "etf_name": etf_name,
+                    "etf_isin": etf_isin,
+                    "market_value": etf_market_value,
+                },
+            )
+
+            # Get holdings for this ETF
+            holdings = etf_holdings_map.get(etf_isin)
+            if holdings is None or holdings.empty:
+                logger.warning("No holdings found for ETF", extra={"etf_isin": etf_isin})
+                continue
+
+            # Process: Classify -> Enrich -> Calculate values
+            holdings = holdings.copy()
+            holdings = classify_etf_holdings(holdings)
+            holdings = enrich_etf_holdings(
+                holdings,
+                etf_market_value,
+                etf_isin=etf_isin,
+                etf_name=etf_name,
+                etf_portfolio_weight=etf_portfolio_weight,
+            )
+            holdings = calculate_indirect_values(holdings, etf_market_value)
+
+            # Add Parent Info for Lineage/Drill-down
+            holdings["parent_isin"] = etf_isin
+            holdings["parent_name"] = etf["name"]
+            holdings["source"] = "ETF"
+
+            # Debug: log large holdings
+            _log_large_holdings(holdings, etf_isin, etf["name"])
+
+            # Accumulate
+            all_holdings = pd.concat([all_holdings, holdings], ignore_index=True)
+
+    # Save detailed breakdown (Direct + Indirect)
+    breakdown_df = all_holdings.copy()
+
+    # Add Direct Holdings to breakdown
+    if not direct_positions.empty:
+        direct_rows = direct_positions.copy()
+        direct_rows["parent_isin"] = "DIRECT"
+        direct_rows["parent_name"] = "Direct Portfolio"
+        direct_rows["source"] = "Direct"
+        direct_rows["indirect"] = direct_rows["market_value"]
+        direct_rows["weight_percentage"] = 0.0
+
+        direct_rows["resolution_status"] = "resolved"
+        direct_rows["resolution_source"] = "provider"
+        direct_rows["resolution_confidence"] = 1.0
+        direct_rows["resolution_detail"] = "provider"
+        direct_rows["ticker"] = direct_rows["isin"]
+
+        breakdown_df = pd.concat([breakdown_df, direct_rows], ignore_index=True)
+
+    if not breakdown_df.empty:
+        try:
+            # Select and rename columns for clarity
+            cols_to_keep = [
+                "parent_isin",
+                "parent_name",
+                "source",
+                "isin",
+                "name",
+                "ticker",  # Original ticker input (for UI display)
+                "asset_class",
+                "sector",
+                "geography",
+                "weight_percentage",
+                "indirect",
+                # Resolution provenance (Phase 6)
+                "resolution_status",
+                "resolution_source",
+                "resolution_confidence",
+                "resolution_detail",
+            ]
+            # Ensure columns exist (direct might miss some)
+            for col in cols_to_keep:
+                if col not in breakdown_df.columns:
+                    breakdown_df[col] = None
+
+            output_breakdown = breakdown_df[cols_to_keep].rename(
+                columns={
+                    "isin": "child_isin",
+                    "name": "child_name",
+                    "indirect": "value_eur",
+                    "weight_percentage": "weight_percent",
+                }
+            )
+
+            output_breakdown.to_csv(HOLDINGS_BREAKDOWN_PATH, index=False)
+            logger.info(
+                "Saved detailed holdings breakdown",
+                extra={"path": str(HOLDINGS_BREAKDOWN_PATH)},
+            )
+        except Exception as e:
+            logger.error(
+                "Failed to save breakdown CSV",
+                extra={"error": str(e), "error_type": type(e).__name__},
+                exc_info=True,
+            )
+
+    # Step 3: Aggregate all indirect holdings
+    aggregate_indirect_holdings(all_holdings, exposures)
+
+    # Step 4: Flush resolver (writes newly resolved ISINs to universe)
+    reset_resolver()
+
+    # Step 5: Finalize and save
+    return finalize_and_save(exposures, output_filepath)
+
+
+def _log_large_holdings(holdings: pd.DataFrame, etf_isin: str, etf_name: str) -> None:
+    """Log holdings with indirect value > €1000 for debugging."""
+    if "indirect" not in holdings.columns:
+        return
+
+    large = holdings[holdings["indirect"] > 1000]
+    if large.empty:
+        return
+
+    logger.info(
+        "Found large holdings in ETF",
+        extra={"etf_isin": etf_isin, "etf_name": etf_name, "count": len(large)},
+    )
+    for _, row in large.iterrows():
+        weight = row.get("weight_percentage", 0)
+        indirect = row.get("indirect", 0)
+        name = row.get("name", "Unknown")
+        isin = row.get("isin", "No ISIN")
+        logger.info(
+            "Large holding detail",
+            extra={
+                "name": name,
+                "isin": isin,
+                "weight_percent": round(weight, 2),
+                "value_eur": round(indirect, 2),
+            },
+        )

@@ -1,0 +1,82 @@
+[
+  {
+    "phase": "ETF_DECOMPOSITION",
+    "error_type": "NO_ADAPTER",
+    "item": "IE00B4L5Y983",
+    "message": "No adapter registered for this ISIN",
+    "fix_hint": "Add adapter or upload to manual_holdings/IE00B4L5Y983.csv",
+    "timestamp": "2026-03-06T19:00:59.202442"
+  },
+  {
+    "phase": "ETF_DECOMPOSITION",
+    "error_type": "NO_ADAPTER",
+    "item": "IE00B3WJKG14",
+    "message": "No adapter registered for this ISIN",
+    "fix_hint": "Add adapter or upload to manual_holdings/IE00B3WJKG14.csv",
+    "timestamp": "2026-03-06T19:00:59.311190"
+  },
+  {
+    "phase": "ETF_DECOMPOSITION",
+    "error_type": "NO_ADAPTER",
+    "item": "IE00B53SZB19",
+    "message": "No adapter registered for this ISIN",
+    "fix_hint": "Add adapter or upload to manual_holdings/IE00B53SZB19.csv",
+    "timestamp": "2026-03-06T19:00:59.420327"
+  },
+  {
+    "phase": "ETF_DECOMPOSITION",
+    "error_type": "NO_ADAPTER",
+    "item": "IE0031442068",
+    "message": "No adapter registered for this ISIN",
+    "fix_hint": "Add adapter or upload to manual_holdings/IE0031442068.csv",
+    "timestamp": "2026-03-06T19:00:59.525256"
+  },
+  {
+    "phase": "ETF_DECOMPOSITION",
+    "error_type": "NO_ADAPTER",
+    "item": "DE000A0F5UF5",
+    "message": "No adapter registered for this ISIN",
+    "fix_hint": "Add adapter or upload to manual_holdings/DE000A0F5UF5.csv",
+    "timestamp": "2026-03-06T19:00:59.633119"
+  },
+  {
+    "phase": "ETF_DECOMPOSITION",
+    "error_type": "NO_ADAPTER",
+    "item": "IE00BYVQ9F29",
+    "message": "No adapter registered for this ISIN",
+    "fix_hint": "Add adapter or upload to manual_holdings/IE00BYVQ9F29.csv",
+    "timestamp": "2026-03-06T19:00:59.742068"
+  },
+  {
+    "phase": "ETF_DECOMPOSITION",
+    "error_type": "NO_ADAPTER",
+    "item": "IE00BL25JP72",
+    "message": "No adapter registered for this ISIN",
+    "fix_hint": "Add adapter or upload to manual_holdings/IE00BL25JP72.csv",
+    "timestamp": "2026-03-06T19:00:59.851034"
+  },
+  {
+    "phase": "ETF_DECOMPOSITION",
+    "error_type": "NO_ADAPTER",
+    "item": "IE00B5BMR087",
+    "message": "No adapter registered for this ISIN",
+    "fix_hint": "Add adapter or upload to manual_holdings/IE00B5BMR087.csv",
+    "timestamp": "2026-03-06T19:00:59.960287"
+  },
+  {
+    "phase": "ETF_DECOMPOSITION",
+    "error_type": "NO_ADAPTER",
+    "item": "LU0908500753",
+    "message": "No adapter registered for this ISIN",
+    "fix_hint": "Add adapter or upload to manual_holdings/LU0908500753.csv",
+    "timestamp": "2026-03-06T19:01:00.069914"
+  },
+  {
+    "phase": "ETF_DECOMPOSITION",
+    "error_type": "NO_ADAPTER",
+    "item": "FR0010361683",
+    "message": "No adapter registered for this ISIN",
+    "fix_hint": "Add adapter or upload to manual_holdings/FR0010361683.csv",
+    "timestamp": "2026-03-06T19:01:00.178760"
+  }
+]

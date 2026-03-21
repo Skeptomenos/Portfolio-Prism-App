@@ -1,0 +1,179 @@
+# Data Schema Spec (State at Rest)
+
+> **Purpose:** Source of Truth for the Database (SQLite), Analytics Cache (Parquet), and Community Hive (Supabase).
+> **Usage:** Used by Python (Pydantic/SQLAlchemy) and Rust (SQLx) to ensure data integrity.
+> **See Tech Spec:** `keystone/specs/tech.md` for technology choices.
+
+---
+
+## 1. Relational Database (SQLite)
+
+This database stores **User State** and **Transactional Data**. It is the Single Source of Truth for "What do I own?".
+
+### 1.1 `assets` Table
+Master universe of all known securities.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `isin` | TEXT | PRIMARY KEY | International Securities Identification Number |
+| `symbol` | TEXT | | Ticker symbol (e.g., AAPL, VOO) |
+| `name` | TEXT | NOT NULL | Human-readable name |
+| `asset_class`| TEXT | NOT NULL | 'Equity', 'ETF', 'Cash', 'Crypto' |
+| `updated_at` | DATETIME| DEFAULT NOW | Last metadata update |
+
+### 1.2 `portfolios` Table
+Supports future multi-portfolio features (though MVP uses only one).
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | INTEGER | PRIMARY KEY | Auto-increment ID |
+| `name` | TEXT | NOT NULL | User-defined name (e.g., "My Retirement") |
+| `currency` | TEXT | DEFAULT 'EUR' | Base currency for this portfolio |
+
+### 1.3 `positions` Table
+Current snapshot of holdings (derived from transactions or direct sync).
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `portfolio_id`| INTEGER | FK -> portfolios(id) | |
+| `isin` | TEXT | FK -> assets(isin) | |
+| `quantity` | REAL | NOT NULL | Number of shares (supports fractional) |
+| `cost_basis` | REAL | | Average buy price per share |
+| `updated_at` | DATETIME| | Timestamp of last sync |
+| **PK** | | (portfolio_id, isin) | Composite Primary Key |
+
+### 1.4 `transactions` Table (Ledger)
+Immutable history of all buys/sells/dividends.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | TEXT | PRIMARY KEY | Unique Transaction ID (from Broker or UUID) |
+| `portfolio_id`| INTEGER | FK -> portfolios(id) | |
+| `isin` | TEXT | FK -> assets(isin) | |
+| `type` | TEXT | NOT NULL | 'Buy', 'Sell', 'Dividend', 'Interest' |
+| `date` | DATETIME| NOT NULL | Execution time |
+| `quantity` | REAL | | Positive for Buy, Negative for Sell |
+| `amount` | REAL | NOT NULL | Total cash impact (signed) |
+| `currency` | TEXT | NOT NULL | Currency of the transaction |
+
+### 1.5 `isin_cache` Table (Identity Resolution Cache)
+
+Local cache for resolved aliases. Enables offline resolution and reduces API calls.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | INTEGER | PRIMARY KEY | Auto-increment |
+| `alias` | TEXT | NOT NULL | Normalized identifier (ticker or name) |
+| `alias_type` | TEXT | NOT NULL | 'ticker' or 'name' |
+| `isin` | TEXT | | Resolved ISIN (NULL for negative cache entries) |
+| `confidence` | REAL | NOT NULL | Resolution confidence 0.0-1.0 |
+| `source` | TEXT | NOT NULL | Resolution source: 'cache', 'hive', 'finnhub', 'wikidata', 'openfigi', 'yfinance' |
+| `resolution_status` | TEXT | NOT NULL, DEFAULT 'resolved' | 'resolved', 'unresolved', 'pending' |
+| `expires_at` | DATETIME | | TTL for negative cache entries (NULL = never expires) |
+| `created_at` | DATETIME | DEFAULT NOW | When entry was created |
+| `updated_at` | DATETIME | DEFAULT NOW | When entry was last updated |
+
+**Constraints:**
+- `UNIQUE(alias, alias_type)` — One cache entry per alias/type combination
+- `CHECK(alias_type IN ('ticker', 'name'))`
+- `CHECK(resolution_status IN ('resolved', 'unresolved', 'pending'))`
+- `CHECK(confidence >= 0.0 AND confidence <= 1.0)`
+
+**Indexes:**
+- `idx_isin_cache_alias ON isin_cache(alias)` — Fast lookup by alias
+- `idx_isin_cache_expires ON isin_cache(expires_at)` — Cleanup expired entries
+
+**Negative Caching:**
+When an alias cannot be resolved after exhausting all sources, store with:
+- `isin = NULL`
+- `resolution_status = 'unresolved'`
+- `confidence = 0.0`
+- `expires_at = NOW() + 7 days` (retry after TTL)
+
+This prevents repeated API calls for known-unresolvable aliases.
+
+> **See:** `keystone/specs/identity_resolution.md` for resolution cascade and confidence scoring.
+> **See:** `keystone/architecture/identity-resolution.md` Section 4.1 for storage schema design.
+
+---
+
+## 2. Analytics Cache (Parquet)
+
+This storage handles **Calculated Data** and **Market Data**. It is optimized for read performance (columnar) and is effectively a cache (can be rebuilt).
+
+### 2.1 `market_data.parquet`
+Latest price and metadata snapshot.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `isin` | String | Join Key |
+| `price` | Double | Latest close price |
+| `currency`| String | Price currency |
+| `date` | Date | Date of price |
+| `sector` | String | GICS Sector |
+| `region` | String | Geographical Region |
+| `country` | String | Country Code (ISO) |
+
+### 2.2 `holdings_lookthrough.parquet`
+Decomposed view of ETF holdings (The "X-Ray").
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `parent_isin`| String | The ETF ISIN |
+| `child_isin` | String | The underlying stock ISIN |
+| `weight` | Double | % of the ETF (0.0 to 1.0) |
+| `date` | Date | Date of holdings snapshot |
+
+### 2.3 `analytics_snapshot.parquet`
+Pre-calculated dashboard metrics for the UI.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `portfolio_id`| Int | |
+| `metric` | String | 'total_value', 'pnl', 'volatility' |
+| `dimension` | String | 'all', 'sector:Tech', 'region:US' |
+| `value` | Double | The calculated number |
+| `timestamp` | Datetime| When this was calculated |
+
+---
+
+## 3. Community Database (Hive / Supabase)
+
+> **See:** `keystone/specs/supabase.md` for full Hive schema and deployment instructions.
+> **See:** `keystone/architecture/hive-database-schema.md` for schema design rationale.
+
+The Hive is documented separately as it has its own operational lifecycle (migrations, RPC functions, etc.).
+
+---
+
+## 4. Data Contracts (Pydantic Models)
+
+These Python classes define the strict interface for the Analytics Engine.
+
+```python
+# contracts.py
+
+class Asset(BaseModel):
+    isin: str = Field(pattern=r"^[A-Z]{2}[A-Z0-9]{9}\d$")
+    name: str
+    asset_class: Literal['Equity', 'ETF', 'Cash', 'Crypto']
+
+class Position(BaseModel):
+    isin: str
+    quantity: float
+    cost_basis: float = 0.0
+
+class PortfolioSnapshot(BaseModel):
+    """Input for the Pipeline"""
+    id: int
+    positions: List[Position]
+    cash_balance: float
+
+class AnalyticsResult(BaseModel):
+    """Output from the Pipeline"""
+    portfolio_id: int
+    total_value: float
+    performance_abs: float
+    performance_rel: float
+    exposures: Dict[str, float]  # {'sector:Tech': 0.25}
+```

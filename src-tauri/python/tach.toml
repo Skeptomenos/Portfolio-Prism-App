@@ -1,0 +1,85 @@
+# Tach Architecture Enforcement Configuration
+# Per specs/06-python-tooling.md:L43-61 - 3-Layer Architecture
+
+# Source root is the portfolio_src package
+source_roots = ["portfolio_src"]
+
+# Exclude non-source directories from checking
+exclude = [
+    "**/__pycache__",
+    "build/",
+    "dist/",
+    "tests/",
+    "venv-build/",
+    "outputs/",
+    ".venv/",
+]
+
+# Disable strict root module checking (allow imports from unconfigured modules)
+root_module = "ignore"
+
+# Enable circular dependency detection
+forbid_circular_dependencies = true
+
+# Ignore TYPE_CHECKING imports (common pattern for type hints)
+ignore_type_checking_imports = true
+
+# Define layers: presentation -> service -> data
+# Higher layers can import from lower layers
+layers = [
+    "presentation",  # headless handlers
+    "service",       # core business logic
+    "data",          # data access layer
+]
+
+# =============================================================================
+# Module Definitions - 3-Layer Architecture
+# =============================================================================
+
+# --- Shared Modules (Utility - accessible by all layers) ---
+
+[[modules]]
+path = "models"
+depends_on = []
+utility = true  # Can be imported by any module
+
+[[modules]]
+path = "prism_utils"
+depends_on = ["models"]
+utility = true  # Can be imported by any module
+
+[[modules]]
+path = "config"
+depends_on = []
+utility = true  # Can be imported by any module
+
+# --- Data Layer (lowest) ---
+
+[[modules]]
+path = "data"
+layer = "data"
+depends_on = ["models", "adapters"]
+
+[[modules]]
+path = "adapters"
+layer = "data"
+depends_on = ["models"]
+
+[[modules]]
+path = "pdf_parser"
+layer = "data"
+depends_on = ["models"]
+
+# --- Service Layer (middle) ---
+
+[[modules]]
+path = "core"
+layer = "service"
+depends_on = ["data", "models", "adapters", "prism_utils", "pdf_parser"]
+
+# --- Presentation Layer (highest) ---
+
+[[modules]]
+path = "headless"
+layer = "presentation"
+depends_on = ["core", "models", "data", "prism_utils"]

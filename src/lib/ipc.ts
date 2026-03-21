@@ -1,0 +1,628 @@
+/**
+ * IPC Commands Module
+ *
+ * High-level functions for communicating with the Rust backend.
+ */
+
+import { z } from 'zod'
+import { invoke, isTauri } from './tauri'
+import { scrubObject } from './scrubber'
+import { logger } from './logger'
+import type {
+  DashboardData,
+  EngineHealth,
+  Holding,
+  AuthStatus,
+  SessionCheck,
+  AuthResponse,
+  LogoutResponse,
+  PortfolioSyncResult,
+  PositionsResponse,
+  TauriCommands,
+  TrueHoldingsResponse,
+  SystemLogReport,
+  HoldingsUploadPreview,
+  ManualHoldingDraft,
+  UploadHoldingsResult,
+  PipelineReportEnvelope,
+} from '../types'
+
+import { EngineHealthSchema } from './schemas/health'
+import { DashboardDataSchema, TrueHoldingsResponseSchema } from '../features/dashboard/schemas'
+import {
+  AuthStatusSchema,
+  SessionCheckSchema,
+  AuthResponseSchema,
+  LogoutResponseSchema,
+  StoredCredentialsSchema,
+} from '../features/auth/schemas'
+import {
+  PortfolioSyncResultSchema,
+  PositionsResponseSchema,
+  HoldingsUploadPreviewSchema,
+  ManualHoldingDraftSchema,
+  UploadHoldingsResultSchema,
+  SystemLogReportSchema,
+  RunPipelineResultSchema,
+  HiveContributionResultSchema,
+  PipelineReportEnvelopeSchema,
+} from './schemas/ipc'
+
+export class IPCValidationError extends Error {
+  constructor(
+    public readonly command: string,
+    public readonly issues: z.core.$ZodIssue[]
+  ) {
+    const summary = issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')
+    super(`IPC validation failed for ${command}: ${summary}`)
+    this.name = 'IPCValidationError'
+  }
+}
+
+const CONTRACT_FAILURE_COMMANDS: Partial<
+  Record<keyof TauriCommands, { component: string; category: string }>
+> = {
+  tr_check_saved_session: { component: 'integrations', category: 'contract_drift' },
+  tr_get_auth_status: { component: 'integrations', category: 'contract_drift' },
+  tr_restore_session: { component: 'integrations', category: 'contract_drift' },
+  get_pipeline_report: { component: 'pipeline', category: 'contract_drift' },
+  run_pipeline: { component: 'pipeline', category: 'contract_drift' },
+}
+
+function computeStableHash(seed: string): string {
+  let hash = 5381
+  for (let index = 0; index < seed.length; index += 1) {
+    hash = ((hash << 5) + hash + seed.charCodeAt(index)) >>> 0
+  }
+  return hash.toString(16).padStart(8, '0')
+}
+
+export function validateResponse<T>(command: string, data: unknown, schema: z.ZodType<T>): T {
+  const result = schema.safeParse(data)
+  if (!result.success) {
+    const mappedCommand = CONTRACT_FAILURE_COMMANDS[command as keyof TauriCommands]
+    if (mappedCommand) {
+      const issues = result.error.issues.map((issue) => ({
+        path: issue.path.join('.'),
+        message: issue.message,
+      }))
+      const errorHash = computeStableHash(`${command}|${JSON.stringify(issues)}`)
+      void logEvent(
+        'ERROR',
+        `IPC contract validation failed for ${command}`,
+        {
+          command,
+          errorHash,
+          issues,
+        },
+        mappedCommand.component,
+        mappedCommand.category
+      )
+    }
+    throw new IPCValidationError(command, result.error.issues)
+  }
+  return result.data
+}
+
+// Commands that handle credentials - never log their payloads raw
+const AUTH_COMMANDS = ['tr_login', 'tr_submit_2fa', 'tr_get_stored_credentials'] as const
+
+const pendingRequests = new Map<string, Promise<unknown>>()
+
+/**
+ * Get Echo Bridge token from environment.
+ * SECURITY: Fails fast if token is not configured - no hardcoded fallbacks.
+ *
+ * @throws Error if VITE_ECHO_BRIDGE_TOKEN is not set
+ */
+let _cachedEchoToken: string | null = null
+let _cachedEchoBridgeUrl: string | null = null
+
+function getEchoBridgeToken(): string {
+  if (_cachedEchoToken !== null) {
+    return _cachedEchoToken
+  }
+
+  const token = import.meta.env.VITE_ECHO_BRIDGE_TOKEN
+  if (!token) {
+    throw new Error(
+      '[IPC] VITE_ECHO_BRIDGE_TOKEN environment variable is required for Echo Bridge mode. ' +
+        'Set it in your .env file or run in Tauri mode instead.'
+    )
+  }
+
+  _cachedEchoToken = token
+  return token
+}
+
+function getEchoBridgeUrl(): string {
+  if (_cachedEchoBridgeUrl !== null) {
+    return _cachedEchoBridgeUrl
+  }
+
+  const configuredUrl = import.meta.env.VITE_ECHO_BRIDGE_URL || 'http://127.0.0.1:5001'
+  const normalizedUrl = configuredUrl.replace(/\/$/, '')
+  _cachedEchoBridgeUrl = normalizedUrl
+  return normalizedUrl
+}
+
+async function deduplicatedCall<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  if (pendingRequests.has(key)) {
+    return pendingRequests.get(key) as Promise<T>
+  }
+
+  const promise = fn()
+  pendingRequests.set(key, promise)
+
+  try {
+    return await promise
+  } finally {
+    pendingRequests.delete(key)
+  }
+}
+
+async function callCommand<K extends keyof TauriCommands>(
+  command: K,
+  payload: TauriCommands[K]['args']
+): Promise<TauriCommands[K]['returns']> {
+  if (isTauri()) {
+    return await invoke(command, payload)
+  }
+
+  try {
+    const echoToken = getEchoBridgeToken()
+    const echoBridgeUrl = getEchoBridgeUrl()
+    const response = await fetch(`${echoBridgeUrl}/command`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Echo-Bridge-Token': echoToken,
+      },
+
+      body: JSON.stringify({
+        id: Math.floor(Math.random() * 1000000),
+        command,
+        payload,
+      }),
+    })
+
+    if (!response.ok) {
+      throw new Error(`Echo-Bridge unreachable (status: ${response.status})`)
+    }
+
+    const result = await response.json()
+    if (!result.success) {
+      const errorMsg = result.error?.message || 'Unknown backend error'
+      const errorCode = result.error?.code || 'UNKNOWN'
+      logger.error(`[IPC] Backend error (${errorCode}): ${errorMsg}`)
+
+      // Log to system logs for auto-reporting
+      // SECURITY: Never log credentials (phone, pin, 2FA code) to system logs
+      const safePayload = AUTH_COMMANDS.includes(command as (typeof AUTH_COMMANDS)[number])
+        ? { ...payload, phone: '[REDACTED]', pin: '[REDACTED]', code: '[REDACTED]' }
+        : scrubObject(payload)
+
+      logEvent(
+        'ERROR',
+        `Backend Error: ${errorMsg}`,
+        {
+          command,
+          code: errorCode,
+          payload: safePayload,
+        },
+        'pipeline',
+        'api_error'
+      )
+
+      throw new Error(`Backend Error: ${errorMsg}`)
+    }
+
+    return result.data
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Backend Error:')) {
+      throw error
+    }
+    logger.error('[IPC] Echo-Bridge connection failed', error instanceof Error ? error : undefined)
+    throw new Error('Echo-Bridge unreachable. Check if the Python engine is running.')
+  }
+}
+
+/**
+ * Get engine health status
+ */
+export async function getEngineHealth(): Promise<EngineHealth> {
+  try {
+    const data = await deduplicatedCall('get_engine_health', () =>
+      callCommand('get_engine_health', {})
+    )
+    return validateResponse('get_engine_health', data, EngineHealthSchema)
+  } catch (error) {
+    logger.error('[IPC] get_health failed', error instanceof Error ? error : undefined)
+    throw error
+  }
+}
+
+/**
+ * Get dashboard data for a portfolio
+ */
+export async function getDashboardData(portfolioId: number): Promise<DashboardData> {
+  try {
+    const key = `get_dashboard_data:${portfolioId}`
+    const data = await deduplicatedCall(key, () =>
+      callCommand('get_dashboard_data', { portfolioId })
+    )
+    return validateResponse('get_dashboard_data', data, DashboardDataSchema)
+  } catch (error) {
+    logger.error('[IPC] get_dashboard_data failed', error instanceof Error ? error : undefined)
+    throw error
+  }
+}
+
+/**
+ * Get all holdings for a portfolio
+ */
+export async function getHoldings(portfolioId: number): Promise<Holding[]> {
+  try {
+    const dashboard = await getDashboardData(portfolioId)
+    return dashboard.topHoldings
+  } catch (error) {
+    logger.error('[IPC] getHoldings failed', error instanceof Error ? error : undefined)
+    throw error
+  }
+}
+
+/**
+ * Get all positions for a portfolio (full data for table)
+ */
+export async function getPositions(portfolioId: number): Promise<PositionsResponse> {
+  try {
+    const key = `get_positions:${portfolioId}`
+    const data = await deduplicatedCall(key, () => callCommand('get_positions', { portfolioId }))
+    return validateResponse('get_positions', data, PositionsResponseSchema)
+  } catch (error) {
+    logger.error('[IPC] get_positions failed', error instanceof Error ? error : undefined)
+    throw error
+  }
+}
+
+/**
+ * Trigger portfolio sync with real Trade Republic data
+ */
+export async function syncPortfolio(
+  portfolioId: number,
+  force: boolean = false
+): Promise<PortfolioSyncResult> {
+  try {
+    const key = `sync_portfolio:${portfolioId}:${force}`
+    const data = await deduplicatedCall(key, () =>
+      callCommand('sync_portfolio', { portfolioId, force })
+    )
+    return validateResponse('sync_portfolio', data, PortfolioSyncResultSchema)
+  } catch (error) {
+    logger.error('[IPC] sync_portfolio failed', error instanceof Error ? error : undefined)
+    throw error
+  }
+}
+
+/**
+ * Trigger analytics pipeline manually
+ */
+export async function runPipeline(): Promise<{
+  success: boolean
+  errors: string[]
+  durationMs: number
+}> {
+  try {
+    const data = await callCommand('run_pipeline', {})
+    return validateResponse('run_pipeline', data, RunPipelineResultSchema)
+  } catch (error) {
+    logger.error('[IPC] run_pipeline failed', error instanceof Error ? error : undefined)
+    throw error
+  }
+}
+
+/**
+ * Get current Trade Republic authentication status
+ */
+export async function trGetAuthStatus(): Promise<AuthStatus> {
+  try {
+    const data = await deduplicatedCall('tr_get_auth_status', () =>
+      callCommand('tr_get_auth_status', {})
+    )
+    return validateResponse('tr_get_auth_status', data, AuthStatusSchema)
+  } catch (error) {
+    logger.error('[IPC] tr_get_auth_status failed', error instanceof Error ? error : undefined)
+    throw error
+  }
+}
+
+/**
+ * Check for saved Trade Republic session
+ */
+export async function trCheckSavedSession(): Promise<SessionCheck> {
+  try {
+    const data = await deduplicatedCall('tr_check_saved_session', () =>
+      callCommand('tr_check_saved_session', {})
+    )
+    return validateResponse('tr_check_saved_session', data, SessionCheckSchema)
+  } catch (error) {
+    logger.error('[IPC] tr_check_saved_session failed', error instanceof Error ? error : undefined)
+    throw error
+  }
+}
+
+/**
+ * Attempt to restore a saved Trade Republic session explicitly.
+ */
+export async function trRestoreSession(): Promise<AuthResponse> {
+  try {
+    const data = await deduplicatedCall('tr_restore_session', () =>
+      callCommand('tr_restore_session', {})
+    )
+    return validateResponse('tr_restore_session', data, AuthResponseSchema)
+  } catch (error) {
+    logger.error('[IPC] tr_restore_session failed', error instanceof Error ? error : undefined)
+    throw error
+  }
+}
+
+/**
+ * Check if stored Trade Republic credentials exist.
+ * SECURITY: Only returns masked phone for UI display, never plaintext credentials.
+ */
+export async function trGetStoredCredentials(): Promise<{
+  hasCredentials: boolean
+  maskedPhone: string | null
+}> {
+  try {
+    const data = await callCommand('tr_get_stored_credentials', {})
+    return validateResponse('tr_get_stored_credentials', data, StoredCredentialsSchema)
+  } catch (error) {
+    logger.error(
+      '[IPC] tr_get_stored_credentials failed',
+      error instanceof Error ? error : undefined
+    )
+    return { hasCredentials: false, maskedPhone: null }
+  }
+}
+
+/**
+ * Start Trade Republic login process with provided credentials.
+ */
+export async function trLogin(
+  phone: string,
+  pin: string,
+  remember: boolean = true
+): Promise<AuthResponse> {
+  try {
+    const data = await callCommand('tr_login', { phone, pin, remember })
+    return validateResponse('tr_login', data, AuthResponseSchema)
+  } catch (error) {
+    logger.error('[IPC] tr_login failed', error instanceof Error ? error : undefined)
+    throw error
+  }
+}
+
+/**
+ * Start Trade Republic login using stored credentials (server-side).
+ * SECURITY: Credentials are retrieved and used server-side, never sent to frontend.
+ */
+export async function trLoginWithStoredCredentials(): Promise<AuthResponse> {
+  try {
+    const data = await callCommand('tr_login', { useStoredCredentials: true })
+    return validateResponse('tr_login', data, AuthResponseSchema)
+  } catch (error) {
+    logger.error('[IPC] tr_login (stored) failed', error instanceof Error ? error : undefined)
+    throw error
+  }
+}
+
+/**
+ * Submit 2FA code for Trade Republic
+ */
+export async function trSubmit2FA(code: string): Promise<AuthResponse> {
+  try {
+    const data = await callCommand('tr_submit_2fa', { code })
+    return validateResponse('tr_submit_2fa', data, AuthResponseSchema)
+  } catch (error) {
+    logger.error('[IPC] tr_submit_2fa failed', error instanceof Error ? error : undefined)
+    throw error
+  }
+}
+
+/**
+ * Logout from Trade Republic
+ */
+export async function trLogout(): Promise<LogoutResponse> {
+  try {
+    const data = await callCommand('tr_logout', {})
+    return validateResponse('tr_logout', data, LogoutResponseSchema)
+  } catch (error) {
+    logger.error('[IPC] tr_logout failed', error instanceof Error ? error : undefined)
+    throw error
+  }
+}
+
+/**
+ * Check if the backend is reachable
+ */
+export async function checkConnection(): Promise<boolean> {
+  try {
+    await getEngineHealth()
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Get current runtime environment
+ */
+export function getEnvironment(): 'tauri' | 'browser' {
+  return isTauri() ? 'tauri' : 'browser'
+}
+
+/**
+ * Upload manual ETF holdings
+ */
+export async function uploadHoldings(
+  filePath: string,
+  etfIsin: string
+): Promise<UploadHoldingsResult> {
+  try {
+    const data = await callCommand('upload_holdings', { filePath, etfIsin })
+    return validateResponse('upload_holdings', data, UploadHoldingsResultSchema)
+  } catch (error) {
+    logger.error('[IPC] upload_holdings failed', error instanceof Error ? error : undefined)
+    throw error
+  }
+}
+
+/**
+ * Open the native Tauri file picker for manual holdings uploads.
+ */
+export async function pickHoldingsFile(): Promise<string> {
+  try {
+    const data = await callCommand('pick_holdings_file', {})
+    return validateResponse('pick_holdings_file', data, z.string())
+  } catch (error) {
+    logger.error('[IPC] pick_holdings_file failed', error instanceof Error ? error : undefined)
+    throw error
+  }
+}
+
+/**
+ * Parse a holdings file and return a reviewable preview without saving it.
+ */
+export async function previewHoldingsUpload(
+  filePath: string,
+  etfIsin: string
+): Promise<HoldingsUploadPreview> {
+  try {
+    const data = await callCommand('preview_holdings_upload', { filePath, etfIsin })
+    return validateResponse('preview_holdings_upload', data, HoldingsUploadPreviewSchema)
+  } catch (error) {
+    logger.error('[IPC] preview_holdings_upload failed', error instanceof Error ? error : undefined)
+    throw error
+  }
+}
+
+/**
+ * Persist reviewed holdings rows to the backend cache.
+ */
+export async function commitHoldingsUpload(
+  etfIsin: string,
+  holdings: ManualHoldingDraft[]
+): Promise<UploadHoldingsResult> {
+  try {
+    const validatedHoldings = validateResponse(
+      'commit_holdings_upload.holdings',
+      holdings,
+      z.array(ManualHoldingDraftSchema)
+    )
+    const data = await callCommand('commit_holdings_upload', {
+      etfIsin,
+      holdings: validatedHoldings,
+    })
+    return validateResponse('commit_holdings_upload', data, UploadHoldingsResultSchema)
+  } catch (error) {
+    logger.error('[IPC] commit_holdings_upload failed', error instanceof Error ? error : undefined)
+    throw error
+  }
+}
+
+/**
+ * Get decomposed true holdings with resolution metadata
+ */
+export async function getTrueHoldings(): Promise<TrueHoldingsResponse> {
+  try {
+    const data = await deduplicatedCall('get_true_holdings', () =>
+      callCommand('get_true_holdings', {})
+    )
+    return validateResponse('get_true_holdings', data, TrueHoldingsResponseSchema)
+  } catch (error) {
+    logger.error('[IPC] get_true_holdings failed', error instanceof Error ? error : undefined)
+    throw error
+  }
+}
+
+/**
+ * Log an event to the backend database
+ */
+export async function logEvent(
+  level: 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR' | 'CRITICAL',
+  message: string,
+  context: Record<string, unknown> = {},
+  component: string = 'ui',
+  category: string = 'general'
+): Promise<void> {
+  try {
+    await callCommand('log_event', { level, message, context, component, category })
+  } catch (error) {
+    // Fallback to avoid infinite loops if logger fails
+    console.error('[IPC] Failed to log event:', error)
+  }
+}
+
+export async function getRecentReports(): Promise<SystemLogReport[]> {
+  try {
+    const data = await callCommand('get_recent_reports', {})
+    return validateResponse('get_recent_reports', data, z.array(SystemLogReportSchema))
+  } catch (error) {
+    logger.error('[IPC] get_recent_reports failed', error instanceof Error ? error : undefined)
+    return []
+  }
+}
+
+/**
+ * Get pending reviews
+ */
+export async function getPendingReviews(): Promise<SystemLogReport[]> {
+  try {
+    const data = await callCommand('get_pending_reviews', {})
+    return validateResponse('get_pending_reviews', data, z.array(SystemLogReportSchema))
+  } catch (error) {
+    logger.error('[IPC] get_pending_reviews failed', error instanceof Error ? error : undefined)
+    return []
+  }
+}
+
+/**
+ * Get the latest pipeline health report
+ */
+export async function getPipelineReport(): Promise<PipelineReportEnvelope> {
+  try {
+    const data = await deduplicatedCall('get_pipeline_report', () =>
+      callCommand('get_pipeline_report', {})
+    )
+    return validateResponse('get_pipeline_report', data, PipelineReportEnvelopeSchema)
+  } catch (error) {
+    logger.error('[IPC] get_pipeline_report failed', error instanceof Error ? error : undefined)
+    throw error
+  }
+}
+
+/**
+ * Set Hive contribution preference
+ */
+export async function setHiveContribution(enabled: boolean): Promise<void> {
+  try {
+    await callCommand('set_hive_contribution', { enabled })
+  } catch (error) {
+    logger.error('[IPC] set_hive_contribution failed', error instanceof Error ? error : undefined)
+  }
+}
+
+/**
+ * Get Hive contribution preference
+ */
+export async function getHiveContribution(): Promise<boolean> {
+  try {
+    const data = await callCommand('get_hive_contribution', {})
+    const result = validateResponse('get_hive_contribution', data, HiveContributionResultSchema)
+    return result.enabled
+  } catch (error) {
+    logger.error('[IPC] get_hive_contribution failed', error instanceof Error ? error : undefined)
+    return false
+  }
+}

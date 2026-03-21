@@ -1,0 +1,119 @@
+import React from 'react'
+
+interface SkeletonProps {
+  className?: string
+  variant?: 'text' | 'circular' | 'rectangular'
+  width?: string | number
+  height?: string | number
+}
+
+export function Skeleton({
+  className = '',
+  variant = 'rectangular',
+  width,
+  height,
+}: SkeletonProps): JSX.Element {
+  const baseClasses = 'animate-pulse bg-white/5'
+
+  const variantClasses = {
+    text: 'rounded',
+    circular: 'rounded-full',
+    rectangular: 'rounded-lg',
+  }
+
+  const style: React.CSSProperties = {}
+  if (width) style.width = typeof width === 'number' ? `${width}px` : width
+  if (height) style.height = typeof height === 'number' ? `${height}px` : height
+
+  return <div className={`${baseClasses} ${variantClasses[variant]} ${className}`} style={style} />
+}
+
+export function SkeletonCard({ className = '' }: { className?: string }): JSX.Element {
+  return (
+    <div className={`rounded-2xl bg-white/[0.03] border border-white/[0.08] p-6 ${className}`}>
+      <Skeleton height={20} width="40%" className="mb-4" />
+      <Skeleton height={40} width="60%" className="mb-2" />
+      <Skeleton height={16} width="30%" />
+    </div>
+  )
+}
+
+export function SkeletonTable({ rows = 5 }: { rows?: number }): JSX.Element {
+  return (
+    <div className="space-y-3">
+      <div className="flex gap-4 pb-3 border-b border-white/10">
+        <Skeleton height={16} width="20%" />
+        <Skeleton height={16} width="15%" />
+        <Skeleton height={16} width="25%" />
+        <Skeleton height={16} width="15%" />
+        <Skeleton height={16} width="15%" />
+      </div>
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="flex gap-4 py-2">
+          <Skeleton height={20} width="20%" />
+          <Skeleton height={20} width="15%" />
+          <Skeleton height={20} width="25%" />
+          <Skeleton height={20} width="15%" />
+          <Skeleton height={20} width="15%" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/**
+ * Dashboard loading skeleton - matches Dashboard.tsx loading state structure
+ * Displays animated placeholder cards while portfolio data is loading.
+ */
+export function DashboardSkeleton(): JSX.Element {
+  return (
+    <div className="animate-fade-in">
+      <div style={{ marginBottom: '32px' }}>
+        <h2 style={{ fontSize: '28px', fontWeight: '700', marginBottom: '8px' }}>
+          Portfolio Overview
+        </h2>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
+          Loading your portfolio data...
+        </p>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
+        {[1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className="rounded-2xl bg-white/[0.03] border border-white/[0.08]"
+            style={{ padding: '24px', minHeight: '120px' }}
+          >
+            <Skeleton height={20} width="60%" className="mb-3" />
+            <Skeleton height={36} width="80%" />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+export function HoldingsSkeleton(): JSX.Element {
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <Skeleton height={32} width={200} />
+        <Skeleton height={40} width={120} />
+      </div>
+      <SkeletonTable rows={8} />
+    </div>
+  )
+}
+
+export function XRaySkeleton(): JSX.Element {
+  return (
+    <div className="space-y-6">
+      <Skeleton height={32} width={250} className="mb-6" />
+      <div className="flex gap-2 mb-4">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Skeleton key={i} height={40} width={80} className="rounded-full" />
+        ))}
+      </div>
+      <SkeletonTable rows={6} />
+    </div>
+  )
+}

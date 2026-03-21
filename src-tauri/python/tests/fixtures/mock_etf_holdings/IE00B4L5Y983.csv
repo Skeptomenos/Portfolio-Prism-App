@@ -1,0 +1,11 @@
+ISIN,Name,Weight,Region,Sector
+US0378331005,Apple Inc.,5.2,North America,Technology
+US5949181045,Microsoft Corporation,4.8,North America,Technology
+US0231351067,Amazon.com Inc.,3.1,North America,Consumer Discretionary
+US02079K3059,Alphabet Inc.,2.5,North America,Communication Services
+US30303M1027,Meta Platforms Inc.,1.8,North America,Communication Services
+US88160R1014,Tesla Inc.,1.5,North America,Consumer Discretionary
+US67066G1040,NVIDIA Corporation,3.2,North America,Technology
+JP3633400001,Toyota Motor Corporation,1.2,Asia Pacific,Consumer Discretionary
+GB0002374006,Diageo plc,0.8,Europe,Consumer Staples
+CH0038863350,Nestlé S.A.,0.9,Europe,Consumer Staples

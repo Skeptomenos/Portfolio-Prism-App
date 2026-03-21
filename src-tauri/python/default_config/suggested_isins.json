@@ -1,0 +1,146 @@
+{
+  "REGN": {
+    "isin": "US7591EP1005",
+    "name": "Regeneron Pharmaceuticals Inc"
+  },
+  "AZN": {
+    "isin": "GB0009895292",
+    "name": "AstraZeneca PLC"
+  },
+  "AZN.L": {
+    "isin": "GB0009895292",
+    "name": "AstraZeneca PLC"
+  },
+  "ARGX": {
+    "isin": "BE0003818359",
+    "name": "argenx SE"
+  },
+  "ARGX.BR": {
+    "isin": "BE0003818359",
+    "name": "argenx SE"
+  },
+  "UTHR": {
+    "isin": "US91307C1027",
+    "name": "United Therapeutics Corp"
+  },
+  "ILMN": {
+    "isin": "US4523271090",
+    "name": "Illumina Inc"
+  },
+  "MEDP": {
+    "isin": "US58503R1068",
+    "name": "Medpace Holdings Inc"
+  },
+  "NBIX": {
+    "isin": "US64125C1099",
+    "name": "Neurocrine Biosciences Inc"
+  },
+  "RVMD": {
+    "isin": "US76029N1063",
+    "name": "Revolution Medicines Inc"
+  },
+  "BBIO": {
+    "isin": "US09290D1019",
+    "name": "BridgeBio Pharma Inc"
+  },
+  "SMMT": {
+    "isin": "US83192H1014",
+    "name": "Summit Therapeutics PLC"
+  },
+  "PDD": {
+    "isin": "US7223041028",
+    "name": "PDD Holdings Inc"
+  },
+  "9988.HK": {
+    "isin": "KYG017191142",
+    "name": "Alibaba Group Holding Ltd"
+  },
+  "BABA": {
+    "isin": "US01609W1027",
+    "name": "Alibaba Group Holding Ltd (ADR)"
+  },
+  "0939.HK": {
+    "isin": "CNE1000002H1",
+    "name": "China Construction Bank Corp"
+  },
+  "2317": {
+    "isin": "TW0002317005",
+    "name": "Hon Hai Precision Industry Co Ltd"
+  },
+  "2317.TW": {
+    "isin": "TW0002317005",
+    "name": "Hon Hai Precision Industry Co Ltd"
+  },
+  "HDFCBANK": {
+    "isin": "INE040A01034",
+    "name": "HDFC Bank Ltd"
+  },
+  "HDFCBANK.NS": {
+    "isin": "INE040A01034",
+    "name": "HDFC Bank Ltd"
+  },
+  "CNYA.L": {
+    "isin": "IE00BKPSFC54",
+    "name": "iShares MSCI China A UCITS ETF"
+  },
+  "2330": {
+    "isin": "TW0002330008",
+    "name": "Taiwan Semiconductor Manufacturing Co Ltd"
+  },
+  "2330.TW": {
+    "isin": "TW0002330008",
+    "name": "Taiwan Semiconductor Manufacturing Co Ltd"
+  },
+  "TSM": {
+    "isin": "US8740391003",
+    "name": "Taiwan Semiconductor Manufacturing Co Ltd (ADR)"
+  },
+  "0700.HK": {
+    "isin": "KYG875721634",
+    "name": "Tencent Holdings Ltd"
+  },
+  "TCEHY": {
+    "isin": "US88032Q1094",
+    "name": "Tencent Holdings Ltd (ADR)"
+  },
+  "1299.HK": {
+    "isin": "HK0000069689",
+    "name": "AIA Group Ltd"
+  },
+  "3690.HK": {
+    "isin": "KYG596691041",
+    "name": "Meituan"
+  },
+  "RELIANCE.NS": {
+    "isin": "INE002A01018",
+    "name": "Reliance Industries Ltd"
+  },
+  "INFY": {
+    "isin": "US4567881085",
+    "name": "Infosys Ltd (ADR)"
+  },
+  "INFY.NS": {
+    "isin": "INE009A01021",
+    "name": "Infosys Ltd"
+  },
+  "TCS.NS": {
+    "isin": "INE467B01029",
+    "name": "Tata Consultancy Services Ltd"
+  },
+  "ICICIBANK.NS": {
+    "isin": "INE090A01021",
+    "name": "ICICI Bank Ltd"
+  },
+  "005930.KS": {
+    "isin": "KR7005930003",
+    "name": "Samsung Electronics Co Ltd"
+  },
+  "SSNLF": {
+    "isin": "KR7005930003",
+    "name": "Samsung Electronics Co Ltd"
+  },
+  "000660.KS": {
+    "isin": "KR7000660001",
+    "name": "SK Hynix Inc"
+  }
+}

@@ -1,0 +1,143 @@
+# src-tauri/python/portfolio_src/data/tr_sync.py
+"""
+Trade Republic Data Sync Module
+
+Replaces POC/scripts/fetch_tr_api.py with direct library calls.
+Fetches portfolio data using pytr library and saves to CSV.
+"""
+
+import csv
+from pathlib import Path
+from typing import Optional, List, Dict, Any
+
+from portfolio_src.prism_utils.logging_config import get_logger
+
+logger = get_logger(__name__)
+
+
+class TRDataFetcher:
+    """
+    Fetches portfolio data from Trade Republic via TR Daemon.
+
+    Usage:
+        fetcher = TRDataFetcher(bridge)
+        positions = fetcher.fetch_portfolio_sync()
+        fetcher.save_to_csv(positions, output_path)
+    """
+
+    def __init__(self, bridge):
+        """
+        Initialize with TRBridge instance.
+
+        Args:
+            bridge: TRBridge instance from TRAuthManager.bridge
+        """
+        self.bridge = bridge
+
+    def fetch_portfolio_sync(self) -> List[Dict[str, Any]]:
+        """
+        Fetch portfolio positions via daemon.
+
+        Returns:
+            List of position dicts
+        """
+        try:
+            logger.info("Requesting portfolio from daemon...")
+            response = self.bridge.fetch_portfolio()
+
+            if response.get("status") != "success":
+                msg = response.get("message") or "Unknown daemon error"
+                logger.error("Trade Republic fetch failed", extra={"message": msg})
+                raise RuntimeError(msg)
+
+            data = response.get("data", {})
+            raw_positions = data.get("positions", [])
+
+            if not raw_positions:
+                cash = data.get("cash", [])
+                if cash:
+                    logger.info("Portfolio is empty but cash found.")
+                    return []
+                else:
+                    logger.warning("No positions or cash found in Trade Republic portfolio")
+                    return []
+
+            positions = []
+            for pos in raw_positions:
+                try:
+                    # IMPORTANT: netSize and averageBuyIn are STRINGS, not floats!
+                    quantity = float(pos.get("netSize", "0"))
+                    avg_cost = float(pos.get("averageBuyIn", "0"))
+                    net_value = float(pos.get("netValue", 0))
+
+                    # Calculate current price (no "price" key in pytr output)
+                    current_price = net_value / quantity if quantity > 0 else 0
+
+                    positions.append(
+                        {
+                            "isin": pos["instrumentId"],
+                            "name": pos.get("name", "Unknown"),
+                            "quantity": quantity,
+                            "avg_cost": avg_cost,
+                            "current_price": current_price,
+                            "net_value": net_value,
+                        }
+                    )
+                except (KeyError, ValueError) as e:
+                    logger.warning(
+                        "Skipping malformed position",
+                        extra={"error": str(e), "error_type": type(e).__name__},
+                    )
+                    continue
+
+            logger.info(
+                "Successfully fetched positions from Trade Republic",
+                extra={"position_count": len(positions)},
+            )
+            return positions
+
+        except Exception as e:
+            err_msg = str(e)
+            if any(x in err_msg.lower() for x in ["session", "expired", "unauthorized"]):
+                logger.error("Trade Republic session invalid", extra={"error": err_msg})
+            else:
+                logger.error("Sync error", extra={"error": err_msg})
+            raise
+
+    def save_to_csv(self, positions: List[Dict], output_path: Path) -> int:
+        """
+        Save positions to CSV in pipeline-compatible format.
+
+        Uses stdlib csv module for robust handling of edge cases (embedded commas,
+        quotes, newlines in instrument names).
+
+        Format: ISIN,Quantity,AvgCost,CurrentPrice,NetValue,TR_Name
+        (Compatible with state_manager.py expectations)
+
+        Args:
+            positions: List of position dicts from fetch_portfolio
+            output_path: Path to save CSV file
+
+        Returns:
+            Number of positions saved
+        """
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Use newline="" per csv module docs to prevent extra blank lines on Windows
+        with open(output_path, "w", encoding="utf-8", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["ISIN", "Quantity", "AvgCost", "CurrentPrice", "NetValue", "TR_Name"])
+            for pos in positions:
+                writer.writerow(
+                    [
+                        pos["isin"],
+                        f"{pos['quantity']:.6f}",
+                        f"{pos['avg_cost']:.4f}",
+                        f"{pos['current_price']:.4f}",
+                        f"{pos['net_value']:.2f}",
+                        pos["name"],
+                    ]
+                )
+
+        logger.info("Saved positions", extra={"count": len(positions), "path": str(output_path)})
+        return len(positions)
