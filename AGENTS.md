@@ -14,6 +14,6 @@ Source of truth for execution/testing lives in `docs/execution/`:
 - Testing runbook: `docs/execution/opencode-self-testing-runbook.md`
 - Setup context: `docs/execution/codex-install-config-plan.md`
 
-Private planning, reviews, and strategy docs are at `_planning/portfolio-prism/` (outside the public split prefix).
+Private planning, reviews, and strategy docs are in `_planning/` (stripped by CI before publishing).
 
 Read `README.md` for project overview and setup.
