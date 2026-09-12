@@ -1,0 +1,79 @@
+import { describe, it, expect } from 'vitest'
+import { createServer, request } from 'node:http'
+import type { AddressInfo } from 'node:net'
+import { api } from '../server/http'
+import { PortfolioService } from '../server/service'
+import { SnapshotStore } from '../server/store'
+import type { Broker } from '../server/broker'
+
+const broker: Broker = {
+  login: async () => {},
+  restore: async () => false,
+  fetch: async () => ({ fetchedAt: new Date().toISOString(), positions: [] }),
+  logout() {},
+  close() {},
+  warning: () => null,
+}
+describe('local HTTP boundary', () => {
+  it('rejects foreign origins, rebound hosts, missing mutation headers and invalid login input', async () => {
+    const service = new PortfolioService(broker, new SnapshotStore(':memory:'))
+    let origin = ''
+    const server = createServer((req, res) => {
+      void api(req, res, service, origin)
+    })
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+    origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
+    try {
+      expect((await fetch(`${origin}/api/status`)).status).toBe(200)
+      expect((await fetch(`${origin}/api/data`)).status).toBe(200)
+      expect((await fetch(`${origin}/api/exposure`)).status).toBe(200)
+      expect(
+        (await fetch(`${origin}/api/exposure`, { headers: { Origin: 'https://evil.example' } }))
+          .status
+      ).toBe(403)
+      expect((await fetch(`${origin}/api/composition/refresh`, { method: 'POST' })).status).toBe(
+        403
+      )
+      expect(
+        (await fetch(`${origin}/api/overview`, { headers: { Origin: 'https://evil.example' } }))
+          .status
+      ).toBe(403)
+      expect(
+        (await fetch(`${origin}/api/data`, { headers: { Origin: 'https://evil.example' } })).status
+      ).toBe(403)
+      expect((await fetch(`${origin}/api/extract`, { method: 'POST' })).status).toBe(403)
+      expect(
+        (await fetch(`${origin}/api/status`, { headers: { Origin: 'https://evil.example' } }))
+          .status
+      ).toBe(403)
+      const badHostStatus = await new Promise<number | undefined>((resolve) => {
+        const req = request(
+          `${origin}/api/status`,
+          { headers: { Host: 'evil.example' } },
+          (res) => {
+            res.resume()
+            resolve(res.statusCode)
+          }
+        )
+        req.end()
+      })
+      expect(badHostStatus).toBe(403)
+      expect((await fetch(`${origin}/api/sync`, { method: 'POST' })).status).toBe(403)
+      const headers = { Origin: origin, 'Content-Type': 'application/json', 'X-Prism-Client': '1' }
+      const invalid = await fetch(`${origin}/api/login`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ phone: 'invalid', pin: 'secret' }),
+      })
+      expect(invalid.status).toBe(400)
+      expect(await invalid.text()).not.toContain('secret')
+      expect(
+        (await fetch(`${origin}/api/sync`, { method: 'POST', headers, body: '{}' })).status
+      ).toBe(202)
+      await service.settled()
+    } finally {
+      await service.close()
+      await new Promise<void>((resolve) => server.close(() => resolve()))
+    }
+  })
+})

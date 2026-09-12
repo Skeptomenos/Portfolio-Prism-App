@@ -1,217 +1,35 @@
 # Portfolio Prism
 
-A privacy-first desktop portfolio analyzer that runs entirely on your machine. Built with **Tauri + Python Sidecar** architecture — no bundled Chromium, no cloud dependencies for core functionality.
+Portfolio Prism helps you understand which companies you own across individual stocks and ETFs. A company can appear in several funds as well as in a direct holding. Prism aims to combine those contributions so you can see concentration and shape your portfolio around your intentions.
 
-> **"Battery Included, Browser Free"**
+## Current implementation
 
-## Features
+V2 is a local browser application under `v2/`. It connects to Trade Republic through an unofficial API client, stores holdings and broker source data locally, and shows sortable holdings with estimated values, quote dates and explicit coverage gaps. Cash is shown separately. Local diagnostics explain failed operations without recording credentials.
 
-- **Local-First Analysis** — Your portfolio data never leaves your machine
-- **Trade Republic Integration** — 2FA login to sync your portfolio automatically
-- **Community ISIN Resolution** — Crowdsourced ticker mappings via "The Hive"
-- **Offline Mode** — Full functionality with cached data when disconnected
-- **Native Performance** — Tauri uses system WebKit (~10MB shell vs 300MB+ Electron)
+The one-ETF pilot combines direct stocks with dated, partial holdings from the iShares Core S&P 500 UCITS ETF USD (Dist). It shows each contribution, source, date and unresolved remainder. Other ETFs and cross-share-class company aggregation remain unsupported. The [project index](index.md#separate-ongoing-work) routes ongoing acquisition and reference design work to their separate branches. The current preview is not a completed portfolio analysis release; broker valuation reconciliation and daily-use acceptance remain open.
 
-## Screenshots
+## Run and test
 
-_Coming soon_
+Use the [V2 setup guide](v2/README.md) for requirements, startup commands, checks, storage and diagnostics. V2 requires Node.js 22.13 or newer and pnpm. The default local URL is http://127.0.0.1:4310/.
 
----
+The backend uses TypeScript and Effect. The interface uses React and Vite. SQLite stores portfolio data, and the operating system credential store holds the broker session. Customized shadcn/ui and restrained Motion are the agreed interface direction; full component adoption and visual polish remain ahead.
 
-## Quick Start
+## Data and trust
 
-### Prerequisites
+Broker data and Prism calculations are labeled separately. Missing values stay unknown rather than becoming zero. Current estimates use supported broker bid quotes with listing currency and timestamps; subtotals remain separated by currency. The ETF pilot uses dated constituent evidence and exact security ISIN matches; company totals remain explicitly incomplete.
 
-| Requirement | Version       | Purpose          |
-| ----------- | ------------- | ---------------- |
-| Node.js     | 18+           | Frontend build   |
-| Rust        | Latest stable | Tauri shell      |
-| Python      | 3.9+          | Analytics engine |
-| PyInstaller | 6.0+          | Bundle Python    |
+Portfolio storage is local. Network access is required for broker login and refresh; the ETF pilot retrieves public composition from justETF. Offline access means reading saved data, not obtaining fresh prices. Login may require approval or reauthentication in the broker app. Never put PINs or session material in logs or issue reports.
 
-### Installation
+## Product direction
 
-```bash
-# Clone the repository
-git clone https://github.com/your-username/portfolio-prism.git
-cd portfolio-prism
+The first goal is “What do I actually own today?” Later options include comparing ETFs, simulating purchases, exploring investment themes and adding brokers. These are not delivered features. The interface should feel calm, precise and futuristic, with subtle classical proportions and clear information that supports personal agency.
 
-# Install Node dependencies
-npm install
+## Repository navigation
 
-# Set up Python environment
-cd src-tauri/python
-python3 -m venv venv-build
-source venv-build/bin/activate  # On Windows: venv-build\Scripts\activate
-pip install -r requirements-build.txt
+- [Project index](index.md): documentation map and the continuation path for agents.
+- [V2 README](v2/README.md): current runtime and validation contracts.
+- [Contributing](CONTRIBUTING.md): development boundaries and verification.
+- [AGENTS.md](AGENTS.md): project instructions.
+- [V1 README reference](docs/v1/execution/v1-readme-reference.md): historical Tauri/Python design and setup.
 
-# Build the Python sidecar binary
-pyinstaller prism_headless.spec
-mkdir -p ../binaries
-cp dist/prism ../binaries/prism-aarch64-apple-darwin  # Adjust for your platform
-
-# Return to project root
-cd ../..
-```
-
-### Development
-
-```bash
-# Run in development mode (hot reload for frontend)
-npm run tauri dev
-```
-
-### Production Build
-
-```bash
-# Build the distributable .app / .dmg
-npm run tauri build
-```
-
-The bundle will be in `src-tauri/target/release/bundle/`.
-
----
-
-## Project Structure
-
-```
-.
-├── src/                         # Frontend (TypeScript/Vite)
-│   ├── main.ts                  # Loading screen logic
-│   └── styles.css               # Loading screen styles
-│
-├── src-tauri/                   # Tauri application
-│   ├── src/                     # Rust source
-│   │   ├── lib.rs               # Sidecar spawning, IPC
-│   │   └── main.rs              # Entry point
-│   ├── python/                  # Python sidecar
-│   │   ├── portfolio_src/       # Business logic
-│   │   │   ├── adapters/        # ETF provider adapters
-│   │   │   ├── core/            # Analysis engine
-│   │   │   ├── data/            # Data layer
-│   │   │   └── models/          # Data models
-│   │   ├── prism_headless.py        # Sidecar entry point
-│   │   ├── prism_headless.spec           # PyInstaller configuration
-│   │   └── requirements-build.txt
-│   ├── binaries/                # Built Python binary (gitignored)
-│   ├── icons/                   # Application icons
-│   └── tauri.conf.json          # Tauri configuration
-│
-├── infrastructure/              # Backend services
-│   └── cloudflare/              # API proxy worker
-│       ├── worker.js            # Cloudflare Worker
-│       └── wrangler.toml        # Worker configuration
-│
-├── docs/                        # Documentation
-│   ├── architecture_strategy.md
-│   ├── phase4_issues.md         # Current blockers
-│   └── ...
-│
-├── keystone/                   # AI developer framework
-│   ├── project/                 # Project state
-│   ├── specs/                   # Specifications
-│   └── standards/               # Code standards
-```
-
----
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                    Tauri Shell (Rust)                   │
-│                      ~10MB native                       │
-├─────────────────────────────────────────────────────────┤
-│                                                         │
-│  ┌─────────────────┐         ┌─────────────────────┐   │
-│  │   React UI      │         │   Python Sidecar    │   │
-│  │ (Vite + TSX)    │         │    (Headless)       │   │
-│  │                 │  IPC    │                     │   │
-│  │   Dashboard     │◄───────►│  Analytics Engine   │   │
-│  │  Components     │         │   & Data Manager    │   │
-│  └─────────────────┘         └─────────────────────┘   │
-│                                       │                 │
-└───────────────────────────────────────│─────────────────┘
-                                        │
-                    ┌───────────────────┼───────────────────┐
-                    │                   │                   │
-              ┌─────▼─────┐      ┌──────▼──────┐     ┌──────▼──────┐
-              │  SQLite   │      │ Cloudflare  │     │  Supabase   │
-              │  (local)  │      │   Worker    │     │  (Hive)     │
-              │           │      │ (API proxy) │     │             │
-              │ Portfolio │      │  Finnhub    │     │ Community   │
-              │   Data    │      │  API keys   │     │   ISINs     │
-              └───────────┘      └─────────────┘     └─────────────┘
-```
-
-### Key Design Decisions
-
-| Decision                | Rationale                                               |
-| ----------------------- | ------------------------------------------------------- |
-| **Tauri over Electron** | 10MB vs 300MB+, uses system WebKit                      |
-| **Python Sidecar**      | Preserves analytics engine power, zero rewrite of logic |
-| **React UI**            | Native-feeling performance and rich interactivity       |
-| **Cloudflare Proxy**    | API keys never embedded in client                       |
-| **Local-First**         | Core functionality works offline                        |
-
----
-
-## Configuration
-
-### Environment Variables
-
-| Variable            | Required | Description                                                               |
-| ------------------- | -------- | ------------------------------------------------------------------------- |
-| `PRISM_DATA_DIR`    | No       | Data directory (default: `~/Library/Application Support/PortfolioPrism/`) |
-| `PROXY_URL`         | No       | Cloudflare Worker URL (default: built-in)                                 |
-| `SUPABASE_URL`      | No       | Supabase project URL (for Hive sync)                                      |
-| `SUPABASE_ANON_KEY` | No       | Supabase anonymous key                                                    |
-
----
-
-## Current Status
-
-| Phase   | Status            | Description                              |
-| ------- | ----------------- | ---------------------------------------- |
-| Phase 1 | Complete          | Tauri ↔ Python IPC                       |
-| Phase 2 | Complete          | Headless Engine & PyInstaller            |
-| Phase 3 | Complete          | React Shell & State                      |
-| Phase 4 | Complete          | Feature Parity (Dashboard, Charts, Auth) |
-| Phase 5 | **Release Ready** | CI/CD, Polish, PII Scrubbing             |
-
----
-
-## Contributing
-
-This is currently a private project. Contribution guidelines will be added if/when the project is open-sourced.
-
-### For AI Developers
-
-Read [AGENTS.md](AGENTS.md) and the [project index](index.md) to select the correct implementation and plan. This README describes V1; the index routes active V2 work to its separate checkout. The historical Keystone directory is not present in this checkout.
-
----
-
-## Tech Stack
-
-| Layer     | Technology                                  |
-| --------- | ------------------------------------------- |
-| Shell     | Tauri v2 (Rust)                             |
-| Frontend  | TypeScript, React, Vite, Tailwind, Recharts |
-| Engine    | Python 3.12 (Headless)                      |
-| Analytics | pandas, numpy, yfinance                     |
-| Auth      | pytr, keyring                               |
-| Database  | SQLite (local), Supabase (cloud)            |
-| Build     | uv, PyInstaller, npm                        |
-
----
-
-## License
-
-**Private** — All rights reserved.
-
----
-
-## Acknowledgments
-
-- [Tauri](https://tauri.app/) — Desktop app framework
-- [pytr](https://github.com/pytr-org/pytr) — Trade Republic API
+The root `src/` and `src-tauri/` trees hold V1. V2 is an isolated rebuild; V1 is retained for investigation and recovery, not as proof of correct V2 behavior. Private plans and reviews live under `_planning/` in the monorepo and are omitted from the public split. The index explains how to navigate either checkout.

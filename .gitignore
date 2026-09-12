@@ -188,3 +188,7 @@ src-tauri/python/*.original
 src-tauri/binaries/prism-*
 src-tauri/binaries/tr-daemon-*
 !src-tauri/binaries/.gitkeep
+
+# V2 local preview artifacts
+v2/dist/
+v2/test-results/

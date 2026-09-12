@@ -1,20 +1,32 @@
 # Portfolio Prism documentation index
 
-Reconciled: 2026-09-12. This checkout contains V1. The active V2 rebuild remains on a separate branch; this documentation handoff does not merge its code or establish release readiness.
+Reconciled: 2026-09-12. Active implementation: `v2/`. V1 remains in `src/` and `src-tauri/`.
 
 ## Continue work
 
-| Purpose | Source |
+In the monorepo, read `_planning/strategy/v2-mission-and-delivery-plan.md` first. It is the single V2 project plan and owns phase status, open acceptance gates and the next action. Its reference map tells you when to load implementation records, dataset priorities and ETF source findings.
+
+The `_planning/` directory is omitted from the public split. If it is absent, use the public documents below for implemented behavior; obtain the current plan before claiming to continue its next phase. Do not substitute an old V1 plan. Personal Linear project: [Portfolio Prism](https://linear.app/helmus/project/portfolio-prism-bd56b2ed13ac). Scoped integration: [DEV-175](https://linear.app/helmus/issue/DEV-175); DEV-26 remains V1 recovery work.
+
+## Read by task
+
+| Task | Document |
 | --- | --- |
-| Continue the V2 rebuild | Local branch `codex/portfolio-prism-etf-acquisition`, inspected at `ebd28a79` |
-| Find the V2 plan | `apps/portfolio-prism/_planning/strategy/v2-mission-and-delivery-plan.md` in that branch |
-| Record findings and verification | Follow the plan's reference map into `_planning/reviews/`; keep phase status, decisions and next actions in the plan |
-| Run or change V2 | Read that checkout's `AGENTS.md`, `index.md`, and relevant sections of `v2/README.md` |
-| Inspect the published V2 baseline | [Draft PR #245](https://github.com/Skeptomenos/ai-dev/pull/245), branch `codex/portfolio-prism-v2`; this predates the local acquisition branch |
-| Investigate V1 | [V1 README](README.md) and [V1 execution records](docs/execution/stabilization-and-self-dogfood-plan.md) |
+| Classify current and historical documentation | [Documentation map](docs/index.md) |
+| Investigate retained V1 infrastructure | [Infrastructure reference](infrastructure/README.md) |
+| Understand the problem and product | [README](README.md) |
+| Run V2, inspect storage, diagnostics or valuation contracts | [V2 README](v2/README.md) |
+| Implement or verify a change | [Contributing](CONTRIBUTING.md) and [agent instructions](AGENTS.md) |
+| Investigate earlier architecture and setup | [V1 README reference](docs/v1/execution/v1-readme-reference.md) |
+| Investigate earlier frontend conventions and tests | [V1 contribution reference](docs/v1/execution/v1-contributing-reference.md) |
+| Investigate earlier stabilization work | [V1 stabilization plan](docs/v1/execution/stabilization-and-self-dogfood-plan.md) |
 
-Resolve the local branch with `git worktree list`. The acquisition branch was local-only at reconciliation; a fresh clone may not contain it. If unavailable, obtain that worktree or its current handoff before continuing acquisition. The older published draft is a baseline, not evidence that later work is present.
+## Document ownership
 
-The single V2 plan owns scope, phases, acceptance, decisions and next actions. Its linked dated records own detailed findings and verification. V1 execution documents are historical context for the rebuild and must not substitute for the V2 plan. This index records navigation, not live project status; confirm the branch and plan before acting.
+The README owns product explanation; the V2 README owns current runtime contracts. The private delivery plan owns delivery status and decisions. Dated private references preserve observations and prior verification. Agent instructions route work and preserve project constraints. Older architecture, specs, plans and runbooks describe V1 unless explicitly marked V2; they do not override the rebuild plan or establish current release readiness.
 
-No current Linear issue or project binding is recorded in the V2 source index. Private `_planning/` files are omitted from public splits; missing private context does not make a historical V1 plan current.
+## Separate ongoing work
+
+This checkout contains the partial V2 pilot and its scoped integration fixes. Later enrichment/acquisition work remains on `codex/portfolio-prism-v2` (last inspected `1d9c3829`) and `codex/portfolio-prism-etf-acquisition` (`ebd28a79`). Reference-only design work remains on `codex/portfolio-prism-design` (`e6eac9b7`). Resolve these with `git worktree list`; local-only branches may be absent from a fresh clone. Read their current plans before continuing that work. This integration does not import their later evidence, adapters or designs.
+
+Scoped integration: [_planning/strategy/2026-09-12-v2-pr-integration.md](_planning/strategy/2026-09-12-v2-pr-integration.md).
