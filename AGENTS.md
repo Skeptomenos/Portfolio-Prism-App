@@ -1,19 +1,15 @@
 # Portfolio Prism
 
-Portfolio analysis application.
+Local portfolio analysis: combine direct stocks and ETF constituents into sourced company exposure.
+Ownership-ID: Personal
 
-## Identity
-- **Status:** mvp
-- **Tech:** TypeScript, React, Vite, Tauri, Supabase, Playwright
+Read [index.md](index.md) at session start to resolve the implementation checkout and its current plan. The V2 rebuild is not yet merged into this checkout; V1 architecture does not govern V2 work.
 
-## Execution Handoff
+## Project constraints
 
-Source of truth for execution/testing lives in `docs/execution/`:
-- Live plan: `docs/execution/stabilization-and-self-dogfood-plan.md`
-- QA report: `docs/execution/live-ui-qa-report-2026-03-06.md`
-- Testing runbook: `docs/execution/opencode-self-testing-runbook.md`
-- Setup context: `docs/execution/codex-install-config-plan.md`
+- Keep V2 and its storage separate from V1 — the old implementation remains a recovery and research reference.
+- Preserve identifiers, dates, weight units and decimal precision — missing exposure is unknown, not zero, and partial composition must stay partial.
+- Include safe correlated diagnostics before live tests — users need a cause and resolution path when broker or enrichment operations fail.
+- Use the selected implementation's documented checks and plan acceptance gates — synthetic tests do not establish live source compatibility or numerical reconciliation.
 
-Private planning, reviews, and strategy docs are in `_planning/` (stripped by CI before publishing).
-
-Read `README.md` for project overview and setup.
+Private planning and evidence live in `_planning/`, which is omitted from public splits. The index identifies the current plan and its evidence map; obtain that context before continuing a phase.

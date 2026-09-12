@@ -187,12 +187,7 @@ This is currently a private project. Contribution guidelines will be added if/wh
 
 ### For AI Developers
 
-This project uses the **Keystone** framework for AI-assisted development:
-
-1. Read `AGENTS.md` at session start
-2. Check `keystone/project/mission.md` for current state
-3. Follow protocols in `keystone/directives/` (Smart Merged)
-4. Adhere to standards in `keystone/standards/`
+Read [AGENTS.md](AGENTS.md) and the [project index](index.md) to select the correct implementation and plan. This README describes V1; the index routes active V2 work to its separate checkout. The historical Keystone directory is not present in this checkout.
 
 ---
 
