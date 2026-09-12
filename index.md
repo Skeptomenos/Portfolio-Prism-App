@@ -6,7 +6,7 @@ Reconciled: 2026-09-12. Active implementation: `v2/`. V1 remains in `src/` and `
 
 In the monorepo, read `_planning/strategy/v2-mission-and-delivery-plan.md` first. It is the single V2 project plan and owns phase status, open acceptance gates and the next action. Its reference map tells you when to load implementation records, dataset priorities and ETF source findings.
 
-The `_planning/` directory is omitted from the public split. If it is absent, use the public documents below for implemented behavior; obtain the current plan before claiming to continue its next phase. Do not substitute an old V1 plan. Personal Linear project: [Portfolio Prism](https://linear.app/helmus/project/portfolio-prism-bd56b2ed13ac). Scoped integration: [DEV-175](https://linear.app/helmus/issue/DEV-175); DEV-26 remains V1 recovery work.
+The `_planning/` directory is omitted from the public split. If it is absent, use the public documents below for implemented behavior; obtain the current plan before claiming to continue its next phase. Do not substitute an old V1 plan. Personal Linear project: [Portfolio Prism](https://linear.app/helmus/project/portfolio-prism-bd56b2ed13ac). Completed source integration: [DEV-175](https://linear.app/helmus/issue/DEV-175) via [PR #254](https://github.com/Skeptomenos/ai-dev/pull/254); DEV-26 remains V1 recovery work.
 
 ## Read by task
 
@@ -27,6 +27,6 @@ The README owns product explanation; the V2 README owns current runtime contract
 
 ## Separate ongoing work
 
-This checkout contains the partial V2 pilot and its scoped integration fixes. Later enrichment/acquisition work remains on `codex/portfolio-prism-v2` (last inspected `1d9c3829`) and `codex/portfolio-prism-etf-acquisition` (`ebd28a79`). Reference-only design work remains on `codex/portfolio-prism-design` (`e6eac9b7`). Resolve these with `git worktree list`; local-only branches may be absent from a fresh clone. Read their current plans before continuing that work. This integration does not import their later evidence, adapters or designs.
+The partial V2 pilot and its scoped integration fixes are merged into main via #254. Later enrichment/acquisition work remains on `codex/portfolio-prism-v2` (last inspected `1d9c3829`) and `codex/portfolio-prism-etf-acquisition` (`ebd28a79`). Reference-only design work remains on `codex/portfolio-prism-design` (`e6eac9b7`). Resolve these with `git worktree list`; local-only branches may be absent from a fresh clone. Read their current plans before continuing that work. This integration does not import their later evidence, adapters or designs.
 
 Scoped integration: [_planning/strategy/2026-09-12-v2-pr-integration.md](_planning/strategy/2026-09-12-v2-pr-integration.md).
