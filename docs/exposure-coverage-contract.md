@@ -29,6 +29,10 @@ The existing unassigned remainder may contain both non-equity assets and unresol
 
 The proposed [history and performance extension](portfolio-history-and-performance.md) preserves this contract for every checkpoint. Priced-securities coverage is not a complete portfolio valuation or return denominator: it excludes cash and unvalued positions. Historical comparisons must expose each endpoint's scope, dates and gaps. Newly priced positions, added accounts or newly admitted ETF sources must not appear as market gains. Transaction completeness and flow-boundary valuations are separate performance requirements; this does not change the exposure measures above.
 
+### Investigation decisions and manual evidence
+
+The adopted [investigation contract](investigation-decisions.md) adds reversible user actions for valuation gaps. Excluding an item stops investigation, not financial accounting: its unknown value and holding remain visible. Investigation status never changes the coverage denominator or creates a zero value. A compatible manual price may improve valuation completeness only through core selection, with its manual source, date and freshness visible. Manual support does not close identity or reconciliation gaps.
+
 ## Required display
 
 The same backend-derived coverage summary appears before result rows on Home, Breakdown and Development. On fund/security details, show a compact summary with its scope stated. A portfolio percentage must never masquerade as the selected security's completeness. Local fund gaps accompany its own composition measure.
