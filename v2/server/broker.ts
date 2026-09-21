@@ -222,7 +222,8 @@ export class TradeRepublicBroker implements Broker {
     previous: DataSource[],
     save: (source: DataSource) => void,
     signal: AbortSignal,
-    mode: 'refresh' | 'continue' | 'valuation' | 'history-batch' | 'history-recent'
+    mode: 'refresh' | 'continue' | 'valuation' | 'history-batch' | 'history-recent',
+    excludedQuoteIsins: readonly string[] = []
   ): Promise<void> {
     this.activeSignal = signal
     try {
@@ -233,7 +234,8 @@ export class TradeRepublicBroker implements Broker {
         signal,
         mode,
         (sourceId, event, durationMs, detail) =>
-          this.observer({ stage: 'data_extraction', sourceId, event, durationMs, ...detail })
+          this.observer({ stage: 'data_extraction', sourceId, event, durationMs, ...detail }),
+        excludedQuoteIsins
       )
     } finally {
       this.activeSignal = undefined
@@ -256,7 +258,7 @@ export class TradeRepublicBroker implements Broker {
     const snapshot = await this.fetch(signal)
     return { snapshot, completeness: snapshot.positions.length ? 'complete' as const : 'authoritative-empty' as const, accounts: this.accounts }
   }
-  async readObservations(previous: readonly FinancialObservation[], save: (value: FinancialObservation) => void, signal: AbortSignal): Promise<void> {
+  async readObservations(previous: readonly FinancialObservation[], save: (value: FinancialObservation) => void, signal: AbortSignal, excludedQuoteIsins: readonly string[] = []): Promise<void> {
     const legacy = previous.map(o => valuationSource({ ...o,
       instruments: o.instruments.map(({ unit, ...i }) => ({ ...i, priceFactor: unit === 'per-security' || unit === 'per-crypto-unit' ? 1 : null, ...(unit === 'per-crypto-unit' ? { unit } : {}) })),
       // This compatibility path does not convert new decimal strings to numbers.
@@ -271,7 +273,7 @@ export class TradeRepublicBroker implements Broker {
       const retainedCash = source.id === 'cash' && source.status === 'failed'
         ? previous.find(o => o.sourceId === 'cash') : undefined
       save(retainedCash ? { ...value, observedAt: retainedCash.observedAt, cash: retainedCash.cash } : value)
-    }, signal, 'valuation')
+    }, signal, 'valuation', excludedQuoteIsins)
   }
   logout(): void {
     this.client.logout()
@@ -309,8 +311,8 @@ export const tradeRepublicProvider: BrokerProvider = {
       fetch: signal => safe(() => adapter.fetch(signal)),
       eventsFromSources: tradeRepublicEvents,
       readEvents: (previous, save, signal, mode) => safe(() => adapter.readEvents(previous, save, signal, mode)),
-      readObservations: (previous, save, signal) => safe(() => adapter.readObservations(previous, save, signal)),
-      readData: (previous, save, signal, mode) => safe(() => adapter.readData(previous, save, signal, mode)),
+      readObservations: (previous, save, signal, excludedQuoteIsins) => safe(() => adapter.readObservations(previous, save, signal, excludedQuoteIsins)),
+      readData: (previous, save, signal, mode, excludedQuoteIsins) => safe(() => adapter.readData(previous, save, signal, mode, excludedQuoteIsins)),
       observe: observer => adapter.observe(observer), logout: () => adapter.logout(), close: () => adapter.close(), warning: () => adapter.warning(),
     }
   },

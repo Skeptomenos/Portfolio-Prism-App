@@ -170,7 +170,8 @@ export class PortfolioService {
         this.store.sources(),
         (source) => this.saveOperationSource(source, signal),
         signal,
-        'valuation'
+        'valuation',
+        this.store.excludedQuoteIsins(this.store.connections.defaultId)
       )
       this.guard(signal)
       const saved = this.activeOutcome!.sources
@@ -345,6 +346,8 @@ export class PortfolioService {
     if (!this.connected) return this.restore()
     return this.start('syncing', (signal) => this.import(signal))
   }
+  investigations() { return this.store.investigationReport() }
+  investigationCommand(value: unknown) { return this.store.investigationCommand(value) }
   overview() {
     return this.store.overview()
   }
@@ -412,7 +415,8 @@ export class PortfolioService {
             this.store.sources(),
             (source) => this.saveOperationSource(source, signal),
             signal,
-            nextMode
+            nextMode,
+            this.store.excludedQuoteIsins(this.store.connections.defaultId)
           )
           const sources = this.store.sources()
           const history = sources.find((s) => s.id === 'timelineTransactions'),

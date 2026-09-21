@@ -83,6 +83,7 @@ export function coverageReport(
         nonCompanyValue: group.nonCompanyValue ?? null,
       }
     }),
+    manualValuations: held.filter(p => p.manualEvidence).length,
     pricedCount: valuations.pricedCount, unvalued: valuations.missingCount,
     zeroCount: valuations.zeroCount, positionCount: held.length,
     companyGrouping: held.length ? 'partial' as const : 'unavailable' as const,

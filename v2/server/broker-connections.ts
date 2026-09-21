@@ -109,7 +109,7 @@ export class BrokerConnections {
           guard(); this.store.connections.saveObservation(id,observation)
           saved.add(observation.sourceId); partial ||= observation.completeness !== 'success'
           this.store.history.capture(attemptId,'valuation')
-        },signal)
+        },signal,this.store.excludedQuoteIsins(id))
         partial ||= saved.size < 3
       } else partial = true
       if(runtime.broker.readEvents) {

@@ -1,3 +1,4 @@
+import { InvestigationInputError } from './investigation-commands'
 import { connectionRequest } from './connection-http'
 import { financialRoute } from './financial-read-model'
 import type { IncomingMessage, ServerResponse } from 'node:http'
@@ -36,6 +37,10 @@ export async function api(
     return
   }
   const url = new URL(req.url ?? '/', origin)
+  if (req.method === 'GET' && url.pathname === '/api/investigations' && !url.search) {
+    try { send(200, service.investigations()) } catch { send(500, { error: 'Investigation evidence is unavailable. Check local storage.' }) }
+    return
+  }
   if (req.method === 'GET' && url.pathname === '/api/connections' && !url.search) {
     const result = await connectionRequest('GET',url.pathname,null,service.connections)
     send(result!.status,result!.data); return
@@ -122,6 +127,11 @@ export async function api(
       send(413, { error: 'Request too large' })
       return
     }
+  }
+  if (req.url === '/api/investigations') {
+    try { send(200, service.investigationCommand(JSON.parse(text))) }
+    catch (error) { send(error instanceof InvestigationInputError || error instanceof SyntaxError ? 400 : 500, { error: error instanceof InvestigationInputError ? error.message : error instanceof SyntaxError ? 'Invalid JSON input' : 'Could not save investigation evidence; no changes were committed.' }) }
+    return
   }
   let accepted: boolean
   try {

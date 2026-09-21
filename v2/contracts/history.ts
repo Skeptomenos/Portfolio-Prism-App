@@ -37,7 +37,7 @@ export interface HistoryCheckpointSummary {
   id: string
   runId: string
   recordedAt: string
-  reason: 'holdings' | 'valuation' | 'composition' | 'migration'
+  reason: 'holdings' | 'valuation' | 'composition' | 'migration' | 'manual-evidence'
   datasetId: string
   accounts: readonly HistoryAccountRef[]
   holdingsObservedAt: string | null
@@ -56,7 +56,7 @@ export interface HistoryCheckpointSummary {
 
 export interface HistoryRunSummary {
   id: string
-  trigger: 'broker-sync' | 'composition-refresh' | 'migration'
+  trigger: 'broker-sync' | 'composition-refresh' | 'migration' | 'manual-evidence'
   startedAt: string
   finishedAt: string | null
   status: 'running' | 'succeeded' | 'partial' | 'failed' | 'cancelled' | 'interrupted'

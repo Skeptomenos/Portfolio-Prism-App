@@ -4,7 +4,7 @@ const isin = 'XF000BTC0017'
 const time = Date.parse('2026-09-01T12:00:00Z')
 const source = (id: string, payload: DataSource['payload']): DataSource => ({ ...catalog.find(s => s.id === id)!, status: 'success', payload, fetchedAt: new Date(time).toISOString() })
 const metadata = (active = true) => ({ isin, typeId: 'crypto', legalTypeId: 'CRYPTO', priceFactor: 1, listings: [{ slug: 'BHS', active, currencyId: 'EUR' }, { slug: 'B2C', active, currencyId: 'EUR' }] })
-async function run(ticker: ExplorerTransport['read'], previous: DataSource[] = [], active = true) {
+async function run(ticker: ExplorerTransport['read'], previous: DataSource[] = [], active = true, excluded: readonly string[] = []) {
  const saved: DataSource[] = [], calls: string[] = []
  await extractData({ read: async (id,args,signal) => {
   if (id === 'accountPairs') return { accounts: [{ securitiesAccountNumber: 'synthetic' }] }
@@ -12,7 +12,7 @@ async function run(ticker: ExplorerTransport['read'], previous: DataSource[] = [
   if (id === 'instrument') return metadata(active)
   if (id === 'ticker') { calls.push(String(args.id)); return ticker(id,args,signal) }
   return []
- } },previous,s=>saved.push(s),new AbortController().signal,'valuation',()=>{})
+ } },previous,s=>saved.push(s),new AbortController().signal,'valuation',()=>{},excluded)
  return { quotes: saved.find(s=>s.id==='quotes')!,calls }
 }
 it('uses only exact active listings and a bounded same-currency fallback',async()=>{
@@ -32,4 +32,11 @@ it('does not probe inactive or guessed venues and preserves unusable old evidenc
  const result = await run(async()=>{throw Error('must not request')},[old],false)
  expect(result.calls).toEqual([])
  expect(result.quotes).toMatchObject({status:'partial',payload:[{isin,venue:'LSX',retained:true,selectionReason:expect.stringContaining('all-listings-inactive')}]})
+})
+
+it('skips excluded quote investigation while retaining holdings and original quote evidence', async () => {
+ const old = source('quotes', [{ isin, venue: 'BHS', quote: { bid: { price: '123.456', time } } }])
+ const result = await run(async () => { throw Error('must not request') }, [old], true, [isin])
+ expect(result.calls).toEqual([])
+ expect(result.quotes.payload).toMatchObject([{ isin, venue: 'BHS', quote: { bid: { price: '123.456', time } }, investigation: 'excluded' }])
 })

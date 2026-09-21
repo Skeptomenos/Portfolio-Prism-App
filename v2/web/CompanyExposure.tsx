@@ -5,6 +5,7 @@ import { Decimal } from 'decimal.js'
 import type { Exposure, Overview } from '../contracts/financial'
 import type { FinancialClient, ExposureCommands } from './views/financial-client'
 import { entityHref, readRoute, ReturnLink, useRouteValue } from './navigation'
+import { Investigations } from './Investigations'
 const money = (v: string | null, c: string | null) =>
   v === null ? 'Unknown' : `${new Decimal(v).toFixed(2)} ${c ?? ''}`
 const pct = (v: string | null) => (v === null ? 'Unknown' : `${new Decimal(v).toFixed(2)}%`)
@@ -102,6 +103,7 @@ export function CompanyExposure({
       <p>{p.quality}</p>
       <details><summary>Exact saved valuation</summary><p>Account {p.account} · {p.isin}</p><p>Quantity {p.quantity} × bid {p.price ?? 'unknown'} = {p.value ?? 'unknown'} {p.currency ?? ''}</p></details>
     </div>)}
+    <Investigations isin={securityIsin} />
     <p className="muted">Unvalued positions remain excluded from the priced denominator. Cash is separate. Broker reconciliation remains pending.</p>
   </section>
   return (
@@ -449,9 +451,10 @@ export function CompanyExposure({
                 </details>
               </article>
             ))}
+          {securityIsin && <Investigations isin={securityIsin} />}
           <p>
             This view groups direct shares and supported ETF contributions by exact security ISIN.
-            It is not a canonical company-exposure result. Values use saved broker bids. Missing
+            It is not a canonical company-exposure result. Values use saved broker quotes or an explicitly labelled manual price fallback. Missing
             exposure is unknown, not zero.
           </p>
           {!fullSource && (

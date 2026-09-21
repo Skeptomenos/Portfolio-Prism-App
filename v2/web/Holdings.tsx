@@ -4,6 +4,7 @@ import type { Overview, ValuedPosition } from '../contracts/financial'
 import type { FinancialClient, ExposureCommands } from './views/financial-client'
 import { entityHref, useRouteValue } from './navigation'
 import { CompanyExposure } from './CompanyExposure'
+import { Investigations } from './Investigations'
 const money = (v: string | null, c: string | null) =>
   v === null ? '—' : `${new Decimal(v).toFixed(2)} ${c ?? ''}`
 export function Holdings({
@@ -19,10 +20,11 @@ export function Holdings({
 }) {
   const [data, setData] = useState<Overview | null>(null),
     [error, setError] = useState(false)
+  const [investigationRevision, setInvestigationRevision] = useState(0)
   const [query, setQuery] = useRouteValue('q', '')
   const [mode, setMode] = useRouteValue('mode', 'bought')
   const [sortText, setSortText] = useRouteValue('holdingSort', 'value:desc')
-  const sortKeys = [
+  const sortKeys: Exclude<keyof ValuedPosition, 'manualEvidence'>[] = [
     'name',
     'value',
     'weight',
@@ -34,7 +36,7 @@ export function Holdings({
     'quality',
   ]
   const sort = {
-    key: (sortKeys.includes(sortText.split(':')[0])
+    key: (sortKeys.includes(sortText.split(':')[0] as Exclude<keyof ValuedPosition, 'manualEvidence'>)
       ? sortText.split(':')[0]
       : 'value') as keyof ValuedPosition,
     desc: sortText.endsWith(':desc'),
@@ -51,12 +53,17 @@ export function Holdings({
         if (!c.signal.aborted) setError(true)
       })
     return () => c.abort()
-  }, [revision, client])
+  }, [revision, client, investigationRevision])
+  useEffect(() => {
+    const changed = () => setInvestigationRevision((value) => value + 1)
+    window.addEventListener('prism-investigations-changed', changed)
+    return () => window.removeEventListener('prism-investigations-changed', changed)
+  }, [])
   const rows = [...(data?.rows ?? [])]
     .filter((row) => `${row.name} ${row.isin}`.toLowerCase().includes(query.toLowerCase()))
     .sort((a, b) => {
-      const x = a[sort.key],
-        y = b[sort.key]
+      const x = a[sort.key] as string | null,
+        y = b[sort.key] as string | null
       if (x === null) return y === null ? 0 : 1
       if (y === null) return -1
       if (
@@ -102,6 +109,7 @@ export function Holdings({
         {data?.holdingsAt ? new Date(data.holdingsAt).toLocaleDateString() : 'not yet'}. Composition
         dates vary.
       </p>
+      <Investigations />
       {connection}
       <div className="detail-tabs" aria-label="Portfolio lens">
         <button

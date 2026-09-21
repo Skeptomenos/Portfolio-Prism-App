@@ -125,7 +125,7 @@ describe('inspection evidence persistence and replay', () => {
     const store = new SnapshotStore(path)
     store.close()
     const db = new DatabaseSync(path)
-    expect(db.prepare('PRAGMA user_version').get()?.user_version).toBe(13)
+    expect(db.prepare('PRAGMA user_version').get()?.user_version).toBe(14)
     expect(db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='provider_inspections'").get()).toBeTruthy()
     db.close()
   })

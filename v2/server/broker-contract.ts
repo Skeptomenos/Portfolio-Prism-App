@@ -17,9 +17,9 @@ export interface Broker extends Partial<BrokerEvents> {
   restore(signal: AbortSignal): Promise<boolean>
   readHoldings?(signal: AbortSignal): Promise<HoldingsObservation>
   fetch(signal: AbortSignal): Promise<Snapshot>
-  readObservations?(previous: readonly FinancialObservation[], save: (value: FinancialObservation) => void, signal: AbortSignal): Promise<void>
+  readObservations?(previous: readonly FinancialObservation[], save: (value: FinancialObservation) => void, signal: AbortSignal, excludedQuoteIsins?: readonly string[]): Promise<void>
   // Optional source explorer capability. Raw records never enter neutral valuation.
-  readData?(previous: DataSource[], save: (source: DataSource) => void, signal: AbortSignal, mode: 'refresh' | 'continue' | 'valuation' | 'history-batch' | 'history-recent'): Promise<void>
+  readData?(previous: DataSource[], save: (source: DataSource) => void, signal: AbortSignal, mode: 'refresh' | 'continue' | 'valuation' | 'history-batch' | 'history-recent', excludedQuoteIsins?: readonly string[]): Promise<void>
   observe?(observer: BrokerObserver): void
   logout(): void
   close(): void

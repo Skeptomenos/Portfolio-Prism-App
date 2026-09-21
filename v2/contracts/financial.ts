@@ -20,7 +20,9 @@ const dateRange = S.Struct({ earliest: nullableDate, latest: nullableDate })
 const check = S.Struct({ id: text, state: S.Literal('passed', 'failed', 'pending'), detail: text, evidence: S.Array(text) })
 const limitation = S.Struct({ qualifier: text, nextAction: text })
 const provider = S.Struct({ id: text, version: text, contractVersion: text, policyVersion: text })
+const manualEvidence = S.Struct({ id: text, source: text, reason: text, recordedAt: recordedDate, asOf: recordedDate })
 export const ValuedPositionSchema = S.Struct({
+  manualEvidence: S.optional(manualEvidence),
   account: text, isin: text, name: text, quantity: DecimalText, instrumentType: text, averageBuyIn: DecimalText,
   currency: S.NullOr(currency), price: decimal, value: decimal, quoteAt: nullableDate, venue: nullable, quality: text,
   weight: decimal, quantityObservedAt: nullableDate, valuationStatus: S.Literal('priced', 'zero', 'unsupported-negative', 'unavailable'),
@@ -32,7 +34,7 @@ export const OverviewSchema = S.Struct({
 })
 const contributionSource = S.Struct({ fundIsin: text, sha256: text, asOf: nullableDate, retrievedAt: recordedDate, url: publicUrl,
   measure: text, stale: S.Boolean, parserVersion: S.optional(text), provider: S.optional(provider), estimateLimitation: S.optional(limitation) })
-export const ContributionSchema = S.Struct({ kind: S.Literal('direct', 'etf'), positionIsin: text,
+export const ContributionSchema = S.Struct({ manualEvidence: S.optional(manualEvidence), kind: S.Literal('direct', 'etf'), positionIsin: text,
   positionName: S.optional(text), account: text, value: decimal, positionValue: decimal, weightPercent: DecimalText,
   quoteAt: nullableDate, quality: text, source: S.optional(contributionSource) })
 const security = S.Struct({ isin: text, name: text, currency: S.NullOr(currency), direct: DecimalText, indirect: DecimalText,
@@ -71,6 +73,7 @@ export const ExposureSchema = S.Struct({ rows: S.Array(security),
   sourceAttempts: S.Record({ key: text, value: sourceAttempt }), issuerRefresh: refresh,
 })
 export const CoverageSchema = S.Struct({
+  manualValuations: S.optional(count),
   totals: S.Array(S.Struct({ ...coverageAmount, state: S.Literal('unavailable', 'incompatible', 'allocated', 'partial'), nonCompanyValue: decimal })),
   pricedCount: count, unvalued: count, zeroCount: count, positionCount: count,
   companyGrouping: S.Literal('partial', 'unavailable'), reconciliation: S.Literal('pending'), holdingsAt: nullableDate,

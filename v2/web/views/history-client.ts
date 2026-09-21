@@ -17,14 +17,14 @@ const currency = Schema.Struct({
   cashValue: nullable(decimal), cashState: Schema.Literal('known', 'partial', 'unknown'),
 })
 const checkpoint = Schema.Struct({
-  id: nonempty, runId: nonempty, recordedAt: date, reason: Schema.Literal('holdings', 'valuation', 'composition', 'migration'),
+  id: nonempty, runId: nonempty, recordedAt: date, reason: Schema.Literal('holdings', 'valuation', 'composition', 'migration', 'manual-evidence'),
   datasetId: nonempty, accounts: Schema.Array(account), holdingsObservedAt: nullable(date), quoteDates: range, compositionDates: range,
   currencies: Schema.Array(currency), pricedPositionCount: count, unvaluedPositionCount: count, zeroPositionCount: count,
   valuationState: Schema.Literal('valued', 'partial', 'unavailable', 'empty'), companyGrouping: Schema.Literal('partial', 'unavailable'),
   reconciliation: Schema.Literal('pending'), notices: Schema.Array(notice),
 })
 const run = Schema.Struct({
-  id: nonempty, trigger: Schema.Literal('broker-sync', 'composition-refresh', 'migration'), startedAt: date, finishedAt: nullable(date),
+  id: nonempty, trigger: Schema.Literal('broker-sync', 'composition-refresh', 'migration', 'manual-evidence'), startedAt: date, finishedAt: nullable(date),
   status: Schema.Literal('running', 'succeeded', 'partial', 'failed', 'cancelled', 'interrupted'), checkpointCount: count,
   latestCheckpoint: nullable(checkpoint), notices: Schema.Array(notice),
 })

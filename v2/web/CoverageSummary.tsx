@@ -25,20 +25,38 @@ export function useCoverage(enabled: boolean, client: Pick<FinancialClient, 'cov
   const [error, setError] = useState<string | null>(null)
   useEffect(() => {
     if (!enabled) return
-    const controller = new AbortController()
     let timer: ReturnType<typeof setTimeout>
-    async function poll() {
+    let generation = 0
+    let disposed = false
+    let controller: AbortController | null = null
+    async function poll(expected: number) {
+      if (disposed || expected !== generation) return
+      controller?.abort()
+      controller = new AbortController()
       try {
         const next = await client.coverage(controller.signal)
-        if (!controller.signal.aborted) { setReport(next); setError(null) }
+        if (!disposed && expected === generation && !controller.signal.aborted) { setReport(next); setError(null) }
       } catch {
-        if (!controller.signal.aborted) setError('Coverage could not refresh. Saved figures keep their original dates. Check the local service; retrying automatically.')
+        if (!disposed && expected === generation && !controller.signal.aborted) setError('Coverage could not refresh. Saved figures keep their original dates. Check the local service; retrying automatically.')
       } finally {
-        if (!controller.signal.aborted) timer = setTimeout(poll, 5000)
+        if (!disposed && expected === generation && !controller.signal.aborted) timer = setTimeout(() => void poll(expected), 5000)
       }
     }
-    void poll()
-    return () => { controller.abort(); clearTimeout(timer) }
+    const changed = () => {
+      generation += 1
+      clearTimeout(timer)
+      controller?.abort()
+      void poll(generation)
+    }
+    window.addEventListener('prism-investigations-changed', changed)
+    void poll(generation)
+    return () => {
+      disposed = true
+      generation += 1
+      controller?.abort()
+      clearTimeout(timer)
+      window.removeEventListener('prism-investigations-changed', changed)
+    }
   }, [enabled, client])
   return { report, error }
 }
@@ -106,6 +124,7 @@ export function CoverageSummary({ report, error, compact = false }: {
     </div>
     {(report.refreshFailed || report.warning) && <p className="coverage-alert" role="alert">Latest refresh needs attention. Last saved inputs remain in use. <a href="#/data">Review refresh</a>{report.warning && <span> {report.warning}</span>}</p>}
     <div className="coverage-footer">
+      {(report.manualValuations ?? 0) > 0 && <span>{report.manualValuations} positions use user-provided manual price fallback; not broker-verified.</span>}
       <span>Whole portfolio · direct + ETF. {report.totals.some(total => total.nonCompanyValue !== null && new Decimal(total.nonCompanyValue).gt(0)) ? 'Includes non-company crypto. ' : ''}Excludes cash and unvalued positions.</span>
       <details id="coverage-gaps" className="coverage-gap-list">
         <summary>View {report.gaps.length} gaps and next actions</summary>

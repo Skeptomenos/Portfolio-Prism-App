@@ -1,3 +1,4 @@
+import type { ManualEvidence } from '../contracts/investigations'
 import type { DataSource } from './explorer'
 import type { Snapshot } from './model'
 import { quantityObservations, type QuantityObservation } from './quantity-observations'
@@ -7,6 +8,6 @@ export type { ValuedPosition } from './valuation'
 
 /** Compatibility entry point for retained Trade Republic explorer records. */
 export function overview(snapshot: Snapshot | null, sources: DataSource[], now = Date.now(),
-  observations: readonly QuantityObservation[] = quantityObservations(snapshot ? [snapshot] : []), policy: ValuationPolicy = currentValuationPolicy) {
-  return valueObservations(snapshot, sources.flatMap(s => { const o = tradeRepublicObservation(s); return o ? [o] : [] }), now, observations, policy)
+  observations: readonly QuantityObservation[] = quantityObservations(snapshot ? [snapshot] : []), policy: ValuationPolicy = currentValuationPolicy, manual?: { connectionId: string; evidence: readonly ManualEvidence[] }) {
+  return valueObservations(snapshot, sources.flatMap(s => { const o = tradeRepublicObservation(s); return o ? [o] : [] }), now, observations, policy, manual)
 }

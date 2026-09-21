@@ -11,6 +11,7 @@ export interface Contribution {
   value: string | null
   positionValue: string | null
   weightPercent: string
+  manualEvidence?: import('./valuation').ValuedPosition['manualEvidence']
   quoteAt: string | null
   quality: string
   source?: { fundIsin: string; sha256: string; asOf: string | null; retrievedAt: string; url: string; measure: string; stale: boolean; parserVersion?: string; provider?: Composition['provider']; estimateLimitation?: Composition['estimateLimitation'] }
@@ -71,6 +72,7 @@ export function exposure(
       positionValue: p.value,
       weightPercent: weight,
       value,
+      ...(p.manualEvidence ? { manualEvidence: p.manualEvidence } : {}),
       quoteAt: p.quoteAt,
       quality: p.quality,
       ...(source ? { source: { fundIsin: source.fundIsin, sha256: source.sha256, asOf: source.asOf,

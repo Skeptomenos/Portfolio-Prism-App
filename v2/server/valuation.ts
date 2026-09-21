@@ -1,3 +1,5 @@
+import { applyManual, latestManual } from './manual-valuation'
+import type { ManualEvidence } from '../contracts/investigations'
 import { Decimal } from 'decimal.js'
 import type { Snapshot, Position } from './model'
 import type { FinancialObservation } from './financial-observation'
@@ -10,6 +12,7 @@ const D = Decimal.clone({ precision: 256 })
 export type ValuationPolicy = 'legacy' | 'verified-listings'
 export const currentValuationPolicy: ValuationPolicy = 'verified-listings'
 export interface ValuedPosition extends Position {
+  manualEvidence?: { id: string; source: string; reason: string; recordedAt: string; asOf: string }
   currency: string | null
   price: string | null
   value: string | null
@@ -25,13 +28,14 @@ export function valueObservations(
   sources: readonly FinancialObservation[],
   now = Date.now(),
   observations: readonly QuantityObservation[] = quantityObservations(snapshot ? [snapshot] : []),
-  policy: ValuationPolicy = currentValuationPolicy
+  policy: ValuationPolicy = currentValuationPolicy,
+  manual?: { connectionId: string; evidence: readonly ManualEvidence[] }
 ) {
   const observed = new Map(observations.map((p) => [positionKey(p.account, p.isin), p]))
   const source = (id: string) => sources.find((s) => s.sourceId === id)
   const instruments = source('instrumentDetails')?.instruments ?? [],
     quotes = source('quotes')?.quotes ?? []
-  const rows: ValuedPosition[] = (snapshot?.positions ?? []).map((p) => {
+  let rows: ValuedPosition[] = (snapshot?.positions ?? []).map((p) => {
     const basis = observed.get(positionKey(p.account, p.isin))
     const quantity = new D(p.quantity)
     const instrument = instruments.find(i => i.isin === p.isin)
@@ -130,6 +134,7 @@ export function valueObservations(
     }
     return result
   })
+  if (manual && snapshot) rows = rows.map(row => applyManual(row, latestManual(manual.evidence, { connectionId: manual.connectionId, account: row.account, isin: row.isin }), snapshot, sources, observed.get(positionKey(row.account, row.isin)), now))
   const currencies = new Set(rows.flatMap((r) => (r.currency ? [r.currency] : [])))
   const cashRows = source('cash')?.cash ?? []
   for (const row of cashRows) {

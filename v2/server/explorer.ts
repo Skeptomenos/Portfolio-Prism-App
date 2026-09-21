@@ -244,7 +244,8 @@ export async function extractData(
     event: 'started' | 'succeeded' | 'failed',
     duration: number,
     detail: DiagnosticDetail
-  ) => void
+  ) => void,
+  excludedQuoteIsins: readonly string[] = []
 ) {
   const result = new Map(previous.map((s) => [s.id, s]))
   const fingerprint = (item: unknown) => createHash('sha256').update(JSON.stringify(sanitizePayload(item))).digest('hex')
@@ -380,6 +381,10 @@ export async function extractData(
           const payload = []
           for (const isin of isins) {
             signal.throwIfAborted()
+            if (excludedQuoteIsins.includes(isin)) {
+              payload.push({ ...retainedItem(sourceId, isin, 'response'), isin, investigation: 'excluded' })
+              continue
+            }
             try {
               payload.push({ isin, response: await read(topic, { id: isin }) })
             } catch (error) {
@@ -407,6 +412,11 @@ export async function extractData(
       const metadata = result.get('instrumentDetails')?.payload
       for (const isin of isins) {
         signal.throwIfAborted()
+        if (excludedQuoteIsins.includes(isin)) {
+          const retained = retainedItem('quotes', isin, 'quote')
+          payload.push({ ...retained, isin, investigation: 'excluded', selectionReason: 'Quote investigation excluded by user; retained evidence keeps its original date' })
+          continue
+        }
         const matches = Array.isArray(metadata) ? metadata.filter(row => row && typeof row === 'object' && !Array.isArray(row) && row.isin === isin) : []
         const selection = selectQuoteListings(isin, matches.length === 1 ? object(matches[0]).response : undefined)
         const attempts: { venue: string; error: DiagnosticDetail }[] = []

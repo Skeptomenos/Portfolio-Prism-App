@@ -1,3 +1,4 @@
+import type { ManualEvidence } from '../contracts/investigations'
 import type { DatabaseSync } from 'node:sqlite'
 import { randomUUID } from 'node:crypto'
 import { decodeSnapshot, type Snapshot } from './model'
@@ -57,9 +58,9 @@ export function accountScope(connectionId: string, account: string, defaultId: s
 }
 /** Each provider values only its own quantities. Cross-connection merging happens
  * after eligibility; an ISIN match never lends another account a quote or cash. */
-export function valueConnections(inputs: readonly ConnectionInputs[], defaultId: string, now = Date.now(), policy: ValuationPolicy = currentValuationPolicy) {
+export function valueConnections(inputs: readonly ConnectionInputs[], defaultId: string, now = Date.now(), policy: ValuationPolicy = currentValuationPolicy, manualEvidence?: readonly ManualEvidence[]) {
   const values = inputs.map(input => {
-    const result = valueObservations(input.snapshot, input.observations, now, input.quantities, policy)
+    const result = valueObservations(input.snapshot, input.observations, now, input.quantities, policy, manualEvidence ? { connectionId: input.connection.id, evidence: manualEvidence } : undefined)
     return { ...result, rows: result.rows.map(row => ({ ...row, account: accountScope(input.connection.id, row.account, defaultId) })) }
   })
   if (values.length === 1) return values[0]

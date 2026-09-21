@@ -1,3 +1,5 @@
+import { InvestigationStore } from './investigations'
+import { investigationReport, executeInvestigation } from './investigation-commands'
 import { Schema } from 'effect'
 import { FinancialObservationSchema as RetainedFinancialObservationSchema } from './history-observation'
 import { EventLedger } from './event-ledger'
@@ -33,6 +35,7 @@ export class SnapshotStore {
   readonly connections: ConnectionStore
   readonly history: PortfolioHistory
   readonly ledger: EventLedger
+  readonly investigations: InvestigationStore
   private readonly db: DatabaseSync
   constructor(path: string, readonly registry: PluginRegistry = bundledPluginRegistry) {
     if (path !== ':memory:') mkdirSync(dirname(path), { recursive: true, mode: 0o700 })
@@ -41,7 +44,7 @@ export class SnapshotStore {
     this.db.exec('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;')
     const version = this.db.prepare('PRAGMA user_version').get()?.user_version
     // VACUUM INTO includes committed WAL pages. Recovery uses this untouched copy.
-    if (typeof version === 'number' && version > 0 && version < 13 && path !== ':memory:') {
+    if (typeof version === 'number' && version > 0 && version < 14 && path !== ':memory:') {
       const backup = `${path}.pre-history-${randomUUID()}.sqlite`
       this.db.prepare('VACUUM INTO ?').run(backup)
       chmodSync(backup, 0o600)
@@ -63,7 +66,8 @@ export class SnapshotStore {
       version !== 10 &&
       version !== 11 &&
       version !== 12 &&
-      version !== 13
+      version !== 13 &&
+      version !== 14
     )
       throw new Error('Unsupported V2 database version')
     if (version === 0 || version === 1)
@@ -95,6 +99,8 @@ export class SnapshotStore {
     if (typeof version === 'number' && version < 11) PortfolioHistory.migrate(this.db)
     if (typeof version === 'number' && version < 12) ConnectionStore.migrate(this.db)
     if (typeof version === 'number' && version < 13) EventLedger.migrate(this.db)
+    if (typeof version === 'number' && version < 14) InvestigationStore.migrate(this.db)
+    this.investigations = new InvestigationStore(this.db)
     this.ledger = new EventLedger(this.db)
     this.history = new PortfolioHistory(this.db, this)
     this.connections = new ConnectionStore(this.db, this.history.connectionId)
@@ -487,7 +493,19 @@ export class SnapshotStore {
       ? { connection, snapshot: this.latest(), holdingsHistory: this.db.prepare('SELECT payload FROM snapshots ORDER BY id').all().map(row => decodeSnapshot(JSON.parse(String(row.payload)))), observations: this.sources().flatMap(source => { const o = tradeRepublicObservation(source); return o ? [o] : [] }), quantities: this.quantityObservations() }
       : this.connections.inputs(connection))
   }
-  overview(now = Date.now()) { return valueConnections(this.connectionInputs(), this.connections.defaultId, now) }
+  overview(now = Date.now()) { return valueConnections(this.connectionInputs(), this.connections.defaultId, now, 'verified-listings', this.investigations.snapshot().evidence) }
+  investigationReport(now = Date.now()) { return investigationReport(this, now) }
+  investigationCommand(value: unknown, now = Date.now()) { return executeInvestigation(this, value, now) }
+  investigationTransaction<T>(work: () => T): T {
+    this.db.exec('BEGIN IMMEDIATE')
+    try { const result = work(); this.db.exec('COMMIT'); return result } catch (error) { this.db.exec('ROLLBACK'); throw error }
+  }
+  excludedQuoteIsins(connectionId: string) {
+    const input = this.connectionInputs().find(i => i.connection.id === connectionId)
+    const decisions = this.investigations.snapshot().decisions
+    const positions = input?.snapshot?.positions ?? []
+    return [...new Set(positions.map(p => p.isin))].filter(isin => positions.filter(p => p.isin === isin).every(p => decisions.filter(d => d.scope.connectionId === connectionId && d.scope.account === p.account && d.scope.isin === isin).at(-1)?.state === 'excluded'))
+  }
   combinedSnapshot(): Snapshot | null {
     const inputs = this.connectionInputs().filter(i => i.snapshot)
     if (!inputs.length) return null
