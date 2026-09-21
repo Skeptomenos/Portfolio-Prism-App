@@ -100,6 +100,7 @@ export class SnapshotStore {
     if (typeof version === 'number' && version < 12) ConnectionStore.migrate(this.db)
     if (typeof version === 'number' && version < 13) EventLedger.migrate(this.db)
     if (typeof version === 'number' && version < 14) InvestigationStore.migrate(this.db)
+    this.lastSuccessfulSyncAt()
     this.investigations = new InvestigationStore(this.db)
     this.ledger = new EventLedger(this.db)
     this.history = new PortfolioHistory(this.db, this)
@@ -409,6 +410,7 @@ export class SnapshotStore {
                   }
                 : null,
               valuation: ['not-requested','refreshing','success','partial','failed','cancelled'].includes(event.outcome.valuation) ? event.outcome.valuation : 'failed',
+              ...(event.outcome.events && ['not-requested','refreshing','success','partial','failed','cancelled'].includes(event.outcome.events) ? { events: event.outcome.events } : {}),
               sources: event.outcome.sources
                 .filter((s) => catalog.some((d) => d.id === s.id))
                 .map((s) => ({ id: s.id, status: ['not-fetched','success','partial','failed','unsupported'].includes(s.status) ? s.status : 'failed' as const })),
@@ -421,6 +423,9 @@ export class SnapshotStore {
       ...safeDiagnostic(event),
     }
     this.db.prepare('INSERT INTO diagnostics(payload) VALUES (?)').run(JSON.stringify(safe))
+    if (safe.terminal && ['login', 'restore', 'sync'].includes(safe.operation) && safe.event === 'succeeded' && safe.outcome?.holdings) {
+      this.db.prepare("INSERT INTO settings(key,value) VALUES ('last_full_sync',?) ON CONFLICT(key) DO UPDATE SET value=MAX(value,excluded.value)").run(Date.parse(safe.at))
+    }
     this.db.exec(
       'DELETE FROM diagnostics WHERE id NOT IN (SELECT id FROM diagnostics ORDER BY id DESC LIMIT 1000)'
     )
@@ -446,6 +451,19 @@ export class SnapshotStore {
       )
       .all()
       .map((row) => JSON.parse(String(row.payload)))
+  }
+  lastEventAttempt(): Diagnostic | null {
+    const row = this.db.prepare("SELECT payload FROM diagnostics WHERE json_extract(payload,'$.terminal')=1 AND json_extract(payload,'$.outcome.events') IN ('success','partial','failed','cancelled') ORDER BY id DESC LIMIT 1").get()
+    return row ? JSON.parse(String(row.payload)) : null
+  }
+  lastSuccessfulSyncAt(): string | null {
+    // Seed only from proven successes still retained at upgrade. Null is unknown.
+    const stored = this.db.prepare("SELECT value FROM settings WHERE key='last_full_sync'").get()?.value
+    const legacy = this.portfolioAttempts().find(attempt => attempt.event === 'succeeded' && attempt.outcome?.holdings)?.at
+    const time = Math.max(typeof stored === 'number' ? stored : 0, legacy ? Date.parse(legacy) : 0)
+    if (!time || !Number.isFinite(time)) return null
+    if (stored !== time) this.db.prepare("INSERT INTO settings(key,value) VALUES ('last_full_sync',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(time)
+    return new Date(time).toISOString()
   }
   autoRestoreEnabled(): boolean {
     return this.db.prepare("SELECT value FROM settings WHERE key='auto_restore'").get()?.value !== 0

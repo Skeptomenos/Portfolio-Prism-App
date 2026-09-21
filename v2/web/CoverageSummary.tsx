@@ -122,7 +122,7 @@ export function CoverageSummary({ report, error, compact = false }: {
       <span>Quotes <b>{dates(report.quoteDates)}</b>{report.staleQuotes > 0 && <em> · {report.staleQuotes} older than 24h</em>}</span>
       <span>ETF compositions used <b>{dates(report.compositionDates)}</b>{report.staleCompositions > 0 && <em> · {report.staleCompositions} stale</em>}</span>
     </div>
-    {(report.refreshFailed || report.warning) && <p className="coverage-alert" role="alert">Latest refresh needs attention. Last saved inputs remain in use. <a href="#/data">Review refresh</a>{report.warning && <span> {report.warning}</span>}</p>}
+    {(report.refreshFailed || report.warning) && <p className="coverage-alert" role="alert">{report.refreshIssues?.length ? report.refreshIssues.map(issue => `${({ holdings: 'Broker holdings', valuation: 'Broker valuation', events: 'Broker transaction', optional: 'Optional broker spending-balance', issuer: 'Issuer composition' })[issue.scope]} refresh ${issue.status}${issue.diagnosticId ? ` (diagnostic ${issue.diagnosticId})` : ''}.`).join(' ') : 'Saved source data needs attention.'} Last saved inputs remain in use. <a href="#/data">Review refresh</a>{report.warning && <span> {report.warning}</span>}</p>}
     <div className="coverage-footer">
       {(report.manualValuations ?? 0) > 0 && <span>{report.manualValuations} positions use user-provided manual price fallback; not broker-verified.</span>}
       <span>Whole portfolio · direct + ETF. {report.totals.some(total => total.nonCompanyValue !== null && new Decimal(total.nonCompanyValue).gt(0)) ? 'Includes non-company crypto. ' : ''}Excludes cash and unvalued positions.</span>

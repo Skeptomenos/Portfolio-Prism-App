@@ -78,6 +78,7 @@ export const CoverageSchema = S.Struct({
   pricedCount: count, unvalued: count, zeroCount: count, positionCount: count,
   companyGrouping: S.Literal('partial', 'unavailable'), reconciliation: S.Literal('pending'), holdingsAt: nullableDate,
   quoteDates: dateRange, compositionDates: dateRange, staleQuotes: count, staleCompositions: count, refreshFailed: S.Boolean, warning: nullable,
+  refreshIssues: S.optional(S.Array(S.Struct({ scope: S.Literal('holdings','valuation','events','optional','issuer'), status: S.Literal('partial','failed','cancelled'), diagnosticId: nullable }))),
   counts: S.Struct({ held: count, saved: count, checked: count, used: count, underlyingOnly: count }),
   funds: S.Array(S.Struct({ isin: text, name: text, provider: text, state: text, saved: S.Boolean, checked: S.Boolean, used: S.Boolean,
     compositionDate: nullableDate, sourceHash: nullable, quoteDates: dateRange,
@@ -128,8 +129,9 @@ export const FundDetailSchema = S.Struct({ ...fund,
 export const DiagnosticsSchema = S.Struct({ events: S.Array(S.Struct({ attemptId: text, operation: text, stage: text,
   connectionId: S.optional(text), providerId: S.optional(text),
   event: text, at: recordedDate, durationMs: S.Number, category: text, httpStatus: S.optional(count), networkCode: S.optional(text),
+  errorType: S.optional(text), transportPhase: S.optional(S.Literal('connect','response')), closeCode: S.optional(count), timeoutOrigin: S.optional(S.Literal('request','operation')), isin: S.optional(text), venue: S.optional(text),
   sourceId: S.optional(text), terminal: S.optional(S.Boolean), outcome: S.optional(S.Struct({
-    holdings: S.NullOr(S.Struct({ snapshotId: count, fetchedAt: text })), valuation: text, sources: S.Array(S.Struct({ id: text, status: text })),
+    holdings: S.NullOr(S.Struct({ snapshotId: count, fetchedAt: text })), valuation: text, events: S.optional(text), sources: S.Array(S.Struct({ id: text, status: text })),
   })) })) })
 export const AnalysisInputSchema = S.Struct({ exposure: ExposureSchema, coverage: CoverageSchema })
 export const financialSchemas = { overview: OverviewSchema, exposure: ExposureSchema, coverage: CoverageSchema,

@@ -8,7 +8,7 @@ import {
   TRTopicError,
 } from 'trade-republic-sdk'
 
-import { classifyError, type DiagnosticDetail, type DiagnosticStage } from './diagnostics'
+import { safeDiagnosticDetail, classifyError, type DiagnosticDetail, type DiagnosticStage } from './diagnostics'
 export function classifyTradeRepublicError(error: unknown): DiagnosticDetail {
   const detail = classifyError(error)
   if (false) {}
@@ -23,7 +23,13 @@ export function classifyTradeRepublicError(error: unknown): DiagnosticDetail {
   else if (error instanceof TRTopicError)
     detail.category =
       error.errorCode === 'AUTHENTICATION_ERROR' ? 'authentication' : 'provider_topic'
-  return detail
+  if (error instanceof Error) {
+    if (!detail.errorType) detail.errorType = error.constructor.name
+    if (error instanceof TRTimeoutError) detail.timeoutOrigin = 'request'
+    const cause = error.cause
+    if (cause && typeof cause === 'object' && 'code' in cause && typeof cause.code === 'number') detail.closeCode = cause.code
+  }
+  return safeDiagnosticDetail(detail)
 }
 export function httpStage(input: string | URL | Request): DiagnosticStage {
   const path = new URL(input instanceof Request ? input.url : input).pathname

@@ -5,6 +5,7 @@ const equal = (a: unknown, b: unknown, label = 'financial projection') => { if (
 import { createHash } from 'node:crypto'
 import { createFinancialClient } from '../web/views/financial-client'
 const [baseline, candidate] = process.argv.slice(2)
+const brokerHardening = process.argv.includes('--broker-hardening')
 if (!baseline || !candidate) throw Error('Supply baseline and candidate isolated origins')
 for (const origin of [baseline, candidate]) {
   const url = new URL(origin)
@@ -16,7 +17,14 @@ async function compare(path: string, generatedClock = false) {
   const [before, after] = await Promise.all([read(baseline, path), read(candidate, path)])
   // Only Development's request-generation timestamp changes between independent reads.
   if (generatedClock) { delete before.generatedAt; delete after.generatedAt }
-  equal(after, before, path); comparisons++; return after
+  // The hardening adds operational scope only; every financial/history field must match.
+  if (brokerHardening && path === '/api/coverage') {
+    const { refreshIssues: _beforeIssues, ...beforeFinancial } = before
+    const { refreshIssues: _afterIssues, ...afterFinancial } = after
+    equal(afterFinancial, beforeFinancial, path)
+    assert(Array.isArray(after.refreshIssues))
+  } else equal(after, before, path)
+  comparisons++; return after
 }
 const overview = await compare('/api/overview')
 const exposure = await compare('/api/exposure')
@@ -62,4 +70,4 @@ equal(analysis.data.coverage, coverage)
 console.log(JSON.stringify({ result: 'PASS', comparisons, checkpoints, positions: overview.rows.length,
   contributions: exposure.rows.flatMap((r: { contributions: unknown[] }) => r.contributions).length,
   checkpointDigest: createHash('sha256').update(checkpointHashes.join('\n')).digest('hex'),
-  excludedComparisonField: 'development.generatedAt (request clock only)' }))
+  excludedComparisonField: brokerHardening ? 'development.generatedAt; coverage.refreshIssues (operational scopes only)' : 'development.generatedAt (request clock only)' }))

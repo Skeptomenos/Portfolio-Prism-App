@@ -1,5 +1,5 @@
 import WebSocket from 'ws'
-import { TRConnectionError, TRTimeoutError } from 'trade-republic-sdk'
+import { BrokerFailure } from './broker-contract'
 
 // pytr's read-only instrument/stockDetails topics, on the same public broker socket as quotes.
 // This connection never receives session cookies or broker credentials.
@@ -15,6 +15,7 @@ export function readPublicData(
   return new Promise((resolve, reject) => {
     const socket = connect()
     let done = false
+    let transportPhase: 'connect' | 'response' = 'connect'
     const finish = (error: unknown, value?: unknown) => {
       if (done) return
       done = true
@@ -29,7 +30,7 @@ export function readPublicData(
     }
     const abort = () => finish(signal.reason ?? new Error('Cancelled'))
     const timer = setTimeout(
-      () => finish(new TRTimeoutError('Public data request timed out')),
+      () => finish(new BrokerFailure({ category: 'timeout', errorType: 'TRTimeoutError', timeoutOrigin: 'request', transportPhase })),
       10000
     )
     signal.addEventListener('abort', abort, { once: true })
@@ -47,7 +48,7 @@ export function readPublicData(
     socket.on('message', (raw) => {
       if (done) return
       const frame = raw.toString()
-      if (frame === 'connected') socket.send('sub 1 ' + JSON.stringify({ type: topic, id: isin }))
+      if (frame === 'connected') { transportPhase = 'response'; socket.send('sub 1 ' + JSON.stringify({ type: topic, id: isin })) }
       else if (frame.startsWith('1 A ')) {
         try {
           finish(null, JSON.parse(frame.slice(4)))
@@ -55,9 +56,9 @@ export function readPublicData(
           finish(new Error('Invalid public response'))
         }
       } else if (frame.startsWith('1 E ') || frame.startsWith('1 C'))
-        finish(new Error('Public data unavailable'))
+        finish(new BrokerFailure({ category: 'provider_topic', transportPhase }))
     })
-    socket.on('error', () => finish(new TRConnectionError('Public data connection failed')))
-    socket.on('close', () => finish(new TRConnectionError('Public data connection closed')))
+    socket.on('error', () => finish(new BrokerFailure({ category: 'connection', errorType: 'TRConnectionError', transportPhase })))
+    socket.on('close', (closeCode) => finish(new BrokerFailure({ category: 'connection', errorType: 'TRConnectionError', transportPhase, closeCode })))
   })
 }

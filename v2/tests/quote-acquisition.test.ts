@@ -40,3 +40,15 @@ it('skips excluded quote investigation while retaining holdings and original quo
  expect(result.calls).toEqual([])
  expect(result.quotes.payload).toMatchObject([{ isin, venue: 'BHS', quote: { bid: { price: '123.456', time } }, investigation: 'excluded' }])
 })
+
+it('does not carry historical request errors into an excluded attempt or later repeat', async () => {
+ const old = source('quotes', [{ isin, venue: 'BHS', quote: { bid: { price: '123.456', time } }, error: { category: 'timeout' }, attempts: [{ venue: 'BHS', error: { category: 'timeout' } }] }])
+ const first = await run(async () => { throw Error('must not request') }, [old], true, [isin])
+ const repeat = await run(async () => { throw Error('must not request') }, [first.quotes], true, [isin])
+ for (const result of [first, repeat]) {
+  expect(result.calls).toEqual([])
+  expect(result.quotes.status).toBe('success')
+  expect(result.quotes.payload).toMatchObject([{ isin, investigation: 'excluded', retained: true, quote: { bid: { price: '123.456', time } } }])
+  expect(result.quotes.payload).not.toMatchObject([{ error: expect.anything() }])
+ }
+})

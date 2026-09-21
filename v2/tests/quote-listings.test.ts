@@ -37,3 +37,12 @@ it('reports missing metadata and all-inactive listings safely', () => {
   expect(selectQuoteListings(isin, { isin, listings: [listing('LSX', 'EUR', 'unknown')] })).toEqual({ candidates: [], reason: 'listing-metadata-missing' })
   expect(selectQuoteListings(isin, { isin, listings: [listing('LSX', 'EUR', false)] })).toEqual({ candidates: [], reason: 'all-listings-inactive: obtain an active listing for the exact instrument' })
 })
+
+it('quarantines multi-currency venue ambiguity without blocking independent EUR routes', () => {
+  expect(selectQuoteListings(isin, { isin, listings: [listing('XLON', 'USD'), listing('LSX'), listing('XLON', 'GBX'), listing('TDG')] }))
+    .toEqual({ candidates: [{ venue: 'LSX', currency: 'EUR' }, { venue: 'TDG', currency: 'EUR' }], reason: null })
+  expect(selectQuoteListings(isin, { isin, listings: [listing('LSX'), listing('LSX', 'USD'), listing('TDG')] }))
+    .toEqual({ candidates: [{ venue: 'TDG', currency: 'EUR' }], reason: null })
+  expect(selectQuoteListings(isin, { isin, listings: [listing('XLON', 'USD'), listing('XLON', 'GBX')] }))
+    .toEqual({ candidates: [], reason: 'duplicate-venue' })
+})

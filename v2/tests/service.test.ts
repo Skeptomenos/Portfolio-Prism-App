@@ -151,6 +151,7 @@ describe('connection and sync lifecycle', () => {
     expect(service.status().outcome).toEqual({
       holdings: { snapshotId: 2, fetchedAt: broker.value.fetchedAt },
       valuation: 'failed',
+      events: 'not-requested',
       sources: [{ id: 'instrumentDetails', status: 'success' }],
     })
     broker.fail = true
@@ -468,8 +469,71 @@ it('reports failed event acquisition after preserving the saved ledger and recov
     expect(service.status().lastDiagnostic?.event).toBe('failed')
     expect(store.ledger.coverage(store.connections.defaultId)).toMatchObject({acquisition:'failed',timelineObservedAt:'2026-09-01T00:00:00Z'})
     expect(service.status().snapshot).toEqual(sample())
-    failed=false;service.sync();await service.settled()
+    expect(service.coverage().refreshIssues).toEqual(expect.arrayContaining([expect.objectContaining({ scope: 'events', status: 'failed' })]))
+    failed=false;service.backfillEvents();await service.settled()
     expect(service.status().lastDiagnostic?.event).toBe('succeeded')
     expect(store.ledger.coverage(store.connections.defaultId)?.acquisition).toBe('partial')
+    expect(service.coverage().refreshIssues.some(issue => issue.scope === 'events')).toBe(false)
+    expect(service.status().lastEventAttempt?.outcome?.events).toBe('success')
   }finally{await service.close()}
+})
+
+it('separates optional spending balance and event failures from required valuation', async () => {
+  const broker = new FakeBroker()
+  const readData: NonNullable<Broker['readData']> = async (_previous, save) => {
+    for (const id of ['instrumentDetails', 'quotes', 'cash', 'availableCash'])
+      save({ ...catalog.find(s => s.id === id)!, status: id === 'availableCash' ? 'failed' : 'success', payload: [] })
+  }
+  const readEvents: NonNullable<Broker['readEvents']> = async () => { throw new BrokerFailure({ category: 'connection' }) }
+  const service = new PortfolioService(Object.assign(broker, { readData, readEvents }), new SnapshotStore(':memory:'))
+  service.restore(); await service.settled()
+  expect(service.status().outcome).toMatchObject({ holdings: { snapshotId: 1 }, valuation: 'success', events: 'failed' })
+  expect(service.status().lastDiagnostic).toMatchObject({ event: 'failed', category: 'connection' })
+  expect(service.status().lastSuccessfulSyncAt).toBeNull()
+  expect(service.status().lastHoldingsCommitAt).toBe(sample().fetchedAt)
+  expect(service.coverage().refreshIssues.map(i => i.scope)).toEqual(['events', 'optional'])
+  await service.close()
+})
+
+it('retains a proven full success across diagnostic eviction and reopen', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prism-sync-milestone-')), path = join(dir, 'portfolio.sqlite')
+  const store = new SnapshotStore(path)
+  const service = new PortfolioService(new FakeBroker(), store)
+  service.restore(); await service.settled()
+  const at = service.status().lastSuccessfulSyncAt
+  expect(at).toBeTruthy()
+  for (let i = 0; i < 1005; i++) store.recordDiagnostic({ attemptId: String(i), operation: 'background', stage: 'connecting', event: 'started', category: 'none', at: new Date().toISOString(), durationMs: 0 })
+  expect(store.portfolioAttempts()).toHaveLength(0)
+  expect(service.status().lastSuccessfulSyncAt).toBe(at)
+  await service.close()
+  const reopened = new PortfolioService(new FakeBroker(), new SnapshotStore(path))
+  expect(reopened.status().lastSuccessfulSyncAt).toBe(at)
+  expect(reopened.status().lastHoldingsCommitAt).toBe(sample().fetchedAt)
+  await reopened.close(); rmSync(dir, { recursive: true })
+})
+
+it('reports an operation deadline as timeout rather than user cancellation', async () => {
+  vi.useFakeTimers()
+  const broker = new FakeBroker(); broker.delayed = true
+  const service = new PortfolioService(broker, new SnapshotStore(':memory:'))
+  try {
+    service.restore()
+    await vi.advanceTimersByTimeAsync(180_001)
+    await service.settled()
+    expect(service.status().lastDiagnostic).toMatchObject({ event: 'failed', category: 'timeout', timeoutOrigin: 'operation' })
+    expect(service.status().snapshot).toBeNull()
+  } finally { await service.close(); vi.useRealTimers() }
+})
+
+
+it('keeps pending event details partial without claiming a full refresh', async () => {
+  const readEvents: NonNullable<Broker['readEvents']> = async (_previous, save) => {
+    save({ contractVersion: 'broker-events/1', observedAt: '2026-09-21T12:00:00Z', events: [], state: [], coverage: { observedAt: '2026-09-21T12:00:00Z', timelineObservedAt: '2026-09-21T12:00:00Z', lastAttemptAt: '2026-09-21T12:00:00Z', acquisition: 'partial', olderAvailable: true, detailsPending: 2, failedDetails: 0, recentGap: false, historyComplete: false } })
+  }
+  const service = new PortfolioService(Object.assign(new FakeBroker(), { readEvents }), new SnapshotStore(':memory:'))
+  service.restore(); await service.settled()
+  expect(service.status().lastEventAttempt?.outcome?.events).toBe('partial')
+  expect(service.status().lastPortfolioAttempt?.event).toBe('partial')
+  expect(service.status().lastSuccessfulSyncAt).toBeNull()
+  await service.close()
 })

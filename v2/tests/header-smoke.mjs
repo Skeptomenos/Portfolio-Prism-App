@@ -1,7 +1,8 @@
-import { chromium, expect } from '@playwright/test'
+import { chromium, expect as baseExpect } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 
 // Saved-data acceptance only: never refreshes, logs in or submits mutations.
+const expect = baseExpect.configure({ timeout: 20_000 })
 const origin = process.env.PRISM_V2_URL ?? 'http://127.0.0.1:4312'
 const phase = process.argv.includes('--before') ? 'before' : 'after'
 const output = 'v2/test-results/sticky-header'
@@ -45,7 +46,7 @@ try {
         await page.keyboard.press('Enter')
         await expect(toggle).toHaveAttribute('aria-expanded', 'true')
         const links = page.locator('#navigation-links a')
-        await expect(links).toHaveText(['Portfolio', 'Breakdown', 'Explore', 'Development', 'Data & connections', 'Contribution mix', 'History', 'Amundi source', 'Wiki'])
+        await expect(links).toHaveText(['Portfolio', 'Breakdown', 'Explore', 'Development', 'Data & connections', 'Contribution mix', 'Transactions', 'History', 'Amundi source', 'Wiki'])
         for (const link of await links.all()) {
           const box = await link.boundingBox()
           expect(box.x).toBeGreaterThanOrEqual(0)

@@ -31,11 +31,23 @@ it('shows first-load failure without inventing amounts, and retains last-success
   const retained=renderToStaticMarkup(React.createElement(CoverageSummary,{report:{...report,refreshFailed:true},error:'Could not refresh'}))
   expect(retained).toContain('100.00 EUR')
   expect(retained).toContain('Could not refresh')
-  expect(retained).toContain('Latest refresh needs attention')
+  expect(retained).toContain('Saved source data needs attention')
 })
 it('renders no successful bar for an empty or incompatible denominator', () => {
   for(const state of ['unavailable','incompatible']) {
     const value={...report,totals:[{...report.totals[0],state,knownPercent:null}]}
     expect(renderToStaticMarkup(React.createElement(CoverageSummary,{report:value,error:null}))).not.toContain('role="img"')
   }
+})
+it('names transaction and optional failures without claiming valuation failed', () => {
+  const html = renderToStaticMarkup(React.createElement(CoverageSummary, { report: {
+    ...report, refreshFailed: true, refreshIssues: [
+      { scope: 'events', status: 'failed', diagnosticId: 'attempt-events' },
+      { scope: 'optional', status: 'failed', diagnosticId: 'attempt-optional' },
+    ],
+  }, error: null }))
+  expect(html).toContain('Broker transaction')
+  expect(html).toContain('Optional broker spending-balance')
+  expect(html).toContain('attempt-events')
+  expect(html).toContain('100.00 EUR')
 })

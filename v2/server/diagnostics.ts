@@ -36,6 +36,12 @@ export interface DiagnosticDetail {
   category: DiagnosticCategory
   httpStatus?: number
   networkCode?: string
+  errorType?: string
+  transportPhase?: 'connect' | 'response'
+  closeCode?: number
+  timeoutOrigin?: 'request' | 'operation'
+  isin?: string
+  venue?: string
 }
 export interface Diagnostic extends DiagnosticDetail {
   connectionId?: string
@@ -90,6 +96,12 @@ const events = new Set<string>(['started','succeeded','partial','failed','cancel
 const operations = new Set<string>(['login','restore','sync','extraction','logout','background','request','composition'])
 export function safeDiagnosticDetail(detail: DiagnosticDetail): DiagnosticDetail {
   return { category: categories.has(detail.category) ? detail.category : 'unexpected',
+    ...(typeof detail.errorType === 'string' && ['TRConnectionError','TRTimeoutError','TRAuthError','TRHttpError','TRAbortError','TRValidationError','TRTopicError'].includes(detail.errorType) ? { errorType: detail.errorType } : {}),
+    ...(['connect','response'].includes(detail.transportPhase ?? '') ? { transportPhase: detail.transportPhase } : {}),
+    ...(['request','operation'].includes(detail.timeoutOrigin ?? '') ? { timeoutOrigin: detail.timeoutOrigin } : {}),
+    ...(Number.isInteger(detail.closeCode) && detail.closeCode! >= 1000 && detail.closeCode! <= 4999 ? { closeCode: detail.closeCode } : {}),
+    ...(typeof detail.isin === 'string' && /^[A-Z]{2}[A-Z0-9]{9}[0-9]$/.test(detail.isin) ? { isin: detail.isin } : {}),
+    ...(typeof detail.venue === 'string' && /^[A-Z][A-Z0-9._-]{1,15}$/.test(detail.venue) ? { venue: detail.venue } : {}),
     ...(Number.isInteger(detail.httpStatus) && detail.httpStatus! >= 100 && detail.httpStatus! <= 599 ? { httpStatus: detail.httpStatus } : {}),
     ...(typeof detail.networkCode === 'string' && safeNetworkCodes.has(detail.networkCode) ? { networkCode: detail.networkCode } : {}) }
 }

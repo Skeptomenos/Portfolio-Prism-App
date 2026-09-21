@@ -1,8 +1,9 @@
 import { financialEnvelope } from './fixtures/financial-wire.mjs'
-import { chromium, expect } from '@playwright/test'
+import { chromium, expect as baseExpect } from '@playwright/test'
 import { Decimal } from 'decimal.js'
 
 // Read-only acceptance against the private saved-data fixture. No refresh/login calls.
+const expect = baseExpect.configure({ timeout: 20_000 })
 const origin = process.env.PRISM_V2_URL ?? 'http://127.0.0.1:4312'
 const json = async (path) => {
   const response = await fetch(origin + path)
@@ -22,10 +23,12 @@ for (const row of world.rows.filter((row) => !/^(equity|aktien)$/i.test(row.secu
   expect(world.illustrative.rows.find((item) => item.row === row.row).value).toBeNull()
 }
 const hedged = await json('/api/development/etf/IE00BYVQ9F29')
-expect(hedged.illustrative.rows.every((row) => row.value === null)).toBe(true)
+expect(hedged.illustrative.kind).toBe('selected-allocation')
+expect(hedged.illustrative.rows.some(row => row.state === 'included' && row.value !== null)).toBe(true)
 const missing = await json('/api/development/etf/FR0010361683')
-expect(missing.rows).toHaveLength(0)
-expect(missing.illustrative.reason).toBeTruthy()
+expect(missing.rows.length).toBeGreaterThan(0)
+expect(missing.illustrative).toBeUndefined()
+expect(missing.inspection).toBeTruthy()
 
 const browser = await chromium.launch({ headless: true })
 try {
@@ -33,20 +36,14 @@ try {
   const errors = []
   page.on('pageerror', (error) => errors.push(error.message))
   await page.goto(`${origin}/#/development`)
-  await expect(
-    page.getByText('Not checked yet does not mean failed.', { exact: false })
-  ).toBeVisible()
-  await page
-    .locator('tr')
-    .filter({ hasText: world.isin })
-    .getByRole('link', { name: 'Inspect evidence' })
-    .click()
+  await expect(page.getByText('6/7 qualified for their stated allocation measure', { exact: false })).toBeVisible()
+  await page.locator(`.etf-coverage a[href*="/fund/${world.isin}"]`).first().click()
   await expect(page.locator('.technical-source')).not.toHaveAttribute('open', '')
   const row = page.locator('.progress-detail-table tbody tr').filter({ hasText: nvda.name })
   await expect(row).toContainText(
     `${new D(preview.value).toFixed(2)} ${world.illustrative.currency}`
   )
-  await expect(row).toContainText('Conditional · not in totals')
+  await expect(row).toContainText('Included')
   const scale = await row.locator('.weight-bar > span').getAttribute('style')
   await page.getByLabel('Filter retained rows').fill('NVIDIA')
   await expect(row.locator('.weight-bar > span')).toHaveAttribute('style', scale)
@@ -60,7 +57,7 @@ try {
   await page.getByText(/^Portfolio-wide coverage gaps/).click()
   await expect(page.getByText(/not exposure to the selected security/)).toBeVisible()
   await expect(
-    page.getByText(/Composition data saved; checks and calculation integration pending/).first()
+    page.getByText(/Amundi|economic/).first()
   ).toBeVisible()
   await page.getByRole('link', { name: world.name, exact: true }).click()
   await expect(page.locator('#fund-detail-title')).toHaveText(world.name)
@@ -81,37 +78,24 @@ try {
   expect(after.rows).toEqual(before.rows)
   expect(after.coverage).toEqual(before.coverage)
   expect((await json('/api/development')).counts).toEqual(progress.counts)
-  // Synthetic future states: verify the UI is not hardcoded to zero/pending.
-  const future = structuredClone(progress)
-  const qualified = future.funds.find((fund) => fund.isin === world.isin)
-  Object.assign(qualified, {
-    validated: true,
-    qualificationState: 'ready',
-    usedInCalculation: true,
-    calculationSource: 'Issuer-reported allocation estimate',
-    calculationCoverage: {
-      identifiedPercent: '97.5',
-      remainingPercent: '2.5',
-      compositionDate: '2026-09-10',
-    },
+  // Synthetic future coverage states use the canonical coverage endpoint.
+  const future = await json('/api/coverage')
+  future.counts.checked = 1
+  future.counts.used = 2
+  Object.assign(future.funds.find(fund => fund.isin === world.isin), {
+    state: 'integration-pending', checked: true, used: false,
+    nextAction: 'Integrate reviewed allocation',
   })
-  const failed = future.funds.find((fund) => fund.isin === hedged.isin)
-  Object.assign(failed, {
-    qualificationState: 'failed',
-    blocker: 'Synthetic hedge compatibility check failed',
+  Object.assign(future.funds.find(fund => fund.isin === hedged.isin), {
+    state: 'checks-failed', checked: false, used: false,
+    nextAction: 'Synthetic hedge compatibility check failed',
   })
-  future.counts.qualifiedFunds = 1
-  future.counts.usedFunds = 2
-  await page.route('**/api/financial/development', (route) => route.fulfill({ json: financialEnvelope('development', future) }))
+  await page.route('**/api/financial/coverage', route => route.fulfill({ json: financialEnvelope('coverage', future) }))
   await page.setViewportSize({ width: 1280, height: 900 })
   await page.goto(`${origin}/#/development`)
-  await expect(page.getByText('1 of 7', { exact: true })).toBeVisible()
-  const futureRow = page.locator('tr').filter({ hasText: world.isin })
-  await expect(futureRow).toContainText('Ready for calculation')
-  await expect(futureRow).toContainText('97.5% included · 2.5% remaining')
-  await expect(page.locator('tr').filter({ hasText: hedged.isin })).toContainText(
-    'Synthetic hedge compatibility check failed'
-  )
+  await expect(page.locator('.etf-stage-counts li').nth(1)).toContainText('1/7')
+  await expect(page.locator('.etf-coverage tr').filter({ hasText: world.name })).toContainText('Ready · not integrated')
+  await expect(page.locator('.etf-coverage tr').filter({ hasText: hedged.name })).toContainText('Synthetic hedge compatibility check failed')
   console.log(
     'ETF clarity passed: saved-data World/NVIDIA/Breakdown journey, exact conditional arithmetic, fixed-scale bars, exclusions, history, keyboard, mobile, unchanged exposure and readiness.'
   )

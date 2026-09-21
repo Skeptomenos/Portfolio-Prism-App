@@ -90,3 +90,9 @@ it('classifies schema failures without recording the rejected payload', () => {
   }
   throw new Error('Expected schema rejection')
 })
+
+it('projects safe transport detail and rejects arbitrary diagnostic fields', async () => {
+  const { safeDiagnosticDetail } = await import('../server/diagnostics')
+  expect(safeDiagnosticDetail({ category: 'connection', errorType: 'TRConnectionError', transportPhase: 'response', closeCode: 1006, isin: 'US0378331005', venue: 'LSX', ...{ message: 'SECRET' } })).toEqual({ category: 'connection', errorType: 'TRConnectionError', transportPhase: 'response', closeCode: 1006, isin: 'US0378331005', venue: 'LSX' })
+  expect(safeDiagnosticDetail({ category: 'unexpected', errorType: 'SECRET', closeCode: 999, isin: 'SECRET', venue: 'secret' })).toEqual({ category: 'unexpected' })
+})

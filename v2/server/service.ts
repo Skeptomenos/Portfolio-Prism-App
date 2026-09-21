@@ -16,7 +16,7 @@ import { ProviderRefreshService } from './provider-refresh-service'
 import { exposure } from './exposure'
 import { fundValuation, illustrativeValues } from './illustrative-values'
 import { withSourceReadiness } from './exposure-readiness'
-import { coverageReport } from './coverage-report'
+import { type RefreshIssue, coverageReport } from './coverage-report'
 import type { DataSource } from './explorer'
 import {
   developmentFund,
@@ -92,6 +92,7 @@ export class PortfolioService {
       | 'durationMs'
       | 'httpStatus'
       | 'networkCode'
+      | 'errorType' | 'transportPhase' | 'closeCode' | 'timeoutOrigin' | 'isin' | 'venue'
       | 'sourceId'
       | 'terminal'
     >
@@ -138,9 +139,10 @@ export class PortfolioService {
         sessionRestoreEnabled: this.store.autoRestoreEnabled(),
       },
       lastPortfolioAttempt: attempts[0] ?? null,
+      lastEventAttempt: this.store.lastEventAttempt(),
       lastSuccessfulSyncAt:
-        attempts.find((attempt) => attempt.event === 'succeeded' && attempt.outcome?.holdings)
-          ?.at ?? null,
+        this.store.lastSuccessfulSyncAt(),
+      lastHoldingsCommitAt: this.store.latest()?.fetchedAt ?? null,
       outcome: this.activeOutcome ?? this.store.latestOutcome(),
       snapshot: this.store.combinedSnapshot(),
       sessionWarning: this.diagnosticFailure
@@ -151,7 +153,7 @@ export class PortfolioService {
   }
   private async import(signal: AbortSignal): Promise<void> {
     this.guard(signal)
-    this.activeOutcome = { holdings: null, valuation: 'not-requested', sources: [] }
+    this.activeOutcome = { holdings: null, valuation: 'not-requested', events: 'not-requested', sources: [] }
     this.state.phase = 'syncing'
     this.stage = 'syncing'
     this.state.lastAttemptAt = new Date().toISOString()
@@ -179,7 +181,7 @@ export class PortfolioService {
       this.activeOutcome!.valuation =
         ['instrumentDetails', 'quotes', 'cash'].every((id) =>
           saved.some((s) => s.id === id && s.status === 'success')
-        ) && saved.every((s) => s.status === 'success')
+        )
           ? 'success'
           : 'partial'
       if (this.activeOutcome!.valuation === 'partial')
@@ -190,15 +192,22 @@ export class PortfolioService {
   private async acquireEvents(signal: AbortSignal, mode: 'recent' | 'backfill') {
     if(!this.broker.readEvents)return
     this.stage='data_extraction'
+    if (this.activeOutcome) this.activeOutcome.events = 'refreshing'
     let failed=false
-    await this.broker.readEvents(this.store.ledger.state(this.store.connections.defaultId), batch=>{
+    try {
+      await this.broker.readEvents(this.store.ledger.state(this.store.connections.defaultId), batch=>{
+        this.guard(signal)
+        this.store.ledger.save(this.store.connections.defaultId,batch)
+        failed=batch.coverage.acquisition==='failed'
+        this.activeEventsPartial=batch.coverage.failedDetails>0||batch.coverage.detailsPending>0||batch.coverage.recentGap
+      },signal,mode)
       this.guard(signal)
-      this.store.ledger.save(this.store.connections.defaultId,batch)
-      failed=batch.coverage.acquisition==='failed'
-      this.activeEventsPartial=batch.coverage.failedDetails>0||batch.coverage.recentGap
-    },signal,mode)
-    this.guard(signal)
-    if(failed)throw new BrokerFailure({category:'unexpected'})
+      if(failed)throw new BrokerFailure({category:'unexpected'})
+      if (this.activeOutcome) this.activeOutcome.events = this.activeEventsPartial ? 'partial' : 'success'
+    } catch (error) {
+      if (this.activeOutcome) this.activeOutcome.events = signal.aborted && signal.reason?.name !== 'TimeoutError' ? 'cancelled' : 'failed'
+      throw error
+    }
   }
   events() { return this.store.ledger.read(this.store.connectionInputs()) }
   reprocessEvents(): boolean {
@@ -238,7 +247,7 @@ export class PortfolioService {
     const outcome = this.activeOutcome
     if (!outcome?.holdings) return 'Your last saved holdings are unchanged.'
     return (
-      `Holdings saved at ${outcome.holdings.fetchedAt}. Valuation refresh ${outcome.valuation}. ` +
+      `Holdings saved at ${outcome.holdings.fetchedAt}. Valuation refresh ${outcome.valuation}. Transaction refresh ${outcome.events ?? 'not-requested'}. ` +
       `${outcome.sources.length} source outcomes saved; see broker data for individual results.`
     )
   }
@@ -290,15 +299,17 @@ export class PortfolioService {
       ),
       Effect.catchAll((error) =>
         Effect.sync(() => {
+          const timedOut = controller.signal.aborted && controller.signal.reason?.name === 'TimeoutError'
+          const cancelled = controller.signal.aborted && !timedOut
           if (this.activeOutcome?.valuation === 'refreshing')
-            this.activeOutcome.valuation = controller.signal.aborted ? 'cancelled' : 'failed'
-          if (this.historyRun) this.store.history.finish(this.historyRun, controller.signal.aborted ? 'cancelled' : 'failed', [{ code: controller.signal.aborted ? 'cancelled' : 'operation-failed', severity: 'warning', message: 'The operation did not finish. Previously committed checkpoints remain available.', nextAction: 'Inspect source diagnostics and retry when the cause is resolved.', diagnosticId: this.attemptId }])
+            this.activeOutcome.valuation = cancelled ? 'cancelled' : 'failed'
+          if (this.historyRun) this.store.history.finish(this.historyRun, cancelled ? 'cancelled' : 'failed', [{ code: timedOut ? 'operation-timeout' : cancelled ? 'cancelled' : 'operation-failed', severity: 'warning', message: 'The operation did not finish. Previously committed checkpoints remain available.', nextAction: 'Inspect source diagnostics and retry when the cause is resolved.', diagnosticId: this.attemptId }])
           this.record({
             terminal: true,
             stage: this.stage,
-            event: controller.signal.aborted ? 'cancelled' : 'failed',
+            event: cancelled ? 'cancelled' : 'failed',
             ...error.detail,
-            ...(controller.signal.aborted ? { category: 'cancelled' as const } : {}),
+            ...(controller.signal.aborted ? { category: timedOut ? 'timeout' as const : 'cancelled' as const, ...(timedOut ? { timeoutOrigin: 'operation' as const } : {}) } : {}),
             durationMs: Math.round(performance.now() - started),
           })
           this.state.error = `${this.committedOutcomeMessage()} ${error.message} Diagnostic reference: ${this.attemptId}`
@@ -392,10 +403,24 @@ export class PortfolioService {
   coverage() {
     const valuations = this.overview(), progress = this.development()
     const result = this.exposure(valuations, progress)
+    const attempt = this.store.portfolioAttempts()[0]
+    const outcome = attempt?.outcome
+    const issues: RefreshIssue[] = []
+    const problem = (value: string | undefined): value is RefreshIssue['status'] => ['partial', 'failed', 'cancelled'].includes(value ?? '')
+    const add = (scope: RefreshIssue['scope'], status: RefreshIssue['status']) => issues.push({ scope, status, diagnosticId: attempt?.attemptId ?? null })
+    if (attempt && !outcome?.holdings && problem(attempt.event)) add('holdings', attempt.event)
+    if (problem(outcome?.valuation)) add('valuation', outcome!.valuation as RefreshIssue['status'])
+    else if (this.store.sources().some(source => ['quotes', 'instrumentDetails', 'cash'].includes(source.id) && ['failed', 'partial'].includes(source.status))) add('valuation', 'partial')
+    const eventAttempt = this.store.lastEventAttempt()
+    const eventOutcome = eventAttempt?.outcome?.events ?? outcome?.events
+    if (problem(eventOutcome)) issues.push({ scope: 'events', status: eventOutcome, diagnosticId: eventAttempt?.attemptId ?? attempt?.attemptId ?? null })
+    // Legacy attempts lack the events field; the retained acquisition record owns its state.
+    else if (!eventOutcome && this.store.ledger.coverage(this.store.connections.defaultId)?.acquisition === 'failed') add('events', 'failed')
+    if (outcome?.sources.some(source => source.id === 'availableCash' && source.status === 'failed')) add('optional', 'failed')
+    if (result.refreshFailed || Object.values(result.sourceAttempts).some(attempt => attempt.status === 'failed'))
+      issues.push({ scope: 'issuer', status: 'failed', diagnosticId: null })
     return coverageReport(valuations, result, progress, {
-      failed: result.refreshFailed || Object.values(result.sourceAttempts).some(attempt => attempt.status === 'failed') ||
-        this.store.sources().some(source => ['quotes', 'instrumentDetails'].includes(source.id) && ['failed', 'partial'].includes(source.status)),
-      warning: result.warning,
+      failed: issues.length > 0, warning: result.warning, issues,
     })
   }
   development(): DevelopmentProgress {
@@ -425,7 +450,7 @@ export class PortfolioService {
     return this.start(
       'syncing',
       async (signal) => {
-        this.activeOutcome = { holdings: null, valuation: 'not-requested', sources: [] }
+        this.activeOutcome = { holdings: null, valuation: 'not-requested', events: 'not-requested', sources: [] }
         this.stage = 'data_extraction'
         let nextMode = mode
         for (let batch = 0; batch < (mode === 'history-batch' ? 1 : 100); batch++) {

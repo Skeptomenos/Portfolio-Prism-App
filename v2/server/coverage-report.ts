@@ -13,11 +13,16 @@ const range = (values: (string | null)[]) => {
 }
 
 // Read-only projection of the selected calculation. It never admits a source or changes totals.
+export interface RefreshIssue {
+  scope: 'holdings' | 'valuation' | 'events' | 'optional' | 'issuer'
+  status: 'partial' | 'failed' | 'cancelled'
+  diagnosticId: string | null
+}
 export function coverageReport(
   valuations: Valuations,
   result: Exposure,
   progress: DevelopmentProgress,
-  refresh: { failed: boolean; warning: string | null },
+  refresh: { failed: boolean; warning: string | null; issues?: RefreshIssue[] },
   now = Date.now()
 ) {
   const held = valuations.rows.filter(position => !new D(position.quantity).isZero())
@@ -92,7 +97,7 @@ export function coverageReport(
     compositionDates: range(heldSources.map(source => source.asOf)),
     staleQuotes: quotes.filter(date => !date || now - Date.parse(date) > 86400000).length,
     staleCompositions: heldSources.filter(source => !source.asOf || now - Date.parse(source.asOf) > 30 * 86400000).length,
-    refreshFailed: refresh.failed, warning: refresh.warning,
+    refreshFailed: refresh.failed, warning: refresh.warning, refreshIssues: refresh.issues ?? [],
     counts: { held: funds.length, saved: funds.filter(fund => fund.saved).length,
       checked: funds.filter(fund => fund.checked).length, used: funds.filter(fund => fund.used).length,
       underlyingOnly: funds.filter(fund => fund.acquisitionState === 'underlying-observation').length },

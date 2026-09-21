@@ -121,7 +121,7 @@ it.each(['instrument', 'ticker'] as const)('first import keeps successful rows w
     const failedSource = store.sources().find(s => s.id === (failingTopic === 'ticker' ? 'quotes' : 'instrumentDetails'))!
     expect(failedSource.status).toBe('partial')
     expect(failedSource.payload).toHaveLength(3)
-    expect(failedSource.payload).toEqual(expect.arrayContaining([expect.objectContaining({ isin: nvidia, error: { category: 'unexpected' } })]))
+    expect(failedSource.payload).toEqual(expect.arrayContaining([expect.objectContaining({ isin: nvidia, error: { category: 'unexpected', isin: nvidia, ...(failingTopic === 'ticker' ? { venue: 'LSX' } : {}) } })]))
     expect(reads).toContain(`ticker:${microsoft}.LSX`)
     const result = overview(store.latest(), store.sources(), time + 1000, store.quantityObservations())
     expect(result.rows.map(row => row.value)).toEqual(['200', null, '200'])

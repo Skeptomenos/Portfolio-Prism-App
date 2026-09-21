@@ -58,3 +58,16 @@ it('cancels a pending public response without returning late data', async () => 
     await new Promise<void>((r) => server.close(() => r()))
   }
 })
+
+it('records a safe response-phase close code without the private close reason', async () => {
+  const server = new WebSocketServer({ port: 0 })
+  await new Promise<void>(r => server.on('listening', r))
+  server.on('connection', socket => socket.on('message', raw => {
+    if (raw.toString().startsWith('connect ')) socket.send('connected')
+    else if (raw.toString().startsWith('sub ')) socket.close(1008, 'SECRET')
+  }))
+  try {
+    await expect(readPublicData('instrument', 'US0378331005', new AbortController().signal, () => new WebSocket(`ws://127.0.0.1:${(server.address() as AddressInfo).port}`)))
+      .rejects.toMatchObject({ detail: { category: 'connection', transportPhase: 'response', closeCode: 1008 } })
+  } finally { await new Promise<void>(r => server.close(() => r())) }
+})

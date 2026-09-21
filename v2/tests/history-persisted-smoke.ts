@@ -1,5 +1,6 @@
 // Read-only browser verification against an explicitly provided copied-data service.
 // This script never logs in, refreshes, migrates or writes to the backend.
+import { Decimal } from 'decimal.js'
 import { chromium, expect } from '@playwright/test'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -44,8 +45,8 @@ try {
     const card = page.getByRole('region', { name: `${currency.currency} saved allocation` })
     await expect(card.getByText(`${coveragePercent(currency.coveragePercent)} · ${currency.allocationState}`, { exact: true })).toBeVisible()
     if (['allocated', 'partial'].includes(currency.allocationState) && currency.coveragePercent !== null)
-      await expect(card.getByRole('img')).toHaveAccessibleName(`${currency.currency} priced-securities allocation: ${coveragePercent(currency.coveragePercent)}; unassigned ${coverageMoney(currency.unassignedValue, currency.currency)}. Excludes unvalued positions and cash.`)
-    await expect(card.getByText(`Included ${coverageMoney(currency.includedSecurityValue, currency.currency)} / priced ${coverageMoney(currency.pricedSecurities, currency.currency)}`, { exact: true })).toBeVisible()
+      await expect(card.getByRole('img')).toHaveAccessibleName(currency.nonCompanyValue !== null && new Decimal(currency.nonCompanyValue).gt(0) ? `${currency.currency} saved priced assets: ${coverageMoney(currency.pricedSecurities, currency.currency)}; included securities ${coverageMoney(currency.includedSecurityValue, currency.currency)} (${coveragePercent(currency.coveragePercent)}); non-company crypto ${coverageMoney(currency.nonCompanyValue, currency.currency)}; unassigned ${coverageMoney(currency.unassignedValue, currency.currency)}. Excludes unvalued positions and cash.` : `${currency.currency} priced-securities allocation: ${coveragePercent(currency.coveragePercent)}; unassigned ${coverageMoney(currency.unassignedValue, currency.currency)}. Excludes unvalued positions and cash.`)
+    await expect(card.getByText(`Included ${coverageMoney(currency.includedSecurityValue, currency.currency)} / priced ${currency.nonCompanyValue !== null && new Decimal(currency.nonCompanyValue).gt(0) ? 'assets ' : ''}${coverageMoney(currency.pricedSecurities, currency.currency)}`, { exact: true })).toBeVisible()
     await expect(card).toContainText(currency.cashValue === null ? 'Separate cash: Unknown' : `Separate cash: ${coverageMoney(currency.cashValue, currency.currency)}`)
     const exact = card.locator('.history-exact-values')
     await exact.locator('summary').click()
@@ -82,7 +83,7 @@ try {
     await expect(summary.getByText(`${saved.checkpoint.pricedPositionCount} priced · ${saved.checkpoint.unvaluedPositionCount} unvalued · ${saved.checkpoint.zeroPositionCount} zero positions`)).toBeInViewport({ ratio: 1 })
     if (saved.checkpoint.currencies[0]) {
       const currency = saved.checkpoint.currencies[0]
-      await expect(summary.getByText(`Included ${coverageMoney(currency.includedSecurityValue, currency.currency)} / priced ${coverageMoney(currency.pricedSecurities, currency.currency)}`, { exact: true })).toBeInViewport({ ratio: 1 })
+      await expect(summary.getByText(`Included ${coverageMoney(currency.includedSecurityValue, currency.currency)} / priced ${currency.nonCompanyValue !== null && new Decimal(currency.nonCompanyValue).gt(0) ? 'assets ' : ''}${coverageMoney(currency.pricedSecurities, currency.currency)}`, { exact: true })).toBeInViewport({ ratio: 1 })
     }
     await expect(page.locator('.route-content')).toHaveCSS('opacity', '1')
     await page.screenshot({ path: join(evidence, `history-${width}.png`), fullPage: true })

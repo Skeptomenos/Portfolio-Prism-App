@@ -80,7 +80,7 @@ export function ConnectionPanel({
       <div className="connection-controls">
         <div className="sync-dates">
           <span>
-            Last successful sync:{' '}
+            Last complete broker refresh:{' '}
             <time dateTime={status?.lastSuccessfulSyncAt ?? undefined}>
               {date(status?.lastSuccessfulSyncAt)}
             </time>
@@ -88,8 +88,8 @@ export function ConnectionPanel({
           {!compact && (
             <span>
               Saved holdings:{' '}
-              <time dateTime={status?.snapshot?.fetchedAt}>
-                {date(status?.snapshot?.fetchedAt)}
+              <time dateTime={status?.lastHoldingsCommitAt ?? status?.snapshot?.fetchedAt}>
+                {date(status?.lastHoldingsCommitAt ?? status?.snapshot?.fetchedAt)}
               </time>
               . Quote and composition dates are separate.
             </span>
@@ -112,6 +112,12 @@ export function ConnectionPanel({
             : 'No saved portfolio yet.'}
         </p>
       )}
+      {!compact && outcome && <p className="sync-saved">
+        Holdings: {outcome.holdings ? 'saved' : 'not saved in this attempt'}. Valuation: {outcome.valuation}.
+        {' '}Transactions: {status?.lastEventAttempt?.outcome?.events ?? outcome.events ?? 'not recorded for this older attempt'}.
+        {outcome.sources.some(source => source.id === 'availableCash' && source.status === 'failed') && ' Optional spending-balance refresh failed; total cash has its own outcome.'}
+        {' '}Issuer refresh results are shown separately below.
+      </p>}
       <div role="status" aria-live="polite">
         {step && <p className="notice">{step}</p>}
         {extraction && <p>Advanced data extraction is running; it is not a portfolio sync.</p>}

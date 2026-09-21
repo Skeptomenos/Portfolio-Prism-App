@@ -42,9 +42,11 @@ export const LoginSchema = Schema.Struct({
   phone: Schema.String.pipe(Schema.pattern(/^\+[1-9]\d{6,14}$/)),
   pin: Schema.String.pipe(Schema.pattern(/^\d{4}$/)),
 })
+export type RefreshOutcome = 'not-requested' | 'refreshing' | 'success' | 'partial' | 'failed' | 'cancelled'
 export interface OperationOutcome {
   holdings: { snapshotId: number; fetchedAt: string } | null
-  valuation: 'not-requested' | 'refreshing' | 'success' | 'partial' | 'failed' | 'cancelled'
+  valuation: RefreshOutcome
+  events?: RefreshOutcome
   sources: { id: string; status: DataSource['status'] }[]
 }
 export type Status = {
@@ -52,7 +54,9 @@ export type Status = {
   activeOperation: 'portfolio' | 'extraction' | null
   automaticRefresh: { enabled: boolean; intervalMinutes: number; sessionRestoreEnabled: boolean }
   lastPortfolioAttempt: Diagnostic | null
+  lastEventAttempt?: Diagnostic | null
   lastSuccessfulSyncAt: string | null
+  lastHoldingsCommitAt?: string | null
   outcome: OperationOutcome | null
   lastDiagnostic: Diagnostic | null
   phase: 'disconnected' | 'connecting' | 'awaiting-approval' | 'restoring' | 'connected' | 'syncing'

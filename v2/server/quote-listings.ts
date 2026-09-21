@@ -47,23 +47,24 @@ export function selectQuoteListings(exactIsin: string, raw: unknown): QuoteListi
   if (!active.length)
     return { candidates: [], reason: 'all-listings-inactive: obtain an active listing for the exact instrument' }
 
-  const seen = new Set<string>()
-  for (const candidate of active) {
-    if (seen.has(candidate.venue)) return { candidates: [], reason: 'duplicate-venue' }
-    seen.add(candidate.venue)
-  }
+  // A ticker request identifies only a venue, not its listing currency.
+  // Quarantine ambiguous venues without discarding independent usable routes.
+  const counts = new Map<string, number>()
+  for (const candidate of active) counts.set(candidate.venue, (counts.get(candidate.venue) ?? 0) + 1)
+  const eligible = active.filter(candidate => counts.get(candidate.venue) === 1)
+  if (!eligible.length) return { candidates: [], reason: 'duplicate-venue' }
 
-  const currencies = new Set(active.map(candidate => candidate.currency))
-  const lsx = active.find(candidate => candidate.venue === 'LSX')
+  const currencies = new Set(eligible.map(candidate => candidate.currency))
+  const lsx = eligible.find(candidate => candidate.venue === 'LSX')
   const primary = typeof response.primaryExchange === 'string' && venuePattern.test(response.primaryExchange)
-    ? active.find(candidate => candidate.venue === response.primaryExchange)
+    ? eligible.find(candidate => candidate.venue === response.primaryExchange)
     : undefined
   const preferred = lsx ?? primary
   const targetCurrency = preferred?.currency
   if (!targetCurrency && currencies.size > 1)
     return { candidates: [], reason: 'conflicting-active-currencies' }
 
-  const sameCurrency = active.filter(candidate => candidate.currency === (targetCurrency ?? active[0].currency))
+  const sameCurrency = eligible.filter(candidate => candidate.currency === (targetCurrency ?? eligible[0].currency))
   const order = (candidate: QuoteListingCandidate) =>
     candidate.venue === 'LSX' ? 0 :
     candidate.venue === response.primaryExchange ? 1 :

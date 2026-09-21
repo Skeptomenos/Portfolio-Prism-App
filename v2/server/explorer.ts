@@ -302,7 +302,8 @@ export async function extractData(
     const matches = previous.filter(row => row !== null && typeof row === 'object' && !Array.isArray(row) &&
       row.isin === isin && (!venue || row.venue === venue))
     if (matches.length !== 1 || !object(matches[0])[field]) return {}
-    return { ...object(matches[0]), retained: true, attemptedAt: new Date().toISOString() }
+    const { error: _error, attempts: _attempts, ...evidence } = object(matches[0])
+    return { ...evidence, retained: true, attemptedAt: new Date().toISOString() }
   }
   const read = (id: string, args: Record<string, string | boolean> = {}) =>
     transport.read(id, args, signal)
@@ -385,12 +386,15 @@ export async function extractData(
               payload.push({ ...retainedItem(sourceId, isin, 'response'), isin, investigation: 'excluded' })
               continue
             }
+            const started = performance.now()
             try {
               payload.push({ isin, response: await read(topic, { id: isin }) })
             } catch (error) {
               signal.throwIfAborted()
               if (classifyError(error).category === 'authentication') throw error
-              payload.push({ ...retainedItem(sourceId, isin, 'response'), isin, error: classifyError(error) })
+              const detail = { ...classifyError(error), isin }
+              observe(sourceId, 'failed', Math.round(performance.now() - started), detail)
+              payload.push({ ...retainedItem(sourceId, isin, 'response'), isin, error: detail })
             }
           }
           return {
@@ -422,6 +426,7 @@ export async function extractData(
         const attempts: { venue: string; error: DiagnosticDetail }[] = []
         let accepted = false
         for (const candidate of selection.candidates) {
+          const started = performance.now()
           try {
             const quote = await read('ticker', { id: `${isin}.${candidate.venue}` })
             const bid = object(object(quote).bid)
@@ -434,7 +439,9 @@ export async function extractData(
           } catch (error) {
             signal.throwIfAborted()
             if (classifyError(error).category === 'authentication') throw error
-            attempts.push({ venue: candidate.venue, error: classifyError(error) })
+            const detail = { ...classifyError(error), isin, venue: candidate.venue }
+            observe('quotes', 'failed', Math.round(performance.now() - started), detail)
+            attempts.push({ venue: candidate.venue, error: detail })
           }
         }
         if (!accepted) payload.push({ ...retainedItem('quotes', isin, 'quote'), isin,
