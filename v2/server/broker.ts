@@ -241,7 +241,7 @@ export class TradeRepublicBroker implements Broker {
   }
   async readObservations(previous: readonly FinancialObservation[], save: (value: FinancialObservation) => void, signal: AbortSignal): Promise<void> {
     const legacy = previous.map(o => valuationSource({ ...o,
-      instruments: o.instruments.map(i => ({ ...i, priceFactor: i.unit === 'per-security' ? 1 : null })),
+      instruments: o.instruments.map(({ unit, ...i }) => ({ ...i, priceFactor: unit === 'per-security' || unit === 'per-crypto-unit' ? 1 : null, ...(unit === 'per-crypto-unit' ? { unit } : {}) })),
       // This compatibility path does not convert new decimal strings to numbers.
       cash: o.cash.map(c => ({ ...c, amount: null })),
     }))

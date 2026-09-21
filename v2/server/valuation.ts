@@ -7,6 +7,8 @@ import {
   type QuantityObservation,
 } from './quantity-observations'
 const D = Decimal.clone({ precision: 256 })
+export type ValuationPolicy = 'legacy' | 'verified-listings'
+export const currentValuationPolicy: ValuationPolicy = 'verified-listings'
 export interface ValuedPosition extends Position {
   currency: string | null
   price: string | null
@@ -22,7 +24,8 @@ export function valueObservations(
   snapshot: Snapshot | null,
   sources: readonly FinancialObservation[],
   now = Date.now(),
-  observations: readonly QuantityObservation[] = quantityObservations(snapshot ? [snapshot] : [])
+  observations: readonly QuantityObservation[] = quantityObservations(snapshot ? [snapshot] : []),
+  policy: ValuationPolicy = currentValuationPolicy
 ) {
   const observed = new Map(observations.map((p) => [positionKey(p.account, p.isin), p]))
   const source = (id: string) => sources.find((s) => s.sourceId === id)
@@ -63,9 +66,25 @@ export function valueObservations(
       }
     if (instrument?.confirmedIsin !== p.isin)
       return { ...result, quality: 'Instrument identity not confirmed' }
+    const supportedCrypto = policy !== 'legacy' && p.instrumentType.toLowerCase() === 'crypto' && p.isin === 'XF000BTC0017' && instrument.unit === 'per-crypto-unit' && currency === 'EUR' && q?.currency === 'EUR' && ['BHS', 'B2C'].includes(q?.venue ?? '')
+    if (policy !== 'legacy') {
+      if (q?.currency !== undefined && q.currency !== currency)
+        return { ...result, quality: 'Quote and listing currencies differ · obtain a quote bound to the active listing currency' }
+      if (p.instrumentType.toLowerCase() === 'crypto' && !supportedCrypto)
+        return { ...result, quality: 'Crypto quote unit unverified · obtain broker evidence linking the held quantity to the quote unit before valuation; excluded from company exposure' }
+      if (!instrument.listings.some(l => l.active)) {
+        const savedDate = typeof bid.time === 'number' && Number.isFinite(bid.time) && bid.time > 0 && bid.time <= now + 60000
+          ? ` · last saved quote ${new Date(bid.time).toISOString()}` : ''
+        return { ...result, quality: `No active broker listing${savedDate} · obtain an active compatible listing and current quote; review trading suspension or corporate actions` }
+      }
+      if (!listing)
+        return { ...result, quality: 'Quote venue is not an active listing · refresh quotes using verified instrument listings' }
+      if (!currency)
+        return { ...result, quality: 'Listing currency unverified · obtain the quote venue currency before valuation' }
+    }
     if (
-      !['stock', 'fund', 'etf'].includes(p.instrumentType.toLowerCase()) ||
-      instrument.unit !== 'per-security'
+      !supportedCrypto && (!['stock', 'fund', 'etf'].includes(p.instrumentType.toLowerCase()) ||
+      instrument.unit !== 'per-security')
     )
       return { ...result, quality: 'Pricing convention not supported yet' }
     if (

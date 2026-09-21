@@ -66,7 +66,7 @@ export function coverageReport(
   const gaps = result.gaps.filter(gap => gap.value === null || !new D(gap.value).isZero()).map(gap => {
     const fund = funds.find(fund => fund.isin === gap.isin)
     return { ...gap, fund: !!fund,
-      nextAction: gap.value === null ? 'Resolve the missing valuation'
+      nextAction: gap.value === null ? gap.reason.includes('Crypto quote unit unverified') ? 'Verify crypto quantity and quote units with broker evidence' : gap.reason.includes('No active broker listing') ? 'Obtain an active listing and current quote; review suspension' : gap.reason.includes('Quote venue is not an active listing') ? 'Refresh quotes from verified active listings' : 'Resolve the missing valuation'
         : fund?.nextAction ?? 'Verify instrument identity and supported exposure',
     }
   })
@@ -74,13 +74,13 @@ export function coverageReport(
   const heldSources = result.compositions.filter(source => funds.some(fund => fund.isin === source.fundIsin && fund.used))
   return {
     totals: result.coverage.map(group => {
-      const total = new D(group.pricedSecurities), included = new D(group.knownCompanyValue), remainder = new D(group.unresolvedValue)
+      const total = new D(group.pricedSecurities), included = new D(group.knownCompanyValue), remainder = new D(group.unresolvedValue), nonCompany = new D(group.nonCompanyValue ?? '0')
       return { ...group,
         state: total.lte(0) ? 'unavailable' as const
-          : included.lt(0) || remainder.lt(0) || !included.add(remainder).eq(total) ? 'incompatible' as const
+          : included.lt(0) || remainder.lt(0) || !included.add(nonCompany).add(remainder).eq(total) ? 'incompatible' as const
             : remainder.isZero() ? 'allocated' as const : 'partial' as const,
-        // Retained non-equity rows do not establish a compatible monetary breakdown of this remainder.
-        nonCompanyValue: null as string | null,
+        // Only separately valued crypto is classified here; ETF non-equity economics remain unresolved.
+        nonCompanyValue: group.nonCompanyValue ?? null,
       }
     }),
     pricedCount: valuations.pricedCount, unvalued: valuations.missingCount,

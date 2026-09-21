@@ -53,7 +53,7 @@ const groupEvidence = S.Struct({ version: text, issuerId: text, name: text, revi
   securities: S.Array(S.Struct({ isin: text, shareClass: text, symbol: text, source: text, sha256: text, retrievedAt: recordedDate })),
   issuerSource: S.Struct({ url: publicUrl, document: text, periodEnd: nullableDate, readAt: recordedDate, method: text, finding: text }), scope: text })
 const gap = { account: text, isin: text, name: text, currency: S.NullOr(currency), value: decimal, reason: text }
-const coverageAmount = { currency, pricedSecurities: DecimalText, knownCompanyValue: DecimalText, unresolvedValue: DecimalText, knownPercent: decimal }
+const coverageAmount = { nonCompanyValue: S.optional(decimal), currency, pricedSecurities: DecimalText, knownCompanyValue: DecimalText, unresolvedValue: DecimalText, knownPercent: decimal }
 const attempt = S.Struct({ at: recordedDate, id: text, status: S.Literal('success', 'failed'), code: nullable })
 const sourceAttempt = S.Struct({ at: recordedDate, id: text, status: S.Literal('success', 'failed'), code: nullable,
   providerId: S.optional(text), outcome: text, resolution: text, httpStatus: S.optional(count) })

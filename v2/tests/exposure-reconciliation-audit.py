@@ -70,6 +70,9 @@ def audit(folder):
                                  hasBid=isinstance(q.get('quote', {}).get('bid', {}).get('price'), str)))
             continue
         assert instrument['isin'] == p['isin'] and str(instrument['priceFactor']) == '1'
+        if p['instrumentType'].lower() == 'crypto':
+            assert p['isin'] == 'XF000BTC0017' and instrument['typeId'] == 'crypto' and instrument['legalTypeId'] == 'CRYPTO'
+            assert q['venue'] in ('BHS', 'B2C') and q['currency'] == row['currency'] == 'EUR'
         listing = next(l for l in instrument['listings'] if l['slug'] == q['venue'] and l['active'])
         assert listing['currencyId'] == row['currency']
         bid = q['quote']['bid']
@@ -153,7 +156,9 @@ def audit(folder):
         known = sum((number(r['knownTotal']) for r in exposure['rows'] if r['currency'] == coverage['currency']), Decimal(0))
         priced_total = sum((number(r['value']) for r in priced if r['currency'] == coverage['currency']), Decimal(0))
         assert known == number(coverage['knownCompanyValue'])
-        assert known + number(coverage['unresolvedValue']) == priced_total == number(coverage['pricedSecurities'])
+        non_company = sum((number(r['value']) for r in valued.values() if r['currency'] == coverage['currency'] and r['instrumentType'].lower() == 'crypto' and r['value'] is not None), Decimal(0))
+        assert non_company == number(coverage.get('nonCompanyValue') or '0')
+        assert known + non_company + number(coverage['unresolvedValue']) == priced_total == number(coverage['pricedSecurities'])
     heico = sum((number(r['knownTotal']) for r in exposure['rows'] if r['isin'] in ('US4228061093', 'US4228062083') and r['currency'] == 'EUR'), Decimal(0))
     return dict(status='passed', holdingsAt=overview['holdingsAt'], inputHashes={name: hashlib.sha256((folder/name).read_bytes()).hexdigest()
                 for name in ('overview.json', 'exposure.json', 'data.json')}, pricedPositions=priced, unvaluedPositions=unvalued,

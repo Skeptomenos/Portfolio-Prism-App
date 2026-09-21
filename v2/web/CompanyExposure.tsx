@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { NqseUncertainty } from './NqseUncertainty'
 import { nqseIsin } from './nqse-sensitivity'
 import { Decimal } from 'decimal.js'
-import type { Exposure } from '../contracts/financial'
+import type { Exposure, Overview } from '../contracts/financial'
 import type { FinancialClient, ExposureCommands } from './views/financial-client'
 import { entityHref, readRoute, ReturnLink, useRouteValue } from './navigation'
 const money = (v: string | null, c: string | null) =>
@@ -16,12 +16,13 @@ export function CompanyExposure({
   client,
   commands,
 }: {
-  client: Pick<FinancialClient, 'exposure'>
+  client: Pick<FinancialClient, 'exposure'> & Partial<Pick<FinancialClient, 'overview'>>
   commands: ExposureCommands
   securityIsin?: string
   fundIsin?: string
 }) {
   const [data, setData] = useState<Exposure | null>(null)
+  const [positions, setPositions] = useState<Overview['rows']>([])
   const [error, setError] = useState<string | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -35,9 +36,10 @@ export function CompanyExposure({
     let timer: ReturnType<typeof setTimeout>
     async function poll() {
       try {
-        const next = await client.exposure(controller.signal)
+        const [next, holdings] = await Promise.all([client.exposure(controller.signal), securityIsin && client.overview ? client.overview(controller.signal) : Promise.resolve(null)])
         if (!controller.signal.aborted) {
           setData(next)
+          setPositions(holdings?.rows ?? [])
           setLoadError(null)
         }
       } catch {
@@ -54,7 +56,7 @@ export function CompanyExposure({
       controller.abort()
       clearTimeout(timer)
     }
-  }, [client])
+  }, [client, securityIsin])
   async function refresh() {
     setSubmitting(true)
     setError(null)
@@ -86,6 +88,22 @@ export function CompanyExposure({
           c.contributions.some((r) => r.kind === 'etf' && r.positionIsin === fundIsin)) &&
         `${c.name} ${c.isin}`.toLowerCase().includes((securityIsin ? '' : filter).toLowerCase())
     ) ?? []
+  const crypto = securityIsin ? positions.filter(p => p.isin === securityIsin && p.instrumentType.toLowerCase() === 'crypto') : []
+  if (crypto.length) return <section className="panel holdings company-exposure" aria-labelledby="exposure-title">
+    <ReturnLink />
+    <div className="section-title"><h2 id="exposure-title">{crypto[0].name}</h2><span className="badge">Non-company crypto asset</span></div>
+    {loadError && <p role="alert">{loadError}</p>}
+    <p>Crypto assets are separate from company exposure.</p>
+    {crypto.map((p, index) => <div className="company-card" key={`${p.account}:${p.isin}:${index}`}>
+      <h3>{money(p.value, p.currency)}</h3>
+      <p>{p.value === null ? 'Value unavailable; excluded from the priced denominator.' : 'Saved bid estimate; included as non-company value.'}</p>
+      <p>{p.quantity} units · broker bid {money(p.price, p.currency)} per unit</p>
+      <p>{p.venue ?? 'Venue unknown'} · {p.quoteAt ?? 'Quote date unknown'}</p>
+      <p>{p.quality}</p>
+      <details><summary>Exact saved valuation</summary><p>Account {p.account} · {p.isin}</p><p>Quantity {p.quantity} × bid {p.price ?? 'unknown'} = {p.value ?? 'unknown'} {p.currency ?? ''}</p></details>
+    </div>)}
+    <p className="muted">Unvalued positions remain excluded from the priced denominator. Cash is separate. Broker reconciliation remains pending.</p>
+  </section>
   return (
     <section className="panel holdings company-exposure" aria-labelledby="exposure-title">
       {securityIsin && (

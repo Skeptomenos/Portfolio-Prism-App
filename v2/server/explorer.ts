@@ -1,4 +1,5 @@
 import { readPublicData } from './public-data'
+import { selectQuoteListings } from './quote-listings'
 import { resourceRegistry, type TRClient } from 'trade-republic-sdk'
 import type { DiagnosticDetail } from './diagnostics'
 import { classifyTradeRepublicError as classifyError } from './trade-republic-errors'
@@ -112,7 +113,7 @@ export const catalog: DataSource[] = [
     [
       'quotes',
       'Market quotes',
-      'Bid, ask, last, previous and opening prices where returned. LSX is a candidate venue from the SDK example, not verified as the correct venue for every instrument. Quote payloads do not declare currency.',
+      'Bid, ask, last, previous and opening prices where returned. Quote venues come from exact active instrument listings, with at most one same-currency fallback. Quote payloads do not declare currency or prove crypto units.',
     ],
   ].map(([id, title, note]) => ({
     id,
@@ -397,28 +398,39 @@ export async function extractData(
             const isin = object(row).isin
             if (typeof isin === 'string') isins.add(isin)
           }
-      const payload = []
+      const payload: Record<string, unknown>[] = []
+      const metadata = result.get('instrumentDetails')?.payload
       for (const isin of isins) {
         signal.throwIfAborted()
-        try {
-          payload.push({
-            isin,
-            venue: 'LSX',
-            currency: null,
-            receivedAt: new Date().toISOString(),
-            quote: await read('ticker', { id: `${isin}.LSX` }),
-          })
-        } catch (error) {
-          signal.throwIfAborted()
-          if (classifyError(error).category === 'authentication') throw error
-          payload.push({ ...retainedItem('quotes', isin, 'quote', 'LSX'), isin, venue: 'LSX', error: classifyError(error) })
+        const matches = Array.isArray(metadata) ? metadata.filter(row => row && typeof row === 'object' && !Array.isArray(row) && row.isin === isin) : []
+        const selection = selectQuoteListings(isin, matches.length === 1 ? object(matches[0]).response : undefined)
+        const attempts: { venue: string; error: DiagnosticDetail }[] = []
+        let accepted = false
+        for (const candidate of selection.candidates) {
+          try {
+            const quote = await read('ticker', { id: `${isin}.${candidate.venue}` })
+            const bid = object(object(quote).bid)
+            if (typeof bid.price !== 'string' || typeof bid.time !== 'number' || !Number.isFinite(bid.time))
+              throw new Error('Quote fields unavailable')
+            payload.push({ isin, venue: candidate.venue, currency: candidate.currency,
+              receivedAt: new Date().toISOString(), quote, ...(attempts.length ? { attempts } : {}) })
+            accepted = true
+            break
+          } catch (error) {
+            signal.throwIfAborted()
+            if (classifyError(error).category === 'authentication') throw error
+            attempts.push({ venue: candidate.venue, error: classifyError(error) })
+          }
         }
+        if (!accepted) payload.push({ ...retainedItem('quotes', isin, 'quote'), isin,
+          error: attempts.at(-1)?.error ?? { category: 'validation' },
+          selectionReason: selection.reason ?? 'Active listing quote requests failed; retained quote keeps its original venue and date', attempts })
       }
       return {
         payload,
         partial: payload.some((p) => 'error' in p),
         coverage:
-          'One candidate LSX quote per held ISIN; per-instrument failures are retained; venue and currency require confirmation',
+          'One quote per held ISIN from verified active listings, at most two same-currency attempts; failures retain original quote venue/date; crypto unit qualification remains separate',
       }
     })
   }

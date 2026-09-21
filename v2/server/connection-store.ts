@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { decodeSnapshot, type Snapshot } from './model'
 import { decodeFinancialObservation, type FinancialObservation } from './financial-observation'
 import { quantityObservations } from './quantity-observations'
-import { valueObservations } from './valuation'
+import { valueObservations, currentValuationPolicy, type ValuationPolicy } from './valuation'
 import { Decimal } from 'decimal.js'
 
 export interface ConnectionRecord { id: string; providerId: string; providerVersion: string; enabled: boolean; restore: boolean }
@@ -57,9 +57,9 @@ export function accountScope(connectionId: string, account: string, defaultId: s
 }
 /** Each provider values only its own quantities. Cross-connection merging happens
  * after eligibility; an ISIN match never lends another account a quote or cash. */
-export function valueConnections(inputs: readonly ConnectionInputs[], defaultId: string, now = Date.now()) {
+export function valueConnections(inputs: readonly ConnectionInputs[], defaultId: string, now = Date.now(), policy: ValuationPolicy = currentValuationPolicy) {
   const values = inputs.map(input => {
-    const result = valueObservations(input.snapshot, input.observations, now, input.quantities)
+    const result = valueObservations(input.snapshot, input.observations, now, input.quantities, policy)
     return { ...result, rows: result.rows.map(row => ({ ...row, account: accountScope(input.connection.id, row.account, defaultId) })) }
   })
   if (values.length === 1) return values[0]

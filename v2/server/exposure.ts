@@ -31,7 +31,8 @@ export function exposure(
   attempt: CompositionAttempt | null,
   refreshing = false,
   now = Date.now(),
-  identityPolicyVersion: string = currentIdentityPolicy.version
+  identityPolicyVersion: string = currentIdentityPolicy.version,
+  calculatorVersion: string = 'exposure/2'
 ) {
   const compositions: readonly Composition[] = input === null ? [] : Array.isArray(input) ? input : [input as Composition]
   const selected = new Map<string, Composition>()
@@ -106,6 +107,7 @@ export function exposure(
       })
       continue
     }
+    if (calculatorVersion !== 'exposure/1' && p.instrumentType.toLowerCase() === 'crypto' && p.value !== null) continue
     if (p.instrumentType.toLowerCase() === 'stock' && validIsin(p.isin)) {
       add(p.isin, p.name, p, 'direct', '100')
       if (p.value === null)
@@ -140,7 +142,7 @@ export function exposure(
         name: p.name,
         currency: p.currency,
         value: p.value,
-        reason: 'No supported company composition or identity',
+        reason: calculatorVersion !== 'exposure/1' && p.value === null ? p.quality : 'No supported company composition or identity',
       })
   }
   const heldFundIsins = new Set(valuations.rows.filter(position => position.instrumentType.toLowerCase() === 'fund' && new D(position.quantity).gt(0)).map(position => position.isin))
@@ -152,11 +154,13 @@ export function exposure(
     for (const c of rows.filter((c) => c.currency === t.currency))
       if (new D(t.securities).gt(0))
         c.percentOfPriced = new D(c.knownTotal).div(t.securities).mul(100).toFixed()
+    const nonCompany = calculatorVersion === 'exposure/1' ? new D(0) : valuations.rows.filter(p => p.currency === t.currency && p.instrumentType.toLowerCase() === 'crypto' && p.value !== null).reduce((sum, p) => sum.add(p.value!), new D(0))
     return {
+      ...(nonCompany.gt(0) ? { nonCompanyValue: nonCompany.toFixed() } : {}),
       currency: t.currency,
       pricedSecurities: t.securities,
       knownCompanyValue: known.toFixed(),
-      unresolvedValue: new D(t.securities).sub(known).toFixed(),
+      unresolvedValue: new D(t.securities).sub(known).sub(nonCompany).toFixed(),
       knownPercent: new D(t.securities).gt(0) ? known.div(t.securities).mul(100).toFixed() : null,
     }
   })

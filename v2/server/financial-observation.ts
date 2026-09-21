@@ -6,9 +6,9 @@ export const FinancialObservationSchema = Schema.Struct({
   sourceId: Schema.Literal('quotes', 'instrumentDetails', 'cash'),
   observedAt: text, checkedAt: text,
   completeness: Schema.Literal('not-fetched', 'success', 'partial', 'failed', 'unsupported'),
-  quotes: Schema.Array(Schema.Struct({ isin: Schema.String, venue: text, price: text, time: Schema.NullOr(Schema.Number), failed: Schema.Boolean })),
+  quotes: Schema.Array(Schema.Struct({ isin: Schema.String, venue: text, currency: Schema.optional(text), price: text, time: Schema.NullOr(Schema.Number), failed: Schema.Boolean })),
   instruments: Schema.Array(Schema.Struct({ isin: Schema.String, confirmedIsin: text,
-    unit: Schema.Literal('per-security', 'unsupported'),
+    unit: Schema.Literal('per-security', 'per-crypto-unit', 'unsupported'),
     listings: Schema.Array(Schema.Struct({ venue: text, currency: text, active: Schema.Boolean })), failed: Schema.Boolean })),
   cash: Schema.Array(Schema.Struct({ accountId: text, currency: text, amount: text })),
 })

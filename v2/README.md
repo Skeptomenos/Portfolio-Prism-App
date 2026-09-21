@@ -165,6 +165,16 @@ For copied-data acceptance, run `pnpm --dir v2 exec tsx tests/history-replay.ts 
 
 ### Current valuation behavior
 
+Quotes now use exact active instrument listings: preserve LSX when available, otherwise prefer an explicit primary venue, then BHS/B2C and deterministic same-currency ordering. At most two venues are attempted. Missing, conflicting or inactive listings produce a specific gap; failures retain the original quote venue and timestamp. A retained quote cannot be rebound to a different listing currency.
+
+The narrow Bitcoin profile supports `XF000BTC0017` only when Trade Republic confirms its crypto/legal type, price factor one, an active EUR BHS/B2C listing and an EUR quote receipt. Its per-BTC feed convention was corroborated against a user-observed broker-app quantity/value; this does not reconcile the app's rounded valuation or qualify other crypto assets. Original bid decimals and timestamps value the unchanged observed quantity. Average buy-in never supplies the current price. Unsupported units remain unknown.
+
+Priced Bitcoin is a separate non-company amount. The priced-assets denominator includes it, while company/security contributions and unresolved issuer allocation exclude it. Coverage exposes the amount and separate bar segment; holdings and the crypto detail show the saved bid/date. The compatibility field `pricedSecurities` contains the named priced denominator; a populated `nonCompanyValue` requires the priced-assets label. A lower security percentage after admitting crypto is a denominator change, not a lost company holding. TAAT-like inactive listings stay unvalued with the old quote date and a listing/suspension next action.
+
+New checkpoints pin valuation/calculator policy version 2. Version 1 retains its exact eligibility, diagnostic strings and allocation output for historical replay. The expanded observation decoder accepts old records without crypto units or quote currency; only explicitly qualified new crypto observations can be priced. No database schema change is needed.
+
+Focused checks: `pnpm --dir v2 exec vitest run tests/quote-listings.test.ts tests/quote-acquisition.test.ts tests/crypto-valuation.test.ts tests/history.test.ts tests/identity-history.test.ts`. The offline Decimal audit also checks separately classified crypto and full priced-value conservation. Private quote captures and broker-app observations must not appear in public fixtures.
+
 Only positive supported positions enter the priced ownership denominator. Negative source quantities remain visible with an unsupported warning; they do not create negative unresolved value or inflate coverage. A zero quantity contributes zero without a quote and does not count as a missing valuation.
 
 The latest snapshot history establishes when each account/security quantity was first observed unchanged. A quantity change, disappearance or unknown history resets that boundary. A quote before the boundary cannot value that position, even if retrieved recently. An unchanged quantity can still use an older compatible quote with the existing age warning. This is a conservative admission rule, not corporate-action detection. Missing compatible quotes remain unknown.

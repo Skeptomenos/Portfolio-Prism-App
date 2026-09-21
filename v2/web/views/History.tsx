@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { Decimal } from 'decimal.js'
 import type { HistoryCheckpointDetail, HistoryCheckpointSummary, HistoryNotice, HistoryRunDetail, HistoryRunsPage } from '../../contracts/history'
 import type { HistoryClient } from './history-client'
 import { AllocationBar, coverageMoney, coveragePercent } from '../CoverageSummary'
@@ -22,25 +23,33 @@ function Summary({ checkpoint: c }: { checkpoint: HistoryCheckpointSummary }) {
     <p>Saved {c.recordedAt} · {c.reason}</p>
     <p><strong>{c.pricedPositionCount} priced · {c.unvaluedPositionCount} unvalued · {c.zeroPositionCount} zero positions</strong></p>
     {c.currencies.length === 0 && <p>No supported currency totals. Missing value is unknown.</p>}
-    <div className="history-currencies">{c.currencies.map(row => <section key={row.currency} className="history-currency" aria-label={`${row.currency} saved allocation`}>
-      <h3>{row.currency} · Priced-securities allocation</h3>
+    <div className="history-currencies">{c.currencies.map(row => {
+      const hasNonCompany = row.nonCompanyValue !== null && new Decimal(row.nonCompanyValue).gt(0)
+      const nonCompanyPercent = hasNonCompany && row.pricedSecurities !== null && new Decimal(row.pricedSecurities).gt(0)
+        ? new Decimal(row.nonCompanyValue!).div(row.pricedSecurities).mul(100).toFixed() : null
+      const allocationLabel = hasNonCompany
+        ? `${row.currency} saved priced assets: ${amount(row.pricedSecurities, row.currency)}; included securities ${amount(row.includedSecurityValue, row.currency)} (${coveragePercent(row.coveragePercent)}); non-company crypto ${amount(row.nonCompanyValue, row.currency)}; unassigned ${amount(row.unassignedValue, row.currency)}. Excludes unvalued positions and cash.`
+        : `${row.currency} priced-securities allocation: ${coveragePercent(row.coveragePercent)}; unassigned ${amount(row.unassignedValue, row.currency)}. Excludes unvalued positions and cash.`
+      return <section key={row.currency} className="history-currency" aria-label={`${row.currency} saved allocation`}>
+      <h3>{row.currency} · {hasNonCompany ? 'Priced-assets allocation' : 'Priced-securities allocation'}</h3>
       <strong>{coveragePercent(row.coveragePercent)} · {row.allocationState}</strong>
-      <p>Included {amount(row.includedSecurityValue, row.currency)} / priced {amount(row.pricedSecurities, row.currency)}</p>
-      {['allocated', 'partial'].includes(row.allocationState) && <AllocationBar percent={row.coveragePercent} label={`${row.currency} priced-securities allocation: ${coveragePercent(row.coveragePercent)}; unassigned ${amount(row.unassignedValue, row.currency)}. Excludes unvalued positions and cash.`} />}
+      <p>Included {amount(row.includedSecurityValue, row.currency)} / priced {hasNonCompany ? `assets ${amount(row.pricedSecurities, row.currency)}` : amount(row.pricedSecurities, row.currency)}</p>
+      {['allocated', 'partial'].includes(row.allocationState) && <AllocationBar percent={row.coveragePercent} nonCompanyPercent={nonCompanyPercent} label={allocationLabel} />}
       <p>Unassigned {amount(row.unassignedValue, row.currency)} · Non-company {amount(row.nonCompanyValue, row.currency)}</p>
       <p><strong>Separate cash: {amount(row.cashValue, row.currency)}</strong> · {row.cashState}</p>
       <details className="history-exact-values"><summary>Exact saved values · {row.currency}</summary>
         <dl className="history-facts">
           <div><dt>Allocation percent</dt><dd>{row.coveragePercent ?? 'Unknown'}</dd></div>
           <div><dt>Included</dt><dd>{exactAmount(row.includedSecurityValue, row.currency)}</dd></div>
-          <div><dt>Priced securities</dt><dd>{exactAmount(row.pricedSecurities, row.currency)}</dd></div>
+          <div><dt>{hasNonCompany ? 'Priced assets' : 'Priced securities'}</dt><dd>{exactAmount(row.pricedSecurities, row.currency)}</dd></div>
           <div><dt>Unassigned</dt><dd>{exactAmount(row.unassignedValue, row.currency)}</dd></div>
           <div><dt>Non-company</dt><dd>{exactAmount(row.nonCompanyValue, row.currency)}</dd></div>
           <div><dt>Separate cash</dt><dd>{exactAmount(row.cashValue, row.currency)}</dd></div>
         </dl>
       </details>
-    </section>)}</div>
-    <p>Company grouping {c.companyGrouping} · Broker reconciliation {c.reconciliation}. Priced allocation excludes cash and unvalued positions.</p>
+    </section>
+    })}</div>
+    <p>Company grouping {c.companyGrouping} · Broker reconciliation {c.reconciliation}. The priced denominator excludes cash and unvalued positions.{c.currencies.some(row => row.nonCompanyValue !== null && new Decimal(row.nonCompanyValue).gt(0)) ? ' Non-company crypto is included in priced assets, separately from included-security allocation.' : ''}</p>
     <dl className="history-facts">
       <div><dt>Holdings observed</dt><dd>{stamp(c.holdingsObservedAt)}</dd></div>
       <div><dt>Quote dates</dt><dd>{stamp(c.quoteDates.min)} → {stamp(c.quoteDates.max)}</dd></div>

@@ -43,10 +43,16 @@ export function useCoverage(enabled: boolean, client: Pick<FinancialClient, 'cov
   return { report, error }
 }
 
-export function AllocationBar({ percent, label }: { percent: string | null; label: string }) {
+export function AllocationBar({ percent, label, nonCompanyPercent = null }: {
+  percent: string | null
+  label: string
+  nonCompanyPercent?: string | null
+}) {
   if (percent === null || new Decimal(percent).lt(0) || new Decimal(percent).gt(100)) return null
   return <div className="allocation-bar" role="img" aria-label={label}>
     <span className="allocation-included" style={{ width: `${percent}%` }} />
+    {nonCompanyPercent !== null && new Decimal(nonCompanyPercent).gte(0) && new Decimal(nonCompanyPercent).lte(100) &&
+      <span style={{ width: `${nonCompanyPercent}%`, height: '100%', flexShrink: 0, background: 'var(--muted)' }} />}
   </div>
 }
 
@@ -64,11 +70,16 @@ export function CoverageSummary({ report, error, compact = false }: {
     </div>
     {error && <p role="alert" className="coverage-alert">{error}</p>}
     {!report.totals.length && <p>No priced securities yet. Import positions and resolve their valuations.</p>}
-    {report.totals.map(total => <div className="coverage-currency" key={total.currency}>
+    {report.totals.map(total => {
+      const hasNonCompany = total.nonCompanyValue !== null && new Decimal(total.nonCompanyValue).gt(0)
+      const nonCompanyPercent = hasNonCompany && new Decimal(total.pricedSecurities).gt(0)
+        ? new Decimal(total.nonCompanyValue!).div(total.pricedSecurities).mul(100).toFixed() : null
+      const accountingLabel = `${total.currency}: ${coverageMoney(total.knownCompanyValue, total.currency)} allocated to securities; ${hasNonCompany ? `${coverageMoney(total.nonCompanyValue!, total.currency)} non-company crypto; ` : ''}${coverageMoney(total.unresolvedValue, total.currency)} unassigned`
+      return <div className="coverage-currency" key={total.currency}>
       <div className="coverage-numbers">
         <div className="coverage-headline">
           <strong>{total.state === 'incompatible' ? 'Unavailable' : coveragePercent(total.knownPercent)}</strong>
-          <span>{total.currency} priced securities allocated</span>
+          <span>{total.currency} {hasNonCompany ? 'priced assets allocated to securities' : 'priced securities allocated'}</span>
         </div>
         <div className="coverage-ratio">
           <strong>{coverageMoney(total.knownCompanyValue, total.currency)}</strong>
@@ -77,9 +88,13 @@ export function CoverageSummary({ report, error, compact = false }: {
         </div>
       </div>
       {total.state !== 'unavailable' && total.state !== 'incompatible' && <AllocationBar percent={total.knownPercent}
-        label={`${coveragePercent(total.knownPercent)} allocated; ${coverageMoney(total.unresolvedValue, total.currency)} unassigned`} />}
+        nonCompanyPercent={nonCompanyPercent} label={hasNonCompany ? accountingLabel : `${coveragePercent(total.knownPercent)} allocated; ${coverageMoney(total.unresolvedValue, total.currency)} unassigned`} />}
       {total.state === 'incompatible' && <p role="alert">Allocation cannot share a 0–100% basis. Inspect source accounting.</p>}
-    </div>)}
+      {hasNonCompany && <div className="coverage-non-company">
+        <span><b>{coverageMoney(total.nonCompanyValue!, total.currency)}</b> non-company crypto value</span>
+      </div>}
+    </div>
+    })}
     <div className="coverage-signals">
       <span><b>{report.unvalued}</b> positions unvalued</span>
       <span>Company grouping: <b>{report.companyGrouping}</b></span>
@@ -91,7 +106,7 @@ export function CoverageSummary({ report, error, compact = false }: {
     </div>
     {(report.refreshFailed || report.warning) && <p className="coverage-alert" role="alert">Latest refresh needs attention. Last saved inputs remain in use. <a href="#/data">Review refresh</a>{report.warning && <span> {report.warning}</span>}</p>}
     <div className="coverage-footer">
-      <span>Whole portfolio · direct + ETF · excludes cash and unvalued positions</span>
+      <span>Whole portfolio · direct + ETF. {report.totals.some(total => total.nonCompanyValue !== null && new Decimal(total.nonCompanyValue).gt(0)) ? 'Includes non-company crypto. ' : ''}Excludes cash and unvalued positions.</span>
       <details id="coverage-gaps" className="coverage-gap-list">
         <summary>View {report.gaps.length} gaps and next actions</summary>
         <p>Unassigned value may contain non-equity assets and unresolved exposure. It is not all missing company investment. Values use saved broker bids and supported issuer allocations.</p>

@@ -25,6 +25,8 @@ const decodeManifest = (text: string) => JSON.parse(text.startsWith('deflate:')
 const hash = (value: string) => createHash('sha256').update(value).digest('hex')
 const versions = { calculator: 'exposure/1', valuation: 'quantity-compatible-bid/1', identity: currentIdentityPolicy.version, observation: 'financial-observation/1', manifest: 'history-manifest/1' }
 const connectionVersions = { ...versions, valuation: 'connection-valuation/1', observation: 'broker-observation/1', manifest: 'history-manifest/2' }
+const currentVersions = { ...versions, calculator: 'exposure/2', valuation: 'quantity-compatible-bid/2' }
+const currentConnectionVersions = { ...connectionVersions, calculator: 'exposure/2', valuation: 'connection-valuation/2' }
 const notice = (code: string, message: string, nextAction: string | null = null, diagnosticId: string | null = null): HistoryNotice => ({ code, severity: 'warning', message, nextAction, diagnosticId })
 const range = (values: (string | null)[]) => { const sorted = values.filter((v): v is string => !!v).sort(); return { min: sorted[0] ?? null, max: sorted.at(-1) ?? null } }
 export class HistoryParameterError extends Error {}
@@ -105,7 +107,7 @@ export class PortfolioHistory {
       if (run?.status !== 'running') throw Error('History operation is not running')
       const connectionInputs = this.store.connectionInputs()
       const multiConnection = connectionInputs.length > 1 ? connectionInputs : null
-      const recordedVersions = multiConnection ? connectionVersions : versions
+      const recordedVersions = multiConnection ? currentConnectionVersions : currentVersions
       const snapshot = multiConnection ? this.store.combinedSnapshot() : this.store.latest()
       if (!snapshot) { this.db.exec('COMMIT'); return null }
       const inputs: HistoryInputReference[] = multiConnection ? [] : [this.retainSnapshot(snapshot)]
@@ -124,7 +126,7 @@ export class PortfolioHistory {
         inputs.push({ ...ref, sha256: source.sha256 })
       }
       inputs.push(this.observation('identity', 'verified-equity-classes', currentIdentityPolicy, null, 'bounded', null, versions.identity))
-      inputs.push(this.observation('policy', 'valuation-and-exposure', recordedVersions, null, 'supported', null, versions.calculator))
+      inputs.push(this.observation('policy', 'valuation-and-exposure', recordedVersions, null, 'supported', null, recordedVersions.calculator))
       if (multiConnection) for (const input of multiConnection) {
         inputs.push(this.observation('holdings', input.connection.id, input, input.snapshot?.fetchedAt ?? null, 'connection-inputs', null, 'broker-observation/1'))
       }
@@ -164,7 +166,7 @@ export class PortfolioHistory {
         accounts: [...new Set([...snapshot.positions.map(p => p.account), ...(multiConnection ? multiConnection.flatMap(i => i.observations.flatMap(s => s.cash.flatMap(c => c.accountId ? [i.connection.id === this.connectionId ? hash(c.accountId).slice(0,16) : i.connection.id + ':' + hash(c.accountId).slice(0,16)] : []))) : sources.flatMap(s => s.cash.flatMap(c => c.accountId ? [hash(c.accountId).slice(0, 16)] : [])))])].sort().map(account),
         holdingsObservedAt: snapshot.fetchedAt, quoteDates: range(valuations.rows.map(p => p.quoteAt)), compositionDates: range(compositions.filter(c => result.rows.some(row => row.contributions.some(p => p.source?.fundIsin === c.fundIsin))).map(c => c.asOf)),
         currencies: result.coverage.map(c => { const t = valuations.totals.find(t => t.currency === c.currency)!; return {
-          currency: c.currency, pricedSecurities: c.pricedSecurities, includedSecurityValue: c.knownCompanyValue, unassignedValue: c.unresolvedValue, nonCompanyValue: null, coveragePercent: c.knownPercent,
+          currency: c.currency, pricedSecurities: c.pricedSecurities, includedSecurityValue: c.knownCompanyValue, unassignedValue: c.unresolvedValue, nonCompanyValue: c.nonCompanyValue ?? null, coveragePercent: c.knownPercent,
           allocationState: new Decimal(c.unresolvedValue).isNegative() ? 'incompatible' : !new Decimal(c.pricedSecurities).gt(0) ? 'unavailable' : new Decimal(c.unresolvedValue).isZero() ? 'allocated' : 'partial',
           cashValue: t.cash, cashState: t.cash === null ? 'unknown' : t.cashStale || !t.cashAt ? 'partial' : 'known',
         } }),
@@ -194,7 +196,7 @@ export class PortfolioHistory {
     if (detail.checkpoint.id !== id || detail.checkpoint.datasetId !== this.datasetId) throw Error('Saved history identity mismatch')
     let unavailable: string | null = null
     if (hash(String(row.manifest)) !== row.manifest_sha256) unavailable = 'Saved input manifest failed integrity validation; the frozen result remains available.'
-    else if (!identityPolicyEvidence(detail.versions.identity) || ![versions,connectionVersions].some(v => JSON.stringify({ ...detail.versions, identity: versions.identity }) === JSON.stringify(v))) unavailable = 'The recorded calculator or policy version is unavailable; the frozen result remains available.'
+    else if (!identityPolicyEvidence(detail.versions.identity) || ![versions,connectionVersions,currentVersions,currentConnectionVersions].some(v => JSON.stringify({ ...detail.versions, identity: versions.identity }) === JSON.stringify(v))) unavailable = 'The recorded calculator or policy version is unavailable; the frozen result remains available.'
     else {
       const manifest = decodeManifest(String(row.manifest))
       if (JSON.stringify(manifest.versions) !== JSON.stringify(detail.versions) ||
@@ -231,8 +233,9 @@ export class PortfolioHistory {
     if (manifest.connectionInputs) for (const input of manifest.connectionInputs as ConnectionInputs[]) {
       if (JSON.stringify(quantityObservations(input.holdingsHistory)) !== JSON.stringify(input.quantities) || JSON.stringify(input.holdingsHistory.at(-1) ?? null) !== JSON.stringify(input.snapshot)) throw Error('Connection quantity continuity replay differs')
     }
-    const valuations = manifest.connectionInputs ? valueConnections(manifest.connectionInputs as ConnectionInputs[], this.connectionId, manifest.now) : overview(decodeSnapshot(manifest.snapshot), manifest.sources.map(valuationSource), manifest.now, manifest.quantities)
-    const result = exposure(valuations, manifest.compositions, manifest.attempt, false, manifest.now, detail.versions.identity)
+    const policy = detail.versions.valuation.endsWith('/1') ? 'legacy' : 'verified-listings'
+    const valuations = manifest.connectionInputs ? valueConnections(manifest.connectionInputs as ConnectionInputs[], this.connectionId, manifest.now, policy) : overview(decodeSnapshot(manifest.snapshot), manifest.sources.map(valuationSource), manifest.now, manifest.quantities, policy)
+    const result = exposure(valuations, manifest.compositions, manifest.attempt, false, manifest.now, detail.versions.identity, detail.versions.calculator)
     if (JSON.stringify(valuations) !== JSON.stringify(manifest.valuations) || JSON.stringify(result) !== JSON.stringify(manifest.result)) throw Error('Checkpoint replay differs from recorded result')
     return { detail, valuations, result }
   }

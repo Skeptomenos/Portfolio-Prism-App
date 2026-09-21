@@ -69,6 +69,13 @@ export function Holdings({
         : x.localeCompare(y)
       return sort.desc ? -cmp : cmp
     })
+  const pricedCryptoCurrencies = new Set(
+    (data?.rows ?? [])
+      .filter((row) => row.instrumentType.toLowerCase() === 'crypto' && row.valuationStatus === 'priced')
+      .map((row) => row.currency)
+      .filter((currency): currency is string => currency !== null),
+  )
+  const hasPricedCrypto = pricedCryptoCurrencies.size > 0
   return (
     <section className="panel holdings">
       <div className="section-title">
@@ -84,7 +91,7 @@ export function Holdings({
           <div key={total.currency}>
             <strong>{money(total.securities, total.currency)}</strong>
             <span>
-              Priced securities · cash {money(total.cash, total.currency)} shown separately
+                {pricedCryptoCurrencies.has(total.currency) ? 'Priced assets' : 'Priced securities'} · cash {money(total.cash, total.currency)} shown separately
             </span>
           </div>
         ))}
@@ -139,10 +146,10 @@ export function Holdings({
           <details className="valuation-details">
             <summary>Valuation dates, coverage and calculation</summary>
             <p>
-              Broker facts: quantity, average buy-in, listing currency and LSX bid quote. Prism
-              calculates quantity × bid for positive stock/fund positions with confirmed identity, a
-              price factor of 1 and a quote at or after the quantity observation. These are
-              estimates using the latest saved quotes, not guaranteed execution prices.
+              Broker facts: quantity, average buy-in, listing currency and saved venue bid quote. Prism
+              {hasPricedCrypto
+                ? ' calculates quantity × bid for positive supported positions with confirmed identity, a price factor of 1 and a quote at or after the quantity observation. These are estimates using the latest saved quotes, not guaranteed execution prices. Priced crypto remains separate from company exposure.'
+                : ' calculates quantity × bid for positive stock/fund positions with confirmed identity, a price factor of 1 and a quote at or after the quantity observation. These are estimates using the latest saved quotes, not guaranteed execution prices.'}
             </p>
             {error && (
               <p role="alert">
@@ -152,7 +159,7 @@ export function Holdings({
             <div className="grid">
               {data?.totals.map((t) => (
                 <article key={t.currency} className="summary panel">
-                  <p className="eyebrow">{t.currency} · PRICED SECURITIES SUBTOTAL</p>
+                  <p className="eyebrow">{t.currency} · {pricedCryptoCurrencies.has(t.currency) ? 'PRICED ASSETS' : 'PRICED SECURITIES'} SUBTOTAL</p>
                   <h2>{money(t.securities, t.currency)}</h2>
                   <p>
                     {t.pricedCount} positions · {t.olderQuotes} quotes older than 24h
