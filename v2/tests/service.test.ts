@@ -456,3 +456,20 @@ it('does not automatically loop a bounded history batch while more evidence rema
     expect(service.status().lastDiagnostic?.operation).toBe('extraction')
   } finally { await service.close() }
 })
+
+it('reports failed event acquisition after preserving the saved ledger and recovers on retry',async()=>{
+  let failed=true
+  const readEvents:NonNullable<Broker['readEvents']>=async(_previous,save)=>{
+    save({contractVersion:'broker-events/1',observedAt:'2026-09-01T00:00:00Z',events:[],state:[],coverage:{observedAt:'2026-09-01T00:00:00Z',timelineObservedAt:'2026-09-01T00:00:00Z',lastAttemptAt:'2026-09-21T12:00:00Z',acquisition:failed?'failed':'partial',olderAvailable:false,detailsPending:0,failedDetails:0,recentGap:false,historyComplete:false}})
+  }
+  const store=new SnapshotStore(':memory:'),service=new PortfolioService(Object.assign(new FakeBroker(),{readEvents}),store)
+  try{
+    service.login('+49123456789','1234');await service.settled()
+    expect(service.status().lastDiagnostic?.event).toBe('failed')
+    expect(store.ledger.coverage(store.connections.defaultId)).toMatchObject({acquisition:'failed',timelineObservedAt:'2026-09-01T00:00:00Z'})
+    expect(service.status().snapshot).toEqual(sample())
+    failed=false;service.sync();await service.settled()
+    expect(service.status().lastDiagnostic?.event).toBe('succeeded')
+    expect(store.ledger.coverage(store.connections.defaultId)?.acquisition).toBe('partial')
+  }finally{await service.close()}
+})

@@ -1,3 +1,4 @@
+import type { BrokerEvents } from './broker-events'
 import type { HoldingsObservation } from './broker-holdings'
 import type { Snapshot } from './model'
 import type { FinancialObservation } from './financial-observation'
@@ -11,14 +12,14 @@ export interface AuthField { id: string; label: string; secret: boolean; pattern
 export interface BrokerAuth { fields: readonly AuthField[]; approval: 'external' | 'none'; restore: boolean }
 export interface SessionVault { getPassword(): string | null; setPassword(value: string): void; deleteCredential(): boolean }
 export type BrokerObserver = (event: Pick<Diagnostic, 'stage' | 'event' | 'category' | 'durationMs' | 'httpStatus' | 'networkCode' | 'sourceId'>) => void
-export interface Broker {
+export interface Broker extends Partial<BrokerEvents> {
   authenticate(input: AuthInput, signal: AbortSignal, state: (state: AuthState) => void): Promise<void>
   restore(signal: AbortSignal): Promise<boolean>
   readHoldings?(signal: AbortSignal): Promise<HoldingsObservation>
   fetch(signal: AbortSignal): Promise<Snapshot>
   readObservations?(previous: readonly FinancialObservation[], save: (value: FinancialObservation) => void, signal: AbortSignal): Promise<void>
   // Optional source explorer capability. Raw records never enter neutral valuation.
-  readData?(previous: DataSource[], save: (source: DataSource) => void, signal: AbortSignal, mode: 'refresh' | 'continue' | 'valuation' | 'history-batch'): Promise<void>
+  readData?(previous: DataSource[], save: (source: DataSource) => void, signal: AbortSignal, mode: 'refresh' | 'continue' | 'valuation' | 'history-batch' | 'history-recent'): Promise<void>
   observe?(observer: BrokerObserver): void
   logout(): void
   close(): void

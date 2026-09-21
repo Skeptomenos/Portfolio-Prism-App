@@ -2,7 +2,7 @@ import { inCredentialScope, credentialSignal, credentialCleanup } from './creden
 import { boundedOperation } from './bounded-operation'
 import { admitHoldings } from './broker-holdings'
 import { BrokerConnections } from './broker-connections'
-import { validateAuth } from './broker-contract'
+import { BrokerFailure, validateAuth } from './broker-contract'
 import { issuerReadiness, iusaDetail } from './iusa-readiness'
 import { randomUUID } from 'node:crypto'
 import { classifyError, type Diagnostic, type DiagnosticStage } from './diagnostics'
@@ -39,6 +39,7 @@ export class PortfolioService {
     error: null,
     lastAttemptAt: null,
   }
+  private activeEventsPartial = false
   private activeOutcome: OperationOutcome | null = null
   private operation: Promise<void> | null = null
   private controller: AbortController | null = null
@@ -62,6 +63,12 @@ export class PortfolioService {
     this.issuerRefresh = new ProviderRefreshService(store)
     this.connections = new BrokerConnections(store, { status: () => this.status(), authenticate: input => this.authenticate(input), sync: () => this.sync(), restore: () => this.restore(), cancel: () => this.cancel(), logout: () => this.logout(), suspend: () => { credentialCleanup(() => this.broker.close()); this.connected = false; this.state.phase = 'disconnected' }, settled: () => this.settled(), committed: () => { if (this.automaticRefreshEnabled) this.issuerRefresh.refresh(true) } })
     this.observeBroker()
+    if (!this.store.ledger.state(this.store.connections.defaultId) && this.broker.eventsFromSources) {
+      try {
+        const batch=this.broker.eventsFromSources(this.store.sources(),this.store.retainedCashEvidence())
+        if(batch)this.store.ledger.save(this.store.connections.defaultId,batch)
+      } catch { this.state.error='Saved event evidence could not be admitted. Existing portfolio data remains available.' }
+    }
   }
   private observeBroker() {
     this.broker.observe?.(event => {
@@ -176,6 +183,28 @@ export class PortfolioService {
       if (this.activeOutcome!.valuation === 'partial')
         this.state.error = `${this.committedOutcomeMessage()} Diagnostic reference: ${this.attemptId}`
     }
+    await this.acquireEvents(signal,'recent')
+  }
+  private async acquireEvents(signal: AbortSignal, mode: 'recent' | 'backfill') {
+    if(!this.broker.readEvents)return
+    this.stage='data_extraction'
+    let failed=false
+    await this.broker.readEvents(this.store.ledger.state(this.store.connections.defaultId), batch=>{
+      this.guard(signal)
+      this.store.ledger.save(this.store.connections.defaultId,batch)
+      failed=batch.coverage.acquisition==='failed'
+      this.activeEventsPartial=batch.coverage.failedDetails>0||batch.coverage.recentGap
+    },signal,mode)
+    this.guard(signal)
+    if(failed)throw new BrokerFailure({category:'unexpected'})
+  }
+  events() { return this.store.ledger.read(this.store.connectionInputs()) }
+  backfillEvents(): boolean {
+    if(!this.connected||!this.broker.readEvents)return false
+    return this.start('syncing',async signal=>{
+      this.activeOutcome={holdings:null,valuation:'not-requested',sources:[]}
+      await this.acquireEvents(signal,'backfill')
+    },'extraction')
   }
   private saveOperationSource(source: DataSource, signal: AbortSignal): void {
     this.guard(signal)
@@ -209,6 +238,7 @@ export class PortfolioService {
     this.historyRun = this.operationName === 'extraction' ? null : this.store.history.start('broker-sync', this.attemptId)
     this.stage = phase
     this.activeOutcome = null
+    this.activeEventsPartial = false
     const started = performance.now()
     this.record({ stage: phase, event: 'started', category: 'none', durationMs: 0 })
     this.state.phase = phase
@@ -229,11 +259,11 @@ export class PortfolioService {
     }).pipe(
       Effect.tap(() =>
         Effect.sync(() => {
-          if (this.historyRun) this.store.history.finish(this.historyRun, this.activeOutcome?.valuation === 'partial' ? 'partial' : 'succeeded')
+          if (this.historyRun) this.store.history.finish(this.historyRun, this.activeOutcome?.valuation === 'partial' || this.activeEventsPartial ? 'partial' : 'succeeded')
           this.record({
             terminal: true,
             stage: this.stage,
-            event: this.activeOutcome?.valuation === 'partial' ? 'partial' : 'succeeded',
+            event: this.activeOutcome?.valuation === 'partial' || this.activeEventsPartial ? 'partial' : 'succeeded',
             category: 'none',
             durationMs: Math.round(performance.now() - started),
           })

@@ -148,7 +148,7 @@ describe('provider evidence store', () => {
     else store.saveIssuerAllocation(issuerBundle('IE00B4L5Y983'), fixtureAt)
     store.close()
     const db = new DatabaseSync(path)
-    db.exec('DROP TABLE history_checks; DROP TABLE history_checkpoints; DROP TABLE history_runs; DROP TABLE history_observations; DROP TABLE history_blobs; DROP TABLE history_meta; DROP TABLE provider_compositions; DROP TABLE provider_attempts;')
+    db.exec('DROP TABLE ledger_event_heads; DROP TABLE ledger_event_versions; DROP TABLE ledger_event_acquisition; DROP TABLE ledger_cash_observations; DROP TABLE history_checks; DROP TABLE history_checkpoints; DROP TABLE history_runs; DROP TABLE history_observations; DROP TABLE history_blobs; DROP TABLE history_meta; DROP TABLE provider_compositions; DROP TABLE provider_attempts;')
     if (version === 7) db.exec('DROP TABLE issuer_allocations; DROP TABLE issuer_attempts;')
     db.exec(`PRAGMA user_version=${version}`)
     db.close()
@@ -169,7 +169,7 @@ describe('provider evidence store', () => {
     store.close()
     if (version === 7) {
       const db = new DatabaseSync(path)
-      db.exec('DROP TABLE history_checks; DROP TABLE history_checkpoints; DROP TABLE history_runs; DROP TABLE history_observations; DROP TABLE history_blobs; DROP TABLE history_meta; DROP TABLE provider_compositions; DROP TABLE provider_attempts; DROP TABLE issuer_allocations; DROP TABLE issuer_attempts; PRAGMA user_version=7;')
+      db.exec('DROP TABLE ledger_event_heads; DROP TABLE ledger_event_versions; DROP TABLE ledger_event_acquisition; DROP TABLE ledger_cash_observations; DROP TABLE history_checks; DROP TABLE history_checkpoints; DROP TABLE history_runs; DROP TABLE history_observations; DROP TABLE history_blobs; DROP TABLE history_meta; DROP TABLE provider_compositions; DROP TABLE provider_attempts; DROP TABLE issuer_allocations; DROP TABLE issuer_attempts; PRAGMA user_version=7;')
       db.close()
     }
     const migrated = new SnapshotStore(path)

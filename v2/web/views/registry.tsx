@@ -37,7 +37,7 @@ export class BrowserViewRegistry {
       if (ids.has(contribution.id) || routes.has(contribution.route.id)) throw new Error('Duplicate browser view registration')
       ids.add(contribution.id); routes.add(contribution.route.id)
       return { pluginId: metadata.id, contribution: contribution as RegisteredView['contribution'], module, state: metadata.compatibility.hostVersion === pluginHostVersion && contribution.contractVersion === viewContributionContractVersion &&
-        ['portfolio-financial/1', 'portfolio-history/1', 'wiki-pages/1'].includes(contribution.readModel) ? 'active' : 'incompatible' }
+        ['portfolio-financial/1', 'portfolio-history/1', 'portfolio-events/1', 'wiki-pages/1'].includes(contribution.readModel) ? 'active' : 'incompatible' }
     })
   }
   activate(signal: AbortSignal) {

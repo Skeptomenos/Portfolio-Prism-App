@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { readPublicData } from './public-data'
 import { selectQuoteListings } from './quote-listings'
 import { resourceRegistry, type TRClient } from 'trade-republic-sdk'
@@ -237,7 +238,7 @@ export async function extractData(
   previous: DataSource[],
   save: (source: DataSource) => void,
   signal: AbortSignal,
-  mode: 'refresh' | 'continue' | 'valuation' | 'history-batch',
+  mode: 'refresh' | 'continue' | 'valuation' | 'history-batch' | 'history-recent',
   observe: (
     id: string,
     event: 'started' | 'succeeded' | 'failed',
@@ -246,9 +247,13 @@ export async function extractData(
   ) => void
 ) {
   const result = new Map(previous.map((s) => [s.id, s]))
+  const fingerprint = (item: unknown) => createHash('sha256').update(JSON.stringify(sanitizePayload(item))).digest('hex')
+  const priorHistory = previous.find(s => s.id === 'timelineTransactions')?.payload
+  const oldFingerprints = new Map(priorHistory ? array(object(priorHistory).items).map(item => [object(item).id, fingerprint(item)]) : [])
+  const recentIds = new Set<unknown>()
   async function capture(
     id: string,
-    work: () => Promise<{ payload: unknown; coverage: string; partial?: boolean }>
+    work: () => Promise<{ payload: unknown; coverage: string; partial?: boolean; unchanged?: boolean }>
   ) {
     signal.throwIfAborted()
     const definition = catalog.find((s) => s.id === id)!
@@ -261,9 +266,9 @@ export async function extractData(
       signal.throwIfAborted()
       const source: DataSource = {
         ...definition,
-        status: value.partial ? 'partial' : 'success',
+        status: value.unchanged && old ? old.status : value.partial ? 'partial' : 'success',
         attemptedAt: at,
-        fetchedAt: new Date().toISOString(),
+        fetchedAt: value.unchanged && old ? old.fetchedAt : new Date().toISOString(),
         payload: sanitizePayload(value.payload),
         coverage: value.coverage,
       }
@@ -437,29 +442,33 @@ export async function extractData(
   if (mode === 'valuation') return
   // A host-controlled evidence probe: no unrelated source groups or automatic loop.
   const continuing = mode === 'continue' || mode === 'history-batch'
-  const pageLimit = mode === 'history-batch' ? 1 : 10
-  const detailLimit = mode === 'history-batch' ? 20 : 50
+  const pageLimit = ['history-batch', 'history-recent'].includes(mode) ? 1 : 10
+  const detailLimit = ['history-batch', 'history-recent'].includes(mode) ? 20 : 50
   await capture('timelineTransactions', async () => {
     const old = result.get('timelineTransactions')?.payload
     const existing = old ? object(old) : null
     const items = existing ? [...array(existing.items)] : []
-    let after = continuing ? existing?.nextCursor : undefined
+    let after = mode === 'history-recent' ? existing?.recentCursor : continuing ? existing?.nextCursor : undefined
+    let overlap = false
     const priorIds = new Set(items.map((item) => object(item).id))
     if (continuing && existing && !after)
-      return { payload: existing, coverage: 'Reached the end of history exposed by the broker' }
+      return { payload: existing, unchanged: true, coverage: 'Reached the end of history exposed by the broker' }
     let pages = 0
-    const seen = new Set<string>()
+    const seen = new Set<string>(typeof after === 'string' ? [after] : [])
     do {
       const page = object(
         await read('timelineTransactions', typeof after === 'string' ? { after } : {})
       )
       const newItems = array(page.items)
-      const overlaps = mode === 'refresh' && newItems.some((item) => priorIds.has(object(item).id))
+      const overlaps = ['refresh', 'history-recent'].includes(mode) && newItems.some((item) => priorIds.has(object(item).id))
+      if (mode === 'history-recent') for (const item of newItems) recentIds.add(object(item).id)
       items.push(...newItems)
       pages++
       after = object(page.cursors).after
+      if (after !== undefined && after !== null && (typeof after !== 'string' || after.length === 0)) throw new Error('Invalid history cursor')
       if (overlaps) {
-        after = existing?.nextCursor
+        overlap = true
+        if (mode === 'refresh') after = existing?.nextCursor
         break
       }
       if (typeof after === 'string') {
@@ -474,9 +483,11 @@ export async function extractData(
         return [row.id, item]
       })
     )
+    const nextCursor = mode === 'history-recent' && existing ? existing.nextCursor : after ?? null
+    const recentCursor = mode === 'history-recent' ? (existing && !overlap ? after ?? null : null) : existing?.recentCursor
     return {
-      payload: { items: [...unique.values()], nextCursor: after ?? null },
-      partial: !!after,
+      payload: { items: [...unique.values()], nextCursor, ...(recentCursor !== undefined ? { recentCursor } : {}) },
+      partial: !!nextCursor || !!recentCursor,
       coverage: after
         ? 'Partial history: another page exists. Use Continue history.'
         : 'Reached the end of history exposed by the broker',
@@ -485,11 +496,15 @@ export async function extractData(
   await capture('timelineDetails', async () => {
     const history = object(result.get('timelineTransactions')?.payload)
     const prior = result.get('timelineDetails')?.payload
+    const previousDetails = new Map(prior ? array(object(prior).items).map(d => [object(d).id, object(d)]) : [])
+    const currentFingerprints = new Map(array(history.items).map(item => [object(item).id, fingerprint(item)]))
+    const refreshIds = new Set([...recentIds].slice(0,detailLimit))
     const details = prior
-      ? array(object(prior).items).filter((d) => mode === 'continue' || !object(d).error)
+      ? array(object(prior).items).map((d): Record<string, unknown> => ({ ...object(d), timelineFingerprint: object(d).timelineFingerprint ?? oldFingerprints.get(object(d).id) })).filter(d =>
+          !refreshIds.has(d.id) && d.timelineFingerprint === currentFingerprints.get(d.id) && !d.error)
       : []
     const done = new Set(details.map((d) => object(d).id))
-    const missing = array(history.items).filter((item) => !done.has(object(item).id))
+    const missing = array(history.items).filter((item) => !done.has(object(item).id)).sort((a,b) => Number(recentIds.has(object(b).id))-Number(recentIds.has(object(a).id)))
     // Four independent read subscriptions bound load without serializing the entire history.
     const batch = missing.slice(0, detailLimit)
     for (let offset = 0; offset < batch.length; offset += 4) {
@@ -499,11 +514,13 @@ export async function extractData(
           const id = object(item).id
           if (typeof id !== 'string') throw new Error('Missing detail id')
           try {
-            return { id, response: await read('timelineDetailV2', { id }) }
+            return { id, timelineFingerprint: fingerprint(item), response: await read('timelineDetailV2', { id }) }
           } catch (error) {
             signal.throwIfAborted()
             if (classifyError(error).category === 'authentication') throw error
-            return { id, error: classifyError(error) }
+            const retained = previousDetails.get(id)
+            const priorFingerprint = retained?.timelineFingerprint ?? oldFingerprints.get(id)
+            return { ...(priorFingerprint === fingerprint(item) && retained?.response ? { response: retained.response, retained: true } : {}), id, timelineFingerprint: fingerprint(item), error: classifyError(error) }
           }
         })
       )
@@ -513,6 +530,7 @@ export async function extractData(
       }
     }
     return {
+      unchanged: batch.length === 0 && !!prior,
       payload: { items: details, remaining: Math.max(0, missing.length - detailLimit) },
       partial: missing.length > detailLimit || details.some((d) => !!object(d).error),
       coverage:

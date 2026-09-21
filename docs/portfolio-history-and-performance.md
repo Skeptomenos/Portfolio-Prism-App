@@ -1,6 +1,6 @@
 # Portfolio history, invested capital and returns
 
-Status: accepted implementation direction, 2026-09-21. This document owns the target data and financial contracts. H1 now implements immutable observations and checkpoints with a minimal history view; later transaction reconciliation, interactive timelines and performance measures remain targets. Implementation acceptance and merge are separate; use the project index for delivery state. The [runtime guide](../v2/README.md) owns current behavior; the [project index](../index.md) routes to delivery status. Keep the TypeScript/Effect, React/Vite and SQLite stack and the [plugin boundaries](plugin-architecture.md). The initial [H1 API contract](history-api-contract.md) coordinates parallel backend and view implementation.
+Status: accepted implementation direction, 2026-09-21. This document owns the target data and financial contracts. H1 now implements immutable observations and checkpoints with a minimal history view; H2 adds a bounded event ledger and Transactions view, while complete statement reconciliation, interactive timelines and performance measures remain open. Implementation acceptance and merge are separate; use the project index for delivery state. The [runtime guide](../v2/README.md) owns current behavior; the [project index](../index.md) routes to delivery status. Keep the TypeScript/Effect, React/Vite and SQLite stack and the [plugin boundaries](plugin-architecture.md). The initial [H1 API contract](history-api-contract.md) coordinates parallel backend and view implementation.
 
 ## Questions the product should answer
 
@@ -17,7 +17,7 @@ Status: accepted implementation direction, 2026-09-21. This document owns the ta
 
 At the pre-H1 code audit (`a1fa3e17`, 2026-09-21), [the store](../v2/server/store.ts) appends holdings snapshots and retains accepted dated composition/inspection versions. It overwrites the latest broker source envelope for quotes, cash and instrument metadata. [Broker history extraction](../v2/server/explorer.ts) merges paginated events and details, but is not a normalized financial ledger. [The service](../v2/server/service.ts) calculates from selected latest inputs; it does not freeze a reproducible portfolio result for every run. Bounded diagnostic retention is not business history.
 
-H1 has since added immutable observations, run/checkpoint references and frozen results to that database. The financial-event ledger remains planned; no replacement database or general event-sourcing platform is needed. Recoverable old holdings/compositions must stay available, but missing historical quotes, cash or transactions cannot be reconstructed from today's values.
+H1 has since added immutable observations, run/checkpoint references and frozen results to that database. H2 now adds a connection-scoped ledger, source revisions and a registered Transactions view. Its reconciliation stays explicitly incomplete pending statement-period evidence; no replacement database or general event-sourcing platform is needed. Recoverable old holdings/compositions must stay available, but missing historical quotes, cash or transactions cannot be reconstructed from today's values.
 
 ## Separate observations, events and results
 

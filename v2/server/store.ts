@@ -1,10 +1,13 @@
+import { Schema } from 'effect'
+import { FinancialObservationSchema as RetainedFinancialObservationSchema } from './history-observation'
+import { EventLedger } from './event-ledger'
 import { ConnectionStore, valueConnections, type ConnectionInputs, accountScope } from './connection-store'
 import { tradeRepublicObservation } from './trade-republic-observation'
 import { PortfolioHistory } from './history'
 import { ProviderError, type ProviderEvidence, type ProviderAttempt } from './composition-provider'
 import { inspectionFingerprint, type InspectionEvidence, type InspectionObservation } from './composition-inspection'
 import { bundledPluginRegistry, type PluginRegistry } from './plugin-registry'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { issuerComposition } from './issuer-composition'
 import type { IssuerBundle } from './issuer-evidence'
 import { iusaComposition } from './iusa-composition'
@@ -29,6 +32,7 @@ export class SnapshotStore {
   inspectionWarnings: Record<string, string> = {}
   readonly connections: ConnectionStore
   readonly history: PortfolioHistory
+  readonly ledger: EventLedger
   private readonly db: DatabaseSync
   constructor(path: string, readonly registry: PluginRegistry = bundledPluginRegistry) {
     if (path !== ':memory:') mkdirSync(dirname(path), { recursive: true, mode: 0o700 })
@@ -37,7 +41,7 @@ export class SnapshotStore {
     this.db.exec('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;')
     const version = this.db.prepare('PRAGMA user_version').get()?.user_version
     // VACUUM INTO includes committed WAL pages. Recovery uses this untouched copy.
-    if (typeof version === 'number' && version > 0 && version < 12 && path !== ':memory:') {
+    if (typeof version === 'number' && version > 0 && version < 13 && path !== ':memory:') {
       const backup = `${path}.pre-history-${randomUUID()}.sqlite`
       this.db.prepare('VACUUM INTO ?').run(backup)
       chmodSync(backup, 0o600)
@@ -58,7 +62,8 @@ export class SnapshotStore {
       version !== 9 &&
       version !== 10 &&
       version !== 11 &&
-      version !== 12
+      version !== 12 &&
+      version !== 13
     )
       throw new Error('Unsupported V2 database version')
     if (version === 0 || version === 1)
@@ -89,6 +94,8 @@ export class SnapshotStore {
       this.db.exec('BEGIN; CREATE TABLE IF NOT EXISTS provider_inspections (fund_isin TEXT NOT NULL, sha256 TEXT NOT NULL, as_of TEXT NOT NULL, evidence TEXT NOT NULL, PRIMARY KEY(fund_isin,sha256,as_of)); PRAGMA user_version=10; COMMIT;')
     if (typeof version === 'number' && version < 11) PortfolioHistory.migrate(this.db)
     if (typeof version === 'number' && version < 12) ConnectionStore.migrate(this.db)
+    if (typeof version === 'number' && version < 13) EventLedger.migrate(this.db)
+    this.ledger = new EventLedger(this.db)
     this.history = new PortfolioHistory(this.db, this)
     this.connections = new ConnectionStore(this.db, this.history.connectionId)
     if (!this.connections.get(this.history.connectionId)) {
@@ -104,6 +111,15 @@ export class SnapshotStore {
       }
       this.db.prepare("UPDATE history_meta SET value='0' WHERE key='baseline-pending'").run()
     }
+  }
+  retainedCashEvidence() {
+    return this.db.prepare("SELECT o.source_id,o.observed_at,o.completeness,o.sha256,b.payload FROM history_observations o LEFT JOIN history_blobs b ON o.sha256=b.sha256 WHERE o.kind='cash' AND o.source_id='cash' ORDER BY o.observed_at").all().map(row=>{
+      const body=String(row.payload)
+      if(createHash('sha256').update(body).digest('hex')!==row.sha256)throw Error('Retained cash integrity mismatch')
+      const observation=Schema.decodeUnknownSync(RetainedFinancialObservationSchema)(JSON.parse(body))
+      if(observation.sourceId!==row.source_id||observation.observedAt!==row.observed_at||observation.completeness!==row.completeness)throw Error('Retained cash metadata mismatch')
+      return observation
+    })
   }
   composition() {
     const issuer = this.issuerComposition()

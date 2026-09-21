@@ -157,11 +157,35 @@ Schema 11 retains immutable financial observations, operation outcomes and saved
 
 Open **History** (`#/history`) → operation → checkpoint to inspect saved values, quantities, cash, source references and gaps. History and the migrated Wiki use the same bundled browser registration contract; the Amundi inspection panel exercises a provider-plus-view path without adding monetary exposure. Financial consumers also use the versioned financial read contract described above. This does not provide an arbitrary plugin loader.
 
-The [versioned history API](../docs/history-api-contract.md) exposes `GET /api/history/runs`, `GET /api/history/runs/:id` and `GET /api/history/checkpoints/:id`. Reads do not fetch new source data or recalculate an old point. Migration creates a baseline from surviving inputs at migration time; it does not attach current prices to older holdings. Complete historical exposure is retained internally, but historical company-contribution read models and interactive charts are still to be implemented. Extracted events are not a normalized transaction ledger; invested-capital and return calculations remain planned in the [history architecture](../docs/portfolio-history-and-performance.md).
+The [versioned history API](../docs/history-api-contract.md) exposes `GET /api/history/runs`, `GET /api/history/runs/:id` and `GET /api/history/checkpoints/:id`. Reads do not fetch new source data or recalculate an old point. Migration creates a baseline from surviving inputs at migration time; it does not attach current prices to older holdings. Complete historical exposure is retained internally, but historical company-contribution read models and interactive charts are still to be implemented. The bounded H2 ledger below normalizes supported saved events; complete statement reconciliation, invested-capital and return calculations remain open in the [history architecture](../docs/portfolio-history-and-performance.md).
 
 For a deliberately bounded transaction-evidence request, `POST /api/history/batch` reads at most one `timelineTransactions` page and 20 `timelineDetailV2` records (four concurrently). It requires the normal same-origin mutation headers and an already connected session. It saves the continuation cursor and retries failed details on a later batch. It does not fetch unrelated source groups, loop automatically, or establish complete account history. The broader `/api/history/continue` operation retains its existing multi-batch behavior.
 
 For copied-data acceptance, run `pnpm --dir v2 exec tsx tests/history-replay.ts PRIVATE_COPY NEW_REPORT.json offline`. Its `exercise` mode deliberately changes only a disposable copy to test later syncs, failures and restart. Never run it against a primary database or another active writer. `PRISM_V2_URL=http://127.0.0.1:4341 PRISM_REQUIRE_AMUNDI=1 pnpm --dir v2 exec tsx tests/history-persisted-smoke.ts` reads an isolated combined preview; screenshots remain private. Synthetic view checks use `pnpm --dir v2 exec tsx tests/history-view-smoke.ts`. See the [history architecture](../docs/portfolio-history-and-performance.md) for what observations can establish.
+
+### Event ledger and bounded acquisition
+
+Open **Transactions** (`#/events`) for retained executed activity, source-reported amounts that cannot yet be booked, precise cash movements, revisions and reconciliation gaps. `GET /api/events` exposes the validated `portfolio-events/1` read model. It does not fetch data. Net purchase/sale cash is labelled separately from gross consideration; displayed fee/tax components are never charged twice. A fully reversed movement remains an evidenced zero, not unknown.
+
+The optional broker `readEvents` capability emits `broker-events/1` batches. Adapters interpret source fields; core validates and stores immutable versions keyed by connection, source event identity and content hash. Re-observing an earlier version changes the selected head without deleting either revision. Cash observations, opaque bounded continuation state and event evidence persist separately from H1 checkpoints. The view receives no raw documents, account numbers, signed URLs or credential context.
+
+Normal sync checks one recent timeline page and at most twenty details. A separate recent cursor closes a gap across later syncs without overwriting the older backfill cursor. **Continue primary history** calls `POST /api/events/backfill`, one older page and twenty details per invocation. Failures preserve compatible evidence and report the attempt plus last successful timeline cutoff; a failed detail refresh cannot attach old details to a revised event. Missing/mismatched response IDs and duplicate detail wrappers cannot contribute quantities or costs. Authentication and cancellation follow the existing guarded broker-operation path.
+
+Trade Republic admission currently supports executed savings-plan purchases, explicitly labelled buy/sell orders, bank cash transfers, card payment/refund cash, interest and corporate-action cash. A confirmed cash-dividend detail supplies the dividend classification. Source `amount.value` is major currency units; `fractionDigits` bounds precision, not a divisor. Source status and signs must agree. Pending/cancelled/failed/deleted activity has no booked effects. Unqualified aggregate rewards/round-ups and other unsupported events remain visible with their reported amount and a gap.
+
+Only explicit retained `accountPairs` evidence links a cash account to its securities account. Missing links stay unknown. Displayed share quantities retain their reported precision; execution and settlement timestamps are not invented. Quantity and cash reconciliation compare dated saved boundaries using evidenced legs and exact decimals. A match remains **matched with gaps** until statement completeness is established. Transfers require an explicit unique pairing reference; matching amounts or account counts are insufficient. API cursor exhaustion does not establish a complete statement period.
+
+Schema 13 adds event versions/heads, acquisition state and cash observations. Migration takes the existing SQLite-consistent `.pre-history-*.sqlite` backup before adding tables; original holdings, observations and checkpoints remain unchanged. Roll back by restoring the untouched backup into a separate data directory with the matching old runtime. Never open schema 13 with an older writer.
+
+Copied-data checks, from the project directory:
+
+```sh
+pnpm --dir v2 exec tsx tests/event-ledger-replay.ts PRIVATE_COPY.sqlite PRIVATE_REPORT.json
+python3 v2/tests/event-decimal-audit.py PRIVATE_COPY.sqlite
+PRISM_V2_URL=http://127.0.0.1:4360 pnpm --dir v2 exec tsx tests/events-view-smoke.ts
+```
+
+The replay command requires a quiescent SQLite-consistent copy, verifies original table/checkpoint equality, and writes only to that copy. The browser command requires an isolated offline preview and rejects the primary port. Synthetic fixtures cover revisions, identical amounts on distinct trades, pending/cancelled events, partial acquisition, detail identity, round trips, explicit splits/deliveries/reversals, internal transfers and settlement delay. These checks do not establish complete real-account reconciliation, tax lots, gains or return rates.
 
 ### Current valuation behavior
 

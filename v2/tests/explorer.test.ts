@@ -250,3 +250,51 @@ it('retries failed detail reads in a bounded evidence batch', async () => {
   expect(reads).toEqual(['timelineDetailV2:retry'])
   expect(saved.find(s => s.id === 'timelineDetails')).toMatchObject({ status: 'success', payload: { remaining: 0 } })
 })
+
+it('resumes a bounded recent gap independently of the older backfill cursor', async()=>{
+  const sources=new Map<string,DataSource>([['timelineTransactions',source('timelineTransactions',{items:[{id:'old'}],nextCursor:'older'})]])
+  const calls:string[]=[]
+  const run=()=>extractData({read:async(id,args)=>{
+    calls.push(`${id}:${args.after??args.id??'head'}`)
+    if(id==='timelineTransactions')return args.after==='recent-gap'?{items:[{id:'old'}],cursors:{after:'past-overlap'}}:{items:[{id:'new'}],cursors:{after:'recent-gap'}}
+    return {sections:[]}
+  }},[...sources.values()],s=>sources.set(s.id,s),signal(),'history-recent',quiet)
+  await run()
+  expect(sources.get('timelineTransactions')?.payload).toMatchObject({nextCursor:'older',recentCursor:'recent-gap'})
+  await run()
+  expect(calls.filter(c=>c.startsWith('timelineTransactions:'))).toEqual(['timelineTransactions:head','timelineTransactions:recent-gap'])
+  expect(sources.get('timelineTransactions')?.payload).toMatchObject({nextCursor:'older',recentCursor:null})
+})
+it('refreshes details for a revised event and retains compatible good detail on a failed refresh',async()=>{
+  const sources=new Map<string,DataSource>()
+  let revision=1,fail=false
+  const run=()=>extractData({read:async(id)=>{
+    if(id==='timelineTransactions')return {items:[{id:'event',revision}],cursors:{}}
+    if(fail)throw Error('private detail error')
+    return {revision}
+  }},[...sources.values()],s=>sources.set(s.id,s),signal(),'history-recent',quiet)
+  await run();fail=true;await run()
+  expect(sources.get('timelineDetails')?.payload).toMatchObject({items:[{id:'event',response:{revision:1},retained:true,error:{category:'unexpected'}}]})
+  revision=2;await run()
+  const payload=sources.get('timelineDetails')!.payload as {items:Record<string,unknown>[]}
+  expect(payload.items[0].response).toBeUndefined()
+  fail=false;await run()
+  expect(sources.get('timelineDetails')?.payload).toMatchObject({items:[{id:'event',response:{revision:2}}]})
+})
+
+it('keeps the last successful timeline cutoff when a recent read fails and an empty detail batch does no work',async()=>{
+  const sources=new Map<string,DataSource>([
+    ['timelineTransactions',source('timelineTransactions',{items:[],nextCursor:null})],
+    ['timelineDetails',source('timelineDetails',{items:[],remaining:0})],
+  ])
+  let fail=true
+  const run=()=>extractData({read:async()=>{if(fail)throw Error('private failure');return {items:[],cursors:{}}}},[...sources.values()],s=>sources.set(s.id,s),signal(),'history-recent',quiet)
+  await run()
+  expect(sources.get('timelineTransactions')).toMatchObject({status:'failed',fetchedAt:'2026-01-01T00:00:00Z'})
+  expect(sources.get('timelineDetails')?.fetchedAt).toBe('2026-01-01T00:00:00Z')
+  const {tradeRepublicEvents}=await import('../server/trade-republic-events')
+  expect(tradeRepublicEvents([...sources.values()])?.coverage).toMatchObject({acquisition:'failed',timelineObservedAt:'2026-01-01T00:00:00Z',observedAt:'2026-01-01T00:00:00Z'})
+  fail=false;await run()
+  expect(tradeRepublicEvents([...sources.values()])?.coverage.acquisition).toBe('partial')
+  expect(sources.get('timelineTransactions')?.fetchedAt).not.toBe('2026-01-01T00:00:00Z')
+})

@@ -45,6 +45,10 @@ export async function api(
     send(result.status, result.body)
     return
   }
+  if (req.method === 'GET' && url.pathname === '/api/events' && !url.search) {
+    try { send(200,service.events()) } catch { send(500,{error:'Saved event evidence is unavailable.'}) }
+    return
+  }
   if (req.method === 'GET' && url.pathname.startsWith('/api/history/')) {
     try {
       let result: object | null
@@ -133,6 +137,7 @@ export async function api(
       accepted = true
     }
     else if (req.url === '/api/extract') accepted = service.extract('refresh')
+    else if (req.url === '/api/events/backfill') accepted = service.backfillEvents()
     else if (req.url === '/api/history/batch') accepted = service.extract('history-batch')
     else if (req.url === '/api/history/continue') accepted = service.extract('continue')
     else if (req.url === '/api/sync') accepted = service.sync()

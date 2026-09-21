@@ -19,7 +19,7 @@ import {
 import { amundiProvider } from './amundi-provider'
 import { isharesProvider } from './ishares-provider'
 
-import { pluginHostVersion, viewContributionContractVersion, amundiPluginMetadata, historyPlugin, wikiPlugin, financialPlugin, contributionMixPlugin, type AnalyticsContribution, type ViewContribution } from '../web/views/plugin-metadata'
+import { pluginHostVersion, viewContributionContractVersion, amundiPluginMetadata, eventsPlugin, historyPlugin, wikiPlugin, financialPlugin, contributionMixPlugin, type AnalyticsContribution, type ViewContribution } from '../web/views/plugin-metadata'
 export { pluginHostVersion, viewContributionContractVersion, type ViewContribution } from '../web/views/plugin-metadata'
 
 export interface PluginActivationContext {
@@ -314,6 +314,7 @@ const iSharesView: ViewContribution = {
 export const bundledPluginDescriptors: readonly PluginDescriptor[] = [
   { id: 'trade-republic-broker', version: '1.0.0', compatibility: { hostVersion: pluginHostVersion }, contributions: { broker: tradeRepublicProvider, views: [] } },
   historyPlugin,
+  eventsPlugin,
   wikiPlugin,
   financialPlugin,
   contributionMixPlugin,

@@ -103,7 +103,7 @@ it('migrates surviving observations only, makes a WAL-consistent backup and rest
   original.save(snapshot()); for (const s of sources()) original.saveSource(s)
   original.close()
   const legacy = new DatabaseSync(dbPath)
-  legacy.exec('DROP TABLE history_checks; DROP TABLE history_checkpoints; DROP TABLE history_runs; DROP TABLE history_observations; DROP TABLE history_blobs; DROP TABLE history_meta; PRAGMA user_version=10; PRAGMA journal_mode=WAL;')
+  legacy.exec('DROP TABLE ledger_event_heads; DROP TABLE ledger_event_versions; DROP TABLE ledger_event_acquisition; DROP TABLE ledger_cash_observations; DROP TABLE history_checks; DROP TABLE history_checkpoints; DROP TABLE history_runs; DROP TABLE history_observations; DROP TABLE history_blobs; DROP TABLE history_meta; PRAGMA user_version=10; PRAGMA journal_mode=WAL;')
   legacy.prepare('INSERT INTO snapshots(fetched_at,payload) VALUES (?,?)').run(t, JSON.stringify(snapshot('3')))
   // Keep the WAL connection open during migration to exercise online-consistent backup.
   const migrated = new SnapshotStore(dbPath)

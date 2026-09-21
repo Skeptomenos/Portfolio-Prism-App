@@ -55,3 +55,9 @@ export const contributionMixPlugin: ViewPluginMetadata = {
     views: [{ id: 'contribution-mix-view', contractVersion: 'view/1', serverEntrypoint: './server/financial-read-model', browserEntrypoint: './web/views/ContributionMix', readModel: 'portfolio-financial/1', commands: [], route: { id: 'contribution-mix', label: 'Contribution mix', eyebrow: 'DIRECT AND ETF SOURCES', needsService: true } }],
   },
 }
+
+export const eventsPlugin: ViewPluginMetadata = {
+  id: 'events-bundled-plugin', version: '1.0.0', compatibility: { hostVersion: pluginHostVersion },
+  contributions: { views: [{ id: 'portfolio-events', contractVersion: 'view/1', serverEntrypoint: './server/event-ledger', browserEntrypoint: './web/views/Events',
+    readModel: 'portfolio-events/1', commands: ['events.backfill'], route: { id: 'events', label: 'Transactions', eyebrow: 'EVIDENCED ACTIVITY & CASH FLOWS', needsService: true } }] },
+}

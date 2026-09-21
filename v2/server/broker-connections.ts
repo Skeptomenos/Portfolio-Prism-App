@@ -112,6 +112,11 @@ export class BrokerConnections {
         },signal)
         partial ||= saved.size < 3
       } else partial = true
+      if(runtime.broker.readEvents) {
+        let eventFailure=false
+        await runtime.broker.readEvents(this.store.ledger.state(id), batch=>{guard();this.store.ledger.save(id,batch);eventFailure=batch.coverage.acquisition==='failed';partial ||= batch.coverage.failedDetails>0||batch.coverage.recentGap},signal,'recent')
+        if(eventFailure)throw new BrokerFailure({category:'unexpected'})
+      }
       guard()
       this.store.history.finish(attemptId,partial ? 'partial' : 'succeeded')
       record(partial ? 'partial' : 'succeeded','none',true)

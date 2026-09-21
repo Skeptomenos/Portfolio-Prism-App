@@ -1,3 +1,6 @@
+import { tradeRepublicEvents } from './trade-republic-events'
+import type { BrokerEventBatch } from './broker-events'
+import type { Json } from './explorer'
 import { tradeRepublicObservation } from './trade-republic-observation'
 import { valuationSource } from './history-observation'
 import type { FinancialObservation } from './financial-observation'
@@ -214,18 +217,19 @@ export class TradeRepublicBroker implements Broker {
     this.persist()
     return result
   }
+  private eventContext = new Map<string, DataSource>()
   async readData(
     previous: DataSource[],
     save: (source: DataSource) => void,
     signal: AbortSignal,
-    mode: 'refresh' | 'continue' | 'valuation' | 'history-batch'
+    mode: 'refresh' | 'continue' | 'valuation' | 'history-batch' | 'history-recent'
   ): Promise<void> {
     this.activeSignal = signal
     try {
       await extractData(
         sdkTransport(this.client),
         previous,
-        save,
+        source => { if (['accountPairs','cash'].includes(source.id)) this.eventContext.set(source.id,source); save(source) },
         signal,
         mode,
         (sourceId, event, durationMs, detail) =>
@@ -234,6 +238,19 @@ export class TradeRepublicBroker implements Broker {
     } finally {
       this.activeSignal = undefined
     }
+  }
+  eventsFromSources = tradeRepublicEvents
+  async readEvents(previous: Json | null, save: (batch: BrokerEventBatch) => void, signal: AbortSignal, mode: 'recent' | 'backfill'): Promise<void> {
+    const sources = Array.isArray(previous) ? previous as unknown as DataSource[] : []
+    const latest = new Map([...sources.map(s => [s.id,s] as const),...this.eventContext])
+    await this.readData([...latest.values()], source => {
+      signal.throwIfAborted()
+      latest.set(source.id,source)
+      const batch=tradeRepublicEvents([...latest.values()])
+      if(batch)save(batch)
+    },signal,mode==='recent'?'history-recent':'history-batch')
+    const failed=[...latest.values()].find(s=>['timelineTransactions','timelineDetails'].includes(s.id)&&s.status==='failed')
+    if(failed)throw new BrokerFailure(failed.error??{category:'unexpected'})
   }
   async readHoldings(signal: AbortSignal) {
     const snapshot = await this.fetch(signal)
@@ -290,6 +307,8 @@ export const tradeRepublicProvider: BrokerProvider = {
       restore: signal => safe(() => adapter.restore(signal)),
       readHoldings: signal => safe(() => adapter.readHoldings(signal)),
       fetch: signal => safe(() => adapter.fetch(signal)),
+      eventsFromSources: tradeRepublicEvents,
+      readEvents: (previous, save, signal, mode) => safe(() => adapter.readEvents(previous, save, signal, mode)),
       readObservations: (previous, save, signal) => safe(() => adapter.readObservations(previous, save, signal)),
       readData: (previous, save, signal, mode) => safe(() => adapter.readData(previous, save, signal, mode)),
       observe: observer => adapter.observe(observer), logout: () => adapter.logout(), close: () => adapter.close(), warning: () => adapter.warning(),
