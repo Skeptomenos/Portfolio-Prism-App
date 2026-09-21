@@ -10,7 +10,7 @@ Active application: **Portfolio Prism V2**. Reconciled: 2026-09-21.
 | Visual explanation | [Architecture map](architecture-map.html) | Dated application/pipeline diagrams, code pointers and explicit current/target separation; opens offline |
 | Adopted target | [Plugin architecture](plugin-architecture.md) | Core/host/extension boundaries; not a claim that the SDK or loader exists |
 | Adopted product contract | [Exposure coverage](exposure-coverage-contract.md) | Coverage meaning, visible gaps and acceptance rules |
-| Adopted product contract; implementation pending | [Investigation decisions](investigation-decisions.md) | Open/excluded valuation investigations, dated manual price fallback and unchanged financial-gap meaning |
+| Implemented product contract | [Investigation decisions](investigation-decisions.md) | Open/excluded valuation investigations, dated manual price fallback and unchanged financial-gap meaning |
 | Accepted target extension | [Portfolio history and performance](portfolio-history-and-performance.md) | Implemented H1 observation/checkpoint foundation; later timeline, event reconciliation, invested capital and return targets |
 | Implementation contract | [H1 history API](history-api-contract.md) | Implemented H1 wire types, examples and endpoint semantics; historical company projections remain open |
 | Implementation contract | [Financial views](financial-view-contract.md) | Versioned financial projections, scoped clients, analytics/view registration and lifecycle verification |

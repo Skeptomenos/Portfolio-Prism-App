@@ -21,7 +21,7 @@ The `_planning/` directory is omitted from the public split. If it is absent, us
 | Core/host/plugin boundaries and contributor target | [Plugin architecture](docs/plugin-architecture.md) |
 | Financial view and analytics extension contracts | [Financial read/view contract](docs/financial-view-contract.md); broker connection contracts and checks are in the [runtime guide](v2/README.md) |
 | Coverage meaning, visible gaps and acceptance | [Coverage contract](docs/exposure-coverage-contract.md) |
-| User decisions on unresolved items and manual valuation inputs | [Investigation contract](docs/investigation-decisions.md) — adopted target; implementation in progress |
+| User decisions on unresolved items and manual valuation inputs | [Investigation contract](docs/investigation-decisions.md) — implemented; reversible decisions and dated manual price fallbacks |
 | Durable history, capital flows and return definitions | [History architecture](docs/portfolio-history-and-performance.md); H1 merged and active on the primary portfolio; later performance stages remain planned |
 | Parallel history/backend and view delivery | [Shared API contract](docs/history-api-contract.md), [execution handoff](_planning/strategy/2026-09-21-history-plugin-handoff.md) — handoff is private |
 | Development workflow and check selection | [Contributing](CONTRIBUTING.md#verification) |

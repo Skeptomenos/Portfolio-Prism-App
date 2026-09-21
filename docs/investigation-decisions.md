@@ -1,6 +1,6 @@
 # Investigation decisions and manual evidence
 
-Status: adopted product contract, 2026-09-21. The implementation provides these actions with copied-data and browser acceptance. Review and primary activation remain separate release gates. The [runtime guide](../v2/README.md) owns implemented behavior and the private delivery plan owns acceptance.
+Status: implemented and independently reviewed, 2026-09-21. PR #316 delivers the actions below; migration, copied-data replay and browser acceptance passed. The primary app uses schema 14 and persists user decisions across restart. The [runtime guide](../v2/README.md) owns implemented behavior and the private delivery plan owns acceptance.
 
 Users must be able to decide what happens to an unresolved item inside Prism. Start with held-security valuation gaps. Keep investigation progress separate from the [financial coverage contract](exposure-coverage-contract.md).
 
