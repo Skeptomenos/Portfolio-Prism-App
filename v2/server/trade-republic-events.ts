@@ -133,3 +133,28 @@ export function tradeRepublicEvents(sources: readonly DataSource[], retainedCash
   })
   return {contractVersion:'broker-events/1',observedAt,events,cashBalances,coverage:{observedAt,timelineObservedAt:history.fetchedAt,lastAttemptAt:[history.attemptedAt,details?.attemptedAt].filter((v):v is string=>!!v).sort().at(-1)??observedAt,acquisition:history.status==='failed'||details?.status==='failed'?'failed':'partial',olderAvailable:typeof h.nextCursor==='string'?true:h.nextCursor===null?false:null,detailsPending:Math.max(0,events.length-detailItems.filter(r=>!!r.response).length),failedDetails,recentGap:!!h.recentCursor,historyComplete:false},state:sanitizePayload(sources.filter(s=>['timelineTransactions','timelineDetails','accountPairs','cash'].includes(s.id)).map(s=>s.id==='timelineDetails' && s.fetchedAt && s.fetchedAt>=history.fetchedAt! ? {...s,payload:{...rec(s.payload),items:detailItems.map(r=>({...r,timelineFingerprint:r.timelineFingerprint??eventHash(sanitizePayload(arr(h.items).find(x=>rec(x).id===r.id)??null))}))}} : s))}
 }
+
+/** A retained-state command never substitutes older explorer snapshots or contacts TR. */
+export function normalizeRetainedTradeRepublicEvents(state: Json): BrokerEventBatch | null {
+  if(!Array.isArray(state)||state.length===0||state.length>4)throw Error('Invalid retained event state')
+  const ids=new Set<string>()
+  for(const value of state){
+    const source=rec(value),id=str(source.id)
+    if(!id||!['timelineTransactions','timelineDetails','accountPairs','cash'].includes(id)||ids.has(id))throw Error('Invalid retained source identity')
+    ids.add(id)
+    if(!['success','partial','failed','not-fetched','unsupported'].includes(String(source.status)))throw Error('Invalid retained source status')
+    if(source.fetchedAt!==undefined&&!iso(source.fetchedAt)||source.attemptedAt!==undefined&&!iso(source.attemptedAt))throw Error('Invalid retained source date')
+    if(id==='timelineTransactions'||id==='timelineDetails'){
+      if(!Array.isArray(rec(source.payload).items))throw Error('Invalid retained timeline payload')
+      const seen=new Set<string>()
+      for(const item of arr(rec(source.payload).items)){
+        const itemId=str(rec(item).id)
+        if(!itemId||seen.has(itemId))throw Error('Invalid retained item identity')
+        seen.add(itemId)
+      }
+    }
+  }
+  if(!ids.has('timelineTransactions'))throw Error('Retained timeline missing')
+  const batch=tradeRepublicEvents(state as unknown as DataSource[])
+  return batch?{...batch,state}:null
+}

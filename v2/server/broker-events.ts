@@ -13,6 +13,8 @@ export interface BrokerEventBatch {
 }
 export interface BrokerEvents {
   readEvents(previous: Json | null, save: (batch: BrokerEventBatch) => void, signal: AbortSignal, mode: 'recent' | 'backfill'): Promise<void>
+  /** Pure interpretation of retained adapter state; must not acquire or authenticate. */
+  normalizeRetainedEvents?(state: Json): BrokerEventBatch | null
   // Offline bridge for evidence already retained by the legacy explorer.
   eventsFromSources?(sources: readonly DataSource[], retainedCash?: readonly RetainedFinancialObservation[]): BrokerEventBatch | null
 }

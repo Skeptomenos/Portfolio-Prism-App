@@ -93,3 +93,7 @@ Capability selection is not a universal certification. The reusable provider har
 ## Agent workflows
 
 Read [Operate](../skills/portfolio-prism-operate/SKILL.md) for setup, saved reads and diagnostics, or [Extend](../skills/portfolio-prism-extend/SKILL.md) for contribution delivery. They ship as repository-local skills with relative `.agents/skills` links. Agents can read these files directly; installing them globally or adding an MCP layer is unnecessary.
+
+### Retained event interpretation
+
+The optional broker `normalizeRetainedEvents(state)` capability is pure: it interprets its own opaque retained state without acquisition or credentials and returns a `broker-events/1` batch. Core admits it through the serialized `POST /api/events/reprocess` command only when source observation time, coverage, state and event identities are unchanged. The Transactions view registers `events.reprocess` and reports retained source dates and terminal diagnostics. Existing event revisions and historical checkpoints remain intact. Broker conformance includes offline purity, idempotence, corruption and provenance guards.

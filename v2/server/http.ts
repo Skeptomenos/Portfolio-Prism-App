@@ -147,9 +147,9 @@ export async function api(
       accepted = true
     }
     else if (req.url === '/api/extract') accepted = service.extract('refresh')
-    else if (req.url === '/api/events/backfill') {
+    else if ((req.url === '/api/events/backfill' || req.url === '/api/events/reprocess')) {
       const priorAttempts = new Set(service.diagnostics().map(d => d.attemptId))
-      accepted = service.backfillEvents()
+      accepted = req.url === '/api/events/reprocess' ? service.reprocessEvents() : service.backfillEvents()
       if (accepted) {
         const attemptId = service.diagnostics().find(d => d.operation === 'extraction' && d.event === 'started' && !priorAttempts.has(d.attemptId))?.attemptId ?? null
         send(202, { accepted: true, attemptId })

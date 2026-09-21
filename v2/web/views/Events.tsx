@@ -13,14 +13,16 @@ export function Events({client}:{client:EventsClient}){
     client.read(controller.signal).then(value=>{if(!controller.signal.aborted){setModel(value);setMessage(previous=>previous?.replace('Reloading saved results…','Saved results reloaded.')??null)}}).catch(e=>{if(!controller.signal.aborted){setError(e instanceof Error?e.message:'Events unavailable.');setMessage(previous=>previous?.replace('Reloading saved results…','Saved results could not be reloaded.')??null)}})
     return()=>controller.abort()
   },[client,revision])
-  const backfill=async()=>{
+  const backfill=async(reprocess=false)=>{
     if(operation.current)return
     const controller=new AbortController();operation.current=controller
-    setPending(true);setError(null);setMessage('Reading one bounded history batch…')
+    setPending(true);setError(null);setMessage(reprocess?'Reprocessing retained events without broker acquisition…':'Reading one bounded history batch…')
     try{
-      const attemptId=await client.backfill(controller.signal)
+      const attemptId=await (reprocess?client.reprocess(controller.signal):client.backfill(controller.signal))
       const outcome=await client.completion(attemptId,controller.signal)
-      if(!controller.signal.aborted)setMessage(outcome==='succeeded'?'History batch completed. Reloading saved results… Remaining coverage gaps are shown below.':outcome==='partial'?'History batch finished with partial results. Reloading saved results… Remaining gaps are shown below.':outcome==='cancelled'?'History batch cancelled. Reloading saved results…':'History batch failed. Reloading saved results… Check Connection & sync for the cause and retry path.')
+      const operationLabel=reprocess?'Retained event reprocessing':'History batch'
+      const provenance=reprocess?' Source dates and coverage are unchanged; no new acquisition.':''
+      if(!controller.signal.aborted)setMessage(`${operationLabel} ${outcome==='succeeded'?'completed':outcome==='partial'?'finished with partial results':outcome==='cancelled'?'cancelled':'failed'}. Reloading saved results…${provenance} ${outcome==='failed'?'Check Connection & sync for the cause and retry path.':'Remaining gaps are shown below.'}`)
     }catch(e){if(!controller.signal.aborted){setMessage(null);setError(e instanceof Error?e.message:'History batch failed.')}}finally{
       if(!controller.signal.aborted){setRevision(n=>n+1);setPending(false)}
       if(operation.current===controller)operation.current=null
@@ -31,8 +33,8 @@ export function Events({client}:{client:EventsClient}){
     <section className="panel">
       <div className="section-title"><h2>Transactions & cash movements</h2><span className="badge">Evidence in progress</span></div>
       <p>Executed events explain reported activity. Missing history, details and account links remain gaps. These totals are not investment gains or returns.</p>
-      <div className="actions"><button disabled={pending} onClick={()=>{setMessage(null);setError(null);setRevision(n=>n+1)}}>Reload saved events</button><button disabled={pending} onClick={()=>void backfill()}>{pending?'Reading history…':'Continue primary history'}</button><a href="#/portfolio">Connection & sync</a></div>
-      <p className="muted">Continuation reads one timeline page and up to 20 details. Normal portfolio sync checks recent events.</p>
+      <div className="actions"><button disabled={pending} onClick={()=>{setMessage(null);setError(null);setRevision(n=>n+1)}}>Reload saved events</button><button disabled={pending} onClick={()=>void backfill()}>{pending?'Reading history…':'Continue primary history'}</button><button disabled={pending||!model?.events.length} onClick={()=>void backfill(true)}>Reprocess retained events</button><a href="#/portfolio">Connection & sync</a></div>
+      <p className="muted">Continuation reads one timeline page and up to 20 details. Normal portfolio sync checks recent events. Reprocessing applies current supported interpretation to saved evidence, without connecting or acquiring data. Retained source dates and gaps remain below.</p>
       {message&&<p role="status">{message}</p>}{error&&<p className="notice error" role="alert">{error}</p>}
       {!model&&!error&&<p role="status">Loading saved events…</p>}
       {model&&<><p><strong>{model.events.length} saved events</strong> · {model.events.filter(e=>e.status==='executed').length} executed · {model.events.filter(e=>e.status==='unresolved').length} unresolved · {model.events.filter(e=>e.status==='non-economic').length} without booked effects</p>

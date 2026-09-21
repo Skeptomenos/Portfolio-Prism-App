@@ -1,0 +1,36 @@
+import { chromium,expect } from '@playwright/test'
+import { mkdirSync,writeFileSync } from 'node:fs'
+const origin=process.env.PRISM_V2_URL
+if(!origin||!/^http:\/\/127\.0\.0\.1:\d+$/.test(origin)||['4336','4360','4362'].some(p=>origin.endsWith(`:${p}`)))throw Error('Use an explicit disposable offline preview')
+const browser=await chromium.launch({headless:true}),page=await browser.newPage({viewport:{width:1280,height:900}})
+const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message))
+try{
+ const before=await (await page.request.get(`${origin}/api/events`)).json()
+ expect((await (await page.request.get(`${origin}/api/status`)).json()).connected).toBe(false)
+ await page.goto(`${origin}/#/events`)
+ await expect(page.getByText(`${before.events.length} saved events`,{exact:true})).toBeVisible()
+ await expect(page.getByText(/Retained source dates and gaps remain below/)).toBeVisible()
+ await page.getByRole('button',{name:'Reprocess retained events',exact:true}).click()
+ await expect(page.getByRole('status')).toContainText('Retained event reprocessing finished with partial results. Saved results reloaded.')
+ await expect(page.getByRole('status')).toContainText('Source dates and coverage are unchanged; no new acquisition.')
+ const after=await (await page.request.get(`${origin}/api/events`)).json()
+ expect(after.connections).toEqual(before.connections)
+ expect(after.events.map((e:{sourceId:string})=>e.sourceId).sort()).toEqual(before.events.map((e:{sourceId:string})=>e.sourceId).sort())
+ const roundUps=after.events.filter((e:{sourceType:string,status:string})=>e.sourceType==='SPARE_CHANGE_AGGREGATE'&&e.status==='executed')
+ expect(roundUps.length).toBeGreaterThan(0)
+ await page.getByLabel('Show',{exact:false}).selectOption('executed')
+ const first=page.locator('.history-position').filter({hasText:roundUps[0].sourceId})
+ await expect(first).toBeVisible();await first.locator('summary').click()
+ await expect(first).toContainText('Exact net cash:');await expect(first).toContainText('Cash account unknown')
+ for(const c of after.connections)if(c.coverage?.timelineObservedAt)await expect(page.getByText(new RegExp(c.coverage.timelineObservedAt.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')))).toBeVisible()
+ await page.setViewportSize({width:390,height:844})
+ await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1)).toBe(true)
+ await page.getByRole('button',{name:'Reprocess retained events',exact:true}).click()
+ await expect(page.getByRole('status')).toContainText('Saved results reloaded.')
+ const repeated=await (await page.request.get(`${origin}/api/events`)).json();expect(repeated).toEqual(after)
+ expect(errors).toEqual([])
+ mkdirSync('test-results/dev276-reprocess',{recursive:true})
+ await page.screenshot({path:'test-results/dev276-reprocess/reprocess-mobile.png'})
+ const report={events:after.events.length,roundUps:roundUps.length,offline:true,automaticReload:true,unchangedProvenance:true,idempotent:true,unknownAccountVisible:true,narrowOverflow:false,pageErrors:errors.length}
+ writeFileSync('test-results/dev276-reprocess/browser-report.json',JSON.stringify(report,null,2),{mode:0o600});console.log(JSON.stringify(report))
+}finally{await browser.close()}

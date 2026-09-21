@@ -1,4 +1,4 @@
-import { tradeRepublicEvents } from './trade-republic-events'
+import { tradeRepublicEvents, normalizeRetainedTradeRepublicEvents } from './trade-republic-events'
 import type { BrokerEventBatch } from './broker-events'
 import type { Json } from './explorer'
 import { tradeRepublicObservation } from './trade-republic-observation'
@@ -241,6 +241,7 @@ export class TradeRepublicBroker implements Broker {
       this.activeSignal = undefined
     }
   }
+  normalizeRetainedEvents = normalizeRetainedTradeRepublicEvents
   eventsFromSources = tradeRepublicEvents
   async readEvents(previous: Json | null, save: (batch: BrokerEventBatch) => void, signal: AbortSignal, mode: 'recent' | 'backfill'): Promise<void> {
     const sources = Array.isArray(previous) ? previous as unknown as DataSource[] : []
@@ -310,6 +311,7 @@ export const tradeRepublicProvider: BrokerProvider = {
       readHoldings: signal => safe(() => adapter.readHoldings(signal)),
       fetch: signal => safe(() => adapter.fetch(signal)),
       eventsFromSources: tradeRepublicEvents,
+      normalizeRetainedEvents: normalizeRetainedTradeRepublicEvents,
       readEvents: (previous, save, signal, mode) => safe(() => adapter.readEvents(previous, save, signal, mode)),
       readObservations: (previous, save, signal, excludedQuoteIsins) => safe(() => adapter.readObservations(previous, save, signal, excludedQuoteIsins)),
       readData: (previous, save, signal, mode, excludedQuoteIsins) => safe(() => adapter.readData(previous, save, signal, mode, excludedQuoteIsins)),

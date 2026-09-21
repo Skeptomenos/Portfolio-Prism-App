@@ -9,7 +9,7 @@ const model=Schema.Struct({
   reconciliation:Schema.Struct({from:nullable,to:nullable,gaps:Schema.Array(text),rows:Schema.Array(Schema.Struct({connectionId:text,accountId:text,unit:text,openingAt:text,closingAt:text,opening:decimal,movement:decimal,expected:decimal,closing:decimal,difference:decimal,state:Schema.Literal('matched-with-gaps','difference','reconciled'),gaps:Schema.Array(text)}))}),
   gaps:Schema.Array(text),
 })
-export interface EventsClient { read(signal:AbortSignal):Promise<LedgerReadModel>; backfill(signal:AbortSignal):Promise<string>; completion(attemptId:string,signal:AbortSignal):Promise<string> }
+export interface EventsClient { read(signal:AbortSignal):Promise<LedgerReadModel>; backfill(signal:AbortSignal):Promise<string>; reprocess(signal:AbortSignal):Promise<string>; completion(attemptId:string,signal:AbortSignal):Promise<string> }
 export function createEventsClient(request:typeof fetch=fetch):EventsClient {
   return {
     async read(signal){
@@ -24,6 +24,14 @@ export function createEventsClient(request:typeof fetch=fetch):EventsClient {
         const body=Schema.decodeUnknownSync(Schema.Struct({accepted:Schema.Literal(true),attemptId:Schema.String.pipe(Schema.minLength(1))}))(await response.json())
         return body.attemptId
       }catch{throw Error('The history batch was accepted, but its completion reference is unavailable. Check Connection & sync before retrying.')}
+    },
+    async reprocess(signal){
+      const response=await request('/api/events/reprocess',{method:'POST',signal,headers:{'Content-Type':'application/json','X-Prism-Client':'1'},body:'{}'})
+      if(!response.ok)throw Error('Could not reprocess retained events. Wait for the current operation or check that this broker supports saved evidence.')
+      try{
+        const body=Schema.decodeUnknownSync(Schema.Struct({accepted:Schema.Literal(true),attemptId:Schema.String.pipe(Schema.minLength(1))}))(await response.json())
+        return body.attemptId
+      }catch{throw Error('Retained event reprocessing was accepted, but its completion reference is unavailable. Check Connection & sync before retrying.')}
     },
     async completion(attemptId,signal){
       const diagnostic=Schema.Struct({attemptId:text,event:Schema.Literal('started','succeeded','partial','failed','cancelled'),terminal:Schema.optional(Schema.Boolean)})

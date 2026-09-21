@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from 'node:util'
 import { inCredentialScope, credentialSignal, credentialCleanup } from './credential-scope'
 import { boundedOperation } from './bounded-operation'
 import { admitHoldings } from './broker-holdings'
@@ -200,6 +201,22 @@ export class PortfolioService {
     if(failed)throw new BrokerFailure({category:'unexpected'})
   }
   events() { return this.store.ledger.read(this.store.connectionInputs()) }
+  reprocessEvents(): boolean {
+    if(!this.broker.normalizeRetainedEvents)return false
+    return this.start('syncing',async signal=>{
+      this.guard(signal)
+      this.stage='data_extraction'
+      const connectionId=this.store.connections.defaultId
+      const state=this.store.ledger.state(connectionId),coverage=this.store.ledger.coverage(connectionId)
+      if(!state||!coverage)throw Error('No retained event evidence')
+      const ids=this.store.ledger.events().filter(e=>e.connectionId===connectionId).map(e=>e.sourceId).sort()
+      const batch=this.broker.normalizeRetainedEvents!(structuredClone(state))
+      if(!batch||batch.observedAt!==coverage.observedAt||!isDeepStrictEqual(batch.coverage,coverage)||!isDeepStrictEqual(batch.state,state)||!isDeepStrictEqual(batch.events.map(e=>e.event.sourceId).sort(),ids))throw Error('Retained event scope changed')
+      this.guard(signal)
+      this.store.ledger.save(connectionId,batch)
+      this.activeEventsPartial=batch.events.some(e=>e.event.gaps.length>0)||!coverage.historyComplete
+    },'extraction',true)
+  }
   backfillEvents(): boolean {
     if(!this.connected||!this.broker.readEvents)return false
     return this.start('syncing',async signal=>{
@@ -228,7 +245,8 @@ export class PortfolioService {
   private start(
     phase: 'connecting' | 'restoring' | 'syncing',
     task: (signal: AbortSignal) => Promise<void>,
-    operationName?: Diagnostic['operation']
+    operationName?: Diagnostic['operation'],
+    localOnly = false
   ): boolean {
     const connection = this.store.connections.get(this.store.connections.defaultId)!
     if (this.operation || !connection.enabled || this.store.registry.brokerProvider(connection.providerId)?.version !== connection.providerVersion) return false
@@ -249,10 +267,10 @@ export class PortfolioService {
     const timeout = setTimeout(() => controller.abort(new DOMException('Timed out','TimeoutError')),180_000)
     timeout.unref()
     const work = Effect.tryPromise({
-      try: () => boundedOperation(inCredentialScope(controller.signal,() => task(controller.signal)),controller.signal),
+      try: () => boundedOperation(localOnly ? task(controller.signal) : inCredentialScope(controller.signal,() => task(controller.signal)),controller.signal),
       catch: (error) =>
         new OperationFailed({
-          message: classifyError(error).category === 'authentication' ? 'The broker session expired or was rejected. Connect again.' : 'The operation could not complete. Retry or reconnect.',
+          message: localOnly ? 'Retained event reprocessing failed. Saved evidence was not acquired again; inspect local diagnostics before retrying.' : classifyError(error).category === 'authentication' ? 'The broker session expired or was rejected. Connect again.' : 'The operation could not complete. Retry or reconnect.',
           authRejected:
             classifyError(error).category === 'authentication',
           detail: classifyError(error),
@@ -297,7 +315,7 @@ export class PortfolioService {
       clearTimeout(timeout)
       const cancelled = controller.signal.aborted
       controller.abort()
-      if (cancelled && this.brokerFactory) {
+      if (cancelled && this.brokerFactory && !localOnly) {
         inCredentialScope(controller.signal,() => { try { this.broker.close() } catch {} })
         this.broker = this.brokerFactory(); this.observeBroker()
         this.connected = false; this.state.phase = 'disconnected'

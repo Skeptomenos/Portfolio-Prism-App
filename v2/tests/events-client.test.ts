@@ -59,3 +59,10 @@ it('does not observe an accepted batch without a valid completion reference',asy
   await expect(createEventsClient(request).backfill(signal())).rejects.toThrow('was accepted')
   expect(request).toHaveBeenCalledTimes(1)
 })
+it('uses the fixed protected retained-evidence command and does not require connection on rejection',async()=>{
+ const calls:unknown[]=[]
+ const client=createEventsClient(async(url,init)=>{calls.push({url,init});return new Response(JSON.stringify({accepted:true,attemptId:'retained'}),{status:202})})
+ expect(await client.reprocess(signal())).toBe('retained')
+ expect(calls[0]).toMatchObject({url:'/api/events/reprocess',init:{method:'POST',body:'{}',headers:{'X-Prism-Client':'1'}}})
+ await expect(createEventsClient(async()=>new Response('{}',{status:409})).reprocess(signal())).rejects.toThrow('Wait for the current operation')
+})

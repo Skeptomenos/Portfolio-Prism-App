@@ -173,6 +173,10 @@ Normal sync checks one recent timeline page and at most twenty details. A separa
 
 Trade Republic admission currently supports executed savings-plan purchases, explicitly labelled buy/sell orders, bank cash transfers, card payment/refund cash, interest and corporate-action cash. A confirmed cash-dividend detail supplies the dividend classification. Source `amount.value` is major currency units; `fractionDigits` bounds precision, not a divisor. Source status and signs must agree. Pending/cancelled/failed/deleted activity has no booked effects. Unqualified aggregate rewards/round-ups and other unsupported events remain visible with their reported amount and a gap.
 
+**Reprocess retained events** calls the protected `POST /api/events/reprocess` command. It works disconnected and applies the broker's optional pure `normalizeRetainedEvents` capability to the current ledger's retained state. It does not log in, fetch data, use older explorer snapshots or create historical calculation checkpoints. Core serializes it with other broker operations and refuses changed source dates, coverage, cursors or event identities. Existing versions remain retained; an identical repeat creates no new event revision. The view follows the diagnostic attempt, reloads saved results and retains source dates and remaining gaps. Unsupported or invalid evidence fails without replacing saved events. Trusted adapter purity is a capability contract tested with network/auth spies, not arbitrary-plugin sandboxing.
+
+Completed Round Up details can qualify independent purchases when execution status, event identity, reported quantity, instrument and Total/Accrued amounts agree. Missing account attribution remains unknown. Saveback and incompatible aggregate details remain unresolved.
+
 Only explicit retained `accountPairs` evidence links a cash account to its securities account. Missing links stay unknown. Displayed share quantities retain their reported precision; execution and settlement timestamps are not invented. Quantity and cash reconciliation compare dated saved boundaries using evidenced legs and exact decimals. A match remains **matched with gaps** until statement completeness is established. Transfers require an explicit unique pairing reference; matching amounts or account counts are insufficient. API cursor exhaustion does not establish a complete statement period.
 
 Schema 13 adds event versions/heads, acquisition state and cash observations. Migration takes the existing SQLite-consistent `.pre-history-*.sqlite` backup before adding tables; original holdings, observations and checkpoints remain unchanged. Roll back by restoring the untouched backup into a separate data directory with the matching old runtime. Never open schema 13 with an older writer.
@@ -182,6 +186,9 @@ Copied-data checks, from the project directory:
 ```sh
 pnpm --dir v2 exec tsx tests/event-ledger-replay.ts PRIVATE_COPY.sqlite PRIVATE_REPORT.json
 python3 v2/tests/event-decimal-audit.py PRIVATE_COPY.sqlite
+# Reprocess a disposable copy through the offline command and prove historical replay:
+pnpm --dir v2 exec tsx tests/event-reprocess-replay.ts PRIVATE_COPY.sqlite PRIVATE_REPORT.json
+PRISM_V2_URL=http://127.0.0.1:4363 pnpm --dir v2 exec tsx tests/event-reprocess-smoke.ts
 PRISM_V2_URL=http://127.0.0.1:4360 pnpm --dir v2 exec tsx tests/events-view-smoke.ts
 ```
 

@@ -59,5 +59,5 @@ export const contributionMixPlugin: ViewPluginMetadata = {
 export const eventsPlugin: ViewPluginMetadata = {
   id: 'events-bundled-plugin', version: '1.0.0', compatibility: { hostVersion: pluginHostVersion },
   contributions: { views: [{ id: 'portfolio-events', contractVersion: 'view/1', serverEntrypoint: './server/event-ledger', browserEntrypoint: './web/views/Events',
-    readModel: 'portfolio-events/1', commands: ['events.backfill'], route: { id: 'events', label: 'Transactions', eyebrow: 'EVIDENCED ACTIVITY & CASH FLOWS', needsService: true } }] },
+    readModel: 'portfolio-events/1', commands: ['events.backfill','events.reprocess'], route: { id: 'events', label: 'Transactions', eyebrow: 'EVIDENCED ACTIVITY & CASH FLOWS', needsService: true } }] },
 }
