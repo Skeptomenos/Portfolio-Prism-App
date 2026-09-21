@@ -14,7 +14,7 @@ it('shows partial exposure, unvalued positions, scope and old quotes even at 100
   expect(html).toContain('Partial exposure')
   expect(html).toContain('positions unvalued')
   expect(html).toContain('older than 24h')
-  expect(html).toContain('excludes cash and unvalued positions')
+  expect(html).toContain('Excludes cash and unvalued positions')
   expect(html.indexOf('Company grouping:')).toBeLessThan(html.indexOf('<details'))
   expect(html.indexOf('Quotes')).toBeLessThan(html.indexOf('<details'))
 })
