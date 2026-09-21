@@ -35,11 +35,24 @@ try{
   await page.getByRole('button',{name:'Reload saved events'}).click()
   await expect(page.getByText('Net observed cash movement',{exact:true})).toBeVisible()
   await expect(page.getByText('No supported cash movements yet. Missing amounts are unknown.',{exact:true})).toHaveCount(0)
+  for(const outcome of ['succeeded','partial','failed','cancelled']){
+    let diagnostics=0
+    await page.route('**/api/events/backfill',route=>route.fulfill({status:202,json:{accepted:true,attemptId:'synthetic-batch'}}))
+    await page.route('**/api/diagnostics',route=>route.fulfill({status:200,json:{events:++diagnostics===1?[{attemptId:'unrelated',event:'succeeded',terminal:true}]:[{attemptId:'synthetic-batch',event:outcome,terminal:true}]}}))
+    reply={...model,events:model.events.slice(0,1)}
+    await page.getByRole('button',{name:'Continue primary history',exact:true}).click()
+    await expect(page.getByRole('button',{name:'Reading history…'})).toBeDisabled()
+    await expect(page.getByText('1 saved events',{exact:true})).toBeVisible()
+    await expect(page.getByRole('status')).toContainText(outcome==='succeeded'?'completed':outcome==='partial'?'partial results':outcome==='cancelled'?'cancelled':'failed')
+    expect(diagnostics).toBe(2)
+    await page.getByRole('button',{name:'Reload saved events'}).click()
+    await expect(page.getByRole('status')).toHaveCount(0)
+  }
   reply={contractVersion:'unsupported/1'}
   await page.getByRole('button',{name:'Reload saved events'}).click()
   await expect(page.getByRole('alert')).toContainText('incompatible')
   expect(errors).toEqual([])
-  const report={events:model.events.length,reload:true,filters:true,exactDisclosure:true,offlineBackfillRejected:true,narrowOverflow:false,keyboard:true,knownZeroCurrencyVisible:true,incompatibleResponseRejected:true,pageErrors:errors.length}
+  const report={events:model.events.length,automaticCompletionOutcomes:4,reload:true,filters:true,exactDisclosure:true,offlineBackfillRejected:true,narrowOverflow:false,keyboard:true,knownZeroCurrencyVisible:true,incompatibleResponseRejected:true,pageErrors:errors.length}
   writeFileSync('test-results/dev276-events/browser-report.json',JSON.stringify(report,null,2),{mode:0o600})
   console.log(JSON.stringify(report))
 }finally{await browser.close()}

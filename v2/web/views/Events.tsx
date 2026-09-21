@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import type { LedgerReadModel } from '../../contracts/events'
 import type { EventsClient } from './events-client'
 import { coverageMoney } from '../CoverageSummary'
@@ -6,21 +6,32 @@ const label=(v:string)=>v.replace(/-/g,' ')
 export function Events({client}:{client:EventsClient}){
   const [model,setModel]=useState<LedgerReadModel|null>(null),[error,setError]=useState<string|null>(null),[revision,setRevision]=useState(0)
   const [filter,setFilter]=useState('all'),[limit,setLimit]=useState(50),[pending,setPending]=useState(false),[message,setMessage]=useState<string|null>(null)
+  const operation=useRef<AbortController|null>(null)
+  useEffect(()=>{setPending(false);return()=>{operation.current?.abort();operation.current=null}},[client])
   useEffect(()=>{
     const controller=new AbortController()
-    client.read(controller.signal).then(value=>{if(!controller.signal.aborted){setModel(value);setError(null)}}).catch(e=>{if(!controller.signal.aborted)setError(e instanceof Error?e.message:'Events unavailable.')})
+    client.read(controller.signal).then(value=>{if(!controller.signal.aborted){setModel(value);setMessage(previous=>previous?.replace('Reloading saved results…','Saved results reloaded.')??null)}}).catch(e=>{if(!controller.signal.aborted){setError(e instanceof Error?e.message:'Events unavailable.');setMessage(previous=>previous?.replace('Reloading saved results…','Saved results could not be reloaded.')??null)}})
     return()=>controller.abort()
   },[client,revision])
   const backfill=async()=>{
-    setPending(true);setError(null)
-    try{await client.backfill(new AbortController().signal);setMessage('One bounded history batch started. Reload saved events after it finishes.')}catch(e){setError(e instanceof Error?e.message:'History batch failed.')}finally{setPending(false)}
+    if(operation.current)return
+    const controller=new AbortController();operation.current=controller
+    setPending(true);setError(null);setMessage('Reading one bounded history batch…')
+    try{
+      const attemptId=await client.backfill(controller.signal)
+      const outcome=await client.completion(attemptId,controller.signal)
+      if(!controller.signal.aborted)setMessage(outcome==='succeeded'?'History batch completed. Reloading saved results… Remaining coverage gaps are shown below.':outcome==='partial'?'History batch finished with partial results. Reloading saved results… Remaining gaps are shown below.':outcome==='cancelled'?'History batch cancelled. Reloading saved results…':'History batch failed. Reloading saved results… Check Connection & sync for the cause and retry path.')
+    }catch(e){if(!controller.signal.aborted){setMessage(null);setError(e instanceof Error?e.message:'History batch failed.')}}finally{
+      if(!controller.signal.aborted){setRevision(n=>n+1);setPending(false)}
+      if(operation.current===controller)operation.current=null
+    }
   }
   const events=model?.events.filter(e=>filter==='all'||e.status===filter)??[]
   return <div className="events-view">
     <section className="panel">
       <div className="section-title"><h2>Transactions & cash movements</h2><span className="badge">Evidence in progress</span></div>
       <p>Executed events explain reported activity. Missing history, details and account links remain gaps. These totals are not investment gains or returns.</p>
-      <div className="actions"><button onClick={()=>setRevision(n=>n+1)}>Reload saved events</button><button disabled={pending} onClick={()=>void backfill()}>{pending?'Starting…':'Continue primary history'}</button><a href="#/portfolio">Connection & sync</a></div>
+      <div className="actions"><button disabled={pending} onClick={()=>{setMessage(null);setError(null);setRevision(n=>n+1)}}>Reload saved events</button><button disabled={pending} onClick={()=>void backfill()}>{pending?'Reading history…':'Continue primary history'}</button><a href="#/portfolio">Connection & sync</a></div>
       <p className="muted">Continuation reads one timeline page and up to 20 details. Normal portfolio sync checks recent events.</p>
       {message&&<p role="status">{message}</p>}{error&&<p className="notice error" role="alert">{error}</p>}
       {!model&&!error&&<p role="status">Loading saved events…</p>}

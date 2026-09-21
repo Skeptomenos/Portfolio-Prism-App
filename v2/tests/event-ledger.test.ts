@@ -183,3 +183,26 @@ it.each(['amount','date','shape'])('rejects corrupted saved ledger cash before r
     const verify=new DatabaseSync(path,{readOnly:true});expect(JSON.stringify(verify.prepare('SELECT * FROM ledger_cash_observations ORDER BY observed_at').all())).toBe(before);verify.close()
   }finally{s.close();rmSync(dir,{recursive:true})}
 })
+
+it('admits only corroborated completed Round Ups independently of same-time savings purchases',()=>{
+  const roundup=wire('round',{eventType:'SPARE_CHANGE_AGGREGATE',subtitle:'Round up',cashAccountNumber:null})
+  const d=details('round')
+  const table=d.response.sections[1].data
+  if(!Array.isArray(table))throw Error('Missing synthetic table')
+  table.push(...[
+    {title:'Round up',detail:{text:'Completed',functionalStyle:'EXECUTED'}},
+    {title:'Accrued',detail:{displayValue:{text:'€12.34'}}},
+  ] as never[])
+  const b=batch([roundup,wire('ordinary'),{...roundup,id:'saveback',eventType:'SAVEBACK_AGGREGATE'}],[d,details('ordinary')])
+  expect(b.events[0].event).toMatchObject({status:'executed',kind:'buy',accountId:null,cash:[{amount:'-12.34'}],securities:[{accountId:null,quantity:'0.123456',precision:'reported-display'}]})
+  expect(b.events[1].event.securities).toHaveLength(1)
+  expect(b.events[2].event).toMatchObject({status:'unresolved',cash:[],securities:[]})
+  for(const changed of [{...roundup,subtitle:'Other'},{...roundup,amount:{value:-10,currency:'EUR',fractionDigits:2}}])expect(batch([changed],[d]).events[0].event.status).toBe('unresolved')
+  expect(batch([roundup],[]).events[0].event.status).toBe('unresolved')
+  const store=new SnapshotStore(':memory:')
+  try{
+    store.ledger.save(store.connections.defaultId,b)
+    store.ledger.save(store.connections.defaultId,batch([{...roundup,status:'CANCELED'}],[d]))
+    expect(store.ledger.events().find(e=>e.sourceId==='round')).toMatchObject({revisionCount:2,status:'non-economic',cash:[],securities:[]})
+  }finally{store.close()}
+})

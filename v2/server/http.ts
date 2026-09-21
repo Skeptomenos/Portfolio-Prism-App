@@ -137,7 +137,15 @@ export async function api(
       accepted = true
     }
     else if (req.url === '/api/extract') accepted = service.extract('refresh')
-    else if (req.url === '/api/events/backfill') accepted = service.backfillEvents()
+    else if (req.url === '/api/events/backfill') {
+      const priorAttempts = new Set(service.diagnostics().map(d => d.attemptId))
+      accepted = service.backfillEvents()
+      if (accepted) {
+        const attemptId = service.diagnostics().find(d => d.operation === 'extraction' && d.event === 'started' && !priorAttempts.has(d.attemptId))?.attemptId ?? null
+        send(202, { accepted: true, attemptId })
+        return
+      }
+    }
     else if (req.url === '/api/history/batch') accepted = service.extract('history-batch')
     else if (req.url === '/api/history/continue') accepted = service.extract('continue')
     else if (req.url === '/api/sync') accepted = service.sync()

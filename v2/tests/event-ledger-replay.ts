@@ -17,9 +17,13 @@ let store=new SnapshotStore(path)
 const checkpoints=checkpointIds.map(id=>store.history.checkpoint(id))
 if(checkpoints.some(c=>c?.replay.state!=='available'))throw Error('Original checkpoint replay unavailable')
 const numericalReplays=checkpointIds.map(id=>hash(store.history.replay(id)))
-const overview=hash(store.overview(0)),batch=tradeRepublicEvents(store.sources(),store.retainedCashEvidence())
-if(!batch)throw Error('No saved timeline evidence on this private copy')
-store.ledger.save(store.connections.defaultId,batch)
+const overview=hash(store.overview(0))
+const existingLedger=store.ledger.state(store.connections.defaultId)!==null
+if(!existingLedger){
+  const batch=tradeRepublicEvents(store.sources(),store.retainedCashEvidence())
+  if(!batch)throw Error('No saved timeline evidence on this private copy')
+  store.ledger.save(store.connections.defaultId,batch)
+}
 const first=store.ledger.read(store.connectionInputs())
 store.close();store=new SnapshotStore(path)
 const second=store.ledger.read(store.connectionInputs())
@@ -31,6 +35,6 @@ store.close()
 const after=new DatabaseSync(path,{readOnly:true})
 if(hash(tableHashes(after))!==hash(before))throw Error('An original table changed')
 const schema=after.prepare('PRAGMA user_version').get()?.user_version;after.close()
-const report={schemaBefore:version,schemaAfter:schema,originalTablesUnchanged:tables.length,checkpointsUnchanged:checkpointIds.length,numericallyReplayedBeforeAndAfter:checkpointIds.length,offlineLedgerEqual:true,events:first.events.length,executed:first.events.filter(e=>e.status==='executed').length,nonEconomic:first.events.filter(e=>e.status==='non-economic').length,unresolved:first.events.filter(e=>e.status==='unresolved').length,quantityLegs:first.events.flatMap(e=>e.securities).length,mappedQuantityLegs:first.events.flatMap(e=>e.securities).filter(s=>s.accountId).length,reconciliationRows:first.reconciliation.rows.length,coverage:first.connections.map(c=>c.coverage),openGate:'Independent statement-period and live new-endpoint acceptance remain open.'}
+const report={existingLedger,schemaBefore:version,schemaAfter:schema,originalTablesUnchanged:tables.length,checkpointsUnchanged:checkpointIds.length,numericallyReplayedBeforeAndAfter:checkpointIds.length,offlineLedgerEqual:true,events:first.events.length,executed:first.events.filter(e=>e.status==='executed').length,nonEconomic:first.events.filter(e=>e.status==='non-economic').length,unresolved:first.events.filter(e=>e.status==='unresolved').length,quantityLegs:first.events.flatMap(e=>e.securities).length,mappedQuantityLegs:first.events.flatMap(e=>e.securities).filter(s=>s.accountId).length,reconciliationRows:first.reconciliation.rows.length,coverage:first.connections.map(c=>c.coverage),openGate:'Independent statement-period and live new-endpoint acceptance remain open.'}
 writeFileSync(reportPath,JSON.stringify(report,null,2),{mode:0o600})
 console.log(JSON.stringify(report))

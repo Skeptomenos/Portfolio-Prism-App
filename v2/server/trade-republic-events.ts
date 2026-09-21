@@ -13,7 +13,7 @@ const str = (x: unknown) => typeof x==='string'?x:null
 const account = (x: unknown) => typeof x==='string'&&x.length>0 ? createHash('sha256').update(x).digest('hex').slice(0,16):null
 const iso = (x: unknown) => typeof x==='string' && /^\d{4}-\d{2}-\d{2}T/.test(x)&&/(?:Z|[+-]\d{2}:?\d{2})$/.test(x)&&Number.isFinite(Date.parse(x))?x:null
 const isin = (x: unknown) => typeof x==='string'&&/^[A-Z]{2}[A-Z0-9]{9}[0-9]$/.test(x)?x:null
-const labels = new Set(['Event','Shares','Transaction','Fee','Tax','Total','Dividend per share','Price','Quantity','Gross amount','Settlement date','Execution date'])
+const labels = new Set(['Event','Shares','Transaction','Fee','Tax','Total','Dividend per share','Price','Quantity','Gross amount','Settlement date','Execution date','Round up','Accrued'])
 const plain = (x: unknown) => typeof x==='string'&&/^-?\d+(?:\.\d+)?$/.test(x)&&x.length<=128?new D(x).toFixed():null
 /** Only the observed English displayValue format is admitted. Localized strings,
  * unknown symbols, ambiguous grouping and display prefixes are not guessed. */
@@ -39,7 +39,7 @@ function financialDetail(value: unknown) {
   const headers=sections.filter(s=>s.type==='header')
   const rows=sections.filter(s=>s.type==='table').flatMap(s=>arr(s.data).map(rec)).filter(r=>labels.has(String(r.title))).map(r=>{
     const d=rec(r.detail),display=rec(d.displayValue)
-    return {label:String(r.title),text:str(d.text),display:str(display.text),prefix:str(display.prefix)}
+    return {label:String(r.title),text:str(d.text),display:str(display.text),prefix:str(display.prefix),functionalStyle:str(d.functionalStyle)}
   })
   return {id:str(detail.id),status:str(rec(headers[0]?.data).status),isin:isin(rec(headers[0]?.action).type==='instrumentDetail'?rec(headers[0]?.action).payload:null),rows}
 }
@@ -65,7 +65,7 @@ export function tradeRepublicEvents(sources: readonly DataSource[], retainedCash
     const saved=detailMatches&&!ambiguousDetail&&!mismatchedDetail?candidate:undefined
     const detail=financialDetail(saved?.response),amount=majorAmount(item.amount)
     const evidence=sanitizePayload({event:{id:item.id,eventType:item.eventType,status:item.status,timestamp:item.timestamp,subtitle:item.subtitle,amount:item.amount,cashAccount,hidden:item.hidden,deleted:item.deleted},detail:rawDetail,detailIdentity:ambiguousDetail?'ambiguous':mismatchedDetail?'mismatch':'matched',accountLink:matches.length===1?matches[0]:null})
-    const event: { -readonly [K in keyof LedgerEvent]: LedgerEvent[K] }={sourceId:String(item.id),sourceType:str(item.eventType)??'unknown',accountId:cashAccount,occurredAt:iso(item.timestamp),tradeAt:null,settlementAt:null,status:'unresolved',kind:'unknown',reportedCash:amount,cash:[],securities:[],gross:null,fee:null,tax:null,componentsCurrency:amount?.currency??null,componentsIncludedInCash:false,transferReference:null,reversesSourceId:null,gaps:[],evidenceHash:eventHash(evidence),parserVersion:'trade-republic-events/1'}
+    const event: { -readonly [K in keyof LedgerEvent]: LedgerEvent[K] }={sourceId:String(item.id),sourceType:str(item.eventType)??'unknown',accountId:cashAccount,occurredAt:iso(item.timestamp),tradeAt:null,settlementAt:null,status:'unresolved',kind:'unknown',reportedCash:amount,cash:[],securities:[],gross:null,fee:null,tax:null,componentsCurrency:amount?.currency??null,componentsIncludedInCash:false,transferReference:null,reversesSourceId:null,gaps:[],evidenceHash:eventHash(evidence),parserVersion:'trade-republic-events/2'}
     const gaps:string[]=[]
     if(ambiguousDetail)gaps.push('Duplicate detail identities are ambiguous; details are not admitted.')
     if(mismatchedDetail)gaps.push('Detail response identity is missing or does not match this event; details are not admitted.')
@@ -79,6 +79,11 @@ export function tradeRepublicEvents(sources: readonly DataSource[], retainedCash
     const row=(label:string)=>{const r=detail.rows.filter(r=>r.label===label);return r.length===1?r[0]:null}
     const value=(label:string)=>row(label)?.display??row(label)?.text
     let kind:LedgerEvent['kind']='unknown'
+    if(item.eventType==='SPARE_CHANGE_AGGREGATE'){
+      const transaction=row('Transaction'),quantity=plain(/^(\d+(?:\.\d+)?)\s*[×x]\s*/.exec(transaction?.prefix??transaction?.text??'')?.[1])
+      const total=money(value('Total'),amount.currency),accrued=money(value('Accrued'),amount.currency)
+      if(item.subtitle==='Round up'&&detail.status==='executed'&&value('Round up')==='Completed'&&row('Round up')?.functionalStyle==='EXECUTED'&&detail.isin&&quantity&&new D(quantity).gt(0)&&total!==null&&accrued!==null&&new D(total).eq(new D(amount.amount).neg())&&new D(accrued).eq(total))kind='buy'
+    }
     if(item.eventType==='TRADING_SAVINGSPLAN_EXECUTED')kind='buy'
     if(item.eventType==='TRADING_TRADE_EXECUTED'){
       if(['Buy Order','Limit Buy'].includes(String(item.subtitle)))kind='buy'

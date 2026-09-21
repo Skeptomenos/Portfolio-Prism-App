@@ -82,3 +82,25 @@ describe('local HTTP boundary', () => {
     }
   })
 })
+
+it('returns the accepted history attempt reference even when the batch finishes immediately',async()=>{
+  const store=new SnapshotStore(':memory:')
+  const service=new PortfolioService({...broker,readEvents:async()=>{}},store)
+  service.authenticate({phone:'+49123456789',pin:'1234'});await service.settled()
+  let origin=''
+  const server=createServer((req,res)=>{void api(req,res,service,origin)})
+  await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve))
+  origin=`http://127.0.0.1:${(server.address() as AddressInfo).port}`
+  try{
+    const response=await fetch(`${origin}/api/events/backfill`,{method:'POST',headers:{Origin:origin,'Content-Type':'application/json','X-Prism-Client':'1'},body:'{}'})
+    expect(response.status).toBe(202)
+    const body=await response.json();expect(body.accepted).toBe(true)
+    await service.settled()
+    expect(service.diagnostics().find(d=>d.attemptId===body.attemptId&&d.terminal)).toMatchObject({operation:'extraction',event:'succeeded'})
+    const prior=service.diagnostics()
+    const diagnosticRead=vi.spyOn(service,'diagnostics').mockReturnValue(prior)
+    const unobservable=await fetch(`${origin}/api/events/backfill`,{method:'POST',headers:{Origin:origin,'Content-Type':'application/json','X-Prism-Client':'1'},body:'{}'})
+    expect(await unobservable.json()).toEqual({accepted:true,attemptId:null})
+    diagnosticRead.mockRestore();await service.settled()
+  }finally{await new Promise<void>(resolve=>server.close(()=>resolve()));store.close()}
+})
