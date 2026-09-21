@@ -367,7 +367,7 @@ export class PortfolioService {
     const fund = iusaDetail(found, progress, selected)
     return { ...fund, illustrative: fund.inspection ? undefined : illustrativeValues(fund, fund.rows, this.overview(), selected) }
   }
-  extract(mode: 'refresh' | 'continue'): boolean {
+  extract(mode: 'refresh' | 'continue' | 'history-batch'): boolean {
     if (!this.connected || !this.broker.readData) return false
     return this.start(
       'syncing',
@@ -375,7 +375,7 @@ export class PortfolioService {
         this.activeOutcome = { holdings: null, valuation: 'not-requested', sources: [] }
         this.stage = 'data_extraction'
         let nextMode = mode
-        for (let batch = 0; batch < 100; batch++) {
+        for (let batch = 0; batch < (mode === 'history-batch' ? 1 : 100); batch++) {
           await this.broker.readData!(
             this.store.sources(),
             (source) => this.saveOperationSource(source, signal),

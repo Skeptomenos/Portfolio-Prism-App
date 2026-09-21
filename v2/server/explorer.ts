@@ -236,7 +236,7 @@ export async function extractData(
   previous: DataSource[],
   save: (source: DataSource) => void,
   signal: AbortSignal,
-  mode: 'refresh' | 'continue' | 'valuation',
+  mode: 'refresh' | 'continue' | 'valuation' | 'history-batch',
   observe: (
     id: string,
     event: 'started' | 'succeeded' | 'failed',
@@ -423,13 +423,17 @@ export async function extractData(
     })
   }
   if (mode === 'valuation') return
+  // A host-controlled evidence probe: no unrelated source groups or automatic loop.
+  const continuing = mode === 'continue' || mode === 'history-batch'
+  const pageLimit = mode === 'history-batch' ? 1 : 10
+  const detailLimit = mode === 'history-batch' ? 20 : 50
   await capture('timelineTransactions', async () => {
     const old = result.get('timelineTransactions')?.payload
     const existing = old ? object(old) : null
     const items = existing ? [...array(existing.items)] : []
-    let after = mode === 'continue' ? existing?.nextCursor : undefined
+    let after = continuing ? existing?.nextCursor : undefined
     const priorIds = new Set(items.map((item) => object(item).id))
-    if (mode === 'continue' && existing && !after)
+    if (continuing && existing && !after)
       return { payload: existing, coverage: 'Reached the end of history exposed by the broker' }
     let pages = 0
     const seen = new Set<string>()
@@ -450,7 +454,7 @@ export async function extractData(
         if (seen.has(after)) throw new Error('Repeated history cursor')
         seen.add(after)
       }
-    } while (after && pages < 10)
+    } while (after && pages < pageLimit)
     const unique = new Map(
       items.map((item) => {
         const row = object(item)
@@ -475,7 +479,7 @@ export async function extractData(
     const done = new Set(details.map((d) => object(d).id))
     const missing = array(history.items).filter((item) => !done.has(object(item).id))
     // Four independent read subscriptions bound load without serializing the entire history.
-    const batch = missing.slice(0, 50)
+    const batch = missing.slice(0, detailLimit)
     for (let offset = 0; offset < batch.length; offset += 4) {
       signal.throwIfAborted()
       const outcomes = await Promise.allSettled(
@@ -497,10 +501,10 @@ export async function extractData(
       }
     }
     return {
-      payload: { items: details, remaining: Math.max(0, missing.length - 50) },
-      partial: missing.length > 50 || details.some((d) => !!object(d).error),
+      payload: { items: details, remaining: Math.max(0, missing.length - detailLimit) },
+      partial: missing.length > detailLimit || details.some((d) => !!object(d).error),
       coverage:
-        missing.length > 50
+        missing.length > detailLimit
           ? 'Partial event details: use Continue history.'
           : 'Attempted details for loaded events; per-event failures remain visible. Older history may still exist.',
     }

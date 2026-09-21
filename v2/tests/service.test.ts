@@ -435,3 +435,24 @@ it.each([true, false])('new holdings trigger composition acquisition after commi
     expect(refresh).toHaveBeenCalledTimes(enabled ? 1 : 0)
   } finally { await service.close() }
 })
+
+it('does not automatically loop a bounded history batch while more evidence remains', async () => {
+  const modes: string[] = []
+  const readData: NonNullable<Broker['readData']> = async (_previous, save, _signal, mode) => {
+    modes.push(mode)
+    if (mode === 'valuation') return
+    save({ ...catalog.find(s => s.id === 'timelineTransactions')!, status: 'partial', payload: { items: [], nextCursor: 'more' } })
+    save({ ...catalog.find(s => s.id === 'timelineDetails')!, status: 'partial', payload: { items: [], remaining: 100 } })
+  }
+  const service = new PortfolioService(Object.assign(new FakeBroker(), { readData }), new SnapshotStore(':memory:'))
+  try {
+    expect(service.extract('history-batch')).toBe(false)
+    service.login('+49123456789', '1234')
+    await service.settled()
+    modes.length = 0
+    expect(service.extract('history-batch')).toBe(true)
+    await service.settled()
+    expect(modes).toEqual(['history-batch'])
+    expect(service.status().lastDiagnostic?.operation).toBe('extraction')
+  } finally { await service.close() }
+})

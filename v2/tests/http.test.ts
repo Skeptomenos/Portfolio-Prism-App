@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { createServer, request } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { api } from '../server/http'
@@ -42,6 +42,7 @@ describe('local HTTP boundary', () => {
         (await fetch(`${origin}/api/data`, { headers: { Origin: 'https://evil.example' } })).status
       ).toBe(403)
       expect((await fetch(`${origin}/api/extract`, { method: 'POST' })).status).toBe(403)
+      expect((await fetch(`${origin}/api/history/batch`, { method: 'POST' })).status).toBe(403)
       expect(
         (await fetch(`${origin}/api/status`, { headers: { Origin: 'https://evil.example' } }))
           .status
@@ -71,6 +72,10 @@ describe('local HTTP boundary', () => {
         (await fetch(`${origin}/api/sync`, { method: 'POST', headers, body: '{}' })).status
       ).toBe(202)
       await service.settled()
+      const extract = vi.spyOn(service, 'extract').mockReturnValue(true)
+      expect((await fetch(`${origin}/api/history/batch`, { method: 'POST', headers, body: '{}' })).status).toBe(202)
+      expect(extract).toHaveBeenCalledExactlyOnceWith('history-batch')
+      extract.mockRestore()
     } finally {
       await service.close()
       await new Promise<void>((resolve) => server.close(() => resolve()))

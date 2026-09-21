@@ -207,3 +207,46 @@ it('persists extracted records across database reopen', async () => {
     rmSync(dir, { recursive: true })
   }
 })
+
+it('bounds an evidence batch to one timeline page and twenty details, then resumes', async () => {
+  const sources = new Map<string, DataSource>()
+  const calls: { id: string; args: Record<string, string | boolean> }[] = []
+  const transport: ExplorerTransport = { read: async (id, args) => {
+    calls.push({ id, args })
+    if (id === 'timelineTransactions') return {
+      items: Array.from({ length: 25 }, (_, n) => ({ id: `event-${args.after ? n + 25 : n}` })),
+      cursors: args.after ? {} : { after: 'older' },
+    }
+    return { sections: [] }
+  } }
+  const run = () => extractData(transport, [...sources.values()], s => sources.set(s.id, s), signal(), 'history-batch', quiet)
+  await run()
+  expect(calls.filter(c => c.id === 'timelineTransactions')).toEqual([{ id: 'timelineTransactions', args: {} }])
+  expect(calls.filter(c => c.id === 'timelineDetailV2')).toHaveLength(20)
+  expect(new Set(calls.map(c => c.id))).toEqual(new Set(['timelineTransactions', 'timelineDetailV2']))
+  expect(sources.get('timelineTransactions')?.payload).toMatchObject({ nextCursor: 'older' })
+  expect(sources.get('timelineDetails')).toMatchObject({ status: 'partial', payload: { remaining: 5 } })
+  calls.length = 0
+  await run()
+  expect(calls.filter(c => c.id === 'timelineTransactions')).toEqual([{ id: 'timelineTransactions', args: { after: 'older' } }])
+  expect(calls.filter(c => c.id === 'timelineDetailV2')).toHaveLength(20)
+  expect(sources.get('timelineDetails')?.payload).toMatchObject({ remaining: 10 })
+  calls.length = 0
+  await run()
+  expect(calls.filter(c => c.id === 'timelineTransactions')).toHaveLength(0)
+  expect(calls.filter(c => c.id === 'timelineDetailV2')).toHaveLength(10)
+})
+
+it('retries failed detail reads in a bounded evidence batch', async () => {
+  const saved: DataSource[] = []
+  const reads: string[] = []
+  await extractData({ read: async (id, args) => {
+    reads.push(`${id}:${args.id}`)
+    return { sections: [] }
+  } }, [
+    source('timelineTransactions', { items: [{ id: 'retry' }, { id: 'saved' }], nextCursor: null }),
+    source('timelineDetails', { items: [{ id: 'retry', error: { category: 'network' } }, { id: 'saved', response: { sections: [] } }], remaining: 0 }),
+  ], s => saved.push(s), signal(), 'history-batch', quiet)
+  expect(reads).toEqual(['timelineDetailV2:retry'])
+  expect(saved.find(s => s.id === 'timelineDetails')).toMatchObject({ status: 'success', payload: { remaining: 0 } })
+})

@@ -18,7 +18,7 @@ export interface Broker {
   fetch(signal: AbortSignal): Promise<Snapshot>
   readObservations?(previous: readonly FinancialObservation[], save: (value: FinancialObservation) => void, signal: AbortSignal): Promise<void>
   // Optional source explorer capability. Raw records never enter neutral valuation.
-  readData?(previous: DataSource[], save: (source: DataSource) => void, signal: AbortSignal, mode: 'refresh' | 'continue' | 'valuation'): Promise<void>
+  readData?(previous: DataSource[], save: (source: DataSource) => void, signal: AbortSignal, mode: 'refresh' | 'continue' | 'valuation' | 'history-batch'): Promise<void>
   observe?(observer: BrokerObserver): void
   logout(): void
   close(): void

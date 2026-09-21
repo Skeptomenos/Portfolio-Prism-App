@@ -133,6 +133,7 @@ export async function api(
       accepted = true
     }
     else if (req.url === '/api/extract') accepted = service.extract('refresh')
+    else if (req.url === '/api/history/batch') accepted = service.extract('history-batch')
     else if (req.url === '/api/history/continue') accepted = service.extract('continue')
     else if (req.url === '/api/sync') accepted = service.sync()
     else if (req.url === '/api/logout') accepted = service.logout()

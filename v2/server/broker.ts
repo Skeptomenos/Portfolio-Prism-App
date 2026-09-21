@@ -218,7 +218,7 @@ export class TradeRepublicBroker implements Broker {
     previous: DataSource[],
     save: (source: DataSource) => void,
     signal: AbortSignal,
-    mode: 'refresh' | 'continue' | 'valuation'
+    mode: 'refresh' | 'continue' | 'valuation' | 'history-batch'
   ): Promise<void> {
     this.activeSignal = signal
     try {
