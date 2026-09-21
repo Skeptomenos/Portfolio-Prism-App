@@ -270,6 +270,7 @@ function FundRows({ fund }: { fund: DevelopmentFundDetail }) {
 
 function FundDetail({ fund, client, commands }: { fund: DevelopmentFundDetail; client: Pick<FinancialClient, 'exposure'>; commands: ExposureCommands }) {
   const preview = fund.illustrative
+  const valuation = fund.valuation ?? preview
   const saved = ['acquired', 'underlying-observation'].includes(fund.acquisitionState)
   return (
     <section className="panel fund-detail" aria-labelledby="fund-detail-title">
@@ -285,12 +286,12 @@ function FundDetail({ fund, client, commands }: { fund: DevelopmentFundDetail; c
         <div>
           <span>Your saved ETF value</span>
           <strong>
-            {preview?.positionValue != null
-              ? new Decimal(preview.positionValue).toFixed(2) + ' ' + preview.currency
+            {valuation?.positionValue != null
+              ? new Decimal(valuation.positionValue).toFixed(2) + ' ' + valuation.currency
               : 'Combined value unavailable'}
           </strong>
-          <small>{preview?.accountCount ?? '—'} account position(s) · no currency conversion</small>
-          {preview?.valuationReason && <small>{preview.valuationReason}</small>}
+          <small>{valuation?.accountCount ?? '—'} account position(s) · no currency conversion</small>
+          {valuation?.valuationReason && <small>{valuation.valuationReason}</small>}
         </div>
         <dl>
           <div>
@@ -307,7 +308,7 @@ function FundDetail({ fund, client, commands }: { fund: DevelopmentFundDetail; c
           </div>
           <div>
             <dt>Quote date</dt>
-            <dd>{preview?.quoteDates.map(formatDate).join(', ') || 'Unknown'}</dd>
+            <dd>{valuation?.quoteDates.map(formatDate).join(', ') || 'Unknown'}</dd>
           </div>
           <div>
             <dt>Composition date</dt>
@@ -346,8 +347,8 @@ function FundDetail({ fund, client, commands }: { fund: DevelopmentFundDetail; c
         )}
       </div>
       {fund.isin === nqseIsin && fund.usedInCalculation && <NqseUncertainty
-        amount={preview?.positionValue != null && fund.calculationCoverage ? new Decimal(preview.positionValue).mul(fund.calculationCoverage.identifiedPercent).div(100).toFixed() : null}
-        currency={preview?.currency ?? null} scope="included ETF allocation" />}
+        amount={valuation?.positionValue != null && fund.calculationCoverage ? new Decimal(valuation.positionValue).mul(fund.calculationCoverage.identifiedPercent).div(100).toFixed() : null}
+        currency={valuation?.currency ?? null} scope="included ETF allocation" />}
       {fund.evidence.error && (
         <p role="alert" className="notice error">
           {fund.evidence.error}
@@ -420,8 +421,8 @@ function FundDetail({ fund, client, commands }: { fund: DevelopmentFundDetail; c
           <div>
             <dt>Composition / quote timestamps</dt>
             <dd>
-              {fund.compositionDate ?? 'Unknown'} / {preview?.quoteDates.join(', ') || 'Unknown'}.
-              Holdings saved: {preview?.holdingsAt ?? 'Unknown'}.
+              {fund.compositionDate ?? 'Unknown'} / {valuation?.quoteDates.join(', ') || 'Unknown'}.
+              Holdings saved: {valuation?.holdingsAt ?? 'Unknown'}.
             </dd>
           </div>
         </dl>

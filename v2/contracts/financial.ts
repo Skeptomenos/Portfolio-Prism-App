@@ -108,7 +108,10 @@ export const DevelopmentSchema = S.Struct({ generatedAt: recordedDate,
     checks: S.Array(S.Struct({ label: text, state: progressState, detail: text })) })),
   funds: S.Array(DevelopmentFundSchema), sourceFreshness: S.Struct({ lastVerifiedAt: nullableDate, asOfRange: dateRange, note: text }),
 })
+const FundValuationSchema = S.Struct({ valuationReason: nullable, positionValue: decimal,
+  currency: S.NullOr(currency), accountCount: count, holdingsAt: nullableDate, quoteDates: S.Array(recordedDate) })
 export const FundDetailSchema = S.Struct({ ...fund,
+  valuation: S.optional(FundValuationSchema),
   illustrative: S.optional(S.Struct({ kind: S.Literal('selected-allocation', 'conditional'), reason: nullable, valuationReason: nullable,
     positionValue: decimal, currency: S.NullOr(currency), accountCount: count, holdingsAt: nullableDate, quoteDates: S.Array(recordedDate),
     rows: S.Array(S.Struct({ row: count, state: S.Literal('included', 'conditional', 'unavailable'), value: decimal, reason: nullable, relativeBar: S.NullOr(S.Number) })) })),

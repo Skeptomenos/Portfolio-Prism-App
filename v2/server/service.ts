@@ -13,7 +13,7 @@ import { SnapshotStore } from './store'
 import { CompositionService } from './composition-service'
 import { ProviderRefreshService } from './provider-refresh-service'
 import { exposure } from './exposure'
-import { illustrativeValues } from './illustrative-values'
+import { fundValuation, illustrativeValues } from './illustrative-values'
 import { withSourceReadiness } from './exposure-readiness'
 import { coverageReport } from './coverage-report'
 import type { DataSource } from './explorer'
@@ -365,7 +365,9 @@ export class PortfolioService {
     if (!found) return null
     const selected = this.store.selectedCompositions().find(source => source.fundIsin === isin) ?? null
     const fund = iusaDetail(found, progress, selected)
-    return { ...fund, illustrative: fund.inspection ? undefined : illustrativeValues(fund, fund.rows, this.overview(), selected) }
+    const valuation = this.overview()
+    return { ...fund, valuation: fundValuation(isin, valuation),
+      illustrative: fund.inspection ? undefined : illustrativeValues(fund, fund.rows, valuation, selected) }
   }
   extract(mode: 'refresh' | 'continue' | 'history-batch'): boolean {
     if (!this.connected || !this.broker.readData) return false

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { Decimal } from 'decimal.js'
-import { illustrativeValues } from '../server/illustrative-values'
+import { fundValuation, illustrativeValues } from '../server/illustrative-values'
 import { exposure } from '../server/exposure'
 import { withSourceReadiness } from '../server/exposure-readiness'
 import {
@@ -234,5 +234,25 @@ describe('conditional row arithmetic, never exposure admission', () => {
         { ...fund, validated: true, qualificationState: 'ready', usedInCalculation: true },
       ])
     ).toMatchObject({ acquiredFunds: 1, qualifiedFunds: 1, usedFunds: 1 })
+  })
+})
+
+
+describe('saved fund valuation independent of composition', () => {
+  it('keeps an unknown or mixed-currency account out of a misleading combined amount', () => {
+    for (const other of [
+      { ...position, account: 'other', value: null, valuationStatus: 'unavailable' as const },
+      { ...position, account: 'other', currency: 'USD' },
+    ]) {
+      const result = fundValuation(fund.isin, valued([position, other]))
+      expect(result.positionValue).toBeNull()
+      expect(result.currency).toBeNull()
+      expect(result.accountCount).toBe(2)
+      expect(result.valuationReason).toBeTruthy()
+      expect(result.quoteDates).toEqual([position.quoteAt])
+    }
+    expect(fundValuation(fund.isin, valued([]))).toMatchObject({
+      positionValue: null, accountCount: 0, valuationReason: 'No nonzero saved holding is available.',
+    })
   })
 })

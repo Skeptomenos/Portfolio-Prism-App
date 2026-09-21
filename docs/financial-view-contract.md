@@ -12,7 +12,7 @@ All requests are same-origin, loopback GETs under `/api/financial/`. They inheri
 | `exposure` | Canonical security totals and direct/ETF contributions; source identities, hashes, dates, qualification and bounded issuer relationships; unresolved gaps and refresh diagnostics |
 | `coverage` | Canonical denominators, included/unassigned values, unknowns, source states and next actions |
 | `development` | Source register, qualification checks and delivery gaps; excludes internal directory/manifest paths |
-| `fund/:isin` | One exact supported fund's normalized source rows, original units, inspection limits and core-derived illustrative/included values |
+| `fund/:isin` | One exact supported fund's saved position valuation, normalized source rows, original units, inspection limits and core-derived illustrative/included values |
 | `diagnostics` | Allowlisted operational events, including optional connection/provider correlation IDs; no credentials or raw responses |
 | `analysis` | Exposure and coverage read together for one analytical input |
 
@@ -28,6 +28,8 @@ Each response has this envelope (abbreviated example):
 ```
 
 The content ID identifies the exact projected data for that read. It is not a durable history checkpoint or evidence of fresh market prices. Original source/observation times live inside the data. A live projection can change as freshness state advances; historical views use frozen H1 records instead. The example omits required fields; the schemas and synthetic tests are authoritative.
+
+The optional `fund.valuation` summary contains the saved position value/currency, account count, holdings and quote dates, and an unavailable reason. It is independent of constituent eligibility: inspection-only funds can have a known position value while their row illustrations remain absent and excluded from exposure. Unknown or mixed-currency accounts suppress the combined amount rather than silently omitting them. Older responses without this additive field remain compatible.
 
 Keep decimal strings unchanged. Unknown amounts remain null; inspection fractions remain fractions. Views neither admit a source nor change canonical calculations. The exposure projection omits redundant internal `sourceRows`; normalized row inspection remains available through `fund/:isin`. No provider artifacts, raw broker payloads, decoder inputs or credential context enter these contracts. Undeclared fields are stripped recursively. Malformed declared fields fail the response; they do not become defaults.
 

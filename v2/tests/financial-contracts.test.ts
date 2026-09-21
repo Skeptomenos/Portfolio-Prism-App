@@ -50,6 +50,19 @@ describe('versioned financial projections', () => {
     expect(JSON.stringify(result)).not.toContain('PRIVATE-MARKER')
     expect(JSON.stringify(result)).not.toContain('sourceRows":[')
   })
+  it('shows the held inspection-only ETF value without admitting its constituent rows', async () => {
+    const { service } = fixture()
+    const before = service.exposure()
+    const fund = await clientFor(financialRead(service, 'fund', 'FR0010361683')).fund('FR0010361683', signal())
+    expect(fund.valuation).toEqual({
+      positionValue: '100.1234567890123456789', currency: 'EUR', accountCount: 1,
+      holdingsAt: '2026-09-20T10:00:00Z', quoteDates: ['2026-09-20T10:00:00.001Z'], valuationReason: null,
+    })
+    expect(fund.inspection).toBeDefined()
+    expect(fund.illustrative).toBeUndefined()
+    expect(fund.usedInCalculation).toBe(false)
+    expect(service.exposure()).toEqual(before)
+  })
   it('covers every resource, strips unknown fields, and scopes exact fund identity', async () => {
     const { service } = fixture()
     for (const resource of Object.keys(financialSchemas) as FinancialResource[]) {

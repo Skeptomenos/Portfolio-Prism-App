@@ -6,7 +6,7 @@ import { validIsin } from './composition'
 import type { Composition, CompositionAttempt } from './composition'
 import type { DataSource } from './explorer'
 import type { Position, Snapshot } from './model'
-import type { IllustrativeValues } from './illustrative-values'
+import type { FundValuation, IllustrativeValues } from './illustrative-values'
 import type { InspectionObservation, InspectionRow } from './composition-inspection'
 
 type JsonRecord = Record<string, unknown>
@@ -98,6 +98,7 @@ export interface DevelopmentFund {
 }
 
 export interface DevelopmentFundDetail extends DevelopmentFund {
+  valuation?: FundValuation
   illustrative?: IllustrativeValues
   rows: ConstituentObservation[]
   rowPage: {

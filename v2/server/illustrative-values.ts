@@ -30,30 +30,14 @@ export function reportedWeight(value: string | null): Decimal | null {
 export function plainEquity(row: ConstituentObservation): boolean {
   return /^(equity|aktien)$/i.test(row.securityType?.trim() ?? '')
 }
-export function illustrativeValues(
-  fund: DevelopmentFund,
-  rows: ConstituentObservation[],
-  valuation: ReturnType<typeof overview>,
-  selected: Composition | null = null
-) {
-  const positions = valuation.rows.filter((position) => position.isin === fund.isin)
+/** Saved position value is independent from constituent-source eligibility. */
+export function fundValuation(isin: string, valuation: ReturnType<typeof overview>) {
+  const positions = valuation.rows.filter((position) => position.isin === isin)
   const quoteDates = [
     ...new Set(
       positions.map((position) => position.quoteAt).filter((date): date is string => !!date)
     ),
   ].sort()
-  let reason: string | null = null
-  if (fund.acquisitionState === 'underlying-observation')
-    reason = 'Shared underlying data: the held class hedge is not represented.'
-  else if (fund.acquisitionState !== 'acquired')
-    reason = 'A readable, identity-verified composition is required.'
-  else if (!allocationEstimateFunds.has(fund.isin))
-    reason = 'This fund/class context is not supported for illustrative values.'
-  else if (!fund.evidence.identityVerified || !fund.evidence.manifestVerified)
-    reason = 'Source identity and integrity must be verified.'
-  else if (fund.evidence.weightUnit !== 'percent')
-    reason = 'Explicit percentage units are required.'
-  else if (!fund.compositionDate) reason = 'The composition date is unknown.'
   let valuationReason: string | null = null
   const nonzero = positions.filter((position) => !new D(position.quantity).isZero())
   if (!valuationReason && !nonzero.length)
@@ -84,6 +68,34 @@ export function illustrativeValues(
   const positionValue = !valuationReason
     ? nonzero.reduce((sum, position) => sum.add(position.value!), new D(0)).toFixed()
     : null
+  return {
+    valuationReason, positionValue, currency, accountCount: positions.length,
+    holdingsAt: valuation.holdingsAt, quoteDates,
+  }
+}
+export type FundValuation = ReturnType<typeof fundValuation>
+
+export function illustrativeValues(
+  fund: DevelopmentFund,
+  rows: ConstituentObservation[],
+  valuation: ReturnType<typeof overview>,
+  selected: Composition | null = null
+) {
+  const saved = fundValuation(fund.isin, valuation)
+  const { valuationReason, positionValue, currency } = saved
+  const nonzero = valuation.rows.filter(position => position.isin === fund.isin && !new D(position.quantity).isZero())
+  let reason: string | null = null
+  if (fund.acquisitionState === 'underlying-observation')
+    reason = 'Shared underlying data: the held class hedge is not represented.'
+  else if (fund.acquisitionState !== 'acquired')
+    reason = 'A readable, identity-verified composition is required.'
+  else if (!allocationEstimateFunds.has(fund.isin))
+    reason = 'This fund/class context is not supported for illustrative values.'
+  else if (!fund.evidence.identityVerified || !fund.evidence.manifestVerified)
+    reason = 'Source identity and integrity must be verified.'
+  else if (fund.evidence.weightUnit !== 'percent')
+    reason = 'Explicit percentage units are required.'
+  else if (!fund.compositionDate) reason = 'The composition date is unknown.'
   reason ??= valuationReason
   const largestEquityWeight = rows.reduce((largest, row) => {
     const weight = plainEquity(row) ? reportedWeight(row.weightPercent) : null
@@ -98,12 +110,7 @@ export function illustrativeValues(
   return {
     kind: selectedMatches ? 'selected-allocation' as const : 'conditional' as const,
     reason,
-    valuationReason,
-    positionValue,
-    currency,
-    accountCount: positions.length,
-    holdingsAt: valuation.holdingsAt,
-    quoteDates,
+    ...saved,
     rows: rows.map((row) => {
       const weight = reportedWeight(row.weightPercent)
       const excluded =
