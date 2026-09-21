@@ -2,6 +2,12 @@
 
 Read the [project index](index.md) to locate the V2 plan and [V2 README](v2/README.md) for setup and checks. Active rebuild code is in `v2/`; root-level frontend, Python and Tauri commands exercise V1.
 
+The [architecture map](docs/architecture-map.html) explains the current flow and target extension boundaries.
+
+## Add an ETF source
+
+Use the [composition-provider skill](skills/portfolio-prism-composition-provider/SKILL.md) to research an exact ETF, reproduce the source as HTTP/CLI, and connect it through validation, persistence and the app. Agents can read this path directly or install the complete skill folder in their client's skill directory. The repository's `.agents/skills` link points to the same canonical files. This is guidance for reviewed bundled extensions; the general SDK remains in progress.
+
 ## Development boundaries
 
 - Build small working increments against the plan's acceptance criteria. Reuse V1 behavior only after checking its source contracts and known defects.
@@ -13,7 +19,16 @@ Read the [project index](index.md) to locate the V2 plan and [V2 README](v2/READ
 
 ## Verification
 
-Run the relevant commands in the [V2 checks section](v2/README.md#checks). For browser changes, use the synthetic browser scripts against a running local preview. They do not prove real broker compatibility. Source integrations also need bounded live evidence and replay where the plan requires it.
+Select checks by the changed behavior; commands and fixture requirements live in the [V2 runtime guide](v2/README.md#checks).
+
+| Change | Evidence |
+| --- | --- |
+| Core or TypeScript behavior | Typecheck, relevant tests and build |
+| UI behavior | Matching synthetic browser script and the affected journey in the browser, including keyboard access, narrow layouts and changed error/coverage states |
+| Sources, persistence or arithmetic | Saved-input replay on a SQLite-consistent copy, independent arithmetic and failure recovery; bounded live source evidence where required |
+| Documentation | Accurate claims and working links; exercise any changed interactive artifact |
+
+Use each recipe's documented fixture. Synthetic checks do not require a live login and do not prove broker compatibility. Private-data checks use isolated copies; an unavailable fixture stays an open check. The runtime guide explains offline mode's limits and safe local artifact locations.
 
 Record commands, results and remaining limits. Update the owning documentation when behavior changes. Move detailed completed-run notes to dated private references and link them from the plan. Do not use historical test counts as fresh verification.
 

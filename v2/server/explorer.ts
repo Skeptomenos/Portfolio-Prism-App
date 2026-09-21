@@ -1,6 +1,7 @@
 import { readPublicData } from './public-data'
 import { resourceRegistry, type TRClient } from 'trade-republic-sdk'
-import { classifyError, type DiagnosticDetail } from './diagnostics'
+import type { DiagnosticDetail } from './diagnostics'
+import { classifyTradeRepublicError as classifyError } from './trade-republic-errors'
 
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json }
 export interface DataSource {
@@ -284,6 +285,18 @@ export async function extractData(
       if (detail.category === 'authentication') throw error
     }
   }
+  // Keep one previously saved observation for a failed item. Fresh successes replace
+  // it normally; never invent a new quote timestamp or merge ambiguous duplicates.
+  const retainedItem = (sourceId: string, isin: string, field: 'response' | 'quote', venue?: string) => {
+    const previous = result.get(sourceId)?.payload
+    // A first import (or previously failed source) has no observation to retain.
+    // Missing optional history must not discard other instruments' fresh results.
+    if (!Array.isArray(previous)) return {}
+    const matches = previous.filter(row => row !== null && typeof row === 'object' && !Array.isArray(row) &&
+      row.isin === isin && (!venue || row.venue === venue))
+    if (matches.length !== 1 || !object(matches[0])[field]) return {}
+    return { ...object(matches[0]), retained: true, attemptedAt: new Date().toISOString() }
+  }
   const read = (id: string, args: Record<string, string | boolean> = {}) =>
     transport.read(id, args, signal)
   if (mode === 'refresh' || mode === 'valuation') {
@@ -366,7 +379,7 @@ export async function extractData(
             } catch (error) {
               signal.throwIfAborted()
               if (classifyError(error).category === 'authentication') throw error
-              payload.push({ isin, error: classifyError(error) })
+              payload.push({ ...retainedItem(sourceId, isin, 'response'), isin, error: classifyError(error) })
             }
           }
           return {
@@ -398,7 +411,7 @@ export async function extractData(
         } catch (error) {
           signal.throwIfAborted()
           if (classifyError(error).category === 'authentication') throw error
-          payload.push({ isin, venue: 'LSX', error: classifyError(error) })
+          payload.push({ ...retainedItem('quotes', isin, 'quote', 'LSX'), isin, venue: 'LSX', error: classifyError(error) })
         }
       }
       return {

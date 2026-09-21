@@ -1,38 +1,23 @@
+import { tradeRepublicObservation } from './trade-republic-observation'
+import { valuationSource } from './history-observation'
+import type { FinancialObservation } from './financial-observation'
 import { extractData, sdkTransport, type DataSource } from './explorer'
-import { classifyError, httpStage, type Diagnostic, type DiagnosticStage } from './diagnostics'
+import type { DiagnosticStage } from './diagnostics'
+import { classifyTradeRepublicError as classifyError, httpStage } from './trade-republic-errors'
 import { createHash } from 'node:crypto'
 import { TRClient, TRAuthError, TRHttpError, type Socket } from 'trade-republic-sdk'
 import { Entry } from '@napi-rs/keyring'
 import WebSocket from 'ws'
 import { decodeSnapshot, type Snapshot } from './model'
 
-export type BrokerObserver = (
-  event: Pick<
-    Diagnostic,
-    'stage' | 'event' | 'category' | 'durationMs' | 'httpStatus' | 'networkCode' | 'sourceId'
-  >
-) => void
-export interface Broker {
-  readData?(
-    previous: DataSource[],
-    save: (source: DataSource) => void,
-    signal: AbortSignal,
-    mode: 'refresh' | 'continue' | 'valuation'
-  ): Promise<void>
-  observe?(observer: BrokerObserver): void
-  login(phone: string, pin: string, signal: AbortSignal, pending: () => void): Promise<void>
-  restore(signal: AbortSignal): Promise<boolean>
-  fetch(signal: AbortSignal): Promise<Snapshot>
-  logout(): void
-  close(): void
-  warning(): string | null
-}
+import { BrokerFailure, validateAuth, brokerContractVersion, type Broker, type BrokerObserver, type SessionVault, type AuthInput, type AuthState, type BrokerProvider } from './broker-contract'
+export type { Broker, BrokerObserver, SessionVault } from './broker-contract'
 
-export interface SessionVault {
-  getPassword(): string | null
-  setPassword(value: string): void
-  deleteCredential(): boolean
-}
+export const tradeRepublicAuth = { fields: [
+  { id: 'phone', label: 'Phone number', secret: false, pattern: '^\\+[1-9]\\d{6,14}$', maxLength: 16 },
+  { id: 'pin', label: 'PIN', secret: true, pattern: '^\\d{4}$', maxLength: 4 },
+], approval: 'external', restore: true } as const
+
 export class TradeRepublicBroker implements Broker {
   private observer: BrokerObserver = () => {}
   observe(observer: BrokerObserver): void {
@@ -40,6 +25,7 @@ export class TradeRepublicBroker implements Broker {
   }
   private client: TRClient
   private sessionWarning: string | null = null
+  private accounts: string[] = []
   private activeSignal: AbortSignal | undefined
   constructor(
     private readonly entry: SessionVault = new Entry('PortfolioPrismV2', 'trade-republic-session'),
@@ -122,6 +108,11 @@ export class TradeRepublicBroker implements Broker {
         'Session could not be saved in the system credential store. You may need to reconnect after restart.'
     }
   }
+  async authenticate(input: AuthInput, signal: AbortSignal, state: (state: AuthState) => void): Promise<void> {
+    const { phone, pin } = validateAuth(tradeRepublicAuth, input)
+    try { await this.login(phone, pin, signal, () => state('awaiting-approval')) }
+    catch (error) { throw new BrokerFailure(classifyError(error)) }
+  }
   async login(phone: string, pin: string, signal: AbortSignal, pending: () => void): Promise<void> {
     this.activeSignal = signal
     try {
@@ -199,7 +190,8 @@ export class TradeRepublicBroker implements Broker {
       const response = await this.observed('portfolio_retrieval', () =>
         this.client.compactPortfolioByType.get({ secAccNo: account }, { signal, timeoutMs: 30_000 })
       )
-      if (response?.products?.length) throw new Error('Unrecognized portfolio products')
+      if (response?.products !== undefined && (!Array.isArray(response.products) || response.products.length))
+        throw new Error('Unrecognized portfolio products')
       if (!response || !Array.isArray(response.categories))
         throw new Error('Invalid portfolio response')
       for (const category of response.categories) {
@@ -215,6 +207,7 @@ export class TradeRepublicBroker implements Broker {
           })
       }
     }
+    this.accounts = accounts.map(account => createHash('sha256').update(account).digest('hex').slice(0,16))
     const result = await this.observed('snapshot_validation', () =>
       decodeSnapshot({ fetchedAt: new Date().toISOString(), positions })
     )
@@ -242,6 +235,27 @@ export class TradeRepublicBroker implements Broker {
       this.activeSignal = undefined
     }
   }
+  async readHoldings(signal: AbortSignal) {
+    const snapshot = await this.fetch(signal)
+    return { snapshot, completeness: snapshot.positions.length ? 'complete' as const : 'authoritative-empty' as const, accounts: this.accounts }
+  }
+  async readObservations(previous: readonly FinancialObservation[], save: (value: FinancialObservation) => void, signal: AbortSignal): Promise<void> {
+    const legacy = previous.map(o => valuationSource({ ...o,
+      instruments: o.instruments.map(i => ({ ...i, priceFactor: i.unit === 'per-security' ? 1 : null })),
+      // This compatibility path does not convert new decimal strings to numbers.
+      cash: o.cash.map(c => ({ ...c, amount: null })),
+    }))
+    await this.readData(legacy, source => {
+      const value = tradeRepublicObservation(source)
+      if (!value) return
+      // A failed extraction retains the old source, not a newly observed balance.
+      // Keep canonical decimal cash directly; the legacy numeric wire adapter must
+      // neither erase it nor round it through a JavaScript number.
+      const retainedCash = source.id === 'cash' && source.status === 'failed'
+        ? previous.find(o => o.sourceId === 'cash') : undefined
+      save(retainedCash ? { ...value, observedAt: retainedCash.observedAt, cash: retainedCash.cash } : value)
+    }, signal, 'valuation')
+  }
   logout(): void {
     this.client.logout()
     this.entry.deleteCredential()
@@ -263,4 +277,22 @@ export function brokerError(error: unknown): string {
   if (error instanceof TRHttpError && error.status === 403)
     return 'Trade Republic refused the connection.'
   return 'The operation could not complete. Retry or reconnect.'
+}
+
+export const tradeRepublicProvider: BrokerProvider = {
+  id: 'trade-republic', version: '1.0.0', contractVersion: brokerContractVersion,
+  auth: tradeRepublicAuth,
+  create: ({ vault }) => {
+    const adapter = new TradeRepublicBroker(vault)
+    const safe = async <T>(work: () => Promise<T>) => { try { return await work() } catch (error) { throw new BrokerFailure(classifyError(error)) } }
+    return {
+      authenticate: (input, signal, state) => safe(() => adapter.authenticate(input, signal, state)),
+      restore: signal => safe(() => adapter.restore(signal)),
+      readHoldings: signal => safe(() => adapter.readHoldings(signal)),
+      fetch: signal => safe(() => adapter.fetch(signal)),
+      readObservations: (previous, save, signal) => safe(() => adapter.readObservations(previous, save, signal)),
+      readData: (previous, save, signal, mode) => safe(() => adapter.readData(previous, save, signal, mode)),
+      observe: observer => adapter.observe(observer), logout: () => adapter.logout(), close: () => adapter.close(), warning: () => adapter.warning(),
+    }
+  },
 }

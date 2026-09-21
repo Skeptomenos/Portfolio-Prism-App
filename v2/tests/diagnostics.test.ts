@@ -6,7 +6,9 @@ import { join } from 'node:path'
 import { TRHttpError } from 'trade-republic-sdk'
 import { SnapshotStore } from '../server/store'
 import { PortfolioService } from '../server/service'
-import { classifyError, httpStage } from '../server/diagnostics'
+import { classifyError } from '../server/diagnostics'
+import { httpStage } from '../server/trade-republic-errors'
+import { BrokerFailure } from '../server/broker-contract'
 import type { Broker } from '../server/broker'
 
 it('persists correlated failures across restart without credentials, raw messages or payloads', async () => {
@@ -14,8 +16,8 @@ it('persists correlated failures across restart without credentials, raw message
   const path = join(directory, 'db.sqlite')
   const secret = 'DO_NOT_RECORD_PIN_COOKIE_PHONE'
   const broker: Broker = {
-    login: async () => {
-      throw new TRHttpError(429, secret)
+    authenticate: async () => {
+      throw new BrokerFailure({ category: 'http', httpStatus: 429 })
     },
     restore: async () => false,
     fetch: async () => {
@@ -26,7 +28,7 @@ it('persists correlated failures across restart without credentials, raw message
     warning: () => null,
   }
   const service = new PortfolioService(broker, new SnapshotStore(path))
-  service.login(secret, secret)
+  service.login('+49123456789', '1234')
   await service.settled()
   const events = service.diagnostics()
   expect(events).toHaveLength(2)

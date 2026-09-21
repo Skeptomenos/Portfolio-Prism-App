@@ -1,3 +1,4 @@
+import { financialFulfill } from './fixtures/financial-wire.mjs'
 import { chromium, expect } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 const browser = await chromium.launch({ headless: true })
@@ -35,8 +36,8 @@ try {
       ],
     },
   }
-  await page.route('**/api/overview', (r) =>
-    r.fulfill({
+  await page.route('**/api/financial/overview', (r) =>
+    financialFulfill(r, {
       json: {
         rows: status.snapshot.positions.map((p) => ({
           ...p,
@@ -57,9 +58,9 @@ try {
       },
     })
   )
-  await page.route('**/api/status', (r) => r.fulfill({ json: status }))
+  await page.route('**/api/status', (r) => financialFulfill(r, { json: status }))
   await page.route('**/api/data', (r) =>
-    r.fulfill({
+    financialFulfill(r, {
       json: {
         sources: [
           {
@@ -87,10 +88,10 @@ try {
   let extraction = false
   await page.route('**/api/extract', (r) => {
     extraction = true
-    return r.fulfill({ status: 202, json: { accepted: true } })
+    return financialFulfill(r, { status: 202, json: { accepted: true } })
   })
-  await page.route('**/api/exposure', (r) =>
-    r.fulfill({
+  await page.route('**/api/financial/exposure', (r) =>
+    financialFulfill(r, {
       json: {
         rows: [],
         coverage: [],
@@ -101,8 +102,7 @@ try {
       },
     })
   )
-  await page.goto(process.env.PRISM_V2_URL ?? 'http://127.0.0.1:4310')
-  await expect(page.getByRole('heading', { name: 'Explore what your broker knows' })).toBeVisible()
+  await page.goto(`${process.env.PRISM_V2_URL ?? 'http://127.0.0.1:4310'}#portfolio`)
   await expect(page.locator('table').first().locator('tbody tr').first()).toContainText('Zeta fund')
   await page.getByRole('button', { name: /^Quantity/ }).click()
   await expect(page.locator('table').first().locator('tbody tr').first()).toContainText('Zeta fund')
@@ -111,6 +111,9 @@ try {
     'Alpha stock'
   )
   await expect(page.getByRole('columnheader', { name: /Estimated value/ })).toBeVisible()
+  await page.getByRole('link', { name: 'Data & connections', exact: true }).click()
+  await page.locator('.advanced-data > summary').click()
+  await expect(page.getByRole('heading', { name: 'Explore what your broker knows' })).toBeVisible()
   await page.getByRole('button', { name: 'Extract broker data' }).click()
   expect(extraction).toBe(true)
   await page
@@ -136,8 +139,8 @@ try {
   await page.setViewportSize({ width: 390, height: 844 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false)
   await page.screenshot({ path: 'v2/test-results/explorer-mobile.png', fullPage: true })
-  await page.route('**/api/overview', (r) =>
-    r.fulfill({
+  await page.route('**/api/financial/overview', (r) =>
+    financialFulfill(r, {
       json: {
         rows: [
           {
@@ -187,7 +190,8 @@ try {
       },
     })
   )
-  await page.reload()
+  await page.getByRole('button', { name: /Navigation menu/ }).click()
+  await page.getByRole('link', { name: 'Portfolio', exact: true }).click()
   await expect(page.getByText('0/2 nonzero positions valued')).toBeVisible()
   await expect(page.getByRole('row').filter({ hasText: 'Changed quantity' })).toContainText(
     'Quantity/quote basis unverified'
@@ -198,7 +202,7 @@ try {
   await expect(page.getByRole('row').filter({ hasText: 'Zero synthetic position' })).toContainText(
     '0.00 EUR'
   )
-  await expect(page.locator('main > section').first()).toHaveCSS('opacity', '1')
+  await expect(page.locator('.route-content').first()).toHaveCSS('opacity', '1')
   await page.screenshot({ path: 'v2/test-results/valuation-gaps-synthetic.png', fullPage: true })
   expect(errors).toEqual([])
   console.log(

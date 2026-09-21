@@ -1,3 +1,4 @@
+import { financialFulfill } from './fixtures/financial-wire.mjs'
 import { chromium, expect } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 import { Decimal } from 'decimal.js'
@@ -11,7 +12,7 @@ try {
     reducedMotion: 'reduce',
   })
   const errors = []
-  page.on('pageerror', () => errors.push('pageerror'))
+  page.on('pageerror', error => errors.push(error.message))
   const initial = real
     ? await (await fetch(`${origin}/api/exposure`)).json()
     : {
@@ -28,10 +29,11 @@ try {
   let failPoll = false
   let response = initial
   if (!real)
-    await page.route('**/api/exposure', (route) =>
-      failPoll ? route.fulfill({ status: 503, json: {} }) : route.fulfill({ json: response })
+    await page.route('**/api/financial/exposure', (route) =>
+      failPoll ? financialFulfill(route, { status: 503, json: {} }) : financialFulfill(route, { json: response })
     )
   if (!real) {
+    await page.route('**/api/financial/coverage', route => financialFulfill(route, { json: null }))
     // Do not record private broker data in synthetic screenshots.
     response = {
       ...initial,
@@ -108,7 +110,7 @@ try {
       refreshFailed: false,
     }
     await page.route('**/api/status', (r) =>
-      r.fulfill({
+      financialFulfill(r, {
         json: {
           phase: 'disconnected',
           snapshot: null,
@@ -119,8 +121,8 @@ try {
         },
       })
     )
-    await page.route('**/api/overview', (r) =>
-      r.fulfill({
+    await page.route('**/api/financial/overview', (r) =>
+      financialFulfill(r, {
         json: {
           rows: [],
           totals: [],
@@ -132,11 +134,11 @@ try {
         },
       })
     )
-    await page.route('**/api/data', (r) => r.fulfill({ json: { sources: [] } }))
+    await page.route('**/api/data', (r) => financialFulfill(r, { json: { sources: [] } }))
   }
-  await page.goto(origin)
+  await page.goto(`${origin}#breakdown`)
   const section = page.locator('.company-exposure')
-  await expect(section.getByRole('heading', { name: 'Company exposure' })).toBeVisible()
+  await expect(section.getByRole('heading', { name: 'Known security exposure' })).toBeVisible()
   await expect(section.getByText(/Stale composition/)).toBeVisible()
   const company = response.rows.find(
     (c) =>
@@ -147,7 +149,7 @@ try {
   await section.getByRole('searchbox').fill(company.isin)
   await expect(section.locator('.company-card')).toHaveCount(1)
   const card = section.locator('.company-card')
-  await card.locator('summary').focus()
+  await card.locator(':scope > summary').focus()
   await page.keyboard.press('Enter')
   await expect(card).toHaveAttribute('open', '')
   const money = (v) => `${new Decimal(v).toFixed(2)} ${company.currency}`
@@ -157,11 +159,11 @@ try {
     )
   ).toBeVisible()
   await expect(card.getByText(/Direct shares/)).toBeVisible()
-  await expect(card.getByText(/Via ETF/)).toBeVisible()
+  await expect(card.locator('a[href*="/fund/IE0031442068"]')).toBeVisible()
   await expect(
     section.getByRole('link', { name: 'Source: justETF top ten holdings' })
   ).toHaveAttribute('href', initial.composition.sourceUrl)
-  await section.getByText(/Coverage gaps \(/).click()
+  await section.getByText(/Portfolio-wide coverage gaps \(/).click()
   await expect(
     section.getByText(/No supported company composition or identity/).first()
   ).toBeVisible()
@@ -178,7 +180,7 @@ try {
           code: 'http',
         },
       }
-      await r.fulfill({ status: 202, json: { accepted: true } })
+      await financialFulfill(r, { status: 202, json: { accepted: true } })
     })
     await section.getByRole('button', { name: 'Refresh ETF composition' }).click()
     await expect(section.getByText(/Last successful composition retained/)).toBeVisible()
@@ -217,6 +219,75 @@ try {
   await section.screenshot({
     path: `v2/test-results/exposure-${real ? 'private-real' : 'synthetic'}-mobile.png`,
   })
+  if (!real) {
+    response = {
+      ...response,
+      refreshFailed: false,
+      composition: {
+        ...response.composition,
+        scope: 'full-holdings',
+        measure: 'issuer-reported-allocation-estimate',
+        sourceUrl:
+          'https://www.ishares.com/uk/individual/en/products/251900/ishares-sp-500-ucits-etf-inc-fund',
+        sourceChecks: [
+          {
+            id: 'local-use',
+            state: 'pending',
+            detail: 'Synthetic private-use review is unsettled.',
+            evidence: [],
+          },
+        ],
+        sourceAccounting: {
+          sourceRows: 12,
+          equityRows: 10,
+          nonEquityRows: 2,
+          unresolvedEquityRows: 0,
+          reportedPercent: '100.00005',
+          nonEquityPercent: '0.2',
+          byAssetClass: [
+            { assetClass: 'Equity', rows: 10, weightPercent: '99.80005' },
+            { assetClass: 'Cash', rows: 1, weightPercent: '0.1' },
+            { assetClass: 'Futures', rows: 1, weightPercent: '0.1' },
+          ],
+        },
+      },
+    }
+    await expect(
+      section.getByRole('link', { name: 'Source: issuer full-holdings dataset', exact: true })
+    ).toHaveAttribute('href', response.composition.sourceUrl)
+    await expect(
+      section.getByText('Exact ISIN · issuer allocation estimate', { exact: true })
+    ).toBeVisible()
+    await expect(
+      section.getByText(/not exact accounting-NAV or economic reconciliation/)
+    ).toBeVisible()
+    await expect(section.locator('.source-local-use')).toContainText(
+      'pending: Synthetic private-use review is unsettled.'
+    )
+    await expect(section.locator('.source-accounting')).toContainText(
+      '12 rows · 10 equity · 2 non-equity'
+    )
+    await section.getByText('Reported asset classes', { exact: true }).click()
+    await expect(
+      section.getByText('Futures: 1 rows · 0.1% reported weight', { exact: true })
+    ).toBeVisible()
+    await expect(section.getByRole('button', { name: /Refresh/ })).toHaveCount(0)
+    await expect(
+      section.getByText(
+        /justETF top ten holdings|one partial iShares pilot|Exact ISIN · partial pilot/
+      )
+    ).toHaveCount(0)
+    await expect(
+      card.getByText(/Known direct: 100.00 EUR · Known indirect: 10.00 EUR/)
+    ).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false)
+    await section.screenshot({ path: 'v2/test-results/exposure-full-source-synthetic-mobile.png' })
+    // Missing operational evidence is unknown, not silently treated as permission.
+    response = { ...response, composition: { ...response.composition, sourceChecks: undefined } }
+    await expect(section.locator('.source-local-use')).toContainText(
+      'not recorded: No local-use finding supplied.'
+    )
+  }
   expect(errors).toEqual([])
   console.log(
     `Exposure UI passed (${real ? 'real saved portfolio' : 'synthetic failure/recovery'}): contribution arithmetic, source/date, keyboard disclosure, gaps, mobile overflow, no page errors.`

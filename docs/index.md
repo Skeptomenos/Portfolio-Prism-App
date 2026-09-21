@@ -1,14 +1,19 @@
 # Documentation map
 
-Reconciled: 2026-09-07. **Current implementation: V2.**
+Active application: **Portfolio Prism V2**. Reconciled: 2026-09-21.
 
-| Classification | Where to read | Authority and use |
+| Classification | Document | Owns |
 | --- | --- | --- |
-| Current V2 | [Project index](../index.md), [README](../README.md), [runtime contracts](../v2/README.md), [contribution guide](../CONTRIBUTING.md) | Product, active plan route, setup and checks. |
-| Useful V1 reference | [Archive inventory](v1/index.md) | Consult for a specific legacy implementation or source question; verify before reuse. |
-| Superseded | [Archive inventory](v1/index.md) | Explains earlier decisions; replaced by current V2 documents and plan. |
-| Obsolete | [Archive inventory](v1/index.md) | Historical tooling observations retained for provenance; not current setup guidance. |
+| Current product | [README](../README.md) | Purpose and quick start |
+| Current navigation | [Project index](../index.md) | Where to continue and who owns each fact |
+| Current runtime | [V2 README](../v2/README.md) | Implemented behavior, setup and verification recipes |
+| Visual explanation | [Architecture map](architecture-map.html) | Dated application/pipeline diagrams, code pointers and explicit current/target separation; opens offline |
+| Adopted target | [Plugin architecture](plugin-architecture.md) | Core/host/extension boundaries; not a claim that the SDK or loader exists |
+| Adopted product contract | [Exposure coverage](exposure-coverage-contract.md) | Coverage meaning, visible gaps and acceptance rules |
+| Accepted target extension | [Portfolio history and performance](portfolio-history-and-performance.md) | Implemented H1 observation/checkpoint foundation; later timeline, event reconciliation, invested capital and return targets |
+| Implementation contract | [H1 history API](history-api-contract.md) | Implemented H1 wire types, examples and endpoint semantics; historical company projections remain open |
+| Implementation contract | [Financial views](financial-view-contract.md) | Versioned financial projections, scoped clients, analytics/view registration and lifecycle verification |
+| Current contribution path | [Contributing](../CONTRIBUTING.md) | Safe changes and relevant checks |
+| Historical only | [V1 archive](v1/index.md) | Earlier designs and runbooks; not current runtime instructions |
 
-The single V2 delivery plan lives at `_planning/strategy/v2-mission-and-delivery-plan.md` in the monorepo. Follow the [project index](../index.md) for the private/public boundary and the next phase. No parallel execution plan lives here.
-
-The [V1 infrastructure](../infrastructure/README.md) stays at its existing path because V1 still references it. Its deployment status has not been verified.
+The private `_planning/strategy/v2-mission-and-delivery-plan.md` owns delivery status. The [project index](../index.md) explains its public-split boundary. Dated reports remain evidence, not a second execution plan. The [retained infrastructure](../infrastructure/README.md) belongs to V1 and is not a V2 runtime dependency.

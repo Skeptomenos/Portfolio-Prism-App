@@ -29,7 +29,14 @@ export interface Composition {
   sha256: string
   parserVersion: 1
   weightUnit: 'percent'
-  scope: 'top-ten'
+  scope: 'top-ten' | 'full-holdings'
+  measure?: 'issuer-reported-allocation-estimate'
+  estimateLimitation?: { qualifier: string; nextAction: string }
+  provider?: { id: string; version: string; contractVersion: string; policyVersion: string }
+  sourceAccounting?: import('./composition-provider').SourceAccounting
+  sourceChecks?: import('./composition-provider').SourceCheck[]
+  sourceParserVersion?: string
+  sourceRows?: import('./composition-provider').SourceRow[]
   rows: Constituent[]
   disclosedPercent: string
   identifiedPercent: string

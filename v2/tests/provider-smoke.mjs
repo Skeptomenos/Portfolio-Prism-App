@@ -1,0 +1,71 @@
+import { chromium, expect } from '@playwright/test'
+import { Decimal } from 'decimal.js'
+import { mkdir, readFile } from 'node:fs/promises'
+
+// Read-only acceptance against an offline copied database and independent audit.
+const [auditPath, outputDir] = process.argv.slice(2)
+if (!auditPath || !outputDir) throw new Error('Usage: provider-smoke.mjs PRIVATE_AUDIT.json PRIVATE_SCREENSHOT_DIR')
+const audit = JSON.parse(await readFile(auditPath, 'utf8'))
+const origin = process.env.PRISM_V2_URL ?? 'http://127.0.0.1:4319'
+const json = async path => { const response = await fetch(origin + path); expect(response.ok).toBe(true); return response.json() }
+const before = await json('/api/exposure')
+const attempts = await json('/api/compositions/status')
+expect(before.compositions).toHaveLength(5)
+expect(before.compositions.every(source => source.provider && source.asOf)).toBe(true)
+expect(before.coverage).toEqual(audit.afterCoverage)
+const nvidia = before.rows.find(row => row.isin === 'US67066G1040' && row.currency === 'EUR')
+expect(nvidia.knownTotal).toBe(audit.nvidiaEUR.after)
+expect(nvidia.knownTotal).not.toBe(audit.nvidiaEUR.before)
+expect(nvidia.contributions.filter(row => row.kind === 'etf')).toHaveLength(5)
+const fund = await json('/api/development/etf/IE0031442068')
+const source = before.compositions.find(row => row.fundIsin === fund.isin)
+const holding = fund.rows.find(row => row.isin === nvidia.isin)
+const contribution = nvidia.contributions.find(row => row.positionIsin === fund.isin)
+const money = value => `${new Decimal(value).toFixed(2)} EUR`
+await mkdir(outputDir, { recursive: true, mode: 0o700 })
+const browser = await chromium.launch({ headless: true })
+try {
+  const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+  const errors = [], mutations = []
+  page.on('pageerror', error => errors.push(error.message))
+  page.on('request', request => { if (request.method() !== 'GET') mutations.push(request.url()) })
+  await page.goto(`${origin}/#/data`)
+  await expect(page.getByRole('button', { name: 'Refresh held funds' })).toBeVisible()
+  for (const isin of Object.keys(attempts.attempts)) await expect(page.getByText(isin, { exact: true }).first()).toBeVisible()
+  await page.goto(`${origin}/#/fund/${fund.isin}`)
+  await page.getByLabel('Filter retained rows').fill('NVIDIA')
+  const row = page.locator('.progress-detail-table tbody tr').filter({ hasText: holding.name })
+  await expect(row).toContainText('Included')
+  await expect(row).toContainText(money(contribution.value))
+  await row.getByRole('link', { name: holding.name, exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Security detail', exact: true })).toBeFocused()
+  await expect(page.locator('.company-card > summary')).toContainText(money(nvidia.knownTotal))
+  await expect(page.locator('.company-card tbody tr')).toHaveCount(6)
+  const selected = page.locator('.selected-contribution')
+  await expect(selected).toHaveCount(1)
+  await selected.locator('summary').click()
+  await expect(selected).toContainText(source.asOf)
+  await expect(selected).toContainText(source.sha256)
+  await expect(selected).toContainText(contribution.weightPercent)
+  await expect(selected).toContainText(contribution.value)
+  await page.screenshot({ path: `${outputDir}/security-desktop.png`, fullPage: true })
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: 844 })
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await expect(selected).toContainText(contribution.value)
+    await page.screenshot({ path: `${outputDir}/security-${width}.png`, fullPage: true })
+  }
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.goto(`${origin}/#/breakdown`)
+  await page.getByLabel('Find a security or ISIN').fill('NVIDIA')
+  await expect(page.locator('.company-card > summary')).toContainText(money(nvidia.knownTotal))
+  await page.getByText(/^Portfolio-wide coverage gaps/).click()
+  await expect(page.getByText(/not exposure to the selected security/)).toBeVisible()
+  expect(errors).toEqual([])
+  expect(mutations).toEqual([])
+  const after = await json('/api/exposure')
+  expect(after.rows).toEqual(before.rows)
+  expect(after.coverage).toEqual(before.coverage)
+  expect(await json('/api/compositions/status')).toEqual(attempts)
+  console.log('Passed: provider outcomes, later-publication fund → security → Breakdown, exact provenance, independent-audit totals, 320/390px layout, no mutations or page errors.')
+} finally { await browser.close() }

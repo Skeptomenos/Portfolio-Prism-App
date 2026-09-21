@@ -30,7 +30,7 @@ try {
   const view = () =>
     exposure(
       overview(store.latest(), store.sources(), now, store.quantityObservations()),
-      store.composition(),
+      store.selectedCompositions(),
       store.compositionAttempt(),
       false,
       now

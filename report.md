@@ -1,5 +1,7 @@
 # OpenCode Migration Report
 
+> Historical V1 tooling log. Its tasks and commands are superseded by the [current project index](index.md). The shared-skill installer, verifier and duplicate project skills were removed on 2026-09-20; references below describe the old implementation.
+
 > Created: 2026-03-07
 > Updated: 2026-03-08
 > Status: in_progress

@@ -48,6 +48,11 @@ export interface OperationOutcome {
   sources: { id: string; status: DataSource['status'] }[]
 }
 export type Status = {
+  connected: boolean
+  activeOperation: 'portfolio' | 'extraction' | null
+  automaticRefresh: { enabled: boolean; intervalMinutes: number; sessionRestoreEnabled: boolean }
+  lastPortfolioAttempt: Diagnostic | null
+  lastSuccessfulSyncAt: string | null
   outcome: OperationOutcome | null
   lastDiagnostic: Diagnostic | null
   phase: 'disconnected' | 'connecting' | 'awaiting-approval' | 'restoring' | 'connected' | 'syncing'

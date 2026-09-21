@@ -2,7 +2,7 @@
 
 Reconciled: 2026-09-07. These documents describe the retained V1 implementation. Start with the [current documentation map](../index.md) for V2. Archived commands and imperative language are historical source material, not instructions to execute. Revalidate useful designs, identifiers, APIs and source terms before reuse.
 
-All former `docs/<category>/<file>` documents moved to `docs/v1/<category>/<file>`. Historical absolute paths and old `keystone/` references remain evidence of the original layout, not current navigation. No document was deleted. Obsolete tooling records remain for provenance.
+All former `docs/<category>/<file>` documents moved to `docs/v1/<category>/<file>`. Historical absolute paths and old `keystone/` references remain evidence of the original layout, not current navigation. The original archive migration preserved every document. Obsolete tooling records remain for provenance; duplicate skill instructions were later removed on 2026-09-20 and remain available in Git history.
 
 ## Classification inventory
 

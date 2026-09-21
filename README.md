@@ -1,35 +1,47 @@
 # Portfolio Prism
 
-Portfolio Prism helps you understand which companies you own across individual stocks and ETFs. A company can appear in several funds as well as in a direct holding. Prism aims to combine those contributions so you can see concentration and shape your portfolio around your intentions.
+Understand what you own across direct stocks and ETFs, with a source for each contribution and a visible explanation of what is still missing.
 
-## Current implementation
+**The active application is V2, under `v2/`: TypeScript/Effect, React/Vite and SQLite.** Start with the [interactive architecture map](docs/architecture-map.html) to explore the application, data pipeline and extension boundaries. Download the HTML and open it locally; it needs no server or network connection.
 
-V2 is a local browser application under `v2/`. It connects to Trade Republic through an unofficial API client, stores holdings and broker source data locally, and shows sortable holdings with estimated values, quote dates and explicit coverage gaps. Cash is shown separately. Local diagnostics explain failed operations without recording credentials.
+## What works today
 
-The one-ETF pilot combines direct stocks with dated, partial holdings from the iShares Core S&P 500 UCITS ETF USD (Dist). It shows each contribution, source, date and unresolved remainder. Other ETFs and cross-share-class company aggregation remain unsupported. The [project index](index.md#separate-ongoing-work) routes ongoing acquisition and reference design work to their separate branches. The current preview is not a completed portfolio analysis release; broker valuation reconciliation and daily-use acceptance remain open.
+- Connect to Trade Republic through its unofficial API client and retain portfolio snapshots locally. Inspect positions, cash, saved broker quotes and diagnostics.
+- Acquire full holdings for supported iShares funds through bounded direct HTTP requests. Normal refresh needs neither a browser nor an LLM. Core checks fund identity, dates, identifiers, units and weight basis before using a source.
+- Combine direct positions with supported ETF allocations by exact security ISIN. Each contribution retains its fund name, source, composition date and valuation evidence. A reviewed Alphabet A/C relationship also supports a bounded issuer subtotal; general company resolution remains unfinished.
+- Keep the last good source after a failed refresh and replay saved evidence after restart. Show supported allocation, unassigned value, unvalued positions and source freshness before results.
 
-## Run and test
+An issuer allocation estimate is not complete company exposure or full economic/NAV reconciliation. Hedged classes, synthetic funds, non-equity rows, identity relationships and broker valuation reconciliation have separate evidence requirements. The [runtime guide](v2/README.md) owns exact support and commands; the [project index](index.md) routes to delivery status.
 
-Use the [V2 setup guide](v2/README.md) for requirements, startup commands, checks, storage and diagnostics. V2 requires Node.js 22.13 or newer and pnpm. The default local URL is http://127.0.0.1:4310/.
+## Run and verify
 
-The backend uses TypeScript and Effect. The interface uses React and Vite. SQLite stores portfolio data, and the operating system credential store holds the broker session. Customized shadcn/ui and restrained Motion are the agreed interface direction; full component adoption and visual polish remain ahead.
+Requires Node.js 22.13 or newer and pnpm. From this directory:
+
+```sh
+pnpm --dir v2 install --frozen-lockfile
+pnpm --dir v2 dev
+```
+
+Open http://127.0.0.1:4310/. See the [runtime guide](v2/README.md#run) for storage, alternate ports, offline previews and connection handling, and [checks](v2/README.md#checks) for validation. Root-level package scripts belong to the retained legacy application.
 
 ## Data and trust
 
-Broker data and Prism calculations are labeled separately. Missing values stay unknown rather than becoming zero. Current estimates use supported broker bid quotes with listing currency and timestamps; subtotals remain separated by currency. The ETF pilot uses dated constituent evidence and exact security ISIN matches; company totals remain explicitly incomplete.
+Portfolio history and source evidence stay in local SQLite; broker sessions use the operating system credential store. Network access is needed to connect and obtain new broker or issuer data. Offline replay reads saved evidence and does not make prices fresh. Never put credentials or private portfolio records into logs, issue reports or public fixtures.
 
-Portfolio storage is local. Network access is required for broker login and refresh; the ETF pilot retrieves public composition from justETF. Offline access means reading saved data, not obtaining fresh prices. Login may require approval or reauthentication in the broker app. Never put PINs or session material in logs or issue reports.
+Missing exposure is unknown, not zero. Partial weights are not rescaled to 100%. Results retain separate currencies and quote dates. The [coverage contract](docs/exposure-coverage-contract.md) defines what each coverage measure means and which gaps must remain visible.
 
-## Product direction
+## Extend the application
 
-The first goal is “What do I actually own today?” Later options include comparing ETFs, simulating purchases, exploring investment themes and adding brokers. These are not delivered features. The interface should feel calm, precise and futuristic, with subtle classical proportions and clear information that supports personal agency.
+The [plugin architecture](docs/plugin-architecture.md) defines one shared plugin identity with typed broker, composition, enrichment, analytics and view capabilities. Core owns financial validation, identity, exposure and persistence. The common model, second provider and broader view/broker contracts are being delivered incrementally; a public plugin SDK, general loader and marketplace are not available yet.
 
-## Repository navigation
+## Find the right document
 
-- [Project index](index.md): documentation map and the continuation path for agents.
-- [V2 README](v2/README.md): current runtime and validation contracts.
-- [Contributing](CONTRIBUTING.md): development boundaries and verification.
-- [AGENTS.md](AGENTS.md): project instructions.
-- [V1 README reference](docs/v1/execution/v1-readme-reference.md): historical Tauri/Python design and setup.
+| Need | Start here |
+| --- | --- |
+| Understand the system visually | [Architecture map](docs/architecture-map.html) |
+| Run, configure or verify the application | [Runtime guide](v2/README.md) |
+| Find the current plan or a document owner | [Project index](index.md) |
+| Contribute code | [Contributing](CONTRIBUTING.md) and [agent instructions](AGENTS.md) |
+| Investigate the old implementation explicitly | [Legacy archive](docs/v1/index.md) |
 
-The root `src/` and `src-tauri/` trees hold V1. V2 is an isolated rebuild; V1 is retained for investigation and recovery, not as proof of correct V2 behavior. Private plans and reviews live under `_planning/` in the monorepo and are omitted from the public split. The index explains how to navigate either checkout.
+The legacy `src/`, `src-tauri/` and `infrastructure/` trees are preserved for research and recovery. Their Python/Tauri/Supabase setup does not govern V2. Private `_planning/` documents are omitted from the public split; public setup and architecture documents remain usable without them.

@@ -1,32 +1,36 @@
 # Portfolio Prism documentation index
 
-Reconciled: 2026-09-12. Active implementation: `v2/`. V1 remains in `src/` and `src-tauri/`.
+Active application: **V2 in `v2/`**. Reconciled: 2026-09-21.
 
-## Continue work
+## Start here
 
-In the monorepo, read `_planning/strategy/v2-mission-and-delivery-plan.md` first. It is the single V2 project plan and owns phase status, open acceptance gates and the next action. Its reference map tells you when to load implementation records, dataset priorities and ETF source findings.
+1. Read [AGENTS.md](AGENTS.md) for project constraints.
+2. Use [v2/README.md](v2/README.md) for the current runtime, supported behavior and verification commands.
+3. In the monorepo, continue through the [single delivery plan](_planning/strategy/v2-mission-and-delivery-plan.md). It owns phases, decisions, open gates and next actions. Follow its linked evidence only when needed.
 
-The `_planning/` directory is omitted from the public split. If it is absent, use the public documents below for implemented behavior; obtain the current plan before claiming to continue its next phase. Do not substitute an old V1 plan. Personal Linear project: [Portfolio Prism](https://linear.app/helmus/project/portfolio-prism-bd56b2ed13ac). Completed source integration: [DEV-175](https://linear.app/helmus/issue/DEV-175) via [PR #254](https://github.com/Skeptomenos/ai-dev/pull/254); DEV-26 remains V1 recovery work.
+The `_planning/` directory is omitted from the public split. If it is absent, use the public documents below; obtain the current plan before claiming to continue a private delivery phase. Live issue state belongs to the personal [Portfolio Prism project](https://linear.app/helmus/project/portfolio-prism-bd56b2ed13ac). Resolve current branches/PRs from Git and the tracker, not historical handoff notes.
 
 ## Read by task
 
-| Task | Document |
+| Need | Owner |
 | --- | --- |
-| Classify current and historical documentation | [Documentation map](docs/index.md) |
-| Investigate retained V1 infrastructure | [Infrastructure reference](infrastructure/README.md) |
-| Understand the problem and product | [README](README.md) |
-| Run V2, inspect storage, diagnostics or valuation contracts | [V2 README](v2/README.md) |
-| Implement or verify a change | [Contributing](CONTRIBUTING.md) and [agent instructions](AGENTS.md) |
-| Investigate earlier architecture and setup | [V1 README reference](docs/v1/execution/v1-readme-reference.md) |
-| Investigate earlier frontend conventions and tests | [V1 contribution reference](docs/v1/execution/v1-contributing-reference.md) |
-| Investigate earlier stabilization work | [V1 stabilization plan](docs/v1/execution/stabilization-and-self-dogfood-plan.md) |
+| Product purpose and quick start | [README](README.md) |
+| Visual system, pipeline and plugin explanation | [Architecture map](docs/architecture-map.html), also in the app’s **Wiki** tab — a dated code/target map, not live portfolio status |
+| Setup, API/storage contracts and checks | [Runtime guide](v2/README.md) |
+| Research and implement an ETF source | [Composition-provider skill](skills/portfolio-prism-composition-provider/SKILL.md) |
+| Core/host/plugin boundaries and contributor target | [Plugin architecture](docs/plugin-architecture.md) |
+| Financial view and analytics extension contracts | [Financial read/view contract](docs/financial-view-contract.md); broker connection contracts and checks are in the [runtime guide](v2/README.md) |
+| Coverage meaning, visible gaps and acceptance | [Coverage contract](docs/exposure-coverage-contract.md) |
+| Durable history, capital flows and return definitions | [History architecture](docs/portfolio-history-and-performance.md); H1 merged and active on the primary portfolio; later performance stages remain planned |
+| Parallel history/backend and view delivery | [Shared API contract](docs/history-api-contract.md), [execution handoff](_planning/strategy/2026-09-21-history-plugin-handoff.md) — handoff is private |
+| Development workflow and check selection | [Contributing](CONTRIBUTING.md#verification) |
+| Delivery phases and open acceptance | [Delivery plan](_planning/strategy/v2-mission-and-delivery-plan.md) — private |
+| Plugin gaps and forward-phase validation | [Plugin plan](_planning/strategy/v2-plugin-support-plan.md) — private |
+| History milestones and validation | [History plan](_planning/strategy/v2-history-and-performance-plan.md), [combined H1 evidence](_planning/reviews/2026-09-21-history-integration.md) — private; combined acceptance passed; merged and primary activation verified |
+| Documentation classification | [Documentation map](docs/index.md) |
 
-## Document ownership
+## Historical material
 
-The README owns product explanation; the V2 README owns current runtime contracts. The private delivery plan owns delivery status and decisions. Dated private references preserve observations and prior verification. Agent instructions route work and preserve project constraints. Older architecture, specs, plans and runbooks describe V1 unless explicitly marked V2; they do not override the rebuild plan or establish current release readiness.
+Use the [V1 archive](docs/v1/index.md) only for a specific legacy question. Retained V1 code lives in `src/`, `src-tauri/` and [infrastructure](infrastructure/README.md). The private [strategy inventory](_planning/strategy/INDEX.md) separates current plans from superseded strategies. Dated evidence records what was observed at that revision; old test counts, ports and branch references do not establish current readiness.
 
-## Separate ongoing work
-
-The partial V2 pilot and its scoped integration fixes are merged into main via #254. Later enrichment/acquisition work remains on `codex/portfolio-prism-v2` (last inspected `1d9c3829`) and `codex/portfolio-prism-etf-acquisition` (`ebd28a79`). Reference-only design work remains on `codex/portfolio-prism-design` (`e6eac9b7`). Resolve these with `git worktree list`; local-only branches may be absent from a fresh clone. Read their current plans before continuing that work. This integration does not import their later evidence, adapters or designs.
-
-Scoped integration: [_planning/strategy/2026-09-12-v2-pr-integration.md](_planning/strategy/2026-09-12-v2-pr-integration.md).
+The earlier one-ETF pilot and branch handoff are preserved in the [2026-09-12 integration record](_planning/strategy/2026-09-12-v2-pr-integration.md). They are not the current implementation or continuation route.

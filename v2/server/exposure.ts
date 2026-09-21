@@ -1,16 +1,19 @@
 import { Decimal } from 'decimal.js'
+import { issuerGroups, currentIdentityPolicy } from './issuer-relationships'
 import { pilotIsin, validIsin, type Composition, type CompositionAttempt } from './composition'
 import type { overview, ValuedPosition } from './overview'
 const D = Decimal.clone({ precision: 256 })
 export interface Contribution {
   kind: 'direct' | 'etf'
   positionIsin: string
+  positionName?: string
   account: string
   value: string | null
   positionValue: string | null
   weightPercent: string
   quoteAt: string | null
   quality: string
+  source?: { fundIsin: string; sha256: string; asOf: string | null; retrievedAt: string; url: string; measure: string; stale: boolean; parserVersion?: string; provider?: Composition['provider']; estimateLimitation?: Composition['estimateLimitation'] }
 }
 export interface CompanyExposure {
   isin: string
@@ -24,18 +27,28 @@ export interface CompanyExposure {
 }
 export function exposure(
   valuations: ReturnType<typeof overview>,
-  composition: Composition | null,
+  input: Composition | readonly Composition[] | null,
   attempt: CompositionAttempt | null,
   refreshing = false,
-  now = Date.now()
+  now = Date.now(),
+  identityPolicyVersion: string = currentIdentityPolicy.version
 ) {
+  const compositions: readonly Composition[] = input === null ? [] : Array.isArray(input) ? input : [input as Composition]
+  const selected = new Map<string, Composition>()
+  for (const source of compositions) {
+    if (selected.has(source.fundIsin)) throw Error('Multiple selected compositions for one fund')
+    selected.set(source.fundIsin, source)
+  }
+  // Compatibility field for the old single-pilot API; contributions carry their own source.
+  const composition = selected.get(pilotIsin) ?? compositions[0] ?? null
   const companies = new Map<string, CompanyExposure>()
   function add(
     isin: string,
     name: string,
     p: ValuedPosition,
     kind: Contribution['kind'],
-    weight: string
+    weight: string,
+    source?: Composition
   ) {
     const key = `${isin}:${p.currency}`
     const company = companies.get(key) ?? {
@@ -53,11 +66,16 @@ export function exposure(
       kind,
       account: p.account,
       positionIsin: p.isin,
+      positionName: p.name,
       positionValue: p.value,
       weightPercent: weight,
       value,
       quoteAt: p.quoteAt,
       quality: p.quality,
+      ...(source ? { source: { fundIsin: source.fundIsin, sha256: source.sha256, asOf: source.asOf,
+        retrievedAt: source.retrievedAt, url: source.sourceUrl, parserVersion: source.sourceParserVersion, provider: source.provider, measure: source.measure ?? 'partial-top-ten',
+        estimateLimitation: source.estimateLimitation,
+        stale: !source.asOf || now - Date.parse(source.asOf) > 30 * 86400000 } } : {}),
     })
     if (value !== null) {
       const field = kind === 'direct' ? 'direct' : 'indirect'
@@ -75,6 +93,7 @@ export function exposure(
     reason: string
   }[] = []
   for (const p of valuations.rows) {
+    const composition = selected.get(p.isin)
     if (new D(p.quantity).isZero()) continue
     if (new D(p.quantity).isNegative()) {
       gaps.push({
@@ -98,8 +117,8 @@ export function exposure(
           value: null,
           reason: p.quality,
         })
-    } else if (p.isin === pilotIsin && composition?.fundIsin === pilotIsin) {
-      for (const r of composition.rows) if (r.isin) add(r.isin, r.name, p, 'etf', r.weightPercent)
+    } else if (composition?.fundIsin === p.isin) {
+      for (const r of composition.rows) if (r.isin) add(r.isin, r.name, p, 'etf', r.weightPercent, composition)
       const unresolved = new D(100).sub(composition.identifiedPercent)
       gaps.push({
         account: p.account,
@@ -110,6 +129,8 @@ export function exposure(
         reason:
           p.value === null
             ? `ETF valuation unavailable: ${p.quality}`
+            : composition.scope === 'full-holdings'
+              ? `${unresolved.toFixed()}% outside admitted equity allocation; retained cash, collateral and futures remain separate. This is an issuer-reported allocation estimate, not NAV or full economic reconciliation.`
             : `${unresolved.toFixed()}% undisclosed or without a verified equity ISIN; includes any unreported cash and derivatives`,
       })
     } else
@@ -122,6 +143,7 @@ export function exposure(
         reason: 'No supported company composition or identity',
       })
   }
+  const heldFundIsins = new Set(valuations.rows.filter(position => position.instrumentType.toLowerCase() === 'fund' && new D(position.quantity).gt(0)).map(position => position.isin))
   const rows = [...companies.values()]
   const coverage = valuations.totals.map((t) => {
     const known = rows
@@ -144,16 +166,32 @@ export function exposure(
   )
   return {
     rows,
+    issuerGroups: issuerGroups(rows, identityPolicyVersion),
     coverage,
     gaps,
     composition,
+    compositions,
     attempt,
     refreshing,
     pilotOwned: valuations.rows.some((p) => p.isin === pilotIsin),
     holdingsAt: valuations.holdingsAt,
     missingValuations: valuations.missingCount,
+    directStockCoverage: valuations.rows.filter(position => position.instrumentType.toLowerCase() === 'stock').map(position => {
+      const matchedFunds = compositions.filter(source => heldFundIsins.has(source.fundIsin) && source.rows.some(row => row.isin === position.isin)).map(source => ({
+        fundIsin: source.fundIsin, sha256: source.sha256, asOf: source.asOf,
+      }))
+      return { isin: position.isin, name: position.name, account: position.account, currency: position.currency,
+        value: position.value, valuationStatus: position.valuationStatus, validIsin: validIsin(position.isin), matchedFunds,
+        finding: !validIsin(position.isin) ? 'Invalid security ISIN; verify broker identity before matching.' : matchedFunds.length
+          ? 'Exact security ISIN found in selected sources for currently held positive ETF positions.'
+          : 'No exact security ISIN in selected sources for currently held positive ETF positions. This does not establish absence from unsupported funds or a related share class.',
+        nextAction: !validIsin(position.isin) ? 'Obtain a corrected authoritative security identifier.' : matchedFunds.length
+          ? position.value === null ? 'Resolve the direct holding valuation; ETF contributions remain independently valued.' : 'Keep per-source updates and identity evidence current.'
+          : `${position.value === null ? 'Resolve the direct holding valuation. ' : ''}Inspect missing fund coverage or primary issuer share-class evidence; do not match by name or ticker.`,
+      }
+    }),
     stale:
-      !!composition && (!composition.asOf || now - Date.parse(composition.asOf) > 30 * 86400000),
+      compositions.some(source => !source.asOf || now - Date.parse(source.asOf) > 30 * 86400000),
     refreshFailed: attempt?.status === 'failed',
   }
 }

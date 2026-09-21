@@ -16,7 +16,7 @@ export class CompositionService {
     return this.pending !== null
   }
   refresh(automatic = false): boolean {
-    if (this.pending || !this.store.latest()?.positions.some((p) => p.isin === pilotIsin))
+    if (this.pending || !this.store.combinedSnapshot()?.positions.some((p) => p.isin === pilotIsin))
       return false
     const previous = this.store.compositionAttempt()
     if (
@@ -58,6 +58,7 @@ export class CompositionService {
           'Composition diagnostics could not be saved. Check local storage before retrying.'
       }
     }
+    this.store.history.start('composition-refresh', id, at)
     record('started')
     this.pending = Effect.runPromise(
       Effect.tryPromise({
@@ -72,6 +73,8 @@ export class CompositionService {
             status: 'success',
             code: null,
           })
+          this.store.history.capture(id, 'composition')
+          this.store.history.finish(id, 'succeeded')
           record('succeeded')
         },
         catch: (error) => error,
@@ -89,6 +92,7 @@ export class CompositionService {
               this.warning =
                 'Composition refresh failed and its status could not be saved. Check local storage.'
             }
+            this.store.history.finish(id, controller.signal.aborted ? 'cancelled' : 'failed')
             record(controller.signal.aborted ? 'cancelled' : 'failed', error)
           })
         )

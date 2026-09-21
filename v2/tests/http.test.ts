@@ -7,7 +7,7 @@ import { SnapshotStore } from '../server/store'
 import type { Broker } from '../server/broker'
 
 const broker: Broker = {
-  login: async () => {},
+  authenticate: async () => {},
   restore: async () => false,
   fetch: async () => ({ fetchedAt: new Date().toISOString(), positions: [] }),
   logout() {},

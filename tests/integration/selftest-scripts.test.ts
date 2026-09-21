@@ -24,38 +24,6 @@ async function createFakeBin() {
   return { tempDir, binDir }
 }
 
-async function createHomeSkillsRoot() {
-  const homeDir = await makeTempDir('portfolio-prism-home-')
-  const skillsRoot = path.join(homeDir, '.agents', 'skills')
-  await mkdir(skillsRoot, { recursive: true })
-  return { homeDir, skillsRoot }
-}
-
-async function writeSkillTree(skillsRoot: string, marker: string) {
-  const skills = ['repo-test-map', 'self-test-loop', 'frontend-qa', 'bug-repro']
-
-  for (const skill of skills) {
-    const skillDir = path.join(skillsRoot, skill)
-    await mkdir(skillDir, { recursive: true })
-    await writeFile(path.join(skillDir, 'SKILL.md'), `# ${skill}\nmarker=${marker}\n`, 'utf8')
-  }
-}
-
-async function withRepoAgentsHidden<T>(fn: () => Promise<T>) {
-  const hiddenPath = path.join(ROOT_DIR, '.agents')
-  const parkedPath = path.join(ROOT_DIR, '.agents.test-backup')
-
-  await rm(parkedPath, { recursive: true, force: true })
-  await execFile('mv', [hiddenPath, parkedPath], { cwd: ROOT_DIR })
-
-  try {
-    return await fn()
-  } finally {
-    await rm(hiddenPath, { recursive: true, force: true })
-    await execFile('mv', [parkedPath, hiddenPath], { cwd: ROOT_DIR })
-  }
-}
-
 async function runBashScript(scriptPath: string, args: string[], env: NodeJS.ProcessEnv = {}) {
   return execFile('bash', [scriptPath, ...args], {
     cwd: ROOT_DIR,
@@ -132,72 +100,6 @@ describe('selftest scripts', () => {
     const log = await readFile(pnpmLog, 'utf8')
     expect(result.stderr).toContain('[deprecated] use scripts/selftest/test-changed.sh')
     expect(log).toContain('test:unit')
-  })
-
-  it('mirrors home-level shared skills into a target shared skill root', async () => {
-    const { homeDir, skillsRoot } = await createHomeSkillsRoot()
-    const targetRoot = await makeTempDir('portfolio-prism-skill-mirror-')
-    cleanupPaths.push(homeDir)
-    cleanupPaths.push(targetRoot)
-
-    await writeSkillTree(skillsRoot, 'home-skill-source')
-
-    await withRepoAgentsHidden(async () => {
-      await runBashScript(path.join(ROOT_DIR, 'scripts/selftest/install-shared-skills.sh'), [], {
-        HOME: homeDir,
-        TARGET_ROOT: targetRoot,
-      })
-    })
-
-    await expect(stat(path.join(targetRoot, 'repo-test-map', 'SKILL.md'))).resolves.toBeDefined()
-    await expect(stat(path.join(targetRoot, 'self-test-loop', 'SKILL.md'))).resolves.toBeDefined()
-    await expect(stat(path.join(targetRoot, 'frontend-qa', 'SKILL.md'))).resolves.toBeDefined()
-    await expect(stat(path.join(targetRoot, 'bug-repro', 'SKILL.md'))).resolves.toBeDefined()
-
-    const mirroredSkill = await readFile(path.join(targetRoot, 'repo-test-map', 'SKILL.md'), 'utf8')
-    expect(mirroredSkill).toContain('marker=home-skill-source')
-  })
-
-  it('verifies home-level skill files and checks both runtimes for discovery', async () => {
-    const { tempDir, binDir } = await createFakeBin()
-    const { homeDir, skillsRoot } = await createHomeSkillsRoot()
-    cleanupPaths.push(tempDir)
-    cleanupPaths.push(homeDir)
-    const npxLog = path.join(tempDir, 'npx.log')
-
-    await writeSkillTree(skillsRoot, 'verify-home-skill-source')
-
-    await writeExecutable(
-      path.join(binDir, 'npx'),
-      '#!/usr/bin/env bash\nprintf "%s\n" "$*" >> "$FAKE_NPX_LOG"\n'
-    )
-
-    await withRepoAgentsHidden(async () => {
-      await runBashScript(path.join(ROOT_DIR, 'scripts/selftest/verify-shared-skills.sh'), [], {
-        HOME: homeDir,
-        PATH: `${binDir}:${process.env.PATH ?? ''}`,
-        FAKE_NPX_LOG: npxLog,
-      })
-    })
-
-    const log = await readFile(npxLog, 'utf8')
-    expect(log).toContain('skills ls -g -a codex')
-    expect(log).toContain('skills ls -g -a opencode')
-  })
-
-  it('fails verification when the expected home-level skill root is missing', async () => {
-    const missingSkillsRoot = await makeTempDir('portfolio-prism-missing-skills-')
-    cleanupPaths.push(missingSkillsRoot)
-
-    await rm(missingSkillsRoot, { recursive: true, force: true })
-
-    await withRepoAgentsHidden(async () => {
-      await expect(
-        runBashScript(path.join(ROOT_DIR, 'scripts/selftest/verify-shared-skills.sh'), [], {
-          HOME: missingSkillsRoot,
-        })
-      ).rejects.toBeTruthy()
-    })
   })
 
   it('exposes the Playwright selftest gate via package scripts', async () => {
