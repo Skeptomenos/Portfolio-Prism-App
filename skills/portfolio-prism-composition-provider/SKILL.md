@@ -11,7 +11,7 @@ Deliver a repeatable source-to-user path for an exact ETF. A downloaded file is 
 
 Find the Portfolio Prism root containing `AGENTS.md`, `index.md` and `v2/`. Read those entrypoints and the runtime guide. This skill ships with the public project; private plans and an existing investor database are optional. Use synthetic or explicitly redistributable fixtures when private evidence is unavailable.
 
-Read `docs/plugin-architecture.md` before changing boundaries and `docs/exposure-coverage-contract.md` before changing financial results or coverage. The current implementation supports reviewed, bundled TypeScript modules through explicit registration. It is not an arbitrary-plugin installer or a public stable SDK.
+Read `docs/plugin-architecture.md` before changing boundaries and `docs/exposure-coverage-contract.md` before changing financial results or coverage. The current implementation supports reviewed, bundled TypeScript modules through explicit registration. Use the [contributor SDK](../../docs/plugin-sdk.md) for entrypoints, the synthetic provider/panel and reusable conformance. It is not an arbitrary-plugin installer or a separately versioned stable package.
 
 ## Follow the evidence
 

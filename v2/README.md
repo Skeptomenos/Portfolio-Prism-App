@@ -27,6 +27,10 @@ Disconnect keeps portfolio history, clears the broker session and disables autom
 
 For a saved-data preview, set `PRISM_V2_OFFLINE=1` and point `PRISM_V2_DATA_DIR` at a SQLite-consistent private copy. Offline mode suppresses startup and periodic broker/composition refresh. It is not a read-only sandbox: explicit login, extraction and refresh controls remain available. Do not use those controls during offline acceptance.
 
+## Contributor package
+
+The [repository-local SDK](../docs/plugin-sdk.md) documents implemented extension contracts, registration, version/replay limits and public Operate/Extend skills. `pnpm --dir v2 conformance` reuses capability-specific synthetic suites. `pnpm --dir v2 example:check` verifies a synthetic provider through admission, SQLite reopen and a useful registered panel; `pnpm --dir v2 example:source` opens an isolated temporary-data demonstration. Run these from the project root. No private plan or captured portfolio is required. Live issuer/broker acceptance and actual split publication remain separate gates.
+
 ## Checks
 
 ```sh

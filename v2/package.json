@@ -10,7 +10,10 @@
     "dev": "tsx server/main.ts",
     "build": "tsc --noEmit && vite build",
     "test": "vitest run",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit",
+    "conformance": "tsx sdk/conformance/run.ts",
+    "example:source": "node --import tsx examples/synthetic-source/run.ts",
+    "example:check": "tsx examples/synthetic-source/smoke.ts"
   },
   "dependencies": {
     "@napi-rs/keyring": "2.0.0",

@@ -1,0 +1,10 @@
+/** Reviewed, trusted backend contributions; no storage or credentials are granted by this entrypoint. */
+export * from '../server/composition-provider'
+export * from '../server/composition-inspection'
+export * from '../server/broker-contract'
+export type { HoldingsObservation } from '../server/broker-holdings'
+export type { FinancialObservation } from '../server/financial-observation'
+export type { Snapshot, Position } from '../server/model'
+export type { PluginDescriptor, PluginActivationContext, PluginDiagnostic, PluginLifecycleState } from '../server/plugin-registry'
+export { pluginHostVersion, viewContributionContractVersion } from '../web/views/plugin-metadata'
+export { checkedDate, sourceHash } from '../server/composition-admission'

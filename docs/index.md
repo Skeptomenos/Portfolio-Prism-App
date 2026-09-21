@@ -13,6 +13,7 @@ Active application: **Portfolio Prism V2**. Reconciled: 2026-09-21.
 | Accepted target extension | [Portfolio history and performance](portfolio-history-and-performance.md) | Implemented H1 observation/checkpoint foundation; later timeline, event reconciliation, invested capital and return targets |
 | Implementation contract | [H1 history API](history-api-contract.md) | Implemented H1 wire types, examples and endpoint semantics; historical company projections remain open |
 | Implementation contract | [Financial views](financial-view-contract.md) | Versioned financial projections, scoped clients, analytics/view registration and lifecycle verification |
+| Implementation contract | [Contributor SDK](plugin-sdk.md) | Repository-local entrypoints, synthetic provider/panel, capability conformance and lifecycle limits |
 | Current contribution path | [Contributing](../CONTRIBUTING.md) | Safe changes and relevant checks |
 | Historical only | [V1 archive](v1/index.md) | Earlier designs and runbooks; not current runtime instructions |
 

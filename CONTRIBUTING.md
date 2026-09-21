@@ -2,11 +2,13 @@
 
 Read the [project index](index.md) to locate the V2 plan and [V2 README](v2/README.md) for setup and checks. Active rebuild code is in `v2/`; root-level frontend, Python and Tauri commands exercise V1.
 
+The [public contributor SDK](docs/plugin-sdk.md) catalogs implemented contracts and provides a synthetic provider/panel, reusable conformance and [Operate](skills/portfolio-prism-operate/SKILL.md)/[Extend](skills/portfolio-prism-extend/SKILL.md) agent workflows. Start there to add a bundled extension without private data.
+
 The [architecture map](docs/architecture-map.html) explains the current flow and target extension boundaries.
 
 ## Add an ETF source
 
-Use the [composition-provider skill](skills/portfolio-prism-composition-provider/SKILL.md) to research an exact ETF, reproduce the source as HTTP/CLI, and connect it through validation, persistence and the app. Agents can read this path directly or install the complete skill folder in their client's skill directory. The repository's `.agents/skills` link points to the same canonical files. This is guidance for reviewed bundled extensions; the general SDK remains in progress.
+Use the [composition-provider skill](skills/portfolio-prism-composition-provider/SKILL.md) to research an exact ETF, reproduce the source as HTTP/CLI, and connect it through validation, persistence and the app. Agents can read this path directly or install the complete skill folder in their client's skill directory. The repository's `.agents/skills` link points to the same canonical files. This is guidance for reviewed bundled extensions; the repository-local SDK guide describes the exercised contribution workflow and its limits.
 
 ## Development boundaries
 
