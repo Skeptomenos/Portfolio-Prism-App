@@ -260,12 +260,29 @@ describe('connection and sync lifecycle', () => {
     expect(service.status()).toMatchObject({
       connected: true,
       activeOperation: 'portfolio',
+      activeOperationName: 'restore',
       phase: 'syncing',
     })
     service.cancel()
     await service.settled()
     expect(service.status().snapshot).toEqual(sample())
     expect(service.status().phase).toBe('connected')
+    await service.close()
+  })
+  it('reports the stable active login identity while importing', async () => {
+    const broker = new FakeBroker()
+    const service = new PortfolioService(broker, new SnapshotStore(':memory:'))
+    broker.delayed = true
+    expect(service.login('+49123456789', '1234')).toBe(true)
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    expect(service.status()).toMatchObject({
+      connected: true,
+      activeOperation: 'portfolio',
+      activeOperationName: 'login',
+      phase: 'syncing',
+    })
+    service.cancel()
+    await service.settled()
     await service.close()
   })
 })

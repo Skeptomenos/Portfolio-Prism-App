@@ -28,18 +28,19 @@ describe('provider-neutral connections', () => {
     store.save({ fetchedAt:syntheticTime, positions:[{ account:'same-account',isin:'US0378331005',name:'Apple',quantity:'3',averageBuyIn:'0',instrumentType:'stock' }] })
     const baseline = overview(store.latest(),store.sources(),Date.parse(syntheticTime),store.quantityObservations())
     const c = await connect(host)
-    const value = store.overview(Date.parse(syntheticTime))
+    const checkpoint = store.history.runs().items[0].latestCheckpoint!
+    const replayAt = Date.parse(checkpoint.recordedAt)
+    const value = store.overview(replayAt)
     expect(value.rows[0]).toEqual(baseline.rows[0]) // USD quote must not value TR position.
     expect(value.rows[1].account).toBe(`${c.id}:same-account`)
     expect(value.totals[0]).toMatchObject({ currency:'USD',securities:'26234567665123456.76625',cash:'10000000000000000.01' })
-    const checkpoint = store.history.runs().items[0].latestCheckpoint!
     expect(store.history.replay(checkpoint.id).valuations.totals).toEqual(value.totals)
     registry.disable('synthetic-ledger-plugin')
     expect(() => host.sync(c.id)).toThrow()
     expect(store.history.replay(checkpoint.id).detail.replay.state).toBe('available')
     await host.close(); store.close()
     const reopened = setup(path)
-    expect(reopened.store.overview(Date.parse(syntheticTime))).toEqual(value)
+    expect(reopened.store.overview(replayAt)).toEqual(value)
     expect(reopened.store.history.replay(checkpoint.id).valuations.totals).toEqual(value.totals)
     await reopened.host.close(); reopened.store.close()
   })

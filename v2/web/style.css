@@ -51,6 +51,72 @@
 .connection-summary .notice {
   margin: 8px 0;
 }
+.auth-progress,
+.auth-result {
+  margin: 14px 0;
+  padding: 16px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.auth-progress h2,
+.auth-result h2 {
+  margin: 0;
+  font-size: clamp(18px, 2.4vw, 23px);
+  line-height: 1.25;
+}
+.auth-progress p,
+.auth-result p {
+  margin: 10px 0;
+}
+.auth-progress-status {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--muted);
+}
+.auth-progress-indicator {
+  width: 11px;
+  height: 11px;
+  flex: 0 0 11px;
+  border: 2px solid var(--rule);
+  border-top-color: var(--bronze);
+  border-radius: 50%;
+  animation: auth-progress-spin 900ms linear infinite;
+}
+@keyframes auth-progress-spin {
+  to { transform: rotate(360deg); }
+}
+.auth-progress-instruction {
+  max-width: 58ch;
+}
+.auth-progress-details {
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.auth-progress-details summary {
+  width: fit-content;
+  cursor: pointer;
+}
+.auth-progress-details p {
+  max-width: 75ch;
+}
+.auth-result .notice {
+  margin-bottom: 0;
+}
+.auth-progress :focus-visible,
+.auth-result :focus-visible {
+  outline: 2px solid var(--bronze);
+  outline-offset: 3px;
+}
+.connection-summary .auth-progress,
+.connection-summary .auth-result {
+  padding: 12px;
+}
+.connection-summary .auth-progress-details {
+  display: none;
+}
 .primary-action {
   display: inline-block;
   border-radius: 4px;
@@ -460,6 +526,9 @@ h3 {
 
 .status {
   text-transform: capitalize;
+}
+.auth-status {
+  text-transform: none;
 }
 
 .state-chip {

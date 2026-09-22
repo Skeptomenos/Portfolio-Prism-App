@@ -9,7 +9,7 @@ import { randomUUID } from 'node:crypto'
 import { classifyError, type Diagnostic, type DiagnosticStage } from './diagnostics'
 import { Data, Effect } from 'effect'
 import type { Broker } from './broker-contract'
-import type { OperationOutcome, Status } from './model'
+import type { ActiveOperationName, OperationOutcome, Status } from './model'
 import { SnapshotStore } from './store'
 import { CompositionService } from './composition-service'
 import { ProviderRefreshService } from './provider-refresh-service'
@@ -47,6 +47,7 @@ export class PortfolioService {
   private connected = false
   private attemptId: string | null = null
   private operationName: Diagnostic['operation'] = 'background'
+  private activeOperationName: ActiveOperationName | null = null
   private stage: DiagnosticStage = 'restoring'
   private diagnosticFailure = false
   private historyRun: string | null = null
@@ -133,6 +134,7 @@ export class PortfolioService {
           ? 'extraction'
           : 'portfolio'
         : null,
+      activeOperationName: this.operation ? this.activeOperationName : null,
       automaticRefresh: {
         enabled: this.automaticRefreshEnabled,
         intervalMinutes: 15,
@@ -254,15 +256,17 @@ export class PortfolioService {
   private start(
     phase: 'connecting' | 'restoring' | 'syncing',
     task: (signal: AbortSignal) => Promise<void>,
-    operationName?: Diagnostic['operation'],
+    operationName?: ActiveOperationName,
     localOnly = false
   ): boolean {
     const connection = this.store.connections.get(this.store.connections.defaultId)!
     if (this.operation || !connection.enabled || this.store.registry.brokerProvider(connection.providerId)?.version !== connection.providerVersion) return false
     this.attemptId = randomUUID()
-    this.operationName =
+    const activeOperationName =
       operationName ??
       (phase === 'connecting' ? 'login' : phase === 'restoring' ? 'restore' : 'sync')
+    this.operationName = activeOperationName
+    this.activeOperationName = activeOperationName
     this.historyRun = this.operationName === 'extraction' ? null : this.store.history.start('broker-sync', this.attemptId)
     this.stage = phase
     this.activeOutcome = null
@@ -334,6 +338,7 @@ export class PortfolioService {
       this.attemptId = null
       this.historyRun = null
       this.activeOutcome = null
+      this.activeOperationName = null
       this.operation = null
       this.controller = null
     })

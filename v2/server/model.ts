@@ -49,9 +49,11 @@ export interface OperationOutcome {
   events?: RefreshOutcome
   sources: { id: string; status: DataSource['status'] }[]
 }
+export type ActiveOperationName = 'login' | 'restore' | 'sync' | 'extraction'
 export type Status = {
   connected: boolean
   activeOperation: 'portfolio' | 'extraction' | null
+  activeOperationName: ActiveOperationName | null
   automaticRefresh: { enabled: boolean; intervalMinutes: number; sessionRestoreEnabled: boolean }
   lastPortfolioAttempt: Diagnostic | null
   lastEventAttempt?: Diagnostic | null

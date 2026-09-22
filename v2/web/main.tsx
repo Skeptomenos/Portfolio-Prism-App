@@ -286,7 +286,7 @@ function App() {
             {showCoverage && <CoverageSummary report={coverage.report} error={coverage.error} compact={!!fundIsin || !!securityIsin} />}
             {registeredView && <RegisteredViewHost entry={registeredView} params={route.params} presentation={{
               revision: status?.lastDiagnostic?.at, fundIsin, securityIsin, coverage: coverage.report,
-              connection: <ConnectionPanel compact status={status} busy={busy} error={advancedError ? null : error} action={action} />,
+              connection: <ConnectionPanel compact status={status} busy={busy} error={advancedError ? null : error} action={action} cancelling={submitting && actionPath === 'cancel'} />,
             }} />}
             {view === 'data' && (
               <>
@@ -295,6 +295,7 @@ function App() {
                   busy={busy}
                   error={advancedError ? null : error}
                   action={action}
+                  cancelling={submitting && actionPath === 'cancel'}
                 />
                 <ConnectionList />
                 <section className="panel composition-actions">
